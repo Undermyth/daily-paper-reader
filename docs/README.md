@@ -6,103 +6,81 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-14 ~ 2026-06-23
-- 运行时间：2026-06-23 07:55:14 UTC
+- 最新运行日期：2026-06-23
+- 运行时间：2026-06-23 21:29:21 UTC
 - 运行状态：成功
-- 本次总论文数：27
-- 精读区：15
+- 本次总论文数：19
+- 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-本周共读27篇论文，精读两篇9分力作，速读三篇8分创新，聚焦混合注意力机制与长上下文建模。  
-最值得关注的是GSS-Transformer混合架构对长序列的突破，以及Taylor-Calibrate为线性注意力蒸馏提供的理论初始化方案。  
-建议普通读者优先精读这两篇9分论文，理解其核心设计后，再结合速读中的可控稀疏性与双维度注意力拓展思路。
-- 详情：[/20260614-20260623/README](/20260614-20260623/README)
+共精读7篇、速读12篇，聚焦注意力机制混合与脉冲神经网络混合架构。
+
+最值得看《HydraHead》提出头部功能异质性实现专业化注意力混合，《Hybrid ANN-SNN Pipeline》结合局部可塑性。
+
+建议重点关注HydraHead的创新设计，并参考MambaCount在开放词汇目标计数中的文本引导思路。
+- 详情：[/202606/23/README](/202606/23/README)
 
 ### 精读区论文标签
-1. [Long-Context Modeling via GSS-Transformer Hybrid Architecture with Learnable Mixing](/20260614-20260623/2606.16093v1-long-context-modeling-via-gss-transformer-hybrid-architecture-with-learnable-mixing)  
+1. [HydraHead: From Head-Level Functional Heterogeneity to Specialized Attention Hybridization](/202606/23/2606.20097v1-hydrahead-from-head-level-functional-heterogeneity-to-specialized-attention-hybridization)  
    标签：评分：9.0/10、query:la
-   evidence：结合状态空间模型与注意力的混合架构，实现高效长上下文处理
-2. [Taylor-Calibrate: Principled Initialization for Hybrid Linear Attention Distillation](/20260614-20260623/2606.16429v1-taylor-calibrate-principled-initialization-for-hybrid-linear-attention-distillation)  
-   标签：评分：9.0/10、query:la
-   evidence：线性注意力模型初始化与蒸馏
-3. [Dense Holographic Associative Memories](/20260614-20260623/2606.18492v1-dense-holographic-associative-memories)  
-   标签：评分：9.0/10、query:la
-   evidence：光学实现现代Hopfield联想记忆
-4. [ITNet: A Learnable Integral Transform That Subsumes Convolution, Attention, and Recurrence](/20260614-20260623/2606.19538v1-itnet-a-learnable-integral-transform-that-subsumes-convolution-attention-and-recurrence)  
-   标签：评分：9.0/10、query:la
-   evidence：用于高效序列处理的线性注意力模型
-5. [FlowEdit: Associative Memory for Lifelong Pronunciation Adaptation in Flow-Matching TTS](/20260614-20260623/2606.20518v1-flowedit-associative-memory-for-lifelong-pronunciation-adaptation-in-flow-matching-tts)  
-   标签：评分：9.0/10、query:la
-   evidence：通过现代Hopfield网络实现关联记忆用于发音适应
-6. [Keyless Attention: Value-Space Routing and Value-Only Caching for Efficient Transformers](/20260614-20260623/2606.21848v1-keyless-attention-value-space-routing-and-value-only-caching-for-efficient-transformers)  
-   标签：评分：9.0/10、query:la
-   evidence：无键注意力与值缓存实现高效Transformer
-7. [Energy-Based Transformers as Predictors of Reading Difficulty](/20260614-20260623/2606.23382v1-energy-based-transformers-as-predictors-of-reading-difficulty)  
-   标签：评分：9.0/10、query:la
-   evidence：能量变压器与Hopfield网络和密集关联记忆的联系
-8. [Hippocampal replay reconfigures grid codes to support flexible navigation](/20260614-20260623/biorxiv-10-1101-2023-02-19-529130-v5-hippocampal-replay-reconfigures-grid-codes-to-support-flexible-navigation)  
+   evidence：结合线性注意力和全注意力的混合注意力实现高效长上下文处理
+2. [Hybrid ANN-SNN Pipeline with Local Plasticity](/202606/23/2606.20151v1-hybrid-ann-snn-pipeline-with-local-plasticity)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：海马回放重构网格编码以支持导航
-9. [The quasi systematic nature of splitter cells](/20260614-20260623/biorxiv-10-1101-2024-06-07-597927-v4-the-quasi-systematic-nature-of-splitter-cells)  
+   evidence：混合ANN-SNN中的局部可塑性规则
+3. [Hippocampal transformations occur along dimensions of memory interference](/202606/23/biorxiv-10-1101-2025-10-13-682242-v2-hippocampal-transformations-occur-along-dimensions-of-memory-interference)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：海马分裂细胞；随机循环结构支持潜在序列
-10. [Hierarchical substrates of prediction in visual cortical spiking](/20260614-20260623/biorxiv-10-1101-2024-10-02-616378-v5-hierarchical-substrates-of-prediction-in-visual-cortical-spiking)  
+   evidence：海马沿记忆干扰维度的转化
+4. [Sleep to forget: active control of consolidation and forgetting by slow-wave sleep dynamics](/202606/23/biorxiv-10-64898-2026-06-15-732460-v1-sleep-to-forget-active-control-of-consolidation-and-forgetting-by-slow-wave-sleep-dynamics)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：层次预测编码作为视觉皮层推理的计算机制
-11. [Phase-Specific Hippocampal and Cortical Medial Temporal Lobe Involvement in Allocentric Working Memory](/20260614-20260623/biorxiv-10-1101-2025-11-06-686935-v2-phase-specific-hippocampal-and-cortical-medial-temporal-lobe-involvement-in-allocentric-working-memory)  
+   evidence：利用STDP的生物物理模型研究睡眠中记忆巩固和遗忘的突触可塑性
+5. [Single-cell chromatin tracing reveals multimodal molecular programs during memory formation](/202606/23/biorxiv-10-64898-2026-06-16-732522-v1-single-cell-chromatin-tracing-reveals-multimodal-molecular-programs-during-memory-formation)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：海马体在空间工作记忆中的作用，与海马表示相关
-12. [A unified model of short- and long-term plasticity: Effects on network connectivity and information capacity](/20260614-20260623/biorxiv-10-1101-2025-11-07-687160-v2-a-unified-model-of-short--and-long-term-plasticity-effects-on-network-connectivity-and-information-capacity)  
+   evidence：通过染色质追踪揭示记忆形成过程中即早基因与次级应答基因的分子程序
+6. [Cell-type-specific cortical feedback coordinates hierarchical credit assignment](/202606/23/biorxiv-10-64898-2026-06-16-732595-v1-cell-type-specific-cortical-feedback-coordinates-hierarchical-credit-assignment)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：短时和长时突触可塑性的统一模型
-13. [Homeostatic Plasticity Enables Stable, Flexible, and Tunable Assemblies](/20260614-20260623/biorxiv-10-64898-2026-05-31-729097-v3-homeostatic-plasticity-enables-stable-flexible-and-tunable-assemblies)  
+   evidence：皮层反馈驱动依赖树突的爆发可塑性以实现信用分配
+7. [Intrinsic representational drift from predictive excitatory-inhibitory plasticity](/202606/23/biorxiv-10-64898-2026-06-17-733055-v1-intrinsic-representational-drift-from-predictive-excitatory-inhibitory-plasticity)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：突触可塑性与稳态可塑性在神经集群形成中的作用
-14. [Coordination of turn-related activity in the superior colliculus with locomotor dynamics and hippocampal representations of possible futures](/20260614-20260623/biorxiv-10-64898-2026-06-12-731955-v1-coordination-of-turn-related-activity-in-the-superior-colliculus-with-locomotor-dynamics-and-hippocampal-representations-of-possible-futures)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：海马表征可能的未来路径；导航与转向活动
-15. [Flexible decisions arise from resource-rational memory sampling](/20260614-20260623/biorxiv-10-64898-2026-06-15-732446-v1-flexible-decisions-arise-from-resource-rational-memory-sampling)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：灵活决策中的资源理性记忆采样
+   evidence：预测性兴奋-抑制可塑性驱动表示漂移
 
 ### 速读区论文标签
-1. [ConSA: Controllable Sparsity in Hybrid Attention via Learnable Allocation](/20260614-20260623/2606.18056v1-consa-controllable-sparsity-in-hybrid-attention-via-learnable-allocation)  
+1. [MambaCount: Efficient Text-guided Open-vocabulary Object Counting with Spatial Sparse State Space Duality Block](/202606/23/2606.17650v1-mambacount-efficient-text-guided-open-vocabulary-object-counting-with-spatial-sparse-state-space-duality-block)  
    标签：评分：8.0/10、query:la
-   evidence：通过可学习分配全注意力和滑动窗口注意力实现高效推理
-2. [Dual Dimensionality for Local and Global Attention](/20260614-20260623/2606.18587v1-dual-dimensionality-for-local-and-global-attention)  
+   evidence：基于Mamba的计数方法，线性复杂度
+2. [Complementary Attention Head Pruning for Efficient Transformers](/202606/23/2606.19150v1-complementary-attention-head-pruning-for-efficient-transformers)  
    标签：评分：8.0/10、query:la
-   evidence：局部与全局注意力的双维度方法
-3. [ITNet: A Learnable Integral Transform That Subsumes Convolution, Attention, and Recurrence](/20260614-20260623/2606.19538v2-itnet-a-learnable-integral-transform-that-subsumes-convolution-attention-and-recurrence)  
+   evidence：高效Transformer注意力头剪枝用于序列处理
+3. [How Should a Robot Configure Its Laser Scanner for Inspection?](/202606/23/2606.21093v1-how-should-a-robot-configure-its-laser-scanner-for-inspection)  
    标签：评分：8.0/10、query:la
-   evidence：统一架构涵盖注意力和递归
-4. [StreamKL: Fast and Memory-Efficient KL Divergence for Boosting Attention Distillation](/20260614-20260623/2606.20005v1-streamkl-fast-and-memory-efficient-kl-divergence-for-boosting-attention-distillation)  
+   evidence：使用超维度关联记忆
+4. [Compressing Observation History into Agent Memory: Distilling Transformers into Recurrent Transformers](/202606/23/2606.21562v1-compressing-observation-history-into-agent-memory-distilling-transformers-into-recurrent-transformers)  
    标签：评分：8.0/10、query:la
-   evidence：注意力蒸馏的内存高效KL散度
-5. [DYNA : Dynamic Episodic Memory Networks for Augmenting Large Language Models with Temporal Knowledge Graphs in Continuous Learning](/20260614-20260623/2606.15778v1-dyna--dynamic-episodic-memory-networks-for-augmenting-large-language-models-with-temporal-knowledge-graphs-in-continuous-learning)  
+   evidence：将Transformer蒸馏为固定大小记忆的循环Transformer，处理神经网络中的联想记忆问题
+5. [SAC: Disaggregated KV Cache System for Sparse Attention LLMs with CXL](/202606/23/2606.19746v1-sac-disaggregated-kv-cache-system-for-sparse-attention-llms-with-cxl)  
    标签：评分：7.0/10、query:la
-   evidence：动态情景记忆网络结合时序知识图谱增强大语言模型
-6. [Training-free sparse attention based on cumulative energy filtering](/20260614-20260623/2606.16317v1-training-free-sparse-attention-based-on-cumulative-energy-filtering)  
+   evidence：针对稀疏注意力大语言模型的解聚合KV缓存；高效内存检索
+6. [AtomMem: Building Simple and Effective Memory System for LLM Agents via Atomic Facts](/202606/23/2606.19847v1-atommem-building-simple-and-effective-memory-system-for-llm-agents-via-atomic-facts)  
    标签：评分：7.0/10、query:la
-   evidence：免训练的稀疏注意力机制用于高效序列处理
-7. [VL-MemKnG: Hybrid Memory with a Spatio-Temporal Knowledge Graph for Question Answering over Long Egocentric Navigation Trajectories](/20260614-20260623/2606.17183v1-vl-memkng-hybrid-memory-with-a-spatio-temporal-knowledge-graph-for-question-answering-over-long-egocentric-navigation-trajectories)  
+   evidence：用于LLM智能体的记忆增强系统，基于原子事实
+7. [Latent Personal Memory: Represent personal memory as dynamic soft prompts](/202606/23/2606.20911v1-latent-personal-memory-represent-personal-memory-as-dynamic-soft-prompts)  
    标签：评分：7.0/10、query:la
-   evidence：结合时空知识图谱的混合记忆用于视觉问答，属于记忆增强神经网络
-8. [CoreMem: Riemannian Retrieval and Fisher-Guided Distillation for Long-Term Memory in Dialogue Agents](/20260614-20260623/2606.18406v1-coremem-riemannian-retrieval-and-fisher-guided-distillation-for-long-term-memory-in-dialogue-agents)  
+   evidence：潜在记忆槽与交叉注意力
+8. [EvoEmbedding: Evolvable Representations for Long-Context Retrieval and Agentic Memory](/202606/23/2606.21649v1-evoembedding-evolvable-representations-for-long-context-retrieval-and-agentic-memory)  
    标签：评分：7.0/10、query:la
-   evidence：基于黎曼检索和蒸馏的长期记忆架构
-9. [Continuous Cross-Domain Traffic State Prediction via Memory-Augmented Graph Liquid Time-Constant Networks](/20260614-20260623/2606.15807v1-continuous-cross-domain-traffic-state-prediction-via-memory-augmented-graph-liquid-time-constant-networks)  
+   evidence：带潜在记忆的记忆增强嵌入用于检索
+9. [Learning Dynamics of Chain-of-Thought State Tracking in a Solvable Transformer Model](/202606/23/2606.18164v1-learning-dynamics-of-chain-of-thought-state-tracking-in-a-solvable-transformer-model)  
    标签：评分：6.0/10、query:la
-   evidence：记忆增强图网络用于跨域预测
-10. [SproutRAG: Attention-Guided Tree Search with Progressive Embeddings for Long-Document RAG](/20260614-20260623/2606.18381v1-sproutrag-attention-guided-tree-search-with-progressive-embeddings-for-long-document-rag)  
-   标签：评分：6.0/10、query:la
-   evidence：注意力引导的层级RAG框架，使用记忆增强
-11. [Hierarchical Attention via Domain Decomposition](/20260614-20260623/2606.18525v1-hierarchical-attention-via-domain-decomposition)  
-   标签：评分：6.0/10、query:la
-   evidence：基于域分解的分层注意力；通过粗化全局通信实现高效序列处理
-12. [Spectral Query-Key Product Weight Steering for Training-Free VLM Hallucination Mitigation](/20260614-20260623/2606.20419v1-spectral-query-key-product-weight-steering-for-training-free-vlm-hallucination-mitigation)  
-   标签：评分：6.0/10、query:la
-   evidence：高效的注意力引导方法用于幻觉缓解，修改查询-键乘积
+   evidence：Transformer在思维链中的注意力检索动力学
+10. [A single computational objective can produce specialization of streams in visual cortex](/202606/23/biorxiv-10-1101-2023-12-19-572460-v4-a-single-computational-objective-can-produce-specialization-of-streams-in-visual-cortex)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：使用计算模型（TDANN）证明单个自监督目标可以产生视觉皮层流的分化
+11. [Functional gradients dissociate between cortical layers](/202606/23/biorxiv-10-64898-2026-02-06-704362-v2-functional-gradients-dissociate-between-cortical-layers)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：跨皮层层的功能梯度计算分析
+12. [Loss of Recurrent Excitation Disrupts Sleep Slow Oscillations in the Aging Brain](/202606/23/biorxiv-10-64898-2026-03-16-712170-v2-loss-of-recurrent-excitation-disrupts-sleep-slow-oscillations-in-the-aging-brain)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：突触丢失破坏睡眠慢振荡
 
 
 <div class="dpr-home-promo-card">
