@@ -1,0 +1,23 @@
+---
+title: "Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system"
+title_zh: 表征几何作为连接组约束网络的保真度度量：来自果蝇视觉系统的证据
+authors: "Zhou, M. G., Hasler, J. O."
+date: 2026-06-23
+pdf: "https://www.biorxiv.org/content/10.64898/2026.06.10.731214v4.full.pdf"
+tags: ["query:comp-neuro"]
+score: 7.0
+evidence: 用于生物保真度的表征几何度量
+tldr: 行为匹配不能保证神经网络内部表征的生物保真度，例如连接组约束网络可模仿行走却无生物学意义。本文提出表征几何作为群体水平保真度度量，对Flyvis中50个连接组约束网络进行RSA和CKA分析，与50个稳定随机基线对比。结果发现连接组约束网络产生平滑圆形方向几何，显著匹配果蝇真实T4/T5神经元方向调谐（r=0.93），而随机网络不能。该度量无需行为解码器或单神经元记录，仅需群体响应，为连接组尺度仿真的保真度验证提供可行方案。
+source: biorxiv
+selection_source: fresh_fetch
+motivation: 行为测试无法区分生物与任意布线的内部表征保真度，亟需群体水平度量。
+method: 采用RSA和CKA比较Flyvis连接组约束网络与稳定性约束随机基线的方向表征几何。
+result: "连接组约束网络产生平滑方向几何（RSA r>0.68），与果蝇T4/T5调谐高度匹配（r=0.93），显著优于随机。"
+conclusion: 表征几何可作为连接组尺度仿真的保真度度量，无需行为解码器或单神经元记录。
+---
+
+## 摘要
+生物突触连接究竟如何贡献于神经计算？行为实验可以测试模型是否产生正确的输出，但无法判断其内部表征是否具有生物保真度。Brunton等人（2026）将这一问题具体化：一个使用深度强化学习训练的秀丽隐杆线虫连接组，能产生逼真的果蝇行走行为——然而该模型在生物学上毫无意义，因为无需生物保真度即可实现行为保真度。我们需要一种群体水平的度量，能够区分真实生物连接与任意连接，且无需行为解码器。我们提出表征几何作为这种度量。表征几何——群体对不同刺激的反应之间的成对距离结构——捕捉了神经回路如何组织其表征空间，与其驱动何种行为无关。我们将表征相似性分析（RSA）和中心核对齐（CKA）应用于Flyvis预训练的果蝇视觉系统集成网络（Lappalainen等人，2024）：50个网络，其结构固定为FlyWire连接组，与稳定性约束的随机基线（保持符号的权重随机打乱，经动态稳定性拒绝采样，n = 50）进行比较。连接组约束网络产生平滑的圆形方向几何，随机网络无法复制：对于ON边缘刺激，RSA Spearman r = 0.686（p < 0.0001），对于ON+OFF边缘刺激，r = 0.846（p < 0.0001），CKA也证实了这一点（两项实验均p < 0.05）。该几何还追踪了活体果蝇中记录的生物T4/T5方向调谐（Maisak等人，2013）：连接组约束几何与生物几何的匹配程度显著优于随机几何（r = 0.930 vs. r = 0.603，差值Δr = 0.327，p < 0.0001）。在每个刺激极性内，ON通路编码方向的几何分离度强于OFF通路（Δr = 0.138，95% CI [0.091, 0.236]），这与已知的T4/T5方向选择性强度不对称性一致。为解决训练混杂因素，我们比较了未训练网络与随机打乱基线：连接组先验在任务训练之前即在群体水平上塑造了方向几何（r = 0.260，p = 0.041和r = 0.215，p = 0.048；均边缘显著，未校正），表明突触连接编码了训练放大的几何先验。这些结果确立了表征几何作为候选保真度度量，能够在群体水平区分生物连接与任意连接，无需行为解码器也无需单神经元记录——只需对结构化刺激集的群体响应——并为连接组规模仿真在向哺乳动物皮层扩展时提供了通向可验证保真度度量的实用路径。
+
+## Abstract
+What does biological wiring actually contribute to neural computation? Behavioral experiments can test whether a model produces the right outputs, but they cannot determine whether its internal representations are biologically faithful. Brunton et al. (2026) made this concrete: a C. elegans worm connectome trained with deep reinforcement learning produces realistic Drosophila fly walking -- yet the model is biologically meaningless, because behavioral fidelity is achievable without biological fidelity. We need a population-level metric that discriminates real biological wiring from arbitrary wiring, without requiring a behavioral decoder. We propose representational geometry as that metric. Representational geometry -- the structure of pairwise distances between population responses to different stimuli -- captures how a neural circuit organizes its representational space, independently of what behavior it drives. We apply representational similarity analysis (RSA) and centered kernel alignment (CKA) to the Flyvis pretrained Drosophila melanogaster visual system ensemble (Lappalainen et al. 2024): 50 networks whose architecture is fixed to the FlyWire connectome, compared against stability-constrained random baselines (sign-preserving weight shuffles, rejection-sampled for dynamic stability, n = 50). Connectome-constrained networks produce a smooth circular direction geometry that random networks cannot replicate: RSA Spearman r = 0.686 (p < 0.0001) for ON edge stimuli and r = 0.846 (p < 0.0001) for ON+OFF edge stimuli, corroborated by CKA (p < 0.05 in both experiments). The geometry also tracks biological T4/T5 direction tuning recorded in living flies (Maisak et al. 2013): connectome-constrained geometry matches biology substantially better than random geometry (r = 0.930 vs. r = 0.603, gap {Delta}r = 0.327, p < 0.0001). Within each stimulus polarity, the ON pathway encodes direction with stronger geometric separation than the OFF pathway ({Delta}r = 0.138, 95% CI [0.091, 0.236]), consistent with known T4/T5 asymmetries in direction selectivity strength. To address the training confound, we compared untrained networks against shuffled baselines: the connectome prior shapes directional geometry at the ensemble level before any task training (r = 0.260, p = 0.041 and r = 0.215, p = 0.048; both marginal, uncorrected), suggesting wiring encodes a geometric prior that training amplifies. These results establish representational geometry as a candidate fidelity metric that discriminates biological from arbitrary wiring at the population level, requiring no behavioral decoder and no single-unit recordings -- only population responses to a structured stimulus set -- and suggest a practical path toward verifiable fidelity metrics for connectome-scale emulations as they scale toward mammalian cortex.

@@ -6,91 +6,79 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-24
-- 运行时间：2026-06-24 22:07:59 UTC
+- 最新运行日期：2026-06-25
+- 运行时间：2026-06-25 21:37:45 UTC
 - 运行状态：成功
-- 本次总论文数：23
-- 精读区：11
+- 本次总论文数：19
+- 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-1) 今日23篇报告中，记忆机制与视频世界模型成为焦点，两篇高分精读分别拿下10分和9分，速读中注意力优化与Koopman算子同样亮眼。  
-2) 最值得深读的是fMRI预测记忆的神经证据（10分）以及视频世界模型的隐式检索新范式（9分），前者揭示记忆编码的脑机制，后者提出压缩-检索的强强联手。  
-3) 先精读这两篇高分论文，再搭配速读中GQA+MoE和长上下文稀疏路由的工程技巧，理论与应用两手抓。
-- 详情：[/202606/24/README](/202606/24/README)
+今日精读7篇，速读12篇，聚焦少样本学习与长文本建模两大突破，并关注分布式记忆检索与文档重排新方法。  
+最值得关注的是《Adaptive Hebbian Memory Routing in Vision Transformers》和《ATMA》，分别以9.0分在少样本视觉学习和长度不变语言模型上取得显著进展。  
+建议普通读者优先通读这两篇精读论文，了解自适应记忆路由与极坐标注意力机制的实际应用，后续可结合速读中的重排器与神经科学数据压缩思路拓展知识。
+- 详情：[/202606/25/README](/202606/25/README)
 
 ### 精读区论文标签
-1. [Encoding-related fMRI BOLD activity predicts subsequent memory for studied scenes, but not subsequent identification of perceptually similar lures.](/202606/24/biorxiv-10-64898-2026-06-17-732733-v1-encoding-related-fmri-bold-activity-predicts-subsequent-memory-for-studied-scenes-but-not-subsequent-identification-of-perceptually-similar-lures)  
-   标签：评分：10.0/10、query:comp-neuro
-   evidence：海马模式分离在记忆相似性任务中的作用
-2. [Compression and Retrieval: Implicit Memory Retrieval for Video World Models](/202606/24/2606.23105v1-compression-and-retrieval-implicit-memory-retrieval-for-video-world-models)  
+1. [Adaptive Hebbian Memory Routing in Vision Transformers for Few-Shot Learning](/202606/25/2606.24756v1-adaptive-hebbian-memory-routing-in-vision-transformers-for-few-shot-learning)  
    标签：评分：9.0/10、query:la
-   evidence：视频世界模型中基于注意力的隐式记忆检索
-3. [Forget Without Compromise: Nexus Sampling for Streaming KV-Cache Eviction Under Fixed Budgets](/202606/24/2606.23961v1-forget-without-compromise-nexus-sampling-for-streaming-kv-cache-eviction-under-fixed-budgets)  
+   evidence：视觉Transformer中的自适应Hebbian记忆路由
+2. [ATMA: Length-Invariant Language Modeling via Polar Attention and Gated-Delta Compression Memory](/202606/25/2606.25156v1-atma-length-invariant-language-modeling-via-polar-attention-and-gated-delta-compression-memory)  
    标签：评分：9.0/10、query:la
-   evidence：通过KV缓存驱逐实现高效注意记忆检索
-4. [TuringViT: Making SOTA Vision Transformers Accessible to All](/202606/24/2606.24253v1-turingvit-making-sota-vision-transformers-accessible-to-all)  
+   evidence：结合极性注意力和门控Delta压缩记忆的混合架构，用于长上下文建模
+3. [Lifelong In-Context Learning with Transformers Requires Parametric Forms of Attention](/202606/25/2606.25342v1-lifelong-in-context-learning-with-transformers-requires-parametric-forms-of-attention)  
    标签：评分：9.0/10、query:la
-   evidence：提出图灵线性注意力（TLA）用于高效序列建模
-5. [Parallel Manifold Steering: Efficient Adaptation of Large Associative Memories via Residual Energy Shaping](/202606/24/2606.24396v1-parallel-manifold-steering-efficient-adaptation-of-large-associative-memories-via-residual-energy-shaping)  
-   标签：评分：9.0/10、query:la
-   evidence：神经网络中的联想记忆模型
-6. [A Conserved Mammalian Hippocampal Navigation Motif Reconfigured for Primate Vision](/202606/24/biorxiv-10-1101-2025-07-01-662661-v2-a-conserved-mammalian-hippocampal-navigation-motif-reconfigured-for-primate-vision)  
+   evidence：参数化注意力形式用于终身上下文学习，解决二次复杂度瓶颈
+4. [Efficient Learning of Predictive Maps for Flexible Planning](/202606/25/biorxiv-10-64898-2026-02-11-705395-v2-efficient-learning-of-predictive-maps-for-flexible-planning)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：狨猴导航中海马尖波涟漪
-7. [Disrupting selective persistent activity with electrical stimulation impairs human working memory](/202606/24/biorxiv-10-1101-2025-08-20-671301-v3-disrupting-selective-persistent-activity-with-electrical-stimulation-impairs-human-working-memory)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：海马体工作记忆表征
-8. [DeltaQ: Value-Guided Hebbian Learning in Spiking Neuronal Networks for Multi-Goal Navigation](/202606/24/biorxiv-10-64898-2026-06-12-731882-v1-deltaq-value-guided-hebbian-learning-in-spiking-neuronal-networks-for-multi-goal-navigation)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：海马-内嗅皮层空间表征和Hebbian可塑性用于导航
-9. [Incorporation of single-neuron projectome-based connectivity motifs enhances the cortex-specific performance of artificial neural networks](/202606/24/biorxiv-10-64898-2026-06-12-732007-v1-incorporation-of-single-neuron-projectome-based-connectivity-motifs-enhances-the-cortex-specific-performance-of-artificial-neural-networks)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：海马体表示计算
-10. [Meta-learning leading to homeostatic plasticity stabilizes synaptic weights together with predictable activity levels](/202606/24/biorxiv-10-64898-2026-06-16-732795-v1-meta-learning-leading-to-homeostatic-plasticity-stabilizes-synaptic-weights-together-with-predictable-activity-levels)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：通过元学习稳定突触可塑性
-11. [LTP-patterned electromagnetic stimulation induces NMDA receptor-dependent synaptic plasticity in cortical networks](/202606/24/biorxiv-10-64898-2026-06-17-732958-v1-ltp-patterned-electromagnetic-stimulation-induces-nmda-receptor-dependent-synaptic-plasticity-in-cortical-networks)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：皮层网络突触可塑性机制
+   evidence：使用重要性采样的后继表示，获得策略无关的预测地图
+5. [Frequency-specific theta states in the hippocampus are linked to reconfiguration of population activity with respect to behavioural context](/202606/25/biorxiv-10-1101-2024-12-11-627908-v2-frequency-specific-theta-states-in-the-hippocampus-are-linked-to-reconfiguration-of-population-activity-with-respect-to-behavioural-context)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：海马体theta状态与群体活动重配置关联
+6. [Low-Dimensional and Optimised Representations of High-Level Information in the Expert Brain](/202606/25/biorxiv-10-1101-2025-11-12-688012-v3-low-dimensional-and-optimised-representations-of-high-level-information-in-the-expert-brain)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：专家大脑中的低维优化表征
+7. [Inhibitory Gain and Hub Architecture Confer Dynamic Resilience to Microcircuit Degeneration](/202606/25/biorxiv-10-64898-2026-06-15-732346-v1-inhibitory-gain-and-hub-architecture-confer-dynamic-resilience-to-microcircuit-degeneration)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：抑制性增益和枢纽架构赋予微回路退化中的动态弹性
 
 ### 速读区论文标签
-1. [Grouped Query Experts: Mixture-of-Experts on GQA Self-Attention](/202606/24/2606.20945v2-grouped-query-experts-mixture-of-experts-on-gqa-self-attention)  
-   标签：评分：8.0/10、query:la
-   evidence：在分组查询注意力上应用混合专家提升自注意力效率
-2. [SpotAttention: Plug-In Block-Sparse Routing for Pretrained Long-Context Transformers](/202606/24/2606.22874v1-spotattention-plug-in-block-sparse-routing-for-pretrained-long-context-transformers)  
-   标签：评分：8.0/10、query:la
-   evidence：提出SpotAttention用于长上下文Transformer的高效稀疏注意力
-3. [Learning the Koopman Operator using Attention Free Transformers](/202606/24/2606.23957v1-learning-the-koopman-operator-using-attention-free-transformers)  
-   标签：评分：8.0/10、query:la
-   evidence：无注意力潜在记忆块实现线性时间序列处理
-4. [Reasoning as Attractor Dynamics: Latent Memory Retrieval via Gibbs-Weighted Energy Minimization](/202606/24/2606.24543v1-reasoning-as-attractor-dynamics-latent-memory-retrieval-via-gibbs-weighted-energy-minimization)  
-   标签：评分：8.0/10、query:la
-   evidence：使用吸引子动力学的神经网络关联记忆模型
-5. [Towards Root Memories: Benchmarking and Enhancing Implicit Logical Memory Retrieval for Personalized LLMs](/202606/24/2606.23283v1-towards-root-memories-benchmarking-and-enhancing-implicit-logical-memory-retrieval-for-personalized-llms)  
+1. [Distributed neuronal ensembles support episodic-like memory retrieval](/202606/25/biorxiv-10-64898-2026-06-15-727203-v1-distributed-neuronal-ensembles-support-episodic-like-memory-retrieval)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：情景样记忆检索的全脑组织；使用c-Fos映射和化学遗传学
+2. [KaLM-Reranker-V1: Fast but Not Late Interaction for Compressed Document Reranking](/202606/25/2606.22807v1-kalm-reranker-v1-fast-but-not-late-interaction-for-compressed-document-reranking)  
    标签：评分：7.0/10、query:la
-   evidence：为个性化大语言模型实现隐式逻辑记忆检索；提出根记忆表示
-6. [Improving Long-Context Retrieval with Multi-Prefix Embedding](/202606/24/2606.23642v1-improving-long-context-retrieval-with-multi-prefix-embedding)  
-   标签：评分：7.0/10、query:la
-   evidence：多前缀嵌入实现长上下文高效检索，支持记忆检索注意力
-7. [VSANet: View-aware Sparse Attention Network for Light Field Image Denoising](/202606/24/2606.24737v1-vsanet-view-aware-sparse-attention-network-for-light-field-image-denoising)  
-   标签：评分：7.0/10、query:la
-   evidence：通过局部敏感哈希实现线性复杂度稀疏注意力
-8. [Disrupting selectivity persistent activity with electrical stimulation impairs human working memory](/202606/24/biorxiv-10-1101-2025-08-20-671301-v2-disrupting-selectivity-persistent-activity-with-electrical-stimulation-impairs-human-working-memory)  
+   evidence：解耦查询-段落计算的高效重排序交叉注意力方法
+3. [Dynamic Compression Flows for Neuroscience Data](/202606/25/biorxiv-10-64898-2026-02-12-705535-v2-dynamic-compression-flows-for-neuroscience-data)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：通过海马电刺激研究记忆中的突触可塑性计算机制
-9. [Grouped Query Experts: Mixture-of-Experts on GQA Self-Attention](/202606/24/2606.20945v1-grouped-query-experts-mixture-of-experts-on-gqa-self-attention)  
+   evidence：流匹配方法用于神经科学时间序列数据的低维潜在表示
+4. [TIME BETWEEN LEARNING EVENTS SHAPES FUNCTIONAL CONNECTIVITY IN SPATIAL MEMORY, A BRAIN-WIDE ANALYSIS](/202606/25/biorxiv-10-64898-2026-02-12-705541-v2-time-between-learning-events-shapes-functional-connectivity-in-spatial-memory-a-brain-wide-analysis)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：间隔与集中训练对空间记忆和海马-丘脑功能连接的影响
+5. [Dynamic cognitive representations in the dorsal pallium of adult zebrafish](/202606/25/biorxiv-10-64898-2026-05-19-726250-v3-dynamic-cognitive-representations-in-the-dorsal-pallium-of-adult-zebrafish)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：研究斑马鱼背侧皮层中类似海马的认知地图和空间调谐
+6. [Inside insight: decoding how insight emerges from competing world models](/202606/25/biorxiv-10-64898-2026-05-21-726889-v2-inside-insight-decoding-how-insight-emerges-from-competing-world-models)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：将洞察建模为世界模型重构，并从行为数据推断转换
+7. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202606/25/biorxiv-10-64898-2026-06-10-731214-v4-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：用于生物保真度的表征几何度量
+8. [Parallel processing of orthogonal manifolds enables zero-shot composition in recurrent networks](/202606/25/biorxiv-10-64898-2026-06-14-732142-v1-parallel-processing-of-orthogonal-manifolds-enables-zero-shot-composition-in-recurrent-networks)  
+   标签：评分：7.0/10、query:la
+   evidence：递归网络中利用可塑性规则实现零样本组合
+9. [Asymptotic Signal Subspace Recovery in Softmax Attention Models](/202606/25/2606.22406v1-asymptotic-signal-subspace-recovery-in-softmax-attention-models)  
    标签：评分：6.0/10、query:la
-   evidence：分组查询注意力上的混合专家提高效率
-10. [Asymptotic Signal Subspace Recovery in Softmax Attention Models](/202606/24/2606.22406v1-asymptotic-signal-subspace-recovery-in-softmax-attention-models)  
-   标签：评分：6.0/10、query:la
-   evidence：注意力学习动态的理论分析
-11. [Asymptotic Signal Subspace Recovery in Softmax Attention Models](/202606/24/2606.22406v2-asymptotic-signal-subspace-recovery-in-softmax-attention-models)  
-   标签：评分：6.0/10、query:la
-   evidence：用于高效序列处理的线性注意力模型
-12. [Attention-Spectrum Regularization for Replay-Free Continual Multimodal LLMs](/202606/24/2606.23063v1-attention-spectrum-regularization-for-replay-free-continual-multimodal-llms)  
-   标签：评分：6.0/10、query:la
-   evidence：注意力谱正则化方法防止多模态持续学习中注意力模式漂移，用于记忆保持
+   evidence：softmax注意力动力学的理论分析，对理解线性注意力有启示
+10. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202606/25/biorxiv-10-64898-2026-06-10-731214-v3-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：提出表征几何作为连接组约束网络的保真度度量
+11. [Hyperalignment Reveals Shared Information in Macaques' Idiosyncratic Fine-Grained Movie fMRI Patterns](/202606/25/biorxiv-10-64898-2026-06-14-731832-v1-hyperalignment-reveals-shared-information-in-macaques-idiosyncratic-fine-grained-movie-fmri-patterns)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：超对齐揭示猕猴共享表征空间
+12. [Representational similarity analysis of EEG reveals multiple spatiotemporal dynamics of selective attention](/202606/25/biorxiv-10-64898-2026-06-18-733142-v1-representational-similarity-analysis-of-eeg-reveals-multiple-spatiotemporal-dynamics-of-selective-attention)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：EEG表征相似性分析注意动态
 
 
 <div class="dpr-home-promo-card">
