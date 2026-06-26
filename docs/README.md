@@ -6,79 +6,79 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-25
-- 运行时间：2026-06-25 21:37:45 UTC
+- 最新运行日期：2026-06-26
+- 运行时间：2026-06-26 21:47:48 UTC
 - 运行状态：成功
 - 本次总论文数：19
 - 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-今日精读7篇，速读12篇，聚焦少样本学习与长文本建模两大突破，并关注分布式记忆检索与文档重排新方法。  
-最值得关注的是《Adaptive Hebbian Memory Routing in Vision Transformers》和《ATMA》，分别以9.0分在少样本视觉学习和长度不变语言模型上取得显著进展。  
-建议普通读者优先通读这两篇精读论文，了解自适应记忆路由与极坐标注意力机制的实际应用，后续可结合速读中的重排器与神经科学数据压缩思路拓展知识。
-- 详情：[/202606/25/README](/202606/25/README)
+今日处理19篇论文，精读7篇，聚焦长上下文微调与线性注意力机制优化。  
+最值得关注：SSM适配器注入位置决定长上下文微调任务适用性；Erase-then-Delta注意力通过解耦擦除与写入地址提升线性注意力效果。  
+建议优先精读这两篇高分论文，速读可关注视觉RAG中的分辨率-上下文权衡及睡眠记忆竞争机制。
+- 详情：[/202606/26/README](/202606/26/README)
 
 ### 精读区论文标签
-1. [Adaptive Hebbian Memory Routing in Vision Transformers for Few-Shot Learning](/202606/25/2606.24756v1-adaptive-hebbian-memory-routing-in-vision-transformers-for-few-shot-learning)  
+1. [SSM Adapters via Hankel Reduced-order Modeling: Injection Site Determines Task Suitability in Long-Context Fine-Tuning](/202606/26/2606.26290v1-ssm-adapters-via-hankel-reduced-order-modeling-injection-site-determines-task-suitability-in-long-context-fine-tuning)  
    标签：评分：9.0/10、query:la
-   evidence：视觉Transformer中的自适应Hebbian记忆路由
-2. [ATMA: Length-Invariant Language Modeling via Polar Attention and Gated-Delta Compression Memory](/202606/25/2606.25156v1-atma-length-invariant-language-modeling-via-polar-attention-and-gated-delta-compression-memory)  
+   evidence：基于状态空间模型的适配器用于高效长上下文微调
+2. [Erase-then-Delta Attention: Decoupling Erase and Write Addresses in Delta-Rule Linear Attention](/202606/26/2606.26560v1-erase-then-delta-attention-decoupling-erase-and-write-addresses-in-delta-rule-linear-attention)  
    标签：评分：9.0/10、query:la
-   evidence：结合极性注意力和门控Delta压缩记忆的混合架构，用于长上下文建模
-3. [Lifelong In-Context Learning with Transformers Requires Parametric Forms of Attention](/202606/25/2606.25342v1-lifelong-in-context-learning-with-transformers-requires-parametric-forms-of-attention)  
+   evidence：提出擦除然后Delta注意力，一种新的线性注意力记忆更新规则，解耦擦除和写入地址，增强关联记忆能力。
+3. [CARVE: Content-Aware Recurrent with Value Efficiency for Chunk-Parallel Linear Attention](/202606/26/2606.27229v1-carve-content-aware-recurrent-with-value-efficiency-for-chunk-parallel-linear-attention)  
    标签：评分：9.0/10、query:la
-   evidence：参数化注意力形式用于终身上下文学习，解决二次复杂度瓶颈
-4. [Efficient Learning of Predictive Maps for Flexible Planning](/202606/25/biorxiv-10-64898-2026-02-11-705395-v2-efficient-learning-of-predictive-maps-for-flexible-planning)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：使用重要性采样的后继表示，获得策略无关的预测地图
-5. [Frequency-specific theta states in the hippocampus are linked to reconfiguration of population activity with respect to behavioural context](/202606/25/biorxiv-10-1101-2024-12-11-627908-v2-frequency-specific-theta-states-in-the-hippocampus-are-linked-to-reconfiguration-of-population-activity-with-respect-to-behavioural-context)  
+   evidence：基于键轴擦除的线性注意力循环模型
+4. [EvoEmbedding: Evolvable Representations for Long-Context Retrieval and Agentic Memory](/202606/26/2606.21649v2-evoembedding-evolvable-representations-for-long-context-retrieval-and-agentic-memory)  
+   标签：评分：8.0/10、query:la
+   evidence：具有潜在记忆的可进化嵌入用于长上下文检索和智能体记忆
+5. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202606/26/biorxiv-10-64898-2026-06-10-731214-v5-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：海马体theta状态与群体活动重配置关联
-6. [Low-Dimensional and Optimised Representations of High-Level Information in the Expert Brain](/202606/25/biorxiv-10-1101-2025-11-12-688012-v3-low-dimensional-and-optimised-representations-of-high-level-information-in-the-expert-brain)  
+   evidence：提出表征几何作为连接组约束网络的保真度度量
+6. [Parallel basal ganglia and frontal cortical outputs differentially encode context-dependent evaluation and categorical commitment during choice](/202606/26/biorxiv-10-64898-2026-06-15-732482-v1-parallel-basal-ganglia-and-frontal-cortical-outputs-differentially-encode-context-dependent-evaluation-and-categorical-commitment-during-choice)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：专家大脑中的低维优化表征
-7. [Inhibitory Gain and Hub Architecture Confer Dynamic Resilience to Microcircuit Degeneration](/202606/25/biorxiv-10-64898-2026-06-15-732346-v1-inhibitory-gain-and-hub-architecture-confer-dynamic-resilience-to-microcircuit-degeneration)  
+   evidence：选择过程中情境依赖评估和分类承诺的神经基础
+7. [Stimulus and circuit contributions to the information geometry of neural manifolds](/202606/26/biorxiv-10-64898-2026-06-21-733384-v1-stimulus-and-circuit-contributions-to-the-information-geometry-of-neural-manifolds)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：抑制性增益和枢纽架构赋予微回路退化中的动态弹性
+   evidence：发展了循环网络中神经流形的微分几何分析，将连接性与信息编码联系起来，属于计算神经科学核心。
 
 ### 速读区论文标签
-1. [Distributed neuronal ensembles support episodic-like memory retrieval](/202606/25/biorxiv-10-64898-2026-06-15-727203-v1-distributed-neuronal-ensembles-support-episodic-like-memory-retrieval)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：情景样记忆检索的全脑组织；使用c-Fos映射和化学遗传学
-2. [KaLM-Reranker-V1: Fast but Not Late Interaction for Compressed Document Reranking](/202606/25/2606.22807v1-kalm-reranker-v1-fast-but-not-late-interaction-for-compressed-document-reranking)  
+1. [Look Before You Zoom: Adaptive Routing for the Resolution-Context Trade-off in Visual RAG](/202606/26/2606.21968v1-look-before-you-zoom-adaptive-routing-for-the-resolution-context-trade-off-in-visual-rag)  
    标签：评分：7.0/10、query:la
-   evidence：解耦查询-段落计算的高效重排序交叉注意力方法
-3. [Dynamic Compression Flows for Neuroscience Data](/202606/25/biorxiv-10-64898-2026-02-12-705535-v2-dynamic-compression-flows-for-neuroscience-data)  
+   evidence：自适应视觉检索框架解决分辨率-上下文权衡
+2. [Sleep resolves competition between explicit exemplar memory and implicit memory generalization](/202606/26/biorxiv-10-1101-2025-02-21-639581-v3-sleep-resolves-competition-between-explicit-exemplar-memory-and-implicit-memory-generalization)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：流匹配方法用于神经科学时间序列数据的低维潜在表示
-4. [TIME BETWEEN LEARNING EVENTS SHAPES FUNCTIONAL CONNECTIVITY IN SPATIAL MEMORY, A BRAIN-WIDE ANALYSIS](/202606/25/biorxiv-10-64898-2026-02-12-705541-v2-time-between-learning-events-shapes-functional-connectivity-in-spatial-memory-a-brain-wide-analysis)  
+   evidence：海马记忆巩固与竞争
+3. [Modeling Dynamical Vision with Biologically Plausible Recurrent Convolutional Networks](/202606/26/biorxiv-10-1101-2025-08-11-669756-v2-modeling-dynamical-vision-with-biologically-plausible-recurrent-convolutional-networks)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：间隔与集中训练对空间记忆和海马-丘脑功能连接的影响
-5. [Dynamic cognitive representations in the dorsal pallium of adult zebrafish](/202606/25/biorxiv-10-64898-2026-05-19-726250-v3-dynamic-cognitive-representations-in-the-dorsal-pallium-of-adult-zebrafish)  
+   evidence：生物合理的循环网络建模视觉皮层动力学
+4. [Unsupervised Representation Learning Reveals Individualized Neurophysiological Profiles](/202606/26/biorxiv-10-64898-2026-02-10-705127-v2-unsupervised-representation-learning-reveals-individualized-neurophysiological-profiles)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：研究斑马鱼背侧皮层中类似海马的认知地图和空间调谐
-6. [Inside insight: decoding how insight emerges from competing world models](/202606/25/biorxiv-10-64898-2026-05-21-726889-v2-inside-insight-decoding-how-insight-emerges-from-competing-world-models)  
+   evidence：使用无监督自编码器从脑磁图学习神经生理特征，属于计算神经科学表征学习。
+5. [Distinct Hippocampal Cellular Pathologies Influence Cognition Across Diagnostic Categories, Also Distinguishing Schizophrenia from Affective Psychoses](/202606/26/biorxiv-10-64898-2026-04-27-720978-v3-distinct-hippocampal-cellular-pathologies-influence-cognition-across-diagnostic-categories-also-distinguishing-schizophrenia-from-affective-psychoses)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：将洞察建模为世界模型重构，并从行为数据推断转换
-7. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202606/25/biorxiv-10-64898-2026-06-10-731214-v4-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   evidence：海马细胞病理与认知
+6. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202606/26/biorxiv-10-64898-2026-06-10-731214-v3-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：用于生物保真度的表征几何度量
-8. [Parallel processing of orthogonal manifolds enables zero-shot composition in recurrent networks](/202606/25/biorxiv-10-64898-2026-06-14-732142-v1-parallel-processing-of-orthogonal-manifolds-enables-zero-shot-composition-in-recurrent-networks)  
-   标签：评分：7.0/10、query:la
-   evidence：递归网络中利用可塑性规则实现零样本组合
-9. [Asymptotic Signal Subspace Recovery in Softmax Attention Models](/202606/25/2606.22406v1-asymptotic-signal-subspace-recovery-in-softmax-attention-models)  
+   evidence：提出用表征几何评估连接组约束网络的生物保真度，属于计算神经科学方法。
+7. [Memory Depth, Not Memory Access: Selective Parametric Consolidation for Long-Running Language Agents](/202606/26/2606.26806v1-memory-depth-not-memory-access-selective-parametric-consolidation-for-long-running-language-agents)  
    标签：评分：6.0/10、query:la
-   evidence：softmax注意力动力学的理论分析，对理解线性注意力有启示
-10. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202606/25/biorxiv-10-64898-2026-06-10-731214-v3-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   evidence：语言代理的参数化记忆巩固
+8. [Information-Aware KV Cache Compression for Long Reasoning](/202606/26/2606.26875v1-information-aware-kv-cache-compression-for-long-reasoning)  
+   标签：评分：6.0/10、query:la
+   evidence：信息感知的KV缓存压缩用于高效注意力
+9. [DnA: Denoising Attention for Visual Tasks](/202606/26/2606.27372v1-dna-denoising-attention-for-visual-tasks)  
+   标签：评分：6.0/10、query:la
+   evidence：用于视觉任务的去噪注意力机制
+10. [Next-Generation Neural Mass Models Reproduce Features of Speech Processing](/202606/26/biorxiv-10-1101-2025-10-20-683434-v2-next-generation-neural-mass-models-reproduce-features-of-speech-processing)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：提出表征几何作为连接组约束网络的保真度度量
-11. [Hyperalignment Reveals Shared Information in Macaques' Idiosyncratic Fine-Grained Movie fMRI Patterns](/202606/25/biorxiv-10-64898-2026-06-14-731832-v1-hyperalignment-reveals-shared-information-in-macaques-idiosyncratic-fine-grained-movie-fmri-patterns)  
+   evidence：语音处理的神经群模型
+11. [Looking beyond stereotyped neuron structures reveals links between beading and morphological rearrangements in aging phenotypes.](/202606/26/biorxiv-10-64898-2026-06-15-732273-v1-looking-beyond-stereotyped-neuron-structures-reveals-links-between-beading-and-morphological-rearrangements-in-aging-phenotypes)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：超对齐揭示猕猴共享表征空间
-12. [Representational similarity analysis of EEG reveals multiple spatiotemporal dynamics of selective attention](/202606/25/biorxiv-10-64898-2026-06-18-733142-v1-representational-similarity-analysis-of-eeg-reveals-multiple-spatiotemporal-dynamics-of-selective-attention)  
+   evidence：CNN引导的树突追踪用于衰老表型分析
+12. [A population readout of extrastriate activity reveals biased and smoothed temporal representations across saccades](/202606/26/biorxiv-10-64898-2026-06-16-732385-v1-a-population-readout-of-extrastriate-activity-reveals-biased-and-smoothed-temporal-representations-across-saccades)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：EEG表征相似性分析注意动态
+   evidence：外纹状体跨眼跳时间表征的神经机制
 
 
 <div class="dpr-home-promo-card">

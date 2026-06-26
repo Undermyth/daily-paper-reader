@@ -1,0 +1,1367 @@
+Title: DnA: Denoising Attention for Visual Tasks
+
+URL Source: https://arxiv.org/pdf/2606.27372v1
+
+Published Time: Fri, 26 Jun 2026 01:26:47 GMT
+
+Number of Pages: 38
+
+Markdown Content:
+# DnA: Denoising Attention for Visual Tasks 
+
+Ron Campos 1 , Subhajit Maity 1 , Xin Li 1 , Srijan Das 2 , Aritra Dutta 1 
+
+> 1
+
+University of Central Florida, USA  
+
+> 2
+
+University of North Carolina at Charlotte, USA 
+
+Project Page: https://rjccv.github.io/DnA 
+
+Abstract. The softmax activation in multihead attention (MHA) is the de facto standard for attention-based models in visual perception tasks. However, standard softmax can produce noisy attention patterns that dilute relevant features and degrade its performance. In this paper, we propose Denoising Attention or DnA , in which, first, a positive query identifies which image features belong to the correct class, and a neg-ative query identifies closely associated but irrelevant image features. DnA then projects these interactions into two distinct subspaces with larger principal angles, promoting subspace separation and improved dis-criminability. Using a ViT-B backbone, our proposed DnA achieves an absolute gain of 0.8 % on ImageNet-1K compared to the baseline. We further show improvements across multiple visual understanding tasks, including video understanding with video transformers (1.8%) and video LLMs (0.5%). Our extensive empirical analyses justify the design choices involving two interacting subspaces and the denoising effect of DnA. The code is publicly available at https://github.com/rjccv/DnA .
+
+## 1 Introduction 
+
+The softmax function is a fundamental component in machine learning and statistics that transforms arbitrary real-valued scores into a probability distribu-tion. It plays an essential role in the Transformer architecture, particularly in the self-attention mechanism that forms the core of modern large language models [1,5,7,54,72] and other sequence-to-sequence models [13,42,62]. While efficiency-driven alternatives exist for specific use cases [24,25,49,59,63,69,81,82,88], soft-max remains the gold standard for attention normalization due to its unique com-bination of theoretical properties and empirical performance [20, 63, 71, 75, 76]. The attention in Transformers computes contextualized representations by al-lowing each position in a sequence to attend to all positions, with the attention weights determined by the softmax function; see details in §2.1. Although the softmax amplifies the dominant scores, it treats positive and negative values asymmetrically; the numerator amplifies the gaps between posi-tive scores and compresses the gaps between negative scores. Indeed, we have the following observation: For δ > 0, we have ea+δ − ea = ea(eδ − 1) = eaδ + O(δ2).                   
+
+> Accepted at the 19 th European Conference on Computer Vision (ECCV), 2026.
+> arXiv:2606.27372v1 [cs.CV] 25 Jun 2026 2R. Campos et al. subspace
+> subspace subspace
+> Prediction:
+> Prediction:
+> Vanilla Attention
+> DnA
+> Fig. 1: The original image from ImageNet-1K [18] shows the primary object, breast-plate , along with secondary adversarial objects, person, helmet ,etc . The traditional attention [20, 73] and differential attention [80] project the interactions onto a single
+> Vsubspace, resulting in misallocation of attention to secondary objects. Our proposed DnA explicitly models positive and negative interactions using two sets of queries, Q+
+> and Q−, and projects them onto two separate subspaces, V+and V−, respectively, to effectively segregate closely associated adversarial features from the relevant ones. We define traditional attention as A, and DnA branches as A+and A−.
+
+As a result, because softmax is used in transformers, larger key-query inter-actions receive much higher scores, while smaller interactions lose expressivity. This asymmetry may limit the representational capacity of standard attention. Beyond score magnitudes, the geometry of feature subspaces also affects discriminability; larger principal angles between class subspaces reduce classi-fication error [30]. This perspective motivates modeling positive and negative token interactions as a two-class problem, suggesting that subspace separation combined with both positive and negative score interactions can improve clas-sifier performance. We present this in the context of the database query lan-guage [9,67], where the primary object might be associated with other secondary object classes. The key (token of interest), query (token-associated request), and value (token retrieval) interactions in traditional softmax attention; see Figure 1. In contrast to differential attention [80] for NLP tasks, which models the attention matrix using a single subspace V , we introduce two separate queries over the same keys. First, ( i) Positive query: Which features belong to the cor-rect class? and ( ii ) Negative query: Which features do not belong to the correct class, but are closely associated? Their interactions are projected into distinct subspaces, V + and V −, with larger principal angles between them, promoting subspace separation and improved discriminability; see Figure 1. Taken together, in this paper, we propose Denoising Attention or DnA ,which replaces traditional attention in transformers; see §3. Since ViTs are inte-gral to modern foundational models [34,60,61], we explore the efficacy of DnA in traditional transformers and Video LLMs. By replacing the traditional attention, Denoising Attention 3
+
+our proposed DnA outperforms ViT-B on ImageNet-1K [18] and achieves 0.8% higher test accuracy. DnA also excels on video understanding tasks, achieving up to an absolute 4.0% gain on Toyota Smarthome [17], 1.2% gain on NTU RGB+D 60 [68] with TimeSformer [4], and 0.5% gain on Ego-in-Exo PerceptionsMCQ [64] with the video LLM, VideoLLaMA3 [86]; see §4. 
+
+## 2 Background and Related Works 
+
+For completeness, we start with a brief description of multihead attention. 
+
+2.1 Multi-Head Attention (MHA) in Vision 
+
+Let X ∈ RC×R×W be a C channel image with resolution R × W . The image is flattened into N tokens in RD by p×p patches such that, N = RW p2 and D = p2C. 
+
+The input, Xp ∈ RN ×D , is a sequence of N tokens of dimension D. Transformers process the input through a series of L encoder layers. For simplicity, we assume the input Xp is encoder-agnostic. We note that the following applies equally to decoder blocks; for brevity, we only refer to encoders. In each encoder, attention projects an input sequence on the row-space of three learnable matrices WQ, W K , W V ∈ RD×D to produce query, Q = XQWQ,key, K = XKV WK , and value, V = XKV WV . In self-attention , the queries, keys, and values are derived from the same input, such that XQ = XKV =
+
+Xp ∈ RN ×D . In cross-attention , the queries are derived from one input sequence 
+
+XQ ∈ RN ×D , while the keys and values come from a different input sequence 
+
+XKV ∈ RM ×D , M is the number of tokens. Next, the query, key, and values are partitioned among H heads; for each head, h, we have Qh ∈ RN ×d and 
+
+Kh, V h ∈ RM ×d, where d = DH . The notion of multi-head attention facilitates parallel attention calculation in all H heads. For any head, the scaled dot-product , 
+
+> QhK⊤
+> h√d
+
+∈ RN ×M , is further processed through nonlinear softmax activation func-tion acting row-wise, followed by projection on the row space of the value matrix 
+
+V , such that Ah = σ
+
+ QhK⊤
+
+> h√d
+
+
+
+Vh ∈ RN ×d. Self-attention is a special case where 
+
+M = N . Once attention is calculated for all the heads, they are concatenated back to RN ×D .The matrix, QhK⊤ 
+
+> h√d
+
+, for a head inside an encoder, refers to how different image tokens attend to each other. Self-attention models interactions among tokens of the same sequence, while cross-attention models how tokens from the query sequence relate to tokens in the source sequence. The softmax activation, σ, acts on each row, normalizes the key-query interactions by projecting them onto a probability simplex, and models the token-to-token relationships; see Figure 3(i). 
+
+Studies That Improve Upon Attention. Numerous works improve atten-tion mechanisms in NLP and vision to enhance feature representation. DeiT [73] uses token-based distillation, CaiT [74] separates class-attention in deeper lay-ers, DaViT [19] adds channel-wise attention, and Swin Transformer [47] employs 4 R. Campos et al. 
+
+hierarchical shifted-window attention for scalability. ConViT [21] introduces con-volutional inductive bias through gated positional self-attention, while SimA [36] replaces softmax with ℓ1 normalization while maintaining competitive ViT per-formance. See broader discussion in Appendix §A. 
+
+2.2 Attention Mechanisms in Video Understanding 
+
+Attention mechanisms are crucial to current video understanding. We group the related work into two categories: traditional video transformers and vision-language adapters for video LLMs. 
+
+Transformers for video understanding. ViViT [2] adapts a ViT to video by extracting the spatiotemporal tokens from videos and proposes several different transformer architectures that decouple the spatial and temporal dimensions. Video Swin Transformer [48] implements a 3D shifted window-based multi-head self-attention to the spatiotemporal space, reducing the computation by applying attention within local 3D windows. TimeSformer [4] proposes a divided space-time attention mechanism that decouples the attention operations. 
+
+Attention-based adapters in video LLMs. Q-Former [43] and Perceiver Resampler [32] use learnable queries that cross-attend to frozen visual encoder features, distilling visual context into a fixed number of tokens. Q-Former is used in Video-LLaMA [86], and Perceiver Resampler [32] has been successfully integrated as a bridge between visual and text contexts for LLMs [41, 78, 89]. mPLUG-Owl3 [79] introduces hyper-attention, which parallelizes cross- and self-attention by reusing language queries to attend to visual features and adaptively fuse them into the text stream. VisCoP [65] enables domain adaptation without fine-tuning the frozen vision encoder by using visual probes that cross-attend to intermediate features and extract domain-specific information. 
+
+## 3 Model Architecture 
+
+This section introduces Denoising Attention or DnA . We first analyze the soft-max function, the core normalization mechanism in self-attention, and examine its properties from an information-theoretic perspective, highlighting potential limitations in representing negative token interactions that may be informative for visual understanding. Our focus is restricted to self-attention ; other com-ponents of the ViT architecture, including positional embedding, class token representation, pre- and post-normalization, MLP, etc ., remain untouched. 
+
+3.1 Why Softmax for Attention ?
+
+For a vector, z ∈ Rn with components (z1, · · · , z n), the softmax function is de-fined component-wise, for i ∈ [n], as σ(z)i = ezi  
+
+> Pnj=1 ezj
+
+, which is a unique solution to several constrained optimization problems. One of the most fundamental char-acterizations of the softmax function is the maximum entropy property given in the Theorem below [33]. Denoising Attention 5(a)  (b)  (c)      
+
+> Original Image Attention DnA DnA Original Image Attention Attention Original Image DnA
+
+Fig. 2: Original images (center) from ImageNet-1K, their attention activation maps for traditional softmax only showing positive interactions (left) , and our denoising attention, DnA ( AQ±V ± 
+
+> h
+
+) (right) showing both positive and negative interactions. 
+
+(a) The softmax attention is dispersed and does not focus on the concerned object (hare), while our DnA focuses on the concerned object. (b) The softmax attention interacts heavily with a secondary adversarial class (cat), while our DnA focuses on the concerned object (clog) and considers the adversarial object as misleading. (c) The softmax attention does not attend to the primary object (potter’s wheel); only a few sporadic interactions are picked up from the background. In contrast, DnA focuses on the primary object. 
+
+Theorem 1 ( Maximum Entropy ). Let z = ( z1, · · · , z n) be a given vector of scores and let Z be a random variable taking values z1, ..., z n. The probability distribution p∗ = ( p∗
+
+> 1
+
+, . . . , p ∗
+
+> n
+
+) that maximizes the Shannon entropy, H(p) = 
+
+− Pni=1 pi log pi, subject to the constraints that p is on the probability simplex, 
+
+P = {p ∈ Rn 
+
+> +
+
+: Pni=1 pi = 1 }, and gives a fixed expected value Ep[Z] = μ, for some μ ∈ R, is given by p∗ 
+
+> i
+
+= eλz i  
+
+> Pnj=1 eλz j
+
+, where the parameter λ ∈ R is chosen such that Pni=1 p∗ 
+
+> i
+
+zi = μ.
+
+The standard softmax is recovered when μ is the empirical average of the features, that is, μ = Pni=1 ziezi / Pnj=1 ezj .The softmax distribution maximizes entropy subject to expected-value con-straints, yielding the most noncommittal probability distribution consistent with the available information. This principle underlies its central role in information theory and statistical inference [15, 33]. In attention mechanisms, softmax is therefore naturally justified as a principled method for transforming raw atten-tion scores into a valid probability distribution [3,75]; see Theorem 4 in §B. This mechanism computes a weighted average, where weights encode the relative im-portance of each position. The exponential form of softmax induces nonlinear amplification of dominant scores, producing two effects: ( i) Selective focus, 
+
+where large scores receive near-unit weight while small or negative scores are suppressed, emphasizing the most relevant information; and ( ii ) Competitive normalization, where increasing attention to one position necessarily decreases attention to others, enforcing a fixed attention budget. 
+
+Why do we need a softmin function? Because softmax pushes dominant scores toward 1 while compressing smaller scores toward 0, potentially infor-mative low interactions may be suppressed. To capture such signals, we con-sider the softmin function, defined component-wise for z ∈ Rn as ˆσ(z)i := 
+
+σ(−z)i = e−zi  
+
+> Pnj=1 e−zj
+
+. By Theorem 1, ˆσ is the unique distribution that maxi-mizes Shannon entropy subject to the constraint Pnj=1 ˆpj (−zj ) = μ, equivalently 6 R. Campos et al. (i)  (ii) 
+
+Fig. 3: A schematic comparison between traditional attention and the proposed de-noising attention. (i) The multi-head attention uses a softmax activation on the rows of the scaled dot-product QhK⊤ 
+
+> h√d
+
+and combines it with Vh. (ii) The proposed denoising attention AQ±V ± 
+
+> h
+
+, uses two sets of values, V + 
+
+> h
+
+and V − 
+
+> h
+
+, and two sets of queries Q+ 
+
+> h
+
+and 
+
+Q− 
+
+> h
+
+. We use softmax and softmin two scaled dot-products, Q+  
+
+> hK⊤
+> h√d
+
+and Q−  
+
+> hK⊤
+> h√d
+
+, and are projected on the row-spaces of V + 
+
+> h
+
+and V − 
+
+> h
+
+, respectively. 
+
+Pnj=1 ˆpj zj = −μ. Thus, softmin maximizes entropy under a mean constraint with the opposite sign, providing a principled counterpart to softmax that emphasizes strongly lower interactions. Thus, it makes sense to promote both the largest and the smallest components, since using only one provides incomplete information. To conclude, we obtain a new principle: When we do not have any information about which extreme value (largest or smallest) of the scores, we should use both softmax and softmin. 
+
+3.2 Designing Denoising Attention (DnA) 
+
+In ViTs [20, 73], self-attention models token interactions by aggregating features via normalized weights derived from the attention matrix Ah (see Figure 2). High interaction scores reflect strong mutual relevance and typically correspond to object-related features; see Figure 2(a)-(b). However, as illustrated in Fig-ure 2(c), softmax attention may assign weight to irrelevant context, introducing noise or distraction, which we interpret as negative token interactions. Formally, softmax projects each row of the scaled dot-product QhK⊤ 
+
+> h√d
+
+onto the probability simplex, exponentially amplifying large positive scores while mapping low, neg-ative, and highly negative scores near zero. Although weak interactions may be uninformative, strongly negative interactions can encode informative contrastive structure. Standard softmax suppresses such signals; we instead aim to explicitly model and leverage negative token interactions to enhance visual understanding. Recently, differential attention [80] for language modeling is motivated by dif-ferential amplifiers, where subtracting two signals suppresses shared noise. The model projects the input X, to two sets of queries, Q1, Q 2 ∈ RN ×d/ 2 and keys, 
+
+K1, K 2 ∈ RN ×d/ 2 and one value matrix V ∈ RN ×d, and the attention with a Denoising Attention 7
+
+learnable parameter λ, is computed as AD (X) = ( σ( Q1KT 
+
+> 1√d
+
+) − λσ( Q2KT 
+
+> 2√d
+
+)) V . By construction, AD (X) lies in the row space, C(V ⊤) of V , meaning both interac-tions are projected onto the same subspace. This raises the question of whether improved modeling can be achieved by separating these projections. To motivate this, we connect the performance of a subspace classifier and the principal angles between subspaces. Consider a two-class problem with labels, 
+
+C1 and C2, concentrated near two subspaces with orthonormal bases, U1, U 2 ∈
+
+Rn×d. Let the class-conditional densities be modeled as: 
+
+p(x|C1) = 
+
+Z
+
+p(x|α, C 1)p(α)dα, and p(x|C2) = 
+
+Z
+
+p(x|α, C 2)q(α)dα, 
+
+where the vector α does not essentially follow a multivariate normal distribu-tion. Let P (C2|C1) be the probability of mistaking C2 for C1, and P (C1|C2)
+
+be the opposite. Then the classification error , Pe = 12 (P (C2|C1) + P (C1|C2)) .
+
+Following Bayes rule, one can rewrite P (C2|C1) as 
+
+P (C2|C1) = 
+
+Z
+
+P (C2|C1, α )p(α)dα, 
+
+where P (C2|C1, α ) can be bounded by writing x = U1α + n, and considering 
+
+n ∈ N (0 , σ 2I). Similarly, P (C1|C2) can be bounded. With the formalization above, the theorem below bounds the classification error: 
+
+Theorem 2 (Classification error bound). [30] As σ2 → 0 the classification error, Pe is upper bounded as Pe ≤ R 12 exp 
+
+
+
+− (Pdi=1 sin 2 θiα2     
+
+> i)2
+> 8σ2Pdi=1 sin 2θi(α2
+> i+σ2)
+
+ p(α)+ q(α)2 dα, 
+
+where {cos( θi)}di=1 are the singular values of U ⊤ 
+
+> 1
+
+U2 in ascending order, and 
+
+{θi}di=1 are the principal angles between U1 and U2.
+
+Theorem 2 indicates that when the principal angles (or signal energy) are big-ger, the classification error upper bound is smaller. When σ2 → 0, we have 
+
+exp 
+
+
+
+− (Pdi=1 sin 2 θiα2     
+
+> i)2
+> 8σ2Pdi=1 sin 2θi(α2
+> i+σ2)
+
+
+
+≈ exp 
+
+
+
+−  
+
+> Pdi=1 sin 2θiα2
+> i
+> 8σ2
+
+
+
+, by ignoring the higher-order term of σ2. This indicates that classification performance is a function of principal angles and larger principal angles lead to a smaller classification error. 
+
+Consequently, we can formulate the positive and negative interactions be-tween the tokens as a two-class classification problem. We introduce two queries over the same keys: (i) a positive query capturing features belonging to the cor-rect class, and (ii) a negative query capturing closely associated but irrelevant features. Their outputs are projected into distinct subspaces with large princi-pal angles between them. Combining these projections suppresses non-essential patches (denoising) while maintaining small classification error through subspace separation. Formally, the solution to the constrained minimization problem with a bal-ancing parameter β > 0:
+
+min  
+
+> θ∈Θ
+
+L(θ) + β
+
+> L
+
+X
+
+> i=1
+> H
+
+X 
+
+> j=1 ,j ̸=l
+
+⟨Vij (θ), V il (θ)⟩F , (1) 8 R. Campos et al. 
+
+promotes orthogonality between value subspaces and yields a solution set con-tained in that of the unconstrained problem: 
+
+min  
+
+> θ∈Θ
+
+L(θ), (2) where L(θ) is the training loss. Nevertheless, to obtain solutions to (1) one needs to guarantee PLi=1 
+
+PHj=1 ⟨Vij , V ik ⟩F is small at every iterate. Enforcing orthogo-nality at every iterate is difficult. If we can argue that PLi=1 
+
+PHj=1 ,j ̸ =l⟨V (k) 
+
+> ij
+
+, V (k) 
+
+> il
+
+⟩F
+
+is quasi-orthogonal for all k then it suffices to only solve (2). In practice, (WVij )pq ∼ N (0 , σ 2), chosen from a zero mean Gaussian distri-bution with standard deviation σ = 0 .02 . Since Support (N (0 , σ 2)) = R, for all 
+
+σ ∈ R+, we consider a compact support. Additionally, we follow [87], which views convergence in neural network training from an invariant measure perspective. Especially, Theorem 4.3 in [87] shows that as the training loss L(θ) stabilizes, the iterates (or the weights) lie in a compact region almost surely. We modify the result of Theorem 4.3 below. 
+
+Proposition 1. Let WVij (0) be initialized within a compact set CV := {WVij (0) :
+
+∥WVij (0) ∥ ≤ γ}. Then for every k, the iterate WVij (k) ∈ C V with high probability. 
+
+Proposition 1 implies that all iterates lie in a compact region almost surely. Based on this, we proposed the following Theorem, which states that, under certain standard assumptions, the solutions to (2) are orthogonal with high probability. 
+
+Theorem 3 (Quasi-orthogonality of the subspaces). Let the entries of 
+
+WV + and WV − be initialized as i.i.d. N (0 , σ 2) over a finite support [−γ, γ ]. Let the input Xp ∈ RN ×d be such that ∥Xp∥∞ ≤ M . Assume for every k, the entries of the iterates {WV +(k), W V −(k)} are i.i.d. sub Gaussian with parameter σ > 0.( i) Then |(WV +(k))pq | ≤ γ and |(WV −(k))pq | ≤ γ, with high probability. ( ii ) If 
+
+γ = O(M −1ϵ− 12 (N log( δ−1)) − 14 ), then |⟨ V +, V −⟩F | ≤ dϵ with probability 1 − δ. 
+
+DnA: Modeling Discriminative Patches. While differential attention may remove common-mode noise, it could also cancel useful signals if Q1K⊤ 
+
+> 1
+
+and 
+
+Q2K⊤ 
+
+> 2
+
+both assign high attention weights to the same tokens . Since both branches share a single V , subtracting them directly removes overlapping contributions. To avoid this, we introduce two distinct value projections, V + = XpWV + ∈
+
+RN ×D and V − = XpWV − ∈ RN ×D , where WV + , W V − ∈ RD×D are learnable weight matrices. Consequently, we partition V + and V − into H heads such that, for any head h, we head-specific value subspaces, V + 
+
+> h
+
+, V − 
+
+> h
+
+∈ RN ×d. With this formalization, our denoising attention takes the form: 
+
+AQ±V ± 
+
+> h
+
+= σ
+
+ Q+ 
+
+> h
+
+K⊤
+
+> h
+
+√d
+
+
+
+V + 
+
+> h
+
++ αh ˆσ
+
+ Q− 
+
+> h
+
+K⊤
+
+> h
+
+√d
+
+
+
+V − 
+
+> h
+
+,
+
+where αh ∈ R is a learnable balancing parameter; see Figure 3(ii). It contains all previously discussed designing choices: ( i) Two quasi-orthogonal value spaces; (ii ) that are scaled by using softmax for positive query and softmin for negative query, to capture complementary signal components, analogous to denoising or band-pass filtering [14, 40]; see Algorithm 1. For ablations on different design choices of DnA and their performances on ImageNet-1K [18], see §C.5. Denoising Attention 9
+
+3.3 Adapting DnA for Video Understanding 
+
+In this section, we explore how DnA can be integrated into video understand-ing frameworks, including conventional transformer-based architectures (e.g., TimeSformer [4]) and video foundation models [85]. This adaptation enables us to evaluate DnA on fine-grained video analysis tasks, where such an atten-tion mechanism can be particularly beneficial by suppressing detrimental token interactions and improving representation quality. 
+
+Video Transformer [4] uses a dissociated space-time attention within each transformer block to capture discriminative action patterns. We integrate DnA into this framework by replacing both the spatial and temporal self-attention mechanisms with our DnA variant. This allows the mechanism to operate in-dependently along both dimensions, filtering irrelevant spatial cues within each frame and temporal noise across frames. 
+
+Video LLMs involve a vision-language adapter, often consisting of simple MLPs or linear layers. Recently, visual probing [65] emerged as an additional visual reinforcement for the LLM. The role of visual probes in VisCoP [65] is to provide a compact set of learnable tokens P that extract domain-specific spatio-temporal cues X from the hidden states of the vision encoder. These probes augment the frozen vision encoder embeddings before they are passed to the LLM. At each layer l, the visual probes are updated through a cross-attention operation between learnable queries and the visual embeddings. We adapt DnA to video LLMs by replacing the cross-attention modules in VisCoP with our proposed attention mechanism. To the best of our knowledge, this is the first integration of explicit negative token interaction modeling within a foundation model through an adapter-based design, allowing the model to retain the benefits of large-scale pretraining while leveraging the denoising capability of our attention mechanism. Specifically, the denoising interaction module at layer ℓ introduces projection matrices WQ+ , W Q− , W K , W V + , W V − , such that the probe update becomes:                     
+
+> Pℓ+1 =σPℓWℓQ+(XℓWℓK)⊤
+> √dv
+> !
+> (XℓWℓV+) + αˆσPℓWℓQ−(XℓWℓK)⊤
+> √dv
+> !
+> (XℓWℓV−).
+
+This cross-DnA formulation explicitly models interactions between positive and negative tokens, enabling the probes to capture fine-grained visual cues within the LLM embedding space. 
+
+## 4 Benchmarking and Evaluation 
+
+In this section, we benchmark DnA in traditional transformers and a foundation model for diverse visual understanding tasks, and analyze the effectiveness of DnA quantitatively and qualitatively. 
+
+4.1 Denoising Attention for Image Classification Setup. For Image Classification, we train our models and baselines from scratch on ImageNet-1K [18] with images resized to 224 × 224 . We implement DnA on 10 R. Campos et al.                            
+
+> Model Validation Set Test Set Params GFLOPs Throughput Acc.@1 Acc.@5 Acc.@1 Acc.@5
+> ViT-B 81.1 95.6 81.1 95.6 86.6M 17.6 909.1 img/s +Diff. Attn. 81.4( ↑0.3) 95.7( ↑0.1) 81.5( ↑0.4) 95.6 86.6M 17.6 909.1 img/s +Cog Attn. 81.4( ↑0.3) 95.7( ↑0.1) 81.5( ↑0.4) 95.7( ↑0.1) 86.6M 17.6 909.1 img/s
+> +DnA 81.9 (↑0.8) 95.9 (↑0.3) 81.9 (↑0.8) 95.8 (↑0.2) 100.7M 21.1 909.1 img/s
+
+Table 1: Accuracy on the ImageNet-1K [18] valida-tion and test set; the ↑ arrows indicate the absolute gain compared to the baseline ViT-B. We present the variance across multiple runs in Table 6. See §C.1 for implementation details and hyperparameter setup, and computational requirements in Table 7. Also, see §C.2 for the training loss and test accuracy curves.              
+
+> Model ImageNet-A [29]
+> Acc. ↑RMSE ↓AURRA ↑
+> ViT-B 24.1 26.6 33.5 +Diff. Attn. 28.1 25.8 39.7 +Cog Attn. 27.5 25.3 38.8
+> +DnA 27.7 24.2 40.7
+
+Table 2: Robustness eval-uation on ImageNet-A [29]. Improvements in ranking and calibration metrics reflect de-cision quality on adversarial samples. 
+
+the ViT-B backbone, using hyperparameters from DeiT [73]. Our models contain 12 encoder layers, with 12 heads in each layer, a patch size of p = 16 , and a head dimension of 64. We train them on an NVIDIA H100 GPU for 300 epochs; see implementation details and training hyperparameters in Table 4 in §C.1. 
+
+Baselines. Our primary baseline is ViT-B, trained with a DeiT recipe [73]. For the image classification on ImageNet-1K, we employ cog attention [50] and dif-ferential attention [80] in ViT-B by replacing traditional MHSA. The rest of the ViT architecture remains unchanged. Cog attention [50] employs negative atten-tion weights, thereby providing a direct point of comparison with our approach. Differential attention [80] employs a signal denoising mechanism for language modeling tasks by splitting keys and queries. See implementation details in §C.1. 
+
+Evaluation. Table 1 shows the evaluation results of our models on the ImageNet-1K [18] validation and test set compared to the baselines. The proposed DnA surpasses the baseline ViT-B by 0.8% and outperforms models using cog atten-tion and differential attention by 0.5%, while maintaining the same throughput during inference .
+
+Robustness Evaluation on ImageNet-A. ImageNet-A [29] consists of images that are full of adversarial examples and that confuse the image classifiers. We use this dataset to evaluate the robustness of our model to such adversarial examples. For evaluation, we use the calibration error metric RMSCE, the reliability metric AURRA, and standard accuracy. We show these results in Table 2. In terms of reliability and calibration, our proposed DnA substantially outperforms the baselines and competitors. 
+
+Additional Benchmarking. We use the weights of our ImageNet-1K trained models for downstream visual understanding tasks: ( i) image classification on CIFAR-10, CIFAR-100 [39], and Stanford Cars [38], ( ii ) object detection and instance segmentation on MS COCO [46]. We further conduct ( iii ) robustness evaluations on ImageNet-O, -R [28,29]; see §C.3 and Tables 8–10. We incorporate DnA for a few additional backbones and show their performances in Table 11. Denoising Attention 11                                      
+
+> Toyota Smarthome [17] NTU60 [68]
+> Model CS CV2 CS CV
+> TimeSformer 67.5 59.5 81.2 88.6 +Diff. Attn. 66.6 59.4 81.5 89.1
+> +DnA 68.8 63.5 82.4 89.2
+> Model Act. Task HOI Hand Avg.
+> VideoLLaMA3 74.9 75.8 75.2 65.3 72.8 VisCoP 81.8 86.1 79.3 65.1 78.1 +Diff. Attn. 78.8 83.0 77.5 64.9 76.1
+> +DnA 83.1 87.1 79.2 65.1 78.6
+
+Table 3: (a)Left: Baseline comparison on Toyota Smarthome and NTU60. We report mean-class accuracy (mCA) for Toyota Smarthome and Top-1 accuracy for NTU60. Cross-subject (CS) and cross-view (CV) denote the data split protocols. (b) Right: 
+
+Quantitative results on Ego-in-Exo PerceptionMCQ [64]. We evaluate across four ego-centric video understanding tasks: action understanding (Act.), task-relevant region un-derstanding (Task), human-object interactions (HOI), and hand identification (Hand). 
+
+4.2 Denoising Attention for Video Understanding 
+
+We evaluate DnA on fine-grained video understanding tasks to demonstrate the importance of specialized attention mechanisms for detailed video analysis. Specifically, we integrate DnA in two settings. First, we incorporate DnA into a conventional Video Transformer [4] for action classification on exocentric videos. Second, we integrate DnA into a video LLM [85] to address egocentric video understanding tasks. 
+
+Video Transformer [4]. We initialize the weights from the trained models in §4.1, and pretrain the models on Kinetics400 [8], then finetune and evaluate them on Toyota Smarthome [17] and NTU RGB+D 60 [68]. Toyota Smarthome consists of 16K videos spanning 31 action categories. NTU RGB+D 60 contains 57K video samples across 60 action classes. Models are trained for 15 epochs using divided space-time attention, with an input of 8 frames at a resolution of 
+
+224 × 224 . For Toyota Smarthome, we evaluate using the cross-subject (CS) and cross-view (CV2) protocols, reporting mean class accuracy (mCA). For NTU60, we report Top-1 accuracy. 
+
+Results. Table 3(a) shows that replacing both the space and temporal atten-tion in TimeSformer with our denoising mechanism consistently improves per-formance across both datasets. On Toyota Smarthome [17], we observe gains of 
+
+↑1.3% on CS and ↑4.0% on CV2. On NTU60 [68], denoising attention achieves improvements of ↑1.2% on CS and ↑0.6% on CV. Overall, these consistent gains across two datasets show the effectiveness of incorporating denoising attention in video transformers. 
+
+Video LLM. Following the training strategy of VisCoP [65] and by using a subset of ego videos from EgoExo4D [23] ( ∼46K QA pairs), we train VideoL-LaMA3 with DnA as the attention mechanism and evaluate on the Ego-in-Exo PerceptionMCQ [64] benchmark. This benchmark comprises four evaluation cat-egories: Action Understanding , which measures recognition of performed activ-ities; Task Regions , which assesses identification of spatially salient areas in a scene; Human–Object Interaction (HOI), which evaluates reasoning about inter-actions between individuals and objects; and Hand Identification , which tests first-person perspective understanding through hand tracking and recognition. 12 R. Campos et al. DnA Original Image  Attention  Diff. Attn.  DnA Original Image  Attention  Diff. Attn. 
+
+Fig. 4: (a) Top: Attention visualization for ViT-B [20] with softmax, differential at-tention [80], and our DnA. The objects are dumbbells and a volleyball. (b) Bottom: 
+
+Example of DnA outperforming baseline methods on egocentric video QA. Four frames are uniformly sampled; the object of interest is highlighted by a cyan box. The correct answer is in green , the incorrect in red .
+
+We initialize the positive projection weights from the pretrained vision en-coder’s cross-attention weights, and initialize W ℓQ− and W ℓV − as scaled-down copies of their positive counterparts (by 10 −4). The scaling factor avoids branch symmetry, which would arise from two equivalent initialization points [11, 12]; see §C.5 and §13. During finetuning, we train the interaction modules, visual probe projector, vision embedding projector, and apply LoRA to the LLM. We train for 3 epochs with an initial learning rate of 10 −5, using a cosine schedule for the projectors and the LLM. Evaluation uses a temperature of 0. 
+
+Results. Table 3(b) displays our results on Ego-in-Exo PerceptionMCQ [64]. Our denoising variant improves over the baseline VisCoP on average, achieving gains of ↑0.5% , showing that the denoising mechanism helps the visual probes extract more semantically meaningful domain-specific cues. 
+
+4.3 Qualitative Analysis: Attention Visualization 
+
+We use the gradient-based attention interpretability method from [10] for vi-sualization on ViT-B. For DnA and differential attention [80], we extend this method to propagate and visualize signed relevance independently. Figure 4(a) demonstrates that softmax attention is densely spread around the image, but with limited focus on the classes of interest. Differential attention, on the other hand, shows improvement but retains substantial background noise. Finally, the positive activations (red) in DnA are focused on the classes of interest (dumb-bell and volleyball). Crucially, the AQ−V − 
+
+> h
+
+branch of DnA suppresses irrelevant background areas, creating a contrast between class features and noisy distrac-tors. Figure 4(b) displays how DnA thrives despite the presence of many visually prominent objects, by suppressing query-irrelevant tokens before passing them to the LLM, whereas VisCoP and the Base VLM are mislead by irrelevant visual cues. We provide additional visualizations in §C.5; see Figures 12 and 13. Denoising Attention 13 
+
+4.4 Quantitative Analyses: Understanding the Attention Subspaces 
+
+This section empirically justifies our postulates in Section 3.2 that lead to the design choices of DnA. First, by calculating the intruder dimensions between two attention branches of the differential transformer and DnA, we show the necessity of considering two value subspaces. Next, by empirically measuring the similarities between the contrasting value subspaces, V + and V − of DnA, we verify the claim of our main theoretical result in Theorem 3. (a) Intruder Dimension Analysis. To observe how two branches in DnA relate to one another, we perform a subspace analysis that measures the diver-gence between AQ+V + 
+
+> h
+
+and AQ−V − 
+
+> h
+
+in DnA and A1V and A2V of the differential transformer. We compute the SVD of each branch and count how many of the Top-k left singular vectors are near-orthogonal. The near orthogonality of these vectors indicates the separability of the subspaces and hence the efficacy of de-noising attention in reducing the classification error; see Theorem 2. Out of the Top-k singular vectors, we called the vectors with larger angles between them 
+
+intruders , following [6, 70]; the higher the intruders, the better. We calculated the intruders independently per sample, head, and layer across 5 images per class from the ImageNet-1K validation set ( 5K images total), result-ing in 720 K values for ViT-B. Out of the Top-k left singular vectors, a singular vector is considered an intruder if its cosine similarity with the rest of the singular vectors falls below a user-defined threshold, ϵ.Figure 5 shows DnA consistently displays higher intruder dimensions, with its distribution peaking around 8 − 9, compared to differential attention, which peaks around 6 − 7 (we set ϵ = cos π 
+
+> 3
+
+, k = 10 ). This shows that in differential attention, two attention branches operate within the same subspace, performing a local refinement that may cancel common-mode noise, where DnA’s branches interact more orthogonally. Since the subspaces are near-orthogonal, DnA can suppress noise without canceling any useful signal and has lower classification error, as seen in the visual understanding tasks. On the other hand, branches 
+
+A1 and A2 in differential attention may both assign high attention weights to the same tokens, losing a useful signal in the subtraction. (b) Similarity between V + and V −. We consider the normalized Frobe-nius inner product, C(V +, V −) to calculate the similarities between two value subspaces, given by C(V +, V −) := ⟨ V +  
+
+> ∥V+∥F
+
+, V −  
+
+> ∥V+∥F
+
+⟩F = Trace 
+
+ V +⊤    
+
+> V−
+> ∥V+∥F∥V−∥F
+
+
+
+.
+
+We normalize the matrices so that the range is [−1, 1] , where 1 indicates that the two matrices are aligned, and 0 indicates orthogonality. We plot C(V +, V −)
+
+for each sample, head, and layer using the ImageNet-1K validation set, result-ing in 7.2M trace values; see Figure 6. The mean of the distribution is 0.22 ,while the median is 0.18 . Figure 6 shows that the subspaces V + and V − are quasi-orthogonal for most heads, with most of the mass near 0. However, the distribution shows a heavy right tail, suggesting that some attention heads in 
+
+V + and V − may not contribute equally to the denoising mechanism. This empir-ical observation justifies our theoretical result in Theorem 3. It also supports the claim that, instead of enforcing orthogonality at every iteration (as in the case 14 R. Campos et al.            
+
+> Fig. 5: Comparison of intruder dimension counts between DnA and differential atten-tion ϵ= cos π
+> 3,k=10 .
+> Fig. 6: Distribution of C(V+, V −)for each sample, head, and layer in the ImageNet-1K validation set ( 7.2M trace values).
+
+of (1)), it is sufficient to solve the unconstrained problem (2), as the resulting subspaces are quasi-orthogonal during training. Additionally, we compute the average cosine similarity between AQ+V + 
+
+> h
+
+and 
+
+AQ−V − 
+
+> h
+
+for DnA and A1V and A2V for differential attention, over the entire ImageNet-1K validation set. Differential attention achieves a high average cosine similarity of 0.96 , while DnA measures at only 0.32 , further solidifying our claim. 
+
+4.5 Additional Quantitative Analyses & Ablations 
+
+We further examine DnA from multiple perspectives through extensive ablations. 
+
+Representational Robustness. We measure representational robustness by computing ∆ij := 1 − cos( ∠pi, p j ) between two tokens, pi, p j ∈ A , at each layer. Before calculating ∆ij , token embeddings (excluding the CLS token) are mean-centered across feature space, then averaged per image and across the dataset. The higher this measurement, the better, as it indicates greater inter-token sepa-ration. To further substantiate our claim that our attention mechanism denoises, we infuse the input with Gaussian noise. Figure 7 shows how DnA stabilizes noisy inputs through layer-wise features. Overall, DnA improves robustness by sup-pressing perturbations and transforming them into features that downstream layers can process effectively. In contrast, softmax attention propagates pertur-bations, amplifying distortions in feature space and degrading accuracy. This denoising behavior lets DnA recover from early noise more reliably. 
+
+Additional Analysis. In §C.5, we trained two parameter-matched ViT-B base-lines, and their performance confirms that DnA’s gains stem from the architec-tural choices rather than extra parameters. Additionally, we discuss different design components of DnA and their behavior in §C.5. We further analyze at-tention head diversity, the evolution of the learnable parameter ( αh), and the entropy of attention distributions across encoder layers in Figure 14, §C.5. Denoising Attention 15       
+
+> Fig. 7: Average pairwise cosine distances under varying noise levels; see noise variance (σ) and PSNR in titles. Solid lines represent models evaluated under clean data (DnA and softmax), while dashed lines reflect artifacts of noisy data (DnA σand softmax σ)for different noise, σ. DnA σexhibits smaller accuracy drops than softmax σacross all noise levels, indicating more diverse feature representations and robustness to noise.
+
+## 5 Limitation & Future Work 
+
+DnA introduces additional parameters, ranging from approximately 3% in video LLMs to 23% in video transformers. While the performance improvements stem from the discriminative capability of the proposed attention mechanism rather than simply increased parameter capacity (see Table 12), we acknowledge the added parameters and associated training cost. In practice, all the additional parameters reside in parallelizable attention heads, which mitigate the compu-tational overhead. Consequently, we observe throughput comparable to a base-line ViT when compared with ViT augmented with DnA (see Table 7). Future work will focus on developing more parameter-efficient implementations while preserving the performance gains of the proposed mechanism. 
+
+## 6 Conclusion 
+
+We propose DnA, denoising attention that uses softmin and softmax and explic-itly models negative token interactions. Our design principle for DnA is moti-vated by theoretical observations that indicate that subspace separation for the positive and negative token interactions can alleviate both attention misalloca-tion and noise. By replacing traditional attention, the proposed DnA outper-forms standard ViT-B on ImageNet-1K classification, improves on several video understanding tasks with both video transformers and video LLMs, and gener-alizes to multiple downstream tasks. To justify the design choices, we verify that the two branches in DnA, operating over distinct interacting subspaces, learn different token interactions that jointly enable the denoising effect. 
+
+Acknowledgments. Aritra Dutta is partially supported by the Florida De-partment of Health Grant, AWD00007072, and the National Science Founda-tion Grant, 2321986. Subhajit Maity is supported by the Florida Department of Health Grant AWD00007072. Srijan Das is in part supported by the National Science Foundation, IIS-2245652. 16 R. Campos et al. 
+
+## References 
+
+1. AI, M.: Introducing Meta Llama 3: The most capable openly available LLM to date. https://ai.meta.com/blog/meta-llama-3/ (2024) 2. Arnab, A., Dehghani, M., Heigold, G., Sun, C., Lucic, M., Schmid, C.: ViViT: A Video Vision Transformer. In: Proceedings of the IEEE/CVF International Con-ference on Computer Vision. pp. 6836–6846 (2021) 3. Bahdanau, D., Cho, K., Bengio, Y.: Neural Machine Translation by Jointly Learn-ing to Align and Translate. In: International Conference on Learning Representa-tions (2015) 4. Bertasius, G., Wang, H., Torresani, L.: Is Space-Time Attention All You Need for Video Understanding? In: International Conference on Machine Learning. pp. 833–842 (2021) 5. Brown, T., Mann, B., Ryder, N., Subbiah, M., Kaplan, J.D., Dhariwal, P., Nee-lakantan, A., Shyam, P., Sastry, G., Askell, A., et al.: Language Models are Few-Shot Learners. In: Advances in Neural Information Processing Systems. pp. 1877– 1901 (2020) 6. Cadenhead, E., McGee, C., Li, X., Bergou, E.H., Dutta, A.: Beyond LoRA: Is Sparsity-Induced Adaptation Better? arXiv preprint arXiv:2606.13767 (2026) 7. Campos, R., Vayani, A., Kulkarni, P.P., Gupta, R., Zafar, A., Dutta, A., Shah, M.: GAEA: A Geolocation Aware Conversational Model. In: Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision. pp. 5236– 5246 (2026) 8. Carreira, J., Zisserman, A.: Quo Vadis, Action Recognition? A New Model and the Kinetics Dataset. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 6299–6308 (2017) 9. Chamberlin, D.D., Boyce, R.F.: SEQUEL: A Structured English Query Language. In: Proceedings of the ACM SIGFIDET (Now SIGMOD) Workshop on Data De-scription, Access and Control. pp. 249–264 (1974) 10. Chefer, H., Gur, S., Wolf, L.: Transformer Interpretability Beyond Attention Visu-alization. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 782–791 (2021) 11. Chen, C., Yin, Y., Shang, L., Jiang, X., Qin, Y., Wang, F., Wang, Z., Chen, X., Liu, Z., Liu, Q.: bert2BERT: Towards Reusable Pretrained Language Models. In: Annual Meeting of the Association for Computational Linguistics. pp. 2134–2148 (2022) 12. Chen, T., Goodfellow, I., Shlens, J.: Net2net: Accelerating Learning via Knowledge Transfer. In: International Conference on Learning Representations (2016) 13. Chen, X., Wang, X., Changpinyo, S., Piergiovanni, A., Padlewski, P., Salz, D., Goodman, S., Grycner, A., Mustafa, B., Beyer, L., Kolesnikov, A., Puigcerver, J., Ding, N., Rong, K., Akbari, H., Mishra, G., Xue, L., Thapliyal, A.V., Bradbury, J., Kuo, W., Seyedhosseini, M., Jia, C., Ayan, B.K., Ruiz, C.R., Steiner, A.P., An-gelova, A., Zhai, X., Houlsby, N., Soricut, R.: PaLI: A Jointly-Scaled Multilingual Language-Image Model. In: International Conference on Learning Representations (2023) 14. Christiano, L.J., Fitzgerald, T.J.: The Band Pass Filter. International Economic Review 44 (2), 435–465 (2003) 15. Cover, T.M., Thomas, J.A.: Elements of Information Theory. John Wiley & Sons, 2 edn. (2006) Denoising Attention 17 16. Darcet, T., Oquab, M., Mairal, J., Bojanowski, P.: Vision Transformers Need Reg-isters. In: International Conference on Learning Representations (2024) 17. Das, S., Dai, R., Koperski, M., Minciullo, L., Garattoni, L., Bremond, F., Francesca, G.: Toyota Smarthome: Real-World Activities of Daily Living. In: Pro-ceedings of the IEEE/CVF International Conference on Computer Vision. pp. 833– 842 (2019) 18. Deng, J., Dong, W., Socher, R., Li, L.J., Li, K., Fei-Fei, L.: ImageNet: A Large-Scale Hierarchical Image Database. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (2009) 19. Ding, M., Xiao, B., Codella, N., Luo, P., Wang, J., Yuan, L.: DaViT: Dual Attention Vision Transformers. In: Proceedings of the European Conference on Computer Vision. pp. 74–92 (2022) 20. Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X., Unterthiner, T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S., Uszkoreit, J., Houlsby, N.: An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale. In: International Conference on Learning Representations (2021) 21. d’Ascoli, S., Touvron, H., Leavitt, M.L., Morcos, A.S., Biroli, G., Sagun, L.: Con-ViT: Improving Vision Transformers with Soft Convolutional Inductive Biases. In: International Conference on Machine Learning. pp. 2286–2296 (2021) 22. Goodfellow, I., Bengio, Y., Courville, A.: Deep Learning. MIT Press (2016) 23. Grauman, K., Westbury, A., Torresani, L., Kitani, K., Malik, J., Afouras, T., Ashutosh, K., Baiyya, V., Bansal, S., Boote, B., Byrne, E., Chavis, Z., Chen, J., Cheng, F., Chu, F.J., Crane, S., Dasgupta, A., Dong, J., Escobar, M., Forigua, C., Gebreselasie, A., Haresh, S., Huang, J., Islam, M.M., Jain, S., Khirodkar, R., Kukreja, D., Liang, K.J., Liu, J.W., Majumder, S., Mao, Y., Martin, M., Mavroudi, E., Nagarajan, T., Ragusa, F., Ramakrishnan, S.K., Seminara, L., Somayazulu, A., Song, Y., Su, S., Xue, Z., Zhang, E., Zhang, J., Castillo, A., Chen, C., Fu, X., Fu-ruta, R., Gonzalez, C., Gupta, P., Hu, J., Huang, Y., Huang, Y., Khoo, W., Kumar, A., Kuo, R., Lakhavani, S., Liu, M., Luo, M., Luo, Z., Meredith, B., Miller, A., Oguntola, O., Pan, X., Peng, P., Pramanick, S., Ramazanova, M., Ryan, F., Shan, W., Somasundaram, K., Song, C., Southerland, A., Tateno, M., Wang, H., Wang, Y., Yagi, T., Yan, M., Yang, X., Yu, Z., Zha, S.C., Zhao, C., Zhao, Z., Zhu, Z., Zhuo, J., Arbelaez, P., Bertasius, G., Crandall, D., Damen, D., Engel, J., Farinella, G.M., Furnari, A., Ghanem, B., Hoffman, J., Jawahar, C.V., Newcombe, R., Park, H.S., Rehg, J.M., Sato, Y., Savva, M., Shi, J., Shou, M.Z., Wray, M.: Ego-Exo4D: Understanding Skilled Human Activity from First- and Third-Person Perspectives. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 19383–19400 (2024) 24. Guo, Q., Qiu, X., Liu, P., Shao, Y., Xue, X., Zhang, Z.: Star-Transformer. In: Conference of the North American Chapter of the Association for Computational Linguistics. pp. 1315–1325 (2019) 25. Han, D., Pu, Y., Xia, Z., Han, Y., Pan, X., Li, X., Lu, J., Song, S., Huang, G.: Bridging the Divide: Reconsidering Softmax and Linear Attention. In: Advances in Neural Information Processing Systems. pp. 79221–79245 (2024) 26. He, K., Gkioxari, G., Dollár, P., Girshick, R.: Mask R-CNN. In: Proceedings of the IEEE/CVF International Conference on Computer Vision. pp. 2961–2969 (2017) 27. He, K., Zhang, X., Ren, S., Sun, J.: Deep Residual Learning for Image Recognition. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 770–778 (2016) 18 R. Campos et al. 28. Hendrycks, D., Basart, S., Mu, N., Kadavath, S., Wang, F., Dorundo, E., Desai, R., Zhu, T., Parajuli, S., Guo, M., et al.: The Many Faces of Robustness: A Critical Analysis of Out-of-Distribution Generalization. In: Proceedings of the IEEE/CVF International Conference on Computer Vision. pp. 8340–8349 (2021) 29. Hendrycks, D., Zhao, K., Basart, S., Steinhardt, J., Song, D.: Natural Adversarial Examples. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 15262–15271 (2021) 30. Huang, J., Qiu, Q., Calderbank, R.: The Role of Principal Angles in Subspace Classification. IEEE Transactions on Signal Processing 64 (8), 1933–1945 (2016) 31. Hyeon-Woo, N., Yu-Ji, K., Heo, B., Han, D., Oh, S.J., Oh, T.H.: Scratching Visual Transformer’s Back with Uniform Attentionz. In: Proceedings of the IEEE/CVF International Conference on Computer Vision. pp. 5807–5818 (2023) 32. Jaegle, A., Gimeno, F., Brock, A., Zisserman, A., Vinyals, O., Carreira, J.: Per-ceiver: General Perception with Iterative Attention. In: International Conference on Machine Learning. pp. 4651–4664 (2021) 33. Jaynes, E.T.: Information Theory and Statistical Mechanics. Physical Review 
+
+106 (4), 620–630 (1957) 34. Kirillov, A., Mintun, E., Ravi, N., Mao, H., Rolland, C., Gustafson, L., Xiao, T., Whitehead, S., Berg, A.C., Lo, W.Y., Dollár, P., Girshick, R.: Segment Anything. In: Proceedings of the IEEE/CVF International Conference on Computer Vision. pp. 4015–4026 (2023) 35. Kobyzev, I., Ghaddar, A., Hu, D., Chen, B.: Integral Transformer: Denoising Atten-tion, Not Too Much Not Too Little. In: Proceedings of the Conference on Empirical Methods in Natural Language Processing. pp. 2337–2354 (2025) 36. Koohpayegani, S.A., Pirsiavash, H.: SimA: Simple Softmax-free Attention for Vi-sion Transformers. In: Proceedings of the IEEE/CVF Winter Conference on Ap-plications of Computer Vision. pp. 2607–2617 (2024) 37. Kovaleva, O., Romanov, A., Rogers, A., Rumshisky, A.: Revealing the Dark Secrets of BERT. In: Proceedings of the Conference on Empirical Methods in Natural Language Processing and the International Joint Conference on Natural Language Processing. pp. 4365–4374 (2019) 38. Krause, J., Deng, J., Stark, M., Fei-Fei, L.: Collecting a Large-Scale Dataset of Fine-Grained Cars. In: IEEE Workshop on 3D Representation and Recognition. Sydney, Australia (2013) 39. Krizhevsky, A.: Learning Multiple Layers of Features from Tiny Images. Tech. rep. (2009) 40. Laplante, P.A. (ed.): Comprehensive Dictionary of Electrical Engineering. CRC Press, 2 edn. (2018) 41. Laurençon, H., Tronchon, L., Sanh, V.: What matters when building vision-language models? In: Advances in Neural Information Processing Systems. pp. 87874–87907 (2024) 42. Lewis, M., Liu, Y., Goyal, N., Ghazvininejad, M., Mohamed, A., Levy, O., Stoy-anov, V., Zettlemoyer, L.: BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension. In: Annual Meeting of the Association for Computational Linguistics. pp. 7871–7880 (2020) 43. Li, J., Li, D., Savarese, S., Hoi, S.: BLIP-2: Bootstrapping Language-Image Pre-training with Frozen Image Encoders and Large Language Models. In: International Conference on Machine Learning. pp. 19730–19742 (2023) 44. Li, Y., Mao, H., Girshick, R., He, K.: Exploring Plain Vision Transformer Back-bones for Object Detection. In: Proceedings of the European Conference on Com-puter Vision. pp. 280–296. Springer (2022) Denoising Attention 19 45. Lin, T.Y., Dollár, P., Girshick, R., He, K., Hariharan, B., Belongie, S.: Feature Pyramid Networks for Object Detection. In: Proceedings of the IEEE/CVF Con-ference on Computer Vision and Pattern Recognition. pp. 2117–2125 (2017) 46. Lin, T.Y., Maire, M., Belongie, S., Hays, J., Perona, P., Ramanan, D., Dollár, P., Zitnick, C.L.: Microsoft COCO: Common Objects in Context. In: Proceedings of the European Conference on Computer Vision. pp. 740–755 (2014) 47. Liu, Z., Lin, Y., Cao, Y., Hu, H., Wei, Y., Zhang, Z., Lin, S., Guo, B.: Swin Trans-former: Hierarchical Vision Transformer using Shifted Windows. In: Proceedings of the IEEE/CVF International Conference on Computer Vision. pp. 10012–10022 (2021) 48. Liu, Z., Ning, J., Cao, Y., Wei, Y., Zhang, Z., Lin, S., Hu, H.: Video Swin Trans-former. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 3202–3211 (2022) 49. Lu, J., Yao, J., Zhang, J., Zhu, X., Xu, H., Gao, W., Xu, C., Xiang, T., Zhang, L.: SOFT: Softmax-free Transformer with Linear Complexity. In: Advances in Neural Information Processing Systems. pp. 21297–21309 (2021) 50. Lv, A., Xie, R., Li, S., Liao, J., Sun, X., Kang, Z., Wang, D., Yan, R.: More Ex-pressive Attention with Negative Weights. arXiv preprint arXiv:2411.07176 (2024) 51. Ma, X., Wang, H., Qin, C., Li, K., Zhao, X., Fu, J., Fu, Y.: A Close Look at Spatial Modeling: From Attention to Convolution. arXiv preprint arXiv:2212.12552 (2022) 52. Maity, S., Hitsman, K., Li, X., Dutta, A.: Kolmogorov-Arnold Attention: Is Learn-able Attention Better For Vision Transformers? arXiv preprint arXiv:2503.10632v2 (2025) 53. Meng, W., Luo, Y., Li, X., Jiang, D., Zhang, Z.: PolaFormer: Polarity-aware Lin-ear Attention for Vision Transformersn. In: International Conference on Learning Representations (2025) 54. Meta AI: Llama 3.2: Vision and edge models. https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/ (2024) 55. Nair, P.: Softmax is 1/2-Lipschitz: A Tight Bound Across All ℓp Norms. Transac-tions on Machine Learning Research (2026) 56. Nguyen, T., Nguyen, T., Do, H., Nguyen, K., Saragadam, V., Pham, M., Nguyen, K.D., Ho, N., Osher, S.: Improving Transformer with an Admixture of Attention Heads. In: Advances in Neural Information Processing Systems. pp. 27937–27952 (2022) 57. Nguyen, T., Pham, M., Nguyen, T., Nguyen, K., Osher, S., Ho, N.: FourierFormer: Transformer Meets Generalized Fourier Integral Theorem. In: Advances in Neural Information Processing Systems. pp. 29319–29335 (2022) 58. Nguyen, T., Suliafu, V., Osher, S., Chen, L., Wang, B.: FMMformer: Efficient and Flexible Transformer via Decomposed Near-field and Far-field attention. In: Advances in Neural Information Processing Systems. pp. 29449–29463 (2021) 59. Nguyen, T.M., Nguyen, T., Bui, L., Do, H., Nguyen, D.K., Le, D.D., Tran-The, H., Ho, N., Osher, S.J., Baraniuk, R.G.: A Probabilistic Framework for Pruning Transformers Via a Finite Admixture of Keys. In: IEEE International Conference on Acoustics, Speech and Signal Processing. pp. 1–5 (2023) 60. Oquab, M., Darcet, T., Moutakanni, T., Vo, H.V., Szafraniec, M., Khalidov, V., Fernandez, P., HAZIZA, D., Massa, F., El-Nouby, A., Assran, M., Ballas, N., Galuba, W., Howes, R., Huang, P.Y., Li, S.W., Misra, I., Rabbat, M., Sharma, V., Synnaeve, G., Xu, H., Jegou, H., Mairal, J., Labatut, P., Joulin, A., Bojanowski, P.: DINOv2: Learning robust visual features without supervision. Transactions on Machine Learning Research (2024) 20 R. Campos et al. 61. Radford, A., Kim, J.W., Hallacy, C., Ramesh, A., Goh, G., Agarwal, S., Sastry, G., Askell, A., Mishkin, P., Clark, J., et al.: Learning Transferable Visual Models From Natural Language Supervision. In: International Conference on Machine Learning. pp. 8748–8763 (2021) 62. Raffel, C., Shazeer, N., Roberts, A., Lee, K., Narang, S., Matena, M., Zhou, Y., Li, W., Liu, P.J.: Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer. Journal of Machine Learning Research 21 (140), 1–67 (2020) 63. Rahimian, A.K., Govind, M.K., Maity, S., Reilly, D., Kümmerle, C., Das, S., Dutta, A.: Fibottention: Inceptive Visual Representation Learning with Diverse Attention Across Heads. arXiv preprint arXiv:2406.19391 (2024) 64. Reilly, D., Govind, M.K., Xue, L., Das, S.: From My View to Yours: Learning Egocentric Cues from Exocentric Video using Privileged Egocentric Supervision. In: Proceedings of the European Conference on Computer Vision (2026) 65. Reilly, D., Govind, M.K., Xue, L., Das, S.: VisCoP: Visual Probing for Video Domain Adaptation of Vision Language Models. In: Proceedings of the European Conference on Computer Vision (2026) 66. Saratchandran, H., Zheng, J., Ji, Y., Zhang, W., Lucey, S.: Rethinking At-tention: Polynomial Alternatives to Softmax in Transformers. arXiv preprint arXiv:2410.18613 (2024) 67. Selinger, P.G., Astrahan, M.M., Chamberlin, D.D., Lorie, R.A., Price, T.G.: Access Path Selection in a Relational Database Management System. In: Proceedings of the ACM SIGMOD International Conference on Management of Data. pp. 23—-34 (1979) 68. Shahroudy, A., Liu, J., Ng, T.T., Wang, G.: NTU RGB+D: A Large Scale Dataset for 3D Human Activity Analysist. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 1010–1019 (2016) 69. Shi, H., Gao, J., Ren, X., Xu, H., Liang, X., Li, Z., Kwok, J.T.Y.: SparseBERT: Rethinking the Importance Analysis in Self-attention. In: International Conference on Machine Learning. pp. 9547–9557 (2021) 70. Shuttleworth, R., Andreas, J., Torralba, A., Sharma, P.: LoRA vs Full Fine-tuning: An Illusion of Equivalence. In: Advances in Neural Information Processing Systems. pp. 174627–174662 (2025) 71. Tay, Y., Dehghani, M., Bahri, D., Metzler, D.: Efficient Transformers: A Survey. Association for Computing Machinery Computing Surveys 55 (6), 1–28 (2022) 72. Team, G., Anil, R., Borgeaud, S., Wu, Y., Alayrac, J.B., Yu, J., Soricut, R., Schalk-wyk, J., Dai, A.M., Hauth, A., et al.: Gemini: A Family of Highly Capable Multi-modal Models. arXiv preprint arXiv:2312.11805 (2023) 73. Touvron, H., Cord, M., Douze, M., Massa, F., Sablayrolles, A., Jégou, H.: Training data-efficient image transformers & distillation through attention. In: International Conference on Machine Learning. pp. 10347–10357 (2021) 74. Touvron, H., Cord, M., Sablayrolles, A., Synnaeve, G., Jégou, H.: Going Deeper With Image Transformers. In: Proceedings of the IEEE/CVF International Con-ference on Computer Vision. pp. 32–42 (2021) 75. Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.N., Łukasz Kaiser, Polosukhin, I.: Attention Is All You Need. In: Advances in Neural Infor-mation Processing Systems (2017) 76. Wang, S., Li, B., Khabsa, M., Fang, H., Ma, H.: Linformer: Self-attention with linear complexity. arXiv preprint arXiv:2006.04768 (2020) 77. Xu, J., Sun, X., Zhang, Z., Zhao, G., Lin, J.: Understanding and Improving Layer Normalization. In: Advances in Neural Information Processing Systems (2019) Denoising Attention 21 78. Yao, Y., Yu, T., Zhang, A., Wang, C., Cui, J., Zhu, H., Cai, T., Chen, C., Li, H., Zhao, W., He, Z., Chen, Q., Zhou, R., Zou, Z., Zhang, H., Hu, S., Zheng, Z., Zhou, J., Cai, J., Han, X., Zeng, G., Li, D., Liu, Z., Sun, M.: Efficient GPT-4V level multimodal large language model for deployment on edge devices. Nature Communications 16 (1), 5509 (2025) 79. Ye, J., Xu, H., Liu, H., Hu, A., Yan, M., Qian, Q., Zhang, J., Huang, F., Zhou, J.: mPLUG-Owl3: Towards Long Image-Sequence Understanding in Multi-Modal Large Language Models. In: International Conference on Learning Representations (2025) 80. Ye, T., Dong, L., Xia, Y., Sun, Y., Zhu, Y., Huang, G., Wei, F.: Differential Trans-former. In: International Conference on Learning Representations (2025) 81. Yun, C., Chang, Y.W., Bhojanapalli, S., Rawat, A.S., Reddi, S., Kumar, S.: O(n)
+
+Connections are Expressive Enough: Universal Approximability of Sparse Trans-formers. In: Advances in Neural Information Processing Systems. pp. 13783–13794 (2020) 82. Zaheer, M., Guruganesh, G., Dubey, K.A., Ainslie, J., Alberti, C., Ontanon, S., Pham, P., Ravula, A., Wang, Q., Yang, L., Ahmed, A.: Big Bird: Transformers for Longer Sequences. In: Advances in Neural Information Processing Systems. pp. 17283–17297 (2020) 83. Zhai, S., Likhomanenko, T., Littwin, E., Busbridge, D., Ramapuram, J., Zhang, Y., Gu, J., Susskind, J.M.: Stabilizing Transformer Training by Preventing Attention Entropy Collapse. In: International Conference on Machine Learning. pp. 40770– 40803 (2023) 84. Zhai, X., Kolesnikov, A., Houlsby, N., Beyer, L.: Scaling Vision Transformers. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recog-nition (2022) 85. Zhang, B., Li, K., Cheng, Z., Hu, Z., Yuan, Y., Chen, G., Leng, S., Jiang, Y., Zhang, H., Li, X., Jin, P., Zhang, W., Wang, F., Bing, L., Zhao, D.: VideoLLaMA 3: Frontier Multimodal Foundation Models for Image and Video Understanding. arXiv preprint arXiv:2501.13106 (2025) 86. Zhang, H., Li, X., Bing, L.: Video-LLaMA: An Instruction-tuned Audio-Visual Language Model for Video Understanding. In: Proceedings of the Conference on Empirical Methods in Natural Language Processing: System Demonstrations. pp. 543–553 (2023) 87. Zhang, J., Li, H., Sra, S., Jadbabaie, A.: Neural Network Weights Do Not Con-verge to Stationary Points: An Invariant Measure Perspective. In: International Conference on Machine Learning. pp. 26330–26346 (2022) 88. Zhang, P., Dai, X., Yang, J., Xiao, B., Yuan, L., Zhang, L., Gao, J.: Multi-Scale Vi-sion Longformer: A New Vision Transformer for High-Resolution Image Encoding. In: Proceedings of the IEEE/CVF International Conference on Computer Vision. pp. 2998–3008 (2021) 89. Zohar, O., Wang, X., Dubois, Y., Mehta, N., Xiao, T., Hansen-Estruch, P., Yu, L., Wang, X., Juefei-Xu, F., Zhang, N., Yeung-Levy, S., Xia, X.: Apollo: An Ex-ploration of Video Understanding in Large Multimodal Models. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 18891–18901 (2025) DnA: Denoising Attention for Visual Tasks 
+
+Ron Campos 1 , Subhajit Maity 1 , Xin Li 1 , Srijan Das 2 , Aritra Dutta 1 
+
+> 1
+
+University of Central Florida, USA  
+
+> 2
+
+University of North Carolina at Charlotte, USA 
+
+## Supplementary Material 
+
+Organization. We organize the Supplementary as follows. First, we discuss a few additional works that enhance attention mechanisms in NLP and vision; see §A. In §B, we discuss our theoretical results justifying the implementation and give proof of our main result (Theorem 3). In §C, we discuss additional experimental results, including implementation details, hyperparameter tuning, computation time analysis, diverse model analyses, and training dynamics. Fi-nally, we present qualitative visualizations of DnA’s performance compared to softmax attention for detection and segmentation tasks, and show additional visuals for image classification and egocentric video understanding. 
+
+Algorithm 1 DnA within a ViT block 
+
+1: Input: X ∈ RN ×d
+
+2: Output: O ∈ RN ×d
+
+3: Parameters: WQ+ , W Q− , W K , W V + , W V − , W O ∈ Rd×d, α ∈ Rh
+
+4: γ ← 1√d/H 
+
+5: [α1; α2; . . . ; αH ] ← α
+
+6: Q+ ← XW Q+ , Q− ← XW Q−
+
+7: K ← XW K
+
+8: V + ← XW V + , V − ← XW V −
+
+9: [Q+1 ; Q+2 ; . . . ; Q+ 
+
+> H
+
+] ← Q+, [Q− 
+
+> 1
+
+; Q− 
+
+> 2
+
+; . . . ; Q− 
+
+> H
+
+] ← Q−
+
+10: [K1; K2; . . . ; KH ] ← K
+
+11: [V +1 ; V +2 ; . . . ; V + 
+
+> H
+
+] ← V +, [V − 
+
+> 1
+
+; V − 
+
+> 2
+
+; . . . ; V − 
+
+> H
+
+] ← V −
+
+12: for each head h ∈ { 1, . . . , H } do 
+
+13: AQ±V ± 
+
+> h
+
+← σ(Q+ 
+
+> h
+
+K⊤ 
+
+> h
+
+)V + 
+
+> h
+
++ αh ˆσ(γQ − 
+
+> h
+
+K⊤ 
+
+> h
+
+)V −
+
+> h
+
+14: end for 
+
+15: ˆO ← [AQ±V ± 
+
+> 1
+
+; AQ±V ± 
+
+> 2
+
+; . . . ; AQ±V ± 
+
+> H
+
+]
+
+16: O ← ˆOW O
+
+17: return O
+
+## A Related Work — Continued 
+
+Numerous works enhance attention mechanisms in NLP and vision to improve feature representation. In this scope, we mention a few of them. Denoising Attention 23           
+
+> Fig. 8: Training loss, validation loss, and validation accuracy of ViT-B using (left to right) softmax, our proposed DnA (AQ±V±
+> h), and the next best-performing design, DnA (AQ±Vh), on ImageNet-1K [18]. DnA (AQ±V±
+> h)displays lower training loss than ViT-B, which translates to a greater generalization performance, as shown by the consistent gap in validation loss and accuracy.
+
+Cog attention [50] introduces negative attention weights to enhance expressive-ness in language tasks. It applies softmax to the absolute values of the query-key dot product, |pi,j |, and then scales them with their original signs, enabling both positive and negative attention weights. However, this approach suffers from slow convergence; it cannot fully replace softmax attention, requiring it in the first and last layers. Signed attention weights from the start of training are be-lieved to cause the model to lose meaningful semantic representations, leading to optimization instability and divergence. 
+
+Polynomial activations [66] are introduced as an alternative to softmax self-attention. With a constrained learnable parameter, k, the function ϕ(x) = xp 
+
+> k
+
+,
+
+demonstrates that polynomial activations can achieve comparable performance to softmax in vision tasks. Also, see [52] for learnable attention activation for ViTs. 
+
+Integral Transformer [35] proposes denoising attention for language tasks by averaging signals sampled from the logit distribution. Its attention score, 
+
+AI (X) = σ( 1
+
+> S
+
+PSs=1 QsKs⊤
+
+)V , where empirically s = 4 . A key limitation of the integral transformer is performance degradation when applied to all layers of the standard MHSA. An architecture with AI (X) only applied to the first half of the transformer performs better. 
+
+PolaFormer [53] addresses information loss in kernelized attention by explicitly modeling same-signed and opposite-signed query-key interactions. They divide the query and key vectors element-wise into their positive and negative compo-nents q = q+ − q−, k = k+ − k−, processing all polarity combinations through separately learned branches. Crucially, unlike softmax attention, which drowns out negative query-key interactions by exponentially mapping them to near-zero 24 R. Campos et al. 
+
+weights, PolaFormer preserves negative interactions at their original magnitudes, allowing dissimilar token relationships to contribute meaningfully to the output. 
+
+Broader Context. In ViTs, due to softmax, unimportant background tokens can accumulate high scores. These artifacts can degrade performance on down-stream tasks such as object detection and segmentation. Register tokens [16], which are additional learnable tokens appended to the input sequence, claim to remedy this problem. These registers absorb the computational role that would otherwise fall to artifact tokens, preventing their formation. In inference, only the original patch and class tokens are used, while registers are discarded, result-ing in smoother feature maps and improved qualitative performance on various visual prediction tasks. In language processing and visual tasks, efficient attention mechanisms in terms of sparse attention [24, 37, 63, 69, 81, 82, 88] or linear/kernelized atten-tion [25, 49, 56–59] are proposed, which are orthogonal to our work. 
+
+## B Theoretical Results 
+
+This section provides a theoretical guarantee supporting the design principle of DnA. In attention mechanisms, the most intuitive justification for softmax is its role in converting attention scores into a valid probability distribution. The following Theorem from [3, 75] justifies this: 
+
+Theorem 4 ( Attention as Probability Distribution ). Let S = QK ⊤
+
+> √dk
+
+be the raw attention scores. The softmax function ensures that: 1. σ(S)ij ≥ 0, for all i, j (non-negativity) 2. P 
+
+> j
+
+σ(S)ij = 1 , for all i (normalization) 3. The output is a convex combination of value vectors: oi = P 
+
+> j
+
+αij vj with 
+
+αij ≥ 0 and P 
+
+> j
+
+αij = 1 
+
+Next, we discuss Proposition 1, which is originally adapted from Zhang et al. [87]. This result examines the convergence of an L-layer deep neural network, trained by SGD with weight decay, under an invariant-measure perspective. This result conveys a key message: all iterates lie in a compact region almost surely even though the function may not be smooth or Lipschitz continuous. 
+
+B.1 How Proposition 1 can be adapted for Transformers? 
+
+Zhang et al. [87] view convergence in neural network training in terms of an invariant measure. Especially, Theorem 4.3 in [87] shows that as the training loss L(θ) stabilizes, the iterates (or the weights) lie in a compact region almost surely; Proposition 1 is the modification of the result of Theorem 4.3. In Theorem 4.3, Zhang et al. considered an L-layer deep neural network, whose loss, L is 
+
+cl-Lipschitz with respect to input, x (see Lemma 4.1 in [87]), each activation Denoising Attention 25 
+
+function σl is (sub)-differentiable and cν -Lipschitz for some constant cν > 0,
+
+and σl(0) = 0 (see Assumption 4.2 in [87]). Proposition 1 applies to architectures expressible as compositions of linear and Lipschitz maps under bounded inputs. Accordingly, for Transformers, we as-sume the embedded inputs are bounded and denote the current input sequence by Xp. The MLP sub-blocks share the structure of standard DNNs and therefore satisfy the assumption when their activation functions are Lipschitz [22]. Trans-formers additionally include residual connections and normalization. Residual connections of the form Xp+F (Xp) preserve the same decomposition up to a con-stant [27]. LayerNorm operates elementwise across features and, under bounded activations, is Lipschitz on the bounded set, allowing it to be treated as another Lipschitz map in the composition [77]. For the multi-head attention (MHA) sub-blocks, the sequence Xp is linearly projected to queries, keys, and values: Q = XpWQ, K = XpWK , and V =
+
+XpWV , with the final output projected by WO . Each head computes attention weights from QK ⊤ using softmax and masking, and applies them to V [75]. Define the linear map T (Xp) := [ XpWQ, X pWK , X pWV ] and let σ(T (Xp)) = 
+
+σ
+
+ QK ⊤
+
+> √dk
+
++ M
+
+
+
+V , where M is the attention mask. Then one attention head can be written as V(Xp) = ( σ(Q,K,V ) ◦ T (Xp)) WO . We treat σ(Q,K,V ) as a Lipschitz operator with constant Lσ ; in particular, the softmax function is 12 -Lipschitz uniformly across all ℓp norms [55]. 
+
+Proof of the Main Result: Theorem 3. Proposition 1 claims that as long as WVij (0) be initialized within a compact set, CV := {WVij (0) : ∥WVij (0) ∥ ≤ γ},
+
+for every k, the iterate WVij (k) lies in CV with high probability. We additionally assume that if the entries of WV + and WV − be initialized as i.i.d. N (0 , σ 2) over a finite support [−γ, γ ], for every k, the entries of the iterates {WV +(k), W V −(k)}
+
+are i.i.d. sub Gaussian with parameter σ > 0. Then we show |(WV +(k))pq | ≤ γ
+
+and |(WV −(k))pq | ≤ γ, with high probability. The boundedness helps us prove our main claim of quasi-orthogonality of the subspaces, V + and V −, in Theorem 3. 
+
+Theorem 3 (Quasi-orthogonality of the subspaces). Let the entries of 
+
+WV + and WV − be initialized as i.i.d. N (0 , σ 2) over a finite support [−γ, γ ]. Let the input Xp ∈ RN ×d be such that ∥Xp∥∞ ≤ M . Assume for every k, the entries of the iterates {WV +(k), W V −(k)} are i.i.d. sub Gaussian with parameter σ > 0.( i) Then |(WV +(k))pq | ≤ γ and |(WV −(k))pq | ≤ γ, with high probability. ( ii ) If 
+
+γ = O(M −1ϵ− 12 (N log( δ−1)) − 14 ), then |⟨ V +, V −⟩F | ≤ dϵ with probability 1 − δ. 
+
+Proof. Since our Assumption holds for all k, for simplicity, we dispense with k
+
+from our proof. We use the notation, Aj to denote the jth column of a matrix, 
+
+A, and (A)ij to denote its (i, j )th entry. We start by expanding ⟨V +, V −⟩F as 
+
+|⟨ V +, V −⟩F | = |Trace( W ⊤  
+
+> V+
+
+X⊤ 
+
+> p
+
+XpWV − )|.26 R. Campos et al. 
+
+Let (XpWV + )k and (XpWV − )l be the kth and lth columns of XpWV + and 
+
+XpWV − , respectively. Therefore, we can write 
+
+(W ⊤  
+
+> V+
+
+X⊤ 
+
+> p
+
+XpWV − )kl = ( XpWV + )⊤ 
+
+> k
+
+(XpWV − )l
+
+=
+
+> N
+
+X
+
+> i=1
+
+(XpWV + )ik (XpWV − )il 
+
+| {z }
+
+> := Zi
+
+.
+
+Recall that, for every k ∈ [1 , 2, · · · ], the entries of the iterates {WV +(k), W V −(k)}
+
+assumed to be i.i.d. sub Gaussian with and mean 0, and parameter σ > 0, and by Proposition 1, we have |(WV +(k))pq | ≤ γ and |(WV −(k))pq | ≤ γ, with probability 
+
+1 − δγ − ∆(L, · · · ), where, δγ = e− γ22σ2 and ∆(L, · · · ) depends on the number of layers ( L), Lipschitz constants of the activations. Finally, the terms Zi are i.i.d. with E[Zi] = E[( XpWV + )ik (XpWV − )il ] = 0 .
+
+Additionally, as ∥Xp∥∞ ≤ M , we have |Zi| ≤ M 2γ2. Now, we use Hoeffding’s inequality to PNi=1 Zi , where −M 2γ2 ≤ Zi ≤ M 2γ2, and obtain: 
+
+P   (W ⊤  
+
+> V+
+
+X⊤ 
+
+> p
+
+XpWV − )kl ≥ ϵ = P
+
+> N
+
+X
+
+> i=1
+
+Zi ≥ ϵ
+
+!
+
+> E
+
+[PNi=1 Zi]=0 
+
+= P
+
+> N
+
+X
+
+> i=1
+
+Zi − E
+
+" NX
+
+> i=1
+
+Zi
+
+#
+
+≥ ϵ
+
+!
+
+> Hoeffding ′s inequality
+
+≤ 2exp −2ϵ2
+
+PNi=1 (2 γ2M 2)2
+
+!
+
+= 2exp 
+
+ −ϵ2
+
+2N γ 4M 4
+
+
+
+.
+
+By setting δ = 2exp 
+
+ −ϵ2 
+
+> 2N γ 4M4
+
+
+
+, we have ϵ = γ2M 2
+
+q
+
+2N log( 2 
+
+> δ
+
+). Therefore, with probability at least 1 − δ, we have |(W ⊤  
+
+> V+
+
+X⊤ 
+
+> p
+
+XpWV − )kl | ≤ ϵ. Thus, with probability at least 1 − δ, we have 
+
+|⟨ V +, V −⟩F | ≤ dϵ = dγ 2M 2
+
+s
+
+2N log 
+
+ 2
+
+δ
+
+
+
+.
+
+Therefore, if γ = O(M −1ϵ− 12 (N log( δ−1)) − 14 ), then |⟨ V +, V −⟩F | ≤ dϵ with prob-ability at least 1 − δ. Hence, the result. 
+
+## C Addendum to the Benchmarking and Evaluation 
+
+This section complements our empirical results in §4. In addition, we present and analyze results for other downstream tasks such as ( i) transfer learning ,(ii ) object detection and instance segmentation , and ( iii ) robustness benchmarks ,followed by further analysis of DnA. Denoising Attention 27 
+
+C.1 Implementation Details 
+
+We outline the implementation details for the proposed DnA. The pseudocode for DnA is given in Algorithm 1. 
+
+Image Classification. Image classification refers to the pretraining experi-ments performed on ImageNet-1K [18]; see §4. We train all baselines and our DnA variants for 300 epochs with an effective global batch size of 1024. We use gradient accumulation across 2 iterations with a local batch size of 512 for all the models except the DnA variant using attention AQ±V ± 
+
+> h
+
+, which uses a local batch size of 256 with gradient accumulation across 4 iterations due to GPU memory constraints; see Tables 1 and 12 for results. We additionally evaluate DnA across other architectures, including ViT-T [20, 73], Swin-B [47], and ConViT-B [21]; see Table 11. See Table 4 for detailed hyperparameter setup on ViT-B.                            
+
+> Input Size 224 ×224
+> Patch Size 16 Crop Ratio 0.9
+> Batch Size 1024
+> Optimizer AdamW Optimizer Epsilon 10 −8
+> Weight Decay 0.075
+> Stochastic Depth 0.15
+> Learning Rate Schedule Cosine Learning Rate 10 −3
+> Warmup LR 10 −6
+> Min LR 10 −5
+> Epochs 300 Warmup Epochs 5Random Resize & Crop Scale and Ratio (0 .08 ,1.0) ,(0 .67 ,1.5)
+> Color Jittering 0.3
+> Rand Augment 9/0.5 Mixup 0.8
+> Cutmix 1.0
+> Mixup Mode Batch Label Smoothing 0.1
+> Table 4: Hyperparameter setup for the ViT-B pretraining on ImageNet-1K [18].
+
+(i) Transfer Learning. For the downstream image classification tasks on CIFAR-10, CIFAR-100 [39], and Stanford Cars [38], we use the same hyperpa-rameters, except for 100 training epochs, a weight decay of 0.05 , and a stochastic drop of 0.1.(ii ) Object Detection & Instance Segmentation. We use the ViT-Det [44] baseline, which employs a Mask R-CNN-based [26] framework with a fea-28 R. Campos et al. Input Size 224 × 224 
+
+Batch Size 32 Optimizer AdamW Optimizer Epsilon 10 −6
+
+Momentum 0.9, 0.999 
+
+Weight Decay 0.1
+
+Learning Rate Schedule Warmup Scheduler Learning Rate 10 −4
+
+Iterations 184375 Decay Rate 0.988 
+
+Horizontal Random Flip 0.5
+
+Vertical Random Flip 0.0
+
+Patch Size 16 Attention Window Size 0Encoder Output Layer Index 11 
+
+Pyramid Scale Factors 4.0, 2.0, 1.0, 0.5
+
+Output Channels 256 Proposal Generator Input Layers p2, p 3, p 4, p 5, p 6
+
+Proposal Generator Input Sizes 32 , 64 , 128 , 256 , 512 
+
+Proposal Generator Training Pre-NMS Top-K 2000 
+
+Proposal Generator Evaluation Pre-NMS Top-K 1000 
+
+Proposal Generator Training Post-NMS Top-K 1000 
+
+Proposal Generator Evaluation Post-NMS Top-K 1000 
+
+Proposal Generator NMS Threshold 0.7
+
+Region-of-Interest Heads IOU Threshold 0.5
+
+Region-of-Interest Score Threshold 0.05 
+
+Region-of-Interest NMS Threshold 0.5
+
+Table 5: Hyperparameter setup for the ViT-Det training on MS-COCO [46] for object detection and instance segmentation. 
+
+ture pyramid network [45]. We initialize the ViT-Det backbones with the weights of §4.1 for object detection and instance segmentation on MS-COCO [46], and train the models for 100 epochs (equivalent to 184,375 iterations with a batch size of 32); see the hyperparameter setup in Table 5. (iii ) Robustness Bechmarks. In addition to the ImageNet-A [29] bench-marking provided in Table 2, we also evaluate the robustness of DnA on ImageNet-R [28] and ImageNet-O [29]. ImageNet-O contains images that are similar to ImageNet-1K but are out of distribution. ImageNet-R contains images that are different renditions of the standard 200 classes from ImageNet-1K, such that the images are out of domain and out of distribution. For these datasets, we use calibration error (RMSCE), area under the curve (AUROC), and reliability (AURRA) metrics, along with the accuracy. Denoising Attention 29                                
+
+> Model Validation Set Test Set Parameters GFLOPs Acc.@1 Acc.@5 Acc.@1 Acc.@5
+> ViT-B 81.1 ±0.007 95.5 ±0.002 81.0 ±0.009 95.6 ±0.002 86.6M 17.6 +Diff. Attn. 81.5 ±0.009 95.6 ±0.002 81.6 ±0.016 95.7 ±0.007 86.6M 17.6 +Cog Attn. 81.5 ±0.009 95.7 ±0.000 81.5 ±0.002 95.7 ±0.002 86.6M 17.6
+> +DnA 81.9 ±0.002 95.8 ±0.002 81.8 ±0.002 95.8 ±0.002 100.7M 21.1
+
+Table 6: Accuracy on the ImageNet-1K [18] validation and test set, averaged over 3 independent runs. 
+
+Model Parameters GFLOPs VRAM Training Time Throughput 
+
+ViT-B [20, 73] 86.6M 17.6 56 GB 110.25 h 909.1 img/s +DnA ( A± 
+
+> h
+
+) 86.6M 17.6 70 GB 112.98 h 909.1 img/s +DnA ( ˆA± 
+
+> h
+
+) 86.6M 17.6 71 GB 114.25 h 909.1 img/s +DnA ( AQ±Vh ) 93.6M 19.3 76 GB 111.38 h 909.1 img/s +DnA ( AQV ± 
+
+> h
+
+) 93.6M 19.3 76 GB 114.25 h 909.1 img/s +DnA ( AQ±V ± 
+
+> h
+
+) 100.7M 21.1 45 GB 117.08 h 909.1 img/s 
+
+Table 7: Detailed computational requirements for all the DnA variants compared to the baseline ViT-B, which uses softmax attention. We note an increase in parameters, computations (GFLOPs), and GPU memory (VRAM) requirements while training time remains comparable (changes are modest), and the throughput (inference speed) re-mains the same. 
+
+C.2 Training Details 
+
+We examine the training dynamics and computational requirements of our im-plementation, focusing on the ViT-B model from §4.1. 
+
+Loss and Accuracy Curves. Figure 8 displays the training and validation losses, as well as the validation accuracy curves for ViT-B models using soft-max, our proposed DnA, AQ±V ± 
+
+> h
+
+, and the next best-performing design, AQ±Vh ;see §C.5. Throughout training, DnA consistently achieves lower training and validation loss compared to the standard softmax implementation, with AQ±Vh
+
+following a similar trend. The improvement in the loss is reflected by the higher validation accuracy and improved final convergence. 
+
+Computational Requirements. Different denoising designs vary in parameter count, depending on the query and value configuration. This results in different FLOPs counts and GPU memory (VRAM) requirements. However, their overall training time remains comparable under the same hardware configuration, and the throughput also remains similar; see Table 7. 
+
+C.3 Evaluation on Downstream Tasks 
+
+In this section, we show the performance of DnA in various downstream tasks. 30 R. Campos et al. 
+
+Model CIFAR-10 [39] CIFAR-100 [39] Cars [38] Acc.@1 Acc.@5 Acc.@1 Acc.@5 Acc.@1 Acc.@5 
+
+ViT-B 98.6 99.9 88.8 98.0 91.5 99.0 
+
++DnA ( AQ±V ± 
+
+> h
+
+) 98.6 99.9 89.5 98.1 91.9 99.0 
+
+Table 8: Quantitative comparison of DnA and the baseline ViT-B for the image classification task in a transfer learning setup across CIFAR-10, CIFAR-100 [39], and Stanford Cars [38] datasets. Each model is fine-tuned for 100 epochs. 
+
+Model Detection (Box) Segmentation (Mask) 
+
+AP AP 50 AP 75 AP AP 50 AP 75 
+
+ViT-Det-B 26.2 42.4 26.8 22.7 38.9 22.9 
+
++DnA ( AQ±V ± 
+
+> h
+
+) 26.5 43.0 27.4 22.8 39.4 22.9 
+
+Table 9: Quantitative comparison of ViT-Det [44] using softmax attention and DnA on the MS COCO [46] validation set for object detection (Box) and instance segmen-tation (Mask). See §C.1 for implementation details and hyperparameter setup. Due to computational constraints, we opt for a more feasible configuration with 224 × 224 
+
+images and 50 training epochs. Moreover, our ViTDet baseline also uses supervised ViT-B pretrained weights, instead of MAE pretrained weights, for a fair comparison with DnA. 
+
+(i) Transfer learning. Table 8 shows transfer learning results on CIFAR-10, CIFAR-100, and Stanford Cars test sets. While the CIFAR-10 test accuracy results match those of the baseline, we achieve a 0.7% gain on CIFAR-100 and a 0.4% gain on Stanford Cars. (ii ) Object Detection and Instance Segmentation. Table 9 shows that DnA outperforms the vanilla ViT-Det baseline on both object detection (Box) and instance segmentation (Mask) tasks. Specifically, our approach achieves im-provements of +0.3 AP, +0.6 AP 50 , and +0.6 AP 75 for box detection, and +0.1 AP, +0.5 AP 50 for mask segmentation, demonstrating that DnA transfers ef-fectively to downstream detection and segmentation tasks. We show qualitative results in §C.4. (iii ) Robustness Evaluations. To understand the robustness and toler-ance of the proposed model, we perform benchmarking with ImageNet-O and ImageNet-R. From Table 10, we observe that DnA outperforms vanilla ViT-B in almost all metrics across both benchmarks. On ImageNet-O, it improves AU-ROC by 0.4% and AUPR by 0.9%, while on ImageNet-R, it achieves a 1.3% accuracy gain and an AURRA gain of 0.8%. Denoising Attention 31   
+
+> (a) ViT-Det with DnA.
+> (b) ViT-Det with softmax attention.
+
+Fig. 9: Visualization of the inference results of ViT-Det on a ViT-B backbone (a) using DnA (top row) and (b) using softmax attention with the corresponding ground truths (bottom row) ; zoom in for a better view. For each sample, the left image is the prediction and the right image is the ground truth. 
+
+C.4 Qualitative Analysis on Detection & Segmentation 
+
+Figure 9a displays the qualitative performance of using DnA in ViT-Det. Fig-ure 9b shows the performance of ViT-Det with traditional softmax. DnA gener-ates more semantically correct masks. This outlines superior object representa-tion, which translates to more accurate detection. 
+
+C.5 Extended Analysis: A Closer Look at Different Design Components and Behavior of DnA 
+
+The following section presents ablations, a closer look at the behavior of DnA, and visualizations complementing the results in §4.1 and §4.2. (A) Finding alternate designs with denoising effect. The design of DnA is directly motivated by our theoretical analysis and involves additional branches for query and value for complete separation of subspaces. Here, we intend to understand how these additional branches contribute to the denoising effect of the proposed DnA and whether the alternative design choices involving these additional branches can achieve the denoising effect. This study gives us an understanding of the importance of subspace separation. 32 R. Campos et al. 
+
+Model ImageNet-O [29] ImageNet-R [28] FPR95 ↓ AUROC ↑ AUPR ↑ Acc. ↑ RMSCE ↓ AURRA ↑
+
+ViT-B 89.3 65.7 23.4 45.2 5.0 74.7 
+
++DnA ( AQ±V ± 
+
+> h
+
+) 90.5 66.1 24.3 46.5 5.3 75.5 Table 10: Comparison of model performances across ImageNet-O [29] and ImageNet-R [28] benchmarks. These benchmarks indicate how robust and tolerant the models are towards degradation and distribution shift. 
+
+Model Acc.@1 +DnA Acc.@1 (% Gain) Epochs 
+
+ViT-T [20, 73] 58.9 ✓ 61.9 (↑3.0% ) 100 Swin-B [47] 83.4 ✓ 83.7 (↑0.3% ) 300 ConViT-B [21] 82.3 ✓ 82.5 (↑0.2% ) 300 
+
+Table 11: ImageNet-1K [18] accuracy of DnA when integrated within ViT-T and other transformer-based architectures. The ↑ arrows indicate the absolute gain compared to the base model. 
+
+DnA attends to the discriminative features in the attention space by enabling positive and negative token interactions in two different subspaces. Primarily, we ask how important the subspace separation is from a practical approach. Thus, we evaluate A± 
+
+> h
+
+= [ σ( QhK⊤ 
+
+> h√d
+
+) + ˆσ( QhK⊤ 
+
+> h√d
+
+)] Vh using the same learnable triplets 
+
+(Qh, K h, V h) for each head, but use both softmax and softmin. We also keep a version of this, ˆA± 
+
+> h
+
+= [ σ( QhK⊤ 
+
+> h√d
+
+) + αh ˆσ( QhK⊤ 
+
+> h√d
+
+)] Vh that uses the learnable scalar, 
+
+αh per head. As another alternative to the complete separation of subspaces, we ask whether a partial separation using either the query or the value is enough. Thus, we obtain two additional variants. The first one with separate queries, but the same value: AQ±Vh =
+
+h
+
+σ
+
+ Q+ 
+
+> hK⊤
+> h√d
+
+
+
++ αh ˆσ
+
+ Q− 
+
+> hK⊤
+> h√d
+
+i 
+
+Vh. The second one has separate values, but the same query: AQV ± 
+
+> h
+
+= σ
+
+ QhK⊤
+
+> h√d
+
+
+
+V + 
+
+> h
+
++αh ˆσ
+
+ QhK⊤
+
+> h√d
+
+
+
+V − 
+
+> h
+
+.In both these cases, αh acts as the balancing parameter and remains learnable. 
+
+Every component of DnA is necessary. We ablated several design variations of DnA and summarize their results in Table 12. The results consistently back our theoretical analysis. (a) Attention A± 
+
+> h
+
+shares query and value spaces and performs subpar com-pared to ViT-B. Without subspace separation, the model cannot properly sep-arate positive and negative interactions. ( b) While ˆA± 
+
+> h
+
+improves the accuracy by 2.9% relative to that of A± 
+
+> h
+
+, it remains limited by the shared subspace. ( c)Attention AQ±Vh , uses only two separate query spaces, and performs second-best 
+
+on ImageNet-1K. ( d ) AQV ± 
+
+> h
+
+uses only separate value spaces and performs com-parably to the baseline, but shows that separate value spaces alone cannot be properly utilized without separate query spaces for positive and negative inter-Denoising Attention 33     
+
+> Fig. 10: Statistics of αhacross different denoising designs. Each row represents the mean, maximum, minimum, and standard deviation of the learnable parameter, αh,for each layer of the network.
+
+actions. ( e) Finally, the proposed DnA, AQ±V ± 
+
+> h
+
+, outperforms all baselines as it can model token interactions better with separate value subspaces for positive and negative interactions. (B ) Is the performance gain of our proposed model due to parame-ter increase? Due to separate query and value, DnA involves extra parameters; see Table 12. The proposed DnA, AQ±V ± 
+
+> h
+
+, has 14M extra parameters than the ViT-B. Thus, a natural question is whether the superior performance of DnA is attributed to the extra parameters. To address this, we trained two parameter-matched ViT-B variants. ViT-B † has 14M extra parameters in the value branch; ViT-B ‡ has 14M extra parameters across the attention dimension. ViT-B † under-performs ViT-B by 2.4% ; ViT-B ‡ improves over ViT-B by only 0.2% ; in contrast DnA improves over ViT-B by 0.8% . This indicates the performance gain is not due to extra parameters, but careful architectural and design choices [84]. (C ) Attention head similarity. To understand how attention heads spe-cialize within each positive and negative branch, we measure head redundancy by computing, ∆ij := 1 − cos( ∠ σ(Q± 
+
+> i
+
+K⊤ 
+
+> i
+
+), σ(Q± 
+
+> j
+
+K⊤ 
+
+> j
+
+)) , between attention weight distributions, σ(Q± 
+
+> i
+
+K⊤ 
+
+> i
+
+), σ(Q± 
+
+> j
+
+K⊤ 
+
+> j
+
+), and average across heads. Figure 11 out-lines the differences in head specialization patterns. The negative branch displays substantially higher head diversity (lower redundancy) early in the network, peaking at layer 4 with a measurement of approximately +0 .10 over the base-34 R. Campos et al.                                                            
+
+> Model Validation Set Test Set Parameters GFLOPS Acc.@1 Acc.@5 Acc.@1 Acc.@5
+> ViT-B 81.1 95.6 81.1 95.6 86.6M 17.6 ViT-B †78.8 ( ↓2.3%) 94.4 ( ↓1.2%) 78.7 ( ↓2.4%) 94.5 ( ↓1.1%) 100.7M 17.7 ViT-B ‡81.3 ( ↑0.2%) 95.5 ( ↓0.1%) 81.3 ( ↑0.2%) 95.6 100.7M 20.7 DnA ( A±
+> h)78.8 ( ↓2.3%) 94.0 ( ↓1.6%) 78.7 ( ↓2.4%) 94.0 ( ↓1.6%) 86.6M 17.6 DnA ( ˆA±
+> h)81.1 95.5 ( ↓0.1%) 81.0 ( ↓0.1%) 95.6 86.6M 17.6 DnA ( AQ±Vh)81.7 ( ↑0.6%) 95.8 ( ↑0.2%) 81.7 ( ↑0.6%) 95.8 (↑0.2% )93.6M 19.3 DnA ( AQV ±
+> h)81.1 95.6 81.2 ( ↑0.1%) 95.7 ( ↑0.1%) 93.6M 19.3
+> DnA ( AQ±V±
+> h) 81.9 ( ↑0.8%) 95.9 ( ↑0.3%) 81.9 ( ↑0.8%) 95.8 ( ↑0.2%) 100.7M 21.1
+
+Table 12: Performance comparison of accuracy, FLOPs, and model parameters on the ImageNet-1K [18] validation and test set for our intermediate baselines. The ↑ and 
+
+↓ arrows indicate the absolute accuracy gain and loss compared to the baseline ViT-B, respectively. 
+
+Fig. 11: Mean head redundancy measured by pairwise cosine distance between atten-tion weights across heads. Higher distance indicates lower redundancy. 
+
+line. This suggests that different heads in the negative branch learn to identify distinct noise patterns. After layer 8, the negative branch becomes more redun-dant than the baseline, indicating that once noise suppression is complete, the heads become more similar in behavior. The positive branch maintains a trend closer to the baseline (if not less diverse) across its encoder layers. (D) Distributions of αh under different denoising designs. Figure 10 shows that the learnable parameter, αh varies under different DnA designs. The proposed DnA, AQ±V ± 
+
+> h
+
+, follows the smoothest progression, where we observe that the per-layer average value of αh incrementally increases as the network deepens. We also see from the standard deviation plot that AQ±V ± 
+
+> h
+
+has the smallest per-head variance across models. This is not to say that there is re-dundancy across heads (which we can observe from Figure 11), rather that the per-layer magnitude of denoising heads is similar. For AQ±Vh and AQV ± 
+
+> h
+
+, we Denoising Attention 35 
+
+Fig. 12: Attention visualization for ViT-B [20] using softmax attention, differential attention [80], and our DnA. From top to bottom, the objects are: cassette, chain link, cocktail shaker, Egyptian cat, swimming cap , and ladybug. 36 R. Campos et al.    
+
+> Fig. 13: Examples of DnA outperforming baseline methods on egocentric video QA. For each example, frames are uniformly sampled, with the object of interest in a cyan box. The correct answer is in green , the incorrect in red .
+
+observe a larger range between the values of αh, and a mean that exhibits less linear progression. Lastly, for ˆA± 
+
+> h
+
+, we see that for the first 8 layers, the minimum 
+
+αh actually takes on a negative value. This indicates that for some heads, the model actually chooses to add from the denoising branch, rather than subtract it. We hypothesize that due to the constraint of having shared query and value spaces, this variant lacks the finer-grained denoising needed to distinguish closely related features. This points to a need for the flexibility provided by separate queries and values per branch. (E ) Visualizations. (i)Image Classification: Chefer et al . [10] calculates lo-cal relevance by taking the Hadamard product of ReLU-filtered attention gradi-ents and attention maps, isolating positive contributions to the classification; see §4.5. Layer-wise relevancy scores are then propagated through the transformer using recursive matrix multiplication, with an identity matrix added at each step to account for skip connections. This gradient-weighted method produces class-specific interpretations of attention flow by propagating relevance during its backpropagation in the network. Figure 12 shows how DnA focuses attention on the object of interest. The negative branch (blue) effectively denoises the back-ground semantics, resulting in sharper attention from the positive branch (red). This results in clearer attention visualizations compared to ViT-B [20] and dif-ferential attention [80]. ( ii )Video QA: In Figure 13 we observe three cases where the Base VLM and VisCoP select incorrect options, while DnA correctly iden-tifies the object. In all three cases, the baselines select visually reasonable but incorrect options, while DnA attends more precisely to the query, filtering the irrelevant visual context. (F ) Entropy. We analyze the entropy of attention distributions across en-Denoising Attention 37    
+
+> Fig. 14: Layer-wise entropy of attention weights for ViT-B using softmax attention (QK ⊤) and both DnA attention branches ( Q+K⊤and Q−K⊤) on the ImageNet-1K validation set. Solid lines show mean entropy across all attention heads. Dashed lines represent the entropy of the Top-k% most attended tokens.
+
+coder layers. Attention entropy, measured as the Shannon entropy, H (see Theo-rem 1), of the attention weights, quantifies the concentration of attention. Lower entropy indicates attention is focused on a few specific tokens, while a higher entropy indicates that attention is dense across many tokens [31, 51]. In ViTs, the desirability of high or low attention entropy is task-dependent. Outside of attention pruning contexts, dense attention is preferred, as it has been empir-ically linked with more stable training while promoting holistic token interac-tions [31, 51, 83]. We independently analyze both branches of DnA ( AQ+V + 
+
+> h
+
+and AQ−V − 
+
+> h
+
+) to understand their distinct roles. Figure 14 shows the entropy structure of atten-tion weights across layers. By sampling the Top-k% entropy values per sample and contrasting them with the mean, we estimate how many tokens contribute to the attention density. In the negative denoiser branch, higher entropy sug-gests that the denoising signal aggregates information from a larger set of tokens, and lower entropy indicates a more direct and confident filtering process. Over-all, all models exhibit a U-shaped trend, meaning attention is initially dense, then it sharpens in early-to-middle layers, before becoming dense as the network deepens. 38 R. Campos et al.                          
+
+> Model Scaling Factor Act. Task HOI Hand Avg.
+> VideoLLaMA3 N/A 74.9 75.8 75.2 65.3 72.8 VisCoP N/A 81.8 86.1 79.3 65.1 78.1
+> +DnA 10 −283.0 86.5 79.3 65.1 78.5
+> +DnA 10 −483.1 87.1 79.2 65.1 78.6 Table 13: Effect of negative branch scale on DnA for Video LLMs.
+
+(G) Initialization of Negative Branch in Video LLM. We discuss the need for initializing the negative branch as a scaled-down copy of the positive branch when incorporating DnA within video LLM training §4.2. Because we are fine-tuning a pre-trained VLM, we require both the positive and negative branches to inherit prior knowledge. If we initialize both branches of DnA with identical weights, the two cancel out. In Table 13, the performance is mostly unchanged across scaling factors, showing that the exact value is not critical for model convergence once this weight symmetry is broken. We also note that when training from scratch, the randomness of the initialization prevents the weights of both branches from being identical, consequently avoiding this weight symmetry.
