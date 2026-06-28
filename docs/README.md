@@ -6,79 +6,77 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-27
-- 运行时间：2026-06-27 20:34:11 UTC
+- 最新运行日期：2026-06-28
+- 运行时间：2026-06-28 21:25:58 UTC
 - 运行状态：成功
 - 本次总论文数：19
 - 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-今日精读19篇论文，聚焦注意力机制优化与记忆巩固机制两大核心突破。  
-最值得关注：CARVE模型实现块并行线性注意力的高效内容感知计算，以及海马-皮层耦合对远程记忆系统巩固的驱动机制。  
-建议普通读者重点关注CARVE的算法原理与海马-皮层动态交互模型，两者分别代表了AI效率提升和认知科学的新方向。
-- 详情：[/202606/27/README](/202606/27/README)
+今日推荐19篇论文，精读7篇，速读12篇，重点关注注意力机制优化与记忆动力学研究。最值得精读的是满分论文《CARVE》提出的内容感知线性注意力方法，以及探讨海马-皮层耦合驱动记忆巩固的9分论文。建议优先阅读这两篇，并关注《RAVEN》中视觉空间记忆的长程推理应用。
+- 详情：[/202606/28/README](/202606/28/README)
 
 ### 精读区论文标签
-1. [CARVE: Content-Aware Recurrent with Value Efficiency for Chunk-Parallel Linear Attention](/202606/27/2606.27229v1-carve-content-aware-recurrent-with-value-efficiency-for-chunk-parallel-linear-attention)  
+1. [CARVE: Content-Aware Recurrent with Value Efficiency for Chunk-Parallel Linear Attention](/202606/28/2606.27229v1-carve-content-aware-recurrent-with-value-efficiency-for-chunk-parallel-linear-attention)  
    标签：评分：10.0/10、query:la
-   evidence：提出CARVE线性注意力，通过键轴擦除实现高效分块并行训练
-2. [Hippocampal-cortical coupling dynamics drive system consolidation of remote memory](/202606/27/biorxiv-10-64898-2026-06-22-733680-v1-hippocampal-cortical-coupling-dynamics-drive-system-consolidation-of-remote-memory)  
+   evidence：线性注意力模型、块并行、内容感知门控
+2. [Hippocampal-cortical coupling dynamics drive system consolidation of remote memory](/202606/28/biorxiv-10-64898-2026-06-22-733680-v1-hippocampal-cortical-coupling-dynamics-drive-system-consolidation-of-remote-memory)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：海马-皮层耦合动力学在远程记忆系统巩固中的作用
-3. [CompressKV: Semantic-Retrieval-Guided KV-Cache Compression for Resource-Efficient Long-Context LLM Inference](/202606/27/2606.24467v1-compresskv-semantic-retrieval-guided-kv-cache-compression-for-resource-efficient-long-context-llm-inference)  
-   标签：评分：8.0/10、query:la
-   evidence：基于语义检索头的KV缓存压缩实现高效记忆
-4. [Comparing sites of plasticity in models of adaptation to manifold-based perturbations in brain-computer interfaces](/202606/27/biorxiv-10-1101-2023-03-11-532146-v3-comparing-sites-of-plasticity-in-models-of-adaptation-to-manifold-based-perturbations-in-brain-computer-interfaces)  
+   evidence：海马-皮层耦合、系统巩固、记忆表征
+3. [The genetic signature of memory encoding along the human hippocampal axis](/202606/28/biorxiv-10-64898-2026-06-22-733862-v1-the-genetic-signature-of-memory-encoding-along-the-human-hippocampal-axis)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：海马记忆编码的遗传特征
+4. [Transitive reasoning as linear classification](/202606/28/biorxiv-10-64898-2026-06-24-734346-v1-transitive-reasoning-as-linear-classification)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：传递推理作为线性分类，推理的计算机制
+5. [A number simplex in the human medial temporal lobe](/202606/28/biorxiv-10-64898-2026-06-25-734462-v1-a-number-simplex-in-the-human-medial-temporal-lobe)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：内侧颞叶中数字的神经编码具有单纯形几何结构
+6. [Temporal Gating by Chandelier Cells Encodes Signed Prediction Errors](/202606/28/biorxiv-10-64898-2026-06-26-734797-v1-temporal-gating-by-chandelier-cells-encodes-signed-prediction-errors)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：突触可塑性、预测误差、带符号误差编码、篮状细胞
+7. [A corticostriatal circuit updates subjective beliefs about latent task states](/202606/28/biorxiv-10-64898-2026-03-12-711369-v3-a-corticostriatal-circuit-updates-subjective-beliefs-about-latent-task-states)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：脑机接口适应中的可塑性
-5. [Synaptic Organization of Surface AMPARs Changes by Brain Region and Tauopathy](/202606/27/biorxiv-10-1101-2024-07-22-604547-v2-synaptic-organization-of-surface-ampars-changes-by-brain-region-and-tauopathy)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：海马体和tau病变中AMPAR的突触组织
-6. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202606/27/biorxiv-10-64898-2026-06-10-731214-v4-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：表征几何作为连接组约束网络生物保真度的度量
-7. [A Tripartite Map of the Ventromedial Prefrontal Cortex](/202606/27/biorxiv-10-64898-2026-06-18-732791-v1-a-tripartite-map-of-the-ventromedial-prefrontal-cortex)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：使用元分析和神经网络编码模型揭示VMPFC功能架构
+   evidence：眶额皮层神经环路信念更新
 
 ### 速读区论文标签
-1. [aNy-way ICA and its application to estimate cortico-thalamo-cerebellar functional links in schizophrenia](/202606/27/biorxiv-10-1101-2025-06-02-657541-v2-any-way-ica-and-its-application-to-estimate-cortico-thalamo-cerebellar-functional-links-in-schizophrenia)  
+1. [SamatNext v0.2-B: An Exploratory Study of RMS-Normalized Hybrid Decoders for Curriculum Retention in Small Code Models](/202606/28/2606.22248v1-samatnext-v02-b-an-exploratory-study-of-rms-normalized-hybrid-decoders-for-curriculum-retention-in-small-code-models)  
+   标签：评分：8.0/10、query:la
+   evidence：混合解码器含差分注意力和DeltaNet风格线性状态混合器
+2. [Holographic Memory for Zero-Shot Compositional Reasoning in Knowledge Graphs: A Mechanistic Study of Where and Why It Fails](/202606/28/2606.24948v1-holographic-memory-for-zero-shot-compositional-reasoning-in-knowledge-graphs-a-mechanistic-study-of-where-and-why-it-fails)  
+   标签：评分：8.0/10、query:la
+   evidence：全息关联记忆与现代Hopfield网络
+3. [RAVEN: Long-Horizon Reasoning & Navigation with a Visuo-Spatio-Temporal Memory](/202606/28/2606.25206v1-raven-long-horizon-reasoning--navigation-with-a-visuo-spatio-temporal-memory)  
+   标签：评分：8.0/10、query:la
+   evidence：使用向量数据库和空间检索的智能记忆系统实现高效记忆访问
+4. [Temporal Validity in Retrieval Memory: Eliminating Stale-Fact Errors for AI Agents over Evolving Knowledge](/202606/28/2606.26511v1-temporal-validity-in-retrieval-memory-eliminating-stale-fact-errors-for-ai-agents-over-evolving-knowledge)  
+   标签：评分：8.0/10、query:la
+   evidence：具有时间有效性的检索记忆
+5. [Stimulus and circuit contributions to the information geometry of neural manifolds](/202606/28/biorxiv-10-64898-2026-06-21-733384-v1-stimulus-and-circuit-contributions-to-the-information-geometry-of-neural-manifolds)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：神经流形的信息几何、循环网络、Fisher信息
+6. [Rhythmic replay of short-term memory neural patterns revealed by time-resolved error prediction](/202606/28/biorxiv-10-64898-2026-06-22-733876-v1-rhythmic-replay-of-short-term-memory-neural-patterns-revealed-by-time-resolved-error-prediction)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：短时记忆、theta振荡、编码保真度、节律性重放
+7. [Long-term Learning Induces Plastic Changes in Frontostriatal Circuits](/202606/28/biorxiv-10-64898-2026-06-24-734256-v1-long-term-learning-induces-plastic-changes-in-frontostriatal-circuits)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：强化学习中额叶-纹状体回路的突触可塑性
+8. [A Theory-grounded Hybrid Neural Network Integrating Complementary Estimation Mechanisms for Stable Visual Object TrackingA](/202606/28/2606.22604v1-a-theory-grounded-hybrid-neural-network-integrating-complementary-estimation-mechanisms-for-stable-visual-object-trackinga)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：提出任意方式ICA估计精神分裂症脑功能连接
-2. [Differential locus coeruleus-hippocampus interactions during offline states](/202606/27/biorxiv-10-1101-2025-09-18-677005-v3-differential-locus-coeruleus-hippocampus-interactions-during-offline-states)  
+   evidence：人工神经网络与连续吸引子网络混合的神经计算方法
+9. [Active Adversarial Perturbation-driven Associative Memory Retrieval for RGB-Event Visual Object Tracking](/202606/28/2606.26455v1-active-adversarial-perturbation-driven-associative-memory-retrieval-for-rgb-event-visual-object-tracking)  
+   标签：评分：7.0/10、query:la
+   evidence：对抗扰动驱动的关联记忆检索用于跟踪
+10. [Decomposition of task-specific responses in the multiple demand network](/202606/28/biorxiv-10-64898-2026-06-21-732474-v1-decomposition-of-task-specific-responses-in-the-multiple-demand-network)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：记忆巩固过程中的海马尖波涟漪与蓝斑相互作用
-3. [Behavioral alignment as an organizing principle in sensory coding](/202606/27/biorxiv-10-64898-2026-02-04-703828-v2-behavioral-alignment-as-an-organizing-principle-in-sensory-coding)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：行为对齐作为感觉编码的组织原则
-4. [A corticostriatal circuit updates subjective beliefs about latent task states](/202606/27/biorxiv-10-64898-2026-03-12-711369-v3-a-corticostriatal-circuit-updates-subjective-beliefs-about-latent-task-states)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：计算神经科学中的信念更新神经回路研究
-5. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202606/27/biorxiv-10-64898-2026-06-10-731214-v5-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：表征几何作为连接组网络的保真度度量
-6. [Stimulus and circuit contributions to the information geometry of neural manifolds](/202606/27/biorxiv-10-64898-2026-06-21-733384-v1-stimulus-and-circuit-contributions-to-the-information-geometry-of-neural-manifolds)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：神经流形的信息几何、连接性、费舍尔信息
-7. [Functional gradients dissociate between cortical layers](/202606/27/biorxiv-10-64898-2026-02-06-704362-v2-functional-gradients-dissociate-between-cortical-layers)  
+   evidence：多需求网络在认知任务中的功能亚区
+11. [AVOC: Enhancing Hour-Level Audio-Video Understanding in Omni-Modal LLMs via Retrieval-Inspired Token Compression](/202606/28/2606.24286v1-avoc-enhancing-hour-level-audio-video-understanding-in-omni-modal-llms-via-retrieval-inspired-token-compression)  
+   标签：评分：6.0/10、query:la
+   evidence：检索启发的token压缩用于高效多模态理解
+12. [Brain Structure Shapes Function through higher-order Functional Interactions](/202606/28/biorxiv-10-64898-2026-06-22-733911-v1-brain-structure-shapes-function-through-higher-order-functional-interactions)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：皮层层次功能梯度
-8. [Unsupervised Representation Learning Reveals Individualized Neurophysiological Profiles](/202606/27/biorxiv-10-64898-2026-02-10-705127-v2-unsupervised-representation-learning-reveals-individualized-neurophysiological-profiles)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：无监督自编码器神经生理学特征提取
-9. [Dynamic Compression Flows for Neuroscience Data](/202606/27/biorxiv-10-64898-2026-02-12-705535-v2-dynamic-compression-flows-for-neuroscience-data)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：用于潜在动力学提取的计算神经科学方法
-10. [Calcium-dependent synaptic proteomics reveals EGFR signaling at active synapses](/202606/27/biorxiv-10-64898-2026-05-20-726457-v2-calcium-dependent-synaptic-proteomics-reveals-egfr-signaling-at-active-synapses)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：钙依赖的活性突触标记方法用于可塑性研究
-11. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202606/27/biorxiv-10-64898-2026-06-10-731214-v6-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：表征几何作为连接组约束网络的保真度指标
-12. [BAYESIAN STATE-SPACE MODEL FOR JOINT INFERENCE OF OSCILLATORY DYNAMICS AND POINT-PROCESS COUPLING](/202606/27/biorxiv-10-64898-2026-06-15-732402-v1-bayesian-state-space-model-for-joint-inference-of-oscillatory-dynamics-and-point-process-coupling)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：用于神经振荡与尖峰-场耦合联合推断的贝叶斯状态空间模型
+   evidence：大脑结构对高阶功能交互的约束
 
 
 <div class="dpr-home-promo-card">
