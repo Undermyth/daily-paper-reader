@@ -6,77 +6,74 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-28
-- 运行时间：2026-06-28 21:25:58 UTC
+- 最新运行日期：2026-06-29
+- 运行时间：2026-06-29 20:56:59 UTC
 - 运行状态：成功
-- 本次总论文数：19
-- 精读区：7
+- 本次总论文数：18
+- 精读区：6
 - 速读区：12
 
 ### 今日简报（AI）
-今日推荐19篇论文，精读7篇，速读12篇，重点关注注意力机制优化与记忆动力学研究。最值得精读的是满分论文《CARVE》提出的内容感知线性注意力方法，以及探讨海马-皮层耦合驱动记忆巩固的9分论文。建议优先阅读这两篇，并关注《RAVEN》中视觉空间记忆的长程推理应用。
-- 详情：[/202606/28/README](/202606/28/README)
+今日精读了Flexformer与海马-皮层耦合记忆巩固两篇9.0高分论文，速读涵盖层次注意力与神经流形等7.0分工作。最值得关注的是可学习注意力核的线性Transformer设计，以及记忆系统巩固的神经环路机制。建议普通读者优先精读Flexformer的注意力核创新，再结合海马-皮层耦合理解记忆动态。
+- 详情：[/202606/29/README](/202606/29/README)
 
 ### 精读区论文标签
-1. [CARVE: Content-Aware Recurrent with Value Efficiency for Chunk-Parallel Linear Attention](/202606/28/2606.27229v1-carve-content-aware-recurrent-with-value-efficiency-for-chunk-parallel-linear-attention)  
-   标签：评分：10.0/10、query:la
-   evidence：线性注意力模型、块并行、内容感知门控
-2. [Hippocampal-cortical coupling dynamics drive system consolidation of remote memory](/202606/28/biorxiv-10-64898-2026-06-22-733680-v1-hippocampal-cortical-coupling-dynamics-drive-system-consolidation-of-remote-memory)  
+1. [Flexformer: Flexible Linear Transformer with Learnable Attention Kernel](/202606/29/2606.27748v1-flexformer-flexible-linear-transformer-with-learnable-attention-kernel)  
+   标签：评分：9.0/10、query:la
+   evidence：具有可学习核的线性Transformer用于高效序列处理
+2. [Hippocampal-cortical coupling dynamics drive system consolidation of remote memory](/202606/29/biorxiv-10-64898-2026-06-22-733680-v1-hippocampal-cortical-coupling-dynamics-drive-system-consolidation-of-remote-memory)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：海马-皮层耦合、系统巩固、记忆表征
-3. [The genetic signature of memory encoding along the human hippocampal axis](/202606/28/biorxiv-10-64898-2026-06-22-733862-v1-the-genetic-signature-of-memory-encoding-along-the-human-hippocampal-axis)  
+   evidence：系统巩固远程记忆过程中的海马-皮层耦合动力学
+3. [Rhythmic replay of short-term memory neural patterns revealed by time-resolved error prediction](/202606/29/biorxiv-10-64898-2026-06-22-733876-v1-rhythmic-replay-of-short-term-memory-neural-patterns-revealed-by-time-resolved-error-prediction)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：海马记忆编码的遗传特征
-4. [Transitive reasoning as linear classification](/202606/28/biorxiv-10-64898-2026-06-24-734346-v1-transitive-reasoning-as-linear-classification)  
+   evidence：短时记忆神经模式的节律性回放，记忆中的突触可塑性机制
+4. [Critical period plasticity enables credit assignment](/202606/29/biorxiv-10-64898-2026-06-24-734069-v1-critical-period-plasticity-enables-credit-assignment)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：传递推理作为线性分类，推理的计算机制
-5. [A number simplex in the human medial temporal lobe](/202606/28/biorxiv-10-64898-2026-06-25-734462-v1-a-number-simplex-in-the-human-medial-temporal-lobe)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：内侧颞叶中数字的神经编码具有单纯形几何结构
-6. [Temporal Gating by Chandelier Cells Encodes Signed Prediction Errors](/202606/28/biorxiv-10-64898-2026-06-26-734797-v1-temporal-gating-by-chandelier-cells-encodes-signed-prediction-errors)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：突触可塑性、预测误差、带符号误差编码、篮状细胞
-7. [A corticostriatal circuit updates subjective beliefs about latent task states](/202606/28/biorxiv-10-64898-2026-03-12-711369-v3-a-corticostriatal-circuit-updates-subjective-beliefs-about-latent-task-states)  
+   evidence：关键期可塑性实现橄榄-小脑系统中的信用分配
+5. [Bifocal Diffusion Language Models: Asymmetric Bidirectional Context for Parallel Generation](/202606/29/2606.27732v1-bifocal-diffusion-language-models-asymmetric-bidirectional-context-for-parallel-generation)  
+   标签：评分：8.0/10、query:la
+   evidence：非对称双向上下文实现高效并行生成，解决注意力效率问题
+6. [Sleep spindles enhance latent working memory representations](/202606/29/biorxiv-10-64898-2026-06-26-734777-v1-sleep-spindles-enhance-latent-working-memory-representations)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：眶额皮层神经环路信念更新
+   evidence：睡眠纺锤波增强基于突触可塑性的潜在工作记忆表征
 
 ### 速读区论文标签
-1. [SamatNext v0.2-B: An Exploratory Study of RMS-Normalized Hybrid Decoders for Curriculum Retention in Small Code Models](/202606/28/2606.22248v1-samatnext-v02-b-an-exploratory-study-of-rms-normalized-hybrid-decoders-for-curriculum-retention-in-small-code-models)  
-   标签：评分：8.0/10、query:la
-   evidence：混合解码器含差分注意力和DeltaNet风格线性状态混合器
-2. [Holographic Memory for Zero-Shot Compositional Reasoning in Knowledge Graphs: A Mechanistic Study of Where and Why It Fails](/202606/28/2606.24948v1-holographic-memory-for-zero-shot-compositional-reasoning-in-knowledge-graphs-a-mechanistic-study-of-where-and-why-it-fails)  
-   标签：评分：8.0/10、query:la
-   evidence：全息关联记忆与现代Hopfield网络
-3. [RAVEN: Long-Horizon Reasoning & Navigation with a Visuo-Spatio-Temporal Memory](/202606/28/2606.25206v1-raven-long-horizon-reasoning--navigation-with-a-visuo-spatio-temporal-memory)  
-   标签：评分：8.0/10、query:la
-   evidence：使用向量数据库和空间检索的智能记忆系统实现高效记忆访问
-4. [Temporal Validity in Retrieval Memory: Eliminating Stale-Fact Errors for AI Agents over Evolving Knowledge](/202606/28/2606.26511v1-temporal-validity-in-retrieval-memory-eliminating-stale-fact-errors-for-ai-agents-over-evolving-knowledge)  
-   标签：评分：8.0/10、query:la
-   evidence：具有时间有效性的检索记忆
-5. [Stimulus and circuit contributions to the information geometry of neural manifolds](/202606/28/biorxiv-10-64898-2026-06-21-733384-v1-stimulus-and-circuit-contributions-to-the-information-geometry-of-neural-manifolds)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：神经流形的信息几何、循环网络、Fisher信息
-6. [Rhythmic replay of short-term memory neural patterns revealed by time-resolved error prediction](/202606/28/biorxiv-10-64898-2026-06-22-733876-v1-rhythmic-replay-of-short-term-memory-neural-patterns-revealed-by-time-resolved-error-prediction)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：短时记忆、theta振荡、编码保真度、节律性重放
-7. [Long-term Learning Induces Plastic Changes in Frontostriatal Circuits](/202606/28/biorxiv-10-64898-2026-06-24-734256-v1-long-term-learning-induces-plastic-changes-in-frontostriatal-circuits)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：强化学习中额叶-纹状体回路的突触可塑性
-8. [A Theory-grounded Hybrid Neural Network Integrating Complementary Estimation Mechanisms for Stable Visual Object TrackingA](/202606/28/2606.22604v1-a-theory-grounded-hybrid-neural-network-integrating-complementary-estimation-mechanisms-for-stable-visual-object-trackinga)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：人工神经网络与连续吸引子网络混合的神经计算方法
-9. [Active Adversarial Perturbation-driven Associative Memory Retrieval for RGB-Event Visual Object Tracking](/202606/28/2606.26455v1-active-adversarial-perturbation-driven-associative-memory-retrieval-for-rgb-event-visual-object-tracking)  
+1. [Prism Transformer: Progressive Head Schedules for Hierarchical Attention Processing](/202606/29/2606.27449v1-prism-transformer-progressive-head-schedules-for-hierarchical-attention-processing)  
    标签：评分：7.0/10、query:la
-   evidence：对抗扰动驱动的关联记忆检索用于跟踪
-10. [Decomposition of task-specific responses in the multiple demand network](/202606/28/biorxiv-10-64898-2026-06-21-732474-v1-decomposition-of-task-specific-responses-in-the-multiple-demand-network)  
+   evidence：Transformer中渐进头调度实现分层注意力处理
+2. [Stimulus and circuit contributions to the information geometry of neural manifolds](/202606/29/biorxiv-10-64898-2026-06-21-733384-v1-stimulus-and-circuit-contributions-to-the-information-geometry-of-neural-manifolds)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：多需求网络在认知任务中的功能亚区
-11. [AVOC: Enhancing Hour-Level Audio-Video Understanding in Omni-Modal LLMs via Retrieval-Inspired Token Compression](/202606/28/2606.24286v1-avoc-enhancing-hour-level-audio-video-understanding-in-omni-modal-llms-via-retrieval-inspired-token-compression)  
-   标签：评分：6.0/10、query:la
-   evidence：检索启发的token压缩用于高效多模态理解
-12. [Brain Structure Shapes Function through higher-order Functional Interactions](/202606/28/biorxiv-10-64898-2026-06-22-733911-v1-brain-structure-shapes-function-through-higher-order-functional-interactions)  
+   evidence：神经流形几何与信息编码
+3. [Long-term memory performance optimization via Neural network-based curve fitting in Drosophila](/202606/29/biorxiv-10-64898-2026-06-22-733713-v1-long-term-memory-performance-optimization-via-neural-network-based-curve-fitting-in-drosophila)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：通过神经网络曲线拟合优化果蝇长期记忆
+4. [A reduced multicompartment network model of CA1 theta-gamma oscillations under extracellular stimulation](/202606/29/biorxiv-10-64898-2026-06-22-733913-v1-a-reduced-multicompartment-network-model-of-ca1-theta-gamma-oscillations-under-extracellular-stimulation)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：刺激条件下CA1 theta-gamma振荡的简化多室模型
+5. [Interpretable compositional computation with recurrent neural networks](/202606/29/biorxiv-10-64898-2026-06-23-733979-v1-interpretable-compositional-computation-with-recurrent-neural-networks)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：循环神经网络的组合动力学
+6. [Estimation of neuronal tuning for word meaning from passively recorded naturalistic speech](/202606/29/biorxiv-10-64898-2026-06-23-733980-v1-estimation-of-neuronal-tuning-for-word-meaning-from-passively-recorded-naturalistic-speech)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：神经元语言调谐与编码模型
+7. [A Theory-grounded Hybrid Neural Network Integrating Complementary Estimation Mechanisms for Stable Visual Object TrackingA](/202606/29/2606.22604v1-a-theory-grounded-hybrid-neural-network-integrating-complementary-estimation-mechanisms-for-stable-visual-object-trackinga)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：大脑结构对高阶功能交互的约束
+   evidence：混合人工神经网络与连续吸引子神经网络用于视觉跟踪
+8. [NLL-Guided Full-Attention Layer Selection for Training-Free Sliding-Window Adaptation](/202606/29/2606.27791v1-nll-guided-full-attention-layer-selection-for-training-free-sliding-window-adaptation)  
+   标签：评分：6.0/10、query:la
+   evidence：基于负对数似然的层选择用于混合全注意力和滑动窗口注意力以提升效率
+9. [Rapid Prototyping of Event-Driven Contextual Memory in the ACT-Up Cognitive Architecture](/202606/29/2606.28045v1-rapid-prototyping-of-event-driven-contextual-memory-in-the-act-up-cognitive-architecture)  
+   标签：评分：6.0/10、query:la
+   evidence：联想学习机制与上下文记忆
+10. [Next-Generation Neural Mass Models Reproduce Features of Speech Processing](/202606/29/biorxiv-10-1101-2025-10-20-683434-v2-next-generation-neural-mass-models-reproduce-features-of-speech-processing)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：使用神经质量模型计算建模神经语音处理
+11. [Dynamic Compression Flows for Neuroscience Data](/202606/29/biorxiv-10-64898-2026-02-12-705535-v2-dynamic-compression-flows-for-neuroscience-data)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：神经科学动力学的低维潜表示
+12. [Graph-based characterization of in vitro neuronal network maturation using machine learning and digital holographic microscopy](/202606/29/biorxiv-10-64898-2026-06-18-732973-v1-graph-based-characterization-of-in-vitro-neuronal-network-maturation-using-machine-learning-and-digital-holographic-microscopy)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：使用机器学习和图论表征神经网络成熟的计算方法
 
 
 <div class="dpr-home-promo-card">

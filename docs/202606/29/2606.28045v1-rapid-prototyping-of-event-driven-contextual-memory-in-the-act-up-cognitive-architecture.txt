@@ -1,0 +1,194 @@
+Title: Rapid Prototyping of Event-Driven Contextual Memory in the ACT-Up Cognitive Architecture
+
+URL Source: https://arxiv.org/pdf/2606.28045v1
+
+Published Time: Mon, 29 Jun 2026 00:49:45 GMT
+
+Number of Pages: 7
+
+Markdown Content:
+# Rapid Prototyping of Event-Driven Contextual Memory in the ACT-Up Cognitive Architecture 
+
+Robert Thomson (thomsonr@cmu.edu) 
+
+Department of Psychology, Carnegie Mellon University Pittsburgh, PA 12513 USA 
+
+Christian Lebiere (cl@cmu.edu) 
+
+Department of Psychology, Carnegie Mellon University Pittsburgh, PA 12513 USA 
+
+Abstract 
+
+The present paper describes an implementation of contextual memory and a basic event-handler for the ACT-Up cognitive architecture which maintains its scalability and appropriate-ness for rapid-prototyping while adding essential features and lowering the barrier to entry for new users. This includes describing a theory-neutral implementation of working mem-ory and spreading activation, in addition to a basic associa-tive learning mechanism. An example of rapid prototyping for algorithm development is presented using the serial memory task described in Klein, Addis, and Kahana (2005). This study describes how contiguity effects change across sequential list presentations across three serial and free recall conditions. We further describe how to use generative AI and the event handler to automatically create cognitive experiments directly from the Methods section of research papers. 
+
+Keywords: contextual memory; working memory; associative learning; act-up; cognitive architectures 
+
+# Background 
+
+In the past decade there have been several advances mod-eling statistical (i.e., associative ) learning in cognitive ar-chitectures. Thomson, Pyke, Hiatt, and Trafton (2015) and Thomson, Harrison, Trafton, and Hiatt (2017) presented an interference-based associative learning mechanism, while Anderson (2020) presented an updated Bayesian mechanism that does not fall prey to the instabilities of prior implementa-tions (see Thomson & Lebiere, 2013 for a review), and Kelly, Kwok, and West (2015) described a holographic memory im-plementation of ACT-R’s declarative memory which captures many features of associative learning. One thing common to these previous implementations is the commitment to some version of the full ACT-R cogni-tive architecture, including major commitments such as per-sistent buffers to contain information and a production system 
+
+to trigger processing. One issue with these previous imple-mentations is that scalability becomes an issue when trying to integrate these mechanisms into larger and longer-running models (Stocco et al., 2024). To address issues of scalabil-ity and rapid prototyping, ACT-Up (Reitter & Lebiere, 2010) was developed to model the core functionality of declara-tive memory with minimal commitments to other theoreti-cal and implementation-level constraints (e.g., there are no buffers, no automatic procedural system, and no built-in sensory mechanisms to receive input). Instead, the imple-mentation details are left to the modeler while maximizing the scalability of the declarative memory system (Lebiere, Bennati, Thomson, Shakarian, & Nunes, 2015). More re-cently, a Python implementation, PyACT-Up (Yang, Morri-son, Stocco, Orr, & Lebiere, 2020) was developed to further integrate with modern AI development. While ACT-Up (and PyACT-Up) offer flexibility, there are several core features missing which limit their ability to cap-ture human performance on par with the complete ACT-R architecture. These key limitations include: 1) a lack of spreading activation, 2) a limited mechanism to capture in-formation flow within the model (e.g., contextual memory), and 3) no simple event-handling to model the flow of hu-man experiments. As such, while the strengths of scalabil-ity and rapid prototyping are substantial, the lack of user-friendly features is challenging for new researchers. To ad-dress these shortcomings, the present paper describes a ba-sic, scalable implementation of contextual memory (working memory with associative learning) and an event-handling sys-tem for ACT-Up which provides a more complete (yet still scalable) rapid-prototyping framework for developing mod-els and algorithms. 
+
+# Contextual Memory Module 
+
+Contextual memory can be best described as the conjunction of working memory and associative learning that integrates mechanisms for priming and interference in working memory (Thomson, Bennati, & Lebiere, 2014). It has been previously argued that a limitation of contextual memory in the stan-dard ACT-R architecture is that the commitment to buffers is an all-or-nothing situation where a chunk is either in work-ing memory and a possible source of activation, or it is not. There is no default temporal decay or interference-based at-tenuation of potential sources of activation (the w parameter in canonical ACT-R). While extant modules have been de-scribed previously (Thomson et al., 2014, 2015, 2017), they are still generally bound by the commitment that a chunk held within an ACT-R buffer should maximally be a source of ac-tivation, even if there is the addition of a decaying context window. Due to issues of scalability and lack of stable associa-tive learning (at the time) in the full ACT-R architecture, neither spreading activation nor associative learning mech-anisms were developed for ACT-Up. As more projects re-quire human-AI collaboration, the requirement to maintain contextual/conceptual alignment between human operators 
+
+> arXiv:2606.28045v1 [cs.SC] 26 Jun 2026
+
+and AI models has necessitated more functionality than the core memory functionality (partial matching and blended re-trievals) can provide. Furthermore, a study by Lupyan and Arcas (2026) demonstrates the importance of similarity, con-text, and pattern matching to explain human and AI behavior. 
+
+Working Memory API 
+
+This presents the main functions supporting working memory functionality within the context memory package. The goal is to provide a theory-neutral implementation of working mem-ory where elements are added and removed from context to be available for spreading activation, associative learning, or other mechanisms (e.g., analogical transfer). 
+
+init-context-module () | reset-context () Initialize | reset the context-module. Module must be initialized before use. 
+
+add-element (element) | remove-element (element) |update-element (element) Adds | removes | updates a context-element from working memory. 
+
+update-context (current-time update-function threshold) 
+
+Updates all elements in working memory based on a user-supplied update-function . The default uses ACT-R’s activa-tion as described in Thomson et al. (2014) and seen in Equa-tion 3, with an optional threshold parameter stating at what residual activation in working memory to remove elements. 
+
+Associative Learning API 
+
+This presents the main functions supporting associative learn-ing within contextual memory. This functionality stores as-sociations in a hash-table allowing for constant-time access to update sources of activation, providing scalable learning. Functionality that controls associative growth, spreading ac-tivation, and interference effects is provided by user-defined functions. We also include several prototype functions as de-scribed below. While we assume that associations do not de-cay temporally, this is possible to implement. As described in Thomson and Lebiere (2013), it is generally not recom-mended to have both associations and chunk activations tem-porally decay. This is essential to maintain stable spreading activation over longer durations. It is possible to replace the 
+
+update-association function to substitute an entirely different associative learning framework. 
+
+add-association (source target count) Adds a directed as-sociation from source to target with initial value count .
+
+update-association (source target new-count &optional interference-function association-function context) Up-dates an existing association to a new value new-count .
+
+update-from-context (target) Creates and/or updates as-sociations between items in working memory and a given tar-get , usually after a retrieval, although this is up to the user. 
+
+spreading (target context) Returns the total spread from all sources in context (working memory) based on their resid-ual activation and associative strength. 
+
+Prototype Associative Spreading Functions 
+
+The following functions describe a basic associative learn-ing (capped-spread) and two candidate working memory de-cay functions: one based on canonical ACT-R and the other adding interference based on the number of items in working memory. The adaptive interference provides a soft-cap for the number of elements possible in working memory. Using the default decay of 0, it is possible to programmatically set the contents of working memory (i.e., the context ) entirely driven by the user. The current example provides an associa-tive learning mechanism that stores raw contextual activation and uses capped-spread to provide a shifted hyperbolic trans-formation function to normalize activations within [0, 1] with growth and interference. 
+
+capped-spread (freq &optional (max 1) (b 0.5)) Scales the output of spreading ∗ [0, max ] using the following func-tion: max ∗ (tanh (b ∗ f req )) which provides constrained growth. This function may be substituted to prototype other candidate spreading functions and is referenced using the 
+
+∗spreading − f unction ∗ parameter. 
+
+actr-decay-activation (current-time add-time decay .35) 
+
+Uses a simplified form of base-level decay to reduce the acti-vation of chunks in working memory: 1 − d ∗ log (1 + ( t − t0)) (1) where d is the decay, t is the current time, and t0 is the time the element was added to working memory. Current default 
+
+decay = .35 as argued in Thomson et al. (2014), being ap-proximately 18s for an unrehearsed element to maintain acti-vation, similar to that shown in classic memory experiments (Peterson & Peterson, 1959). 
+
+adaptive-decay-activation (current-time add-time w) 
+
+Adapts the simplified form of base-level decay to reduce the activation of chunks in working memory integrating interference by increasing the decay rate based on the number of elements in working memory: 1 − log (|context |)
+
+w ∗ log  1 + ( t − t0) (2) where w determines how much the decay rate increases based on the number of elements in working memory. 
+
+use-based-decay (value interference time) Interference function that takes an existing associative value and attenu-ates it based on a supplied interference amount. The current function simply attenuates by a parameterized percentage (set to 1%) of the total current associative strength. The time is an optional parameter for those who want to evaluate temporal-based decay for associations. 
+
+Helper Function API 
+
+This presents some helper functions to help modelers view and match associations. get-matching-elements (list-slots-test) Used to search working memory using user-supplied function; e.g., (activa-tion .5 >=) or (element ’cat’ equalp) .
+
+pprint-source-associations | pprint-source-associations-tabular Prints out list of associations for debugging. 
+
+# Event Handling 
+
+While the ACT-R architecture has a complete event-handling system to handle stimuli entering the sensory buffers (e.g., adding items to the visicon or aural buffers), ACT-Up was designed to be integrated into real-world examples; however, this requires users to develop their own systems for simu-lating human studies. We developed a scalable, bare-bones event system for simulating external input like that seen in cognitive psychology experiments (https://github.com/cmu-psych-fms/event). While we use the term event buffer to re-fer to the contents of the event system, we are agnostic to the structure of the items (i.e., we make no commitments whether they are strings, symbols, or chunks) and have no commit-ment outside of it being a structure to hold information for the model to perceive. A brief API of the system is as fol-lows: 
+
+reset-event-buffer (reset-clock) Initializes the event buffer , event queue , and event log . Optionally resets the event clock. 
+
+queue-item (item onset-time offset-time) Queues adding an item to the event buffer with a given onset and offset. 
+
+show-item (item duration) Adds an item directly to the 
+
+event buffer for a given duration in seconds. 
+
+purge-item (item event-time) Removes an item in the 
+
+event buffer at a given event-time .
+
+advance-event-clock (time) Advances clock by time , pro-cessing all events and logging exact onsets and offsets. 
+
+current-event-items Displays items in the event buffer .
+
+event-log Returns a history as a list of dictionary elements with keys :time , :event, and :item. This API is sufficient to develop single- and multi-stimuli cognitive psychology studies and can be synchronized with act-up or act-r time. Furthermore, using Perplexity (or sim-ilar) generative AI applications, we were able to attach our event.lisp file and the Klein et al. (2005) PDF to accurately create a skeleton Lisp function that completed all 3 condi-tions of the study using the prompt in Listing 1.            
+
+> Implement the attached study using the event handler described in the event . lisp file .
+
+Listing 1: AI Prompt to create the serial memory study. 
+
+# Spacing Effect and Base-Level Activation 
+
+The base-level activation of memories reflects the timing of their presentations and rehearsals according to an equa-tion capturing the power laws of practice and forgetting (Anderson & Schooler, 1991). While that learning mecha-nism captures many long-term trends accurately, it fails to reflect finer-grained temporal patterns such as the spacing ef-fect, whereby massed presentations are less well recalled than when more evenly spaced out. Pavlik and Anderson (2005) proposed an account of the spacing effect that varied the de-cay parameter of each memory presentation according to its activation at the time. An alternative account has been pro-posed where each presentation was associated with a weight that aimed to boost the base-level activation back to a pre-specified level. A practical advantage of this approach is to prevent unbounded activations resulting from out-of-control reinforcement loops. Specifically, the base-level activation of a memory is defined as: 
+
+Bi = log (
+
+> n
+
+# ∑
+
+> j=1
+
+w j ∗ t−dj ) (3) where w j is defined such as Bi = c at t time units in the future, with c as the target base-level activation and t is a short-term horizon to allow for some decay of the most recent activation boost. This adaptation of the spacing-effect has been inte-grated into the present model. 
+
+# Case Study: Serial Memory 
+
+The present study reproduces the serial memory experiment described in Klein et al. (2005). Whereas most serial memory studies employ a single list presentation, Klein et al. (2005) presented each list five times. This allows to not only repli-cate traditional serial position effects, but also to see how learning influences positional effects. Three conditions were compared: serial-constant , free-constant , and free-varied . In the free-varied condition, list items were randomized be-tween presentations and recalled in any order. In the free-constant condition, items instead maintained fixed positions but were recalled with the same free-recall instructions as the free-varied condition. In the serial-constant condition, item order was fixed and participants were instructed to re-call items in the order that they were received. Participant responses were scored according to their over-all accuracy and serial position curve, in addition to analyz-ing patterns of errors using conditional response probabili-ties (CRP). Serial position curves measure recall accuracy as a function of each item’s position in the list. Typically, re-call is best for items presented early in the list (the primacy effect ) and the last several items presented (the recency ef-fect ; Steiner & Rain, 1989). A hallmark of serial recall is a relatively stronger primacy effect compared to free recall, al-though the recency effect can be attenuated by introducing a delay between list presentation and subsequent recall. CRP quantifies the probability of recalling an item as a function of its lag distance from the previously recalled item, provid-ing a measure of contiguity effects. These effects are char-acterized by a higher likelihood of recalling items close in serial order. Specifically, it shows the probability of recalling item i + lag after recalling item i (Kahana, Howard, Zaromb, & Wingfield, 2002). For example, skipping one item in the list yields a CRP lag = 1 for that item, but then recalling the subsequent item correctly would be deemed correct by CRP, whereas returning to the single skipped item would be con-sidered lag = −1. Stimuli consisted of 19 non-repeating words presented ver-bally every 1500 ms. Participant responses were scored for overall accuracy, serial position curves, and conditional re-sponse probabilities (CRP). Serial position curves capture re-call accuracy as a function of list position, typically exhibiting primacy and recency effects (Steiner & Rain, 1989). Serial recall generally produces a stronger primacy effect than free recall, whereas the recency effect diminishes with delayed re-call (Kahana et al., 2002). Results from this study revealed robust primacy and re-cency effects, with relatively stronger primacy and CRP effects in the serial-constant condition. In the two free-recall conditions performance was characterized by a pro-nounced recency advantage. Across successive presenta-tions of the same list, both primacy and recency became less extreme as overall accuracy increased, gradually flat-tening the serial position curves while improving recall per-formance. Contiguity effects were most pronounced from 
+
+serialConstant ⇒ f reeConstant ⇒ f reeVaried where errors became more forward-asymmetric (see Figure 2). Klein et al. (2005) and Thomson et al. (2015) both interpret these results as supportive of an associative explanation for contextual memory. Primacy effects are driven via rehearsal and clearer context at the start of the list (see Figure 1), with recency effects are driven via the decaying nature of activa-tion dynamics. Forward-asymmetric contiguity effects - and how they change over time - is driven by associative strength-ening and spreading activation via contextual priming. 
+
+Impact on Serial Memory Literature 
+
+Klein et al. (2005) provides a relatively novel test case for contemporary theories of list memory, particularly because most existing models have been evaluated on a narrower set of phenomena (e.g., single-presentation studies). More re-cently, Adrogue, Herz, Halpern, Tracy, and Kahana (2024) have further advocated for multi-trial serial memory studies. Generally speaking, most context-based accounts were not implemented with the goal of capturing the joint impact of learning, free- and serial recall together. Context-based accounts such as the temporal context model (TCM; also termed the context maintenance and re-trieval model, CMR) characterize memory as associations between items and evolving contextual states; recalling an item reinstates its context, biasing retrieval toward items with similar temporal context and jointly accommodating recency and asymmetric contiguity effects (Howard & Kahana, 1999; Polyn, Norman, & Kahana, 2009). Converging neural ev-idence indicates that such temporally-related context repre-sentations are reinstated during recall, and that experimen-tal manipulation of temporal context in medial temporal lobe structures modulates contiguity in a manner consistent with these models (Manns, Howard, & Eichenbaum, 2011; El-Kalliny et al., 2019). Although TCM/CMR has been argued to extend naturally to serial recall, explicit serial-order imple-mentations and quantitative fits have not yet been fully artic-ulated, and current formulations do not directly address how serial position and contiguity functions should evolve over re-peated list presentations. Thomson et al.’s (2015) associative-learning framework can be viewed as complementary: by ex-plicitly modeling how associative strengths change with re-peated exposure, it instantiates one concrete route by which theories in the TCM/CMR family could, in principle, be ex-tended to accommodate multi-presentation recall data. The Start–End Model (SEM) explains serial recall by posit-ing implicit start and end markers, along with positional to-kens that encode spatiotemporal location (Henson, 1998). One challenge of this theory is the fact that the participant does not necessarily know when the list will end and items outside of working memory would need to have access to the 
+
+end markers. This limits its psychological plausibility. SIMPLE offers a unified account of serial and free recall by grounding retrieval in the temporal distinctiveness of items, with optional extensions to other dimensions such as seman-tic distinctiveness (Brown, Neath, & Chater, 2007). Empir-ical applications have primarily emphasized fits to primacy and recency, and, in its standard instantiations, SIMPLE does not appear to reproduce the full pattern of asymmetric con-tiguity effects or their systematic modulation across repeated list presentations. Thomson et al. (2015)’s model shares SIM-PLE’s commitment to temporal factors, but replaces its more generic distinctiveness construct with a more explicit account of associative strengthening which naturally yields asymmet-ric contiguity across repetitions (Thomson et al., 2015). 
+
+# Model Description 
+
+The present model is instantiated using the ACT-Up core ar-chitecture supplemented with the contextual and event mod-ules described above. While Thomson et al. (2015) re-quired declarative FINSTs to achieve their performance, the present model does not use this mechanism as it is psycho-logically implausibe. Instead the present model uses the 
+
+capped-spread and actr-decay-activation functions for asso-ciative learning and working memory, respectively. It also uses the spacing-effect function for memory retrieval to avoid run-away base-level activation during rehearsal. Most param-eters are set to act-r default as appropriate or the same as prior studies ( redacted for peer review ; base-level learning = .5, noise = .25, spreading activation = 4, spacing-delay = 1, and contextual memory decay = .35). For a trial, the model assumes a ’start’ concept in working memory that serves as the initial context in learning the list (someone analogous to the Start-End Model’s more plausi-ble ’start’ signal). There is no prior knowledge of the stimuli in the study and no prior experience (i.e., no prior memory activation or associative links between items). Upon perceiv-ing an item the model attempts to rehearse it, although the rapid pace of the experiment means there are few rehearsals. When a chunk is retrieved it is put into working memory, and when that activation has decayed, the item is purged. When the model perceives a new item it is retrieved, rehearsed if the same item is still perceived, and is added to working memory. Associations are strengthened from the preceding item(s) to the newly recalled item. Additionally, associations from more distant items are attenuated by their temporal distance. After all stimuli are presented the model is prompted to re-call an element of the list, driven solely by chunk activation and spreading activation from the items in working memory. Retrievals proceed until the complete list has been recalled or until a recall request fails, at which point the presentation is considered complete. If the model tries to recall the same item again, it tries to retrieve again. The only difference be-tween the free and serial recall tasks is that the model first places the ’start’ concept in working memory to prime the first few elements in the list. From that point, preliminary re-trievals continue to be sources of activation, creating a robust chain of contextual information to prime subsequent recall. 
+
+Preliminary Model Results 
+
+The model was run for 100 iterations of each trial, and ac-curately predicts conditional response probabilities (CRPs; 
+
+r2 > . 9) across the serial and free-constant conditions and across repeated presentations (see Figure 2), with improv-ing fits for the free-varied condition over presentations. The spacing-effect addressed prior concerns balancing the con-tributions of base-level and spreading activation, although it mitigated priming effects due to the tapering effect of reduc-ing the impact of rehearsal during list presentation. The de-caying base-level activation creates a recency effect, while primacy is enhanced by associative priming due to the ’start’ 
+
+concept in working memory serving as context. It is impor-tant to note that the ’start’ concept is not in the model’s mem-ory and only serves as a strategic stand-in for the kinds of priming one would expect from the Temporal Context and 
+
+Start-End Models. The asymmetric associative spread clearly explains Conditional Response Probabilities. In the Free-Varied condition this asymmetry attenuates over multiple pre-sentations due to randomization of the presented items. 
+
+Model Scalability 
+
+The event handler adds negligible overhead. Scheduling an event re-sorts the queue Q, which is worst-case O(Q log Q).
+
+Context window. Retrievals in ACT-UP already scan all N
+
+chunks in memory; the number of active chunks in context 
+
+M are updated, where M ≪ N. This adds a negligible factor 
+
+O(M), which can be viewed as a constant-factor slowdown. 
+
+Figure 1: Example of spreading activation during recall phase of serial memory condition. There is an essential tension between the contribution of spreading activation and base-level activation causing run-away activation around the 8th list item where the contextual spread from previous elements overwhelms the inhibition from the recently retrieved item. 
+
+Figure 2: Conditional Response Probabilities across serial-constant , free-constant , and free-varied , showing the proba-bility of recalling item i + lag after i. Paneled from left to right are the results for presentations 1, 3, and 5, respectively. 
+
+Associative learning. Default associative learning operates on the active context elements and their outgoing links. Let d denote the average number of associative links per context source. Updating associations from all M context sources to a single target chunk costs ∆Tassoc = O(Md ) per update, in-dependent of N and negligible for M, d ≪ N.
+
+# Discussion 
+
+This paper serves a triple-purpose: it describes 1) a scalable contextual memory implementation for the ACT-Up cogni-tive architecture integrating working memory with associa-tive learning without significantly impacting run-time, 2) an event handling module to rapidly prototype psychology ex-periments with instructions on how to use generative AI to extract study code from academic papers, and 3) a case study on modeling the multiple-presentation serial recall study de-scribed in Klein et al. (2005) integrating the aforementioned capabilities with generative AI prompting to rapidly proto-type learning mechanisms. The model achieves comparable performance for conditional response probabilities over prior modeling efforts without using explicit non-psychologically plausible strategies such as only rehearsing the first two list items and using declarative FINSTs to avoid pathological retrieval-loops (Thomson et al., 2015). Beyond providing a practical toolkit for rapidly prototyp-ing cognitive mechanisms, the provided contextual memory framework provides a viable bridge between extant theories of serial memory (TCM/CMR, SIMPLE, and SEM) for ex-plaining human behavior in multi-presentation serial mem-ory paradigms. At the same time, challenges to the inte-gration of multiple mechanisms together indicate that further research is required to better integrate base-level and asso-ciative activation into a stable and cohesive activation func-tion. This toolkit provides the means to rapidly prototype candidate mechanisms, with a 100 repetition model run tak-ing approximately 30 seconds, of which logging activations is a substantial portion of that overhead. Further efforts will include developing automated tools to inspect activations, develop and integrate additional mecha-nisms (e.g., structure mapping (Thomson & Lebiere, 2025) and similarity learning), and validate each mechanism against human data. We additionally plan to investigate the degree to which the next-generation of generative AI can use the ACT-Up architecture, as a single Lisp file, to develop basic models in addition to extracting the required events to model a given task directly from a research paper. 
+
+# Acknowledgments 
+
+This research was funded, in part, by the Advanced Research Projects Agency for Health (ARPA-H) from work originally funded by the Office of the Secretary of Defense / Assistant Secretary of Defense for Research and Engineering and the Office of Naval Research. The views and conclusions con-tained in this document are those of the authors and should not be interpreted as representing the official policies, either expressed or implied, of the U.S. Government, the Office of Naval Research, or the U.S. Navy. 
+
+# References 
+
+Adrogue, R., Herz, N., Halpern, D., Tracy, J., & Kahana, M. (2024). Multitrial free recall for evaluating memory. Neu-ropsychology , 38 (1), 58. Anderson, J. R. (2020). Revisiting associative learning (Tech. Rep.). Pittsburgh, PA: ACT-R Workshop Proceedings. Anderson, J. R., & Schooler, L. J. (1991). Reflections of the environment in memory. Psychological science , 2(6), 396–408. Brown, G. D., Neath, I., & Chater, N. (2007). A temporal ratio model of memory. Psychological review , 114 (3), 539. El-Kalliny, M. M., Wittig Jr, J. H., Sheehan, T. C., Sreeku-mar, V., Inati, S. K., & Zaghloul, K. A. (2019). Changing temporal context in human temporal lobe promotes mem-ory of distinct episodes. Nature communications , 10 (1), 203. Henson, R. N. (1998). Short-term memory for serial or-der: The start-end model. Cognitive psychology , 36 (2), 73–137. Howard, M. W., & Kahana, M. J. (1999). Contextual vari-ability and serial position effects in free recall. Journal of Experimental Psychology: Learning, Memory, and Cogni-tion , 25 (4), 923. Kahana, M. J., Howard, M. W., Zaromb, F., & Wingfield, A. (2002). Age dissociates recency and lag recency effects in free recall. Journal of Experimental Psychology: Learning, Memory, and Cognition , 28 (3), 530. Kelly, M. A., Kwok, K., & West, R. L. (2015). Holographic declarative memory and the fan effect: A test case for a new memory module for act-r. In Proceedings of the 13th international conference on cognitive modeling. groningen, the netherlands: University of groningen (pp. 148–153). Klein, K. A., Addis, K. M., & Kahana, M. J. (2005). Acomparative analysis of serial and free recall. Memory & Cognition , 33 (5), 833–839. Lebiere, C., Bennati, S., Thomson, R., Shakarian, P., & Nunes, E. (2015). Functional cognitive models of malware identification. In 13th international conference on cogni-tive modeling, iccm 2015 (pp. 90–95). Lupyan, G., & Arcas, B. A. (2026). The unreasonable ef-fectiveness of pattern matching. Retrieved from https:// arxiv.org/abs/2601.11432 
+
+Manns, J. R., Howard, M. W., & Eichenbaum, H. (2011). Os-cillatory patterns in the temporal lobe reveal context rein-statement during memory retrieval. Proceedings of the Na-tional Academy of Sciences , 108 (31), 12893–12897. doi: 10.1073/pnas.1015174108 Pavlik, P. I., & Anderson, J. R. (2005). Practice and forget-ting effects on vocabulary memory: An activation-based model of the spacing effect. Cognitive science , 29 (4), 559– 586. Peterson, L., & Peterson, M. J. (1959). Short-term retention of individual verbal items. Journal of experimental psy-chology , 58 (3), 193. Polyn, S. M., Norman, K. A., & Kahana, M. J. (2009). Acontext maintenance and retrieval model of organizational processes in free recall. Psychological review , 116 (1), 129. Reitter, D., & Lebiere, C. (2010). Accountable modeling in act-up, a scalable, rapid-prototyping act-r implementa-tion. In Proceedings of the 10th international conference on cognitive modeling (iccm) (pp. 199–204). Steiner, D. D., & Rain, J. S. (1989). Immediate and de-layed primacy and recency effects in performance evalua-tion. Journal of Applied Psychology , 74 (1), 136. Stocco, A., Rice, P., Thomson, R., Smith, B., Morrison, D., & Lebiere, C. (2024). An integrated computational frame-work for the neurobiology of memory based on the act-r declarative memory system. Computational Brain & Be-havior , 7(1), 129–149. Thomson, R., Bennati, S., & Lebiere, C. (2014). Extend-ing the influence of contextual information in act-r using buffer decay. In Proceedings of the annual meeting of the cognitive science society (Vol. 36). Thomson, R., Harrison, A. M., Trafton, J. G., & Hiatt, L. M. (2017). An account of interference in associative memory: Learning the fan effect. Topics in Cognitive Science , 9(1), 69–82. Thomson, R., & Lebiere, C. (2013). Constraining bayesian inference with cognitive architectures: An updated asso-ciative learning mechanism in act-r. In Proceedings of the annual meeting of the cognitive science society (Vol. 35). Thomson, R., & Lebiere, C. (2025). Cognitive models of influence dynamics in a conformity simulation. Computa-tional and Mathematical Organization Theory , 31 (4), 323– 343. Thomson, R., Pyke, A., Hiatt, L. M., & Trafton, J. G. (2015). An account of associative learning in memory recall. In 
+
+Proceedings of the annual meeting of the cognitive science society (Vol. 37, pp. 2386–2391). Yang, C., Morrison, D., Stocco, A., Orr, M., & Lebiere, C. (2020). An expanded set of declarative memory function-alities in pyactup, a python implementation of act-up’s ac-countable modeling. In Proceedings of the mathpsych/iccm annual conference.
