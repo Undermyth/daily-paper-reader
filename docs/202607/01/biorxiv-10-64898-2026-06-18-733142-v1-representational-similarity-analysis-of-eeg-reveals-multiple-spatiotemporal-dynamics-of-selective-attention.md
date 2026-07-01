@@ -1,0 +1,23 @@
+---
+title: Representational similarity analysis of EEG reveals multiple spatiotemporal dynamics of selective attention
+title_zh: 脑电图表征相似性分析揭示选择性注意的多个时空动态
+authors: "Kim, J., An, W. W., Noyce, A., Shinn-Cunningham, B."
+date: 2026-06-23
+pdf: "https://www.biorxiv.org/content/10.64898/2026.06.18.733142v1.full.pdf"
+tags: ["query:comp-neuro"]
+score: 6.0
+evidence: EEG表征相似性分析用于选择性注意研究
+tldr: 选择性注意使听者能在复杂场景中追踪目标说话者，但其神经机制尚不清楚。本研究在听觉注意任务（包括空间注意、说话者注意和被动听）中采集EEG，采用时间分辨表征相似性分析（RSA）考察宽带头皮电压和α频段振荡。结果显示，宽带电压在目标提示后和出现约300毫秒时产生短暂的区分性峰值，而α功率则缓慢上升并持续整个试验。这些模式区分了注意与被动状态以及空间与说话者注意类型，且宽带活动与α编码互补信息，其他频段贡献有限。研究表明RSA能统一解释诱发电位和诱导振荡，揭示选择性注意的多时空动态。
+source: biorxiv
+selection_source: fresh_fetch
+motivation: 探究选择性注意在听觉场景中的神经控制机制，尤其是空间注意与说话者注意的时空动态差异。
+method: 采集听觉注意任务（空间/说话者注意、被动听）下的EEG，使用时间分辨RSA分析宽带电压和α振荡。
+result: 宽带电压在提示后及目标后300ms出现短暂区分性峰值，α功率缓慢升高并持续；两者编码互补信息，其他频带贡献小。
+conclusion: RSA统一揭示了诱发电位与振荡如何共同编码选择性注意的时空动态。
+---
+
+## 摘要
+选择性注意使听者能够在复杂场景中跟踪目标说话者，但控制这种能力的神经机制尚不明确。我们在包含空间注意、说话者注意和被动聆听的听觉注意任务中收集了脑电图数据。对宽带头皮电压和α波段振荡进行时间分辨的表征相似性分析揭示了两种测量中不同的表征轨迹：头皮电压在目标线索后不久和目标开始后约300毫秒产生短暂的任务可区分性峰值，而α波段功率出现得更慢，并在整个试验中保持升高。这些模式区分了注意状态与被动状态，以及空间注意与说话者注意。此外，宽带活动和α功率编码互补信息，而其他频段贡献的独立解释力很小。这些结果表明，RSA允许对诱发电位和诱导脑电图测量进行统一解释，揭示了不同的神经计算如何共同编码选择性注意的时空动态。
+
+## Abstract
+Selective attention allows listeners to follow a target speaker in complex scenes, but less is known about the neural mechanisms that control this capacity. We collected electroencephalography (EEG) during an auditory attention task encompassing spatial attention, talker-based attention, and passive listening. Time-resolved representational similarity analysis (RSA) of broadband scalp voltage and alpha-band oscillations revealed distinct representational trajectories in the two measurements: scalp voltage produced brief peaks in task discriminability shortly after the target cue and around 300 ms after target onset, whereas alpha-band power emerged more slowly and remained elevated throughout the trial. These patterns distinguish attentive from passive conditions and spatial from talker attention. Furthermore, broadband activity and alpha power encode complementary information, while other frequency bands contribute little independent explanatory power. These results demonstrate that RSA allows a unified interpretation of evoked and induced EEG measures, revealing how distinct neural computations jointly encode the spatiotemporal dynamics of selective attention.
