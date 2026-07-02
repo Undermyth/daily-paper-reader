@@ -6,74 +6,73 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-01
-- 运行时间：2026-07-01 22:06:52 UTC
+- 最新运行日期：2026-07-02
+- 运行时间：2026-07-02 21:39:37 UTC
 - 运行状态：成功
-- 本次总论文数：18
-- 精读区：6
+- 本次总论文数：17
+- 精读区：5
 - 速读区：12
 
 ### 今日简报（AI）
-今日研读18篇论文，精读聚焦时间细胞与记忆神经重现、视频世界模型中的上下文记忆查询。最值得关注9.0分的时间细胞引导情景记忆重现机制，以及8.0分的MemLearner视频建模框架。建议进一步了解无监督表征学习揭示的个体化神经生理特征。
-- 详情：[/202607/01/README](/202607/01/README)
+1. 今日精读聚焦Transformer领域泛化与视觉感知分层处理两大突破，速读补充稀疏注意力及记忆压缩方案。  
+2. 最值得关注《Ghost in the Kernel》中基于领域泛化的高效上下文学习机制（9.0分）以及《Perceptual glimpses》揭示的视觉感知局部积累与全局维持双层次模型（8.0分）。  
+3. 建议后续关注稀疏注意力静态调度（如Fibonacci间距）及在线记忆压缩技术（Imprint）在长时序任务中的实操表现。
+- 详情：[/202607/02/README](/202607/02/README)
 
 ### 精读区论文标签
-1. [Time cells lead neural reinstatement of episodic memory](/202607/01/biorxiv-10-64898-2026-06-28-734674-v1-time-cells-lead-neural-reinstatement-of-episodic-memory)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：时间细胞引导情景记忆的神经重演
-2. [MemLearner: Learning to Query Context memory for Video World Models](/202607/01/2606.31734v1-memlearner-learning-to-query-context-memory-for-video-world-models)  
+1. [Ghost in the Kernel: In-Context Learning with Efficient Transformers via Domain Generalization](/202607/02/2607.00479v1-ghost-in-the-kernel-in-context-learning-with-efficient-transformers-via-domain-generalization)  
+   标签：评分：9.0/10、query:la
+   evidence：线性注意力特征映射的理论分析用于上下文学习；线性注意力模型
+2. [Perceptual glimpses are locally accumulated and globally maintained at distinct processing levels](/202607/02/biorxiv-10-1101-2025-04-30-651428-v4-perceptual-glimpses-are-locally-accumulated-and-globally-maintained-at-distinct-processing-levels)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：知觉推理中的神经证据积累机制
+3. [Multiple-Demand Network encoding geometry balances generalization and dimensionality during novel task assembly.](/202607/02/biorxiv-10-64898-2026-04-22-720093-v2-multiple-demand-network-encoding-geometry-balances-generalization-and-dimensionality-during-novel-task-assembly)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：新颖任务组装中多需求网络的神经表征几何
+4. [Signed-XOR Error and Sparse Coding in a Dale-Complaint Substrate for Sequence Memorization](/202607/02/biorxiv-10-64898-2026-06-24-734176-v1-signed-xor-error-and-sparse-coding-in-a-dale-complaint-substrate-for-sequence-memorization)  
    标签：评分：8.0/10、query:la
-   evidence：记忆增强神经网络，通过学习查询注意力进行上下文检索
-3. [Creating Intelligence: A Computational Foundation for AGI](/202607/01/2606.31819v1-creating-intelligence-a-computational-foundation-for-agi)  
-   标签：评分：8.0/10、query:la
-   evidence：超维计算中自然涌现的关联记忆
-4. [Social Isolation Alters Hippocampal miR-30e-5p Expression and Impairs Pattern Separation-Related Behaviour in Adult Mice](/202607/01/biorxiv-10-64898-2026-06-24-734185-v1-social-isolation-alters-hippocampal-mir-30e-5p-expression-and-impairs-pattern-separation-related-behaviour-in-adult-mice)  
+   evidence：使用稀疏编码和符合戴尔定律网络的序列记忆
+5. [A Dual-Ensemble Model of Infralimbic Cortex Function in Behavioural Flexibility](/202607/02/biorxiv-10-64898-2026-06-29-735227-v1-a-dual-ensemble-model-of-infralimbic-cortex-function-in-behavioural-flexibility)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：社会隔离通过miR-30e-5p影响海马模式分离
-5. [Frontotemporal cortex flexibly adapts latent structural representations](/202607/01/biorxiv-10-64898-2026-06-25-734414-v1-frontotemporal-cortex-flexibly-adapts-latent-structural-representations)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：结构推理中的海马与前额叶表征
-6. [Context-Aware Evidence-Gated Plasticity for Multi-Goal Learning in Spiking Neural Networks](/202607/01/biorxiv-10-64898-2026-06-25-734613-v1-context-aware-evidence-gated-plasticity-for-multi-goal-learning-in-spiking-neural-networks)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：基于证据门控可塑性的脉冲神经网络多目标学习
+   evidence：前边缘皮层双集成模型，涉及预测与纠正的计算机制
 
 ### 速读区论文标签
-1. [Hierarchical Global Attention (HGA)](/202607/01/2606.30709v1-hierarchical-global-attention-hga)  
+1. [Depth-Staggered Fibonacci Spacing for Sparse Attention: Static Schedules Beat Learned Dilation and Extrapolate Where Dense Attention Fails](/202607/02/2606.28560v1-depth-staggered-fibonacci-spacing-for-sparse-attention-static-schedules-beat-learned-dilation-and-extrapolate-where-dense-attention-fails)  
    标签：评分：7.0/10、query:la
-   evidence：层次化稀疏注意力实现高效长上下文处理
-2. [Unsupervised Representation Learning Reveals Individualized Neurophysiological Profiles](/202607/01/biorxiv-10-64898-2026-02-10-705127-v2-unsupervised-representation-learning-reveals-individualized-neurophysiological-profiles)  
+   evidence：斐波那契间隔稀疏注意力实现高效序列处理
+2. [Imprint: Online Memory Compression for Long-Horizon Egocentric QA](/202607/02/2607.00696v1-imprint-online-memory-compression-for-long-horizon-egocentric-qa)  
+   标签：评分：7.0/10、query:la
+   evidence：记忆增强型神经网络与注意力
+3. [Stimulus and circuit contributions to the information geometry of neural manifolds](/202607/02/biorxiv-10-64898-2026-06-21-733384-v1-stimulus-and-circuit-contributions-to-the-information-geometry-of-neural-manifolds)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：无监督表示学习用于神经生理学特征板
-3. [Dynamic Compression Flows for Neuroscience Data](/202607/01/biorxiv-10-64898-2026-02-12-705535-v2-dynamic-compression-flows-for-neuroscience-data)  
+   evidence：神经流形信息几何
+4. [A human-specific genetic modifier reconfigures large-scale cortical network dynamics underlying behavioral performance](/202607/02/biorxiv-10-64898-2026-06-24-734394-v1-a-human-specific-genetic-modifier-reconfigures-large-scale-cortical-network-dynamics-underlying-behavioral-performance)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：神经动力学低维表示的流匹配方法
-4. [Brain Structure Shapes Function through higher-order Functional Interactions](/202607/01/biorxiv-10-64898-2026-06-22-733911-v1-brain-structure-shapes-function-through-higher-order-functional-interactions)  
+   evidence：皮层网络动力学与行为表现的遗传修饰小鼠模型
+5. [Uncovering internal states with a robust shared-state multi-neuron GLM-HMM framework](/202607/02/biorxiv-10-64898-2026-06-27-734988-v1-uncovering-internal-states-with-a-robust-shared-state-multi-neuron-glm-hmm-framework)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：使用高阶功能相互作用研究脑结构-功能关系
-5. [Sparse Distributed Archetypes Reveal Compressible Network Motifs Underlying Naturalistic Cognition](/202607/01/biorxiv-10-64898-2026-06-26-734861-v1-sparse-distributed-archetypes-reveal-compressible-network-motifs-underlying-naturalistic-cognition)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：海马中的计算表征
-6. [Transformer Architectures as Complete Bayes Processes: A Formal Proof in the Measure-Theoretic Kernel Framework](/202607/01/2606.30440v1-transformer-architectures-as-complete-bayes-processes-a-formal-proof-in-the-measure-theoretic-kernel-framework)  
+   evidence：属于计算神经科学主题核心
+6. [Efficient Retrieval-Augmented Generation via Token Co-occurrence Graphs](/202607/02/2606.30093v1-efficient-retrieval-augmented-generation-via-token-co-occurrence-graphs)  
    标签：评分：6.0/10、query:la
-   evidence：用于高效序列处理的线性注意力模型
-7. [CLIMB: Centroid-Based Hierarchical Memory for Online Continual Self-Supervised Learning](/202607/01/2606.31275v1-climb-centroid-based-hierarchical-memory-for-online-continual-self-supervised-learning)  
+   evidence：高效图增强RAG用于记忆检索
+7. [ERA: Entropy-Guided Visual Token Pruning with Rectified Attention for Efficient MLLMs](/202607/02/2606.31982v1-era-entropy-guided-visual-token-pruning-with-rectified-attention-for-efficient-mllms)  
    标签：评分：6.0/10、query:la
-   evidence：基于质心的层次记忆库用于在线连续自监督学习
-8. [Attend, Transform, or Silence: Operator-Level Visual Skipping for Efficient Multimodal LLM Inference](/202607/01/2606.31903v1-attend-transform-or-silence-operator-level-visual-skipping-for-efficient-multimodal-llm-inference)  
+   evidence：熵引导的视觉标记剪枝与矫正注意力
+8. [Information-Regularized Attention for Visual-Centric Reasoning](/202607/02/2607.00434v1-information-regularized-attention-for-visual-centric-reasoning)  
    标签：评分：6.0/10、query:la
-   evidence：算子级视觉跳过实现高效多模态大模型推理
-9. [Behavioral alignment as an organizing principle in sensory coding](/202607/01/biorxiv-10-64898-2026-02-04-703828-v2-behavioral-alignment-as-an-organizing-principle-in-sensory-coding)  
+   evidence：随机注意力机制
+9. [Retrieved Images as Visual Thought: Training-Free Multimodal In-Context Learning for the Open-vs-Closed Gap](/202607/02/2607.00606v1-retrieved-images-as-visual-thought-training-free-multimodal-in-context-learning-for-the-open-vs-closed-gap)  
+   标签：评分：6.0/10、query:la
+   evidence：基于检索的多模态上下文学习；用于记忆检索的高效注意力
+10. [Uncovering dynamic human brain phase coherence networks](/202607/02/biorxiv-10-1101-2024-11-15-623830-v5-uncovering-dynamic-human-brain-phase-coherence-networks)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：感觉编码的行为对齐原则，涵盖全脑视觉表征
-10. [Area- and Layer-Specific Organization of Timescales in Macaque Motor Cortex](/202607/01/biorxiv-10-64898-2026-03-21-713374-v3-area--and-layer-specific-organization-of-timescales-in-macaque-motor-cortex)  
+   evidence：大脑相位相干性动态网络；计算神经科学方法
+11. [Unsupervised Representation Learning Reveals Individualized Neurophysiological Profiles](/202607/02/biorxiv-10-64898-2026-02-10-705127-v2-unsupervised-representation-learning-reveals-individualized-neurophysiological-profiles)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：猕猴运动皮层时间尺度组织，属于计算神经科学主题
-11. [Representational similarity analysis of EEG reveals multiple spatiotemporal dynamics of selective attention](/202607/01/biorxiv-10-64898-2026-06-18-733142-v1-representational-similarity-analysis-of-eeg-reveals-multiple-spatiotemporal-dynamics-of-selective-attention)  
+   evidence：基于无监督表征学习的个体化神经生理特征提取
+12. [Disruption of prefrontal cortex accelerates sensory anchoring but dissociates online recognition from implicit consolidation of sound sequences](/202607/02/biorxiv-10-64898-2026-06-11-731781-v2-disruption-of-prefrontal-cortex-accelerates-sensory-anchoring-but-dissociates-online-recognition-from-implicit-consolidation-of-sound-sequences)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：EEG表征相似性分析用于选择性注意研究
-12. [Dynamic resource allocation orchestrates physical simulation in the human brain](/202607/01/biorxiv-10-64898-2026-06-21-732202-v1-dynamic-resource-allocation-orchestrates-physical-simulation-in-the-human-brain)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：大脑中物理推理的计算机制
+   evidence：前额皮层在感觉锚定和学习中的作用
 
 
 <div class="dpr-home-promo-card">
