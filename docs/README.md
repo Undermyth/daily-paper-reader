@@ -6,77 +6,53 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-03
-- 运行时间：2026-07-03 20:43:11 UTC
+- 最新运行日期：2026-07-04
+- 运行时间：2026-07-04 20:40:51 UTC
 - 运行状态：成功
-- 本次总论文数：19
-- 精读区：7
-- 速读区：12
+- 本次总论文数：11
+- 精读区：3
+- 速读区：8
 
 ### 今日简报（AI）
-今日聚焦高效注意力机制与神经科学启发的内存模型，共精读7篇、速读12篇。最值得关注的是两篇满分论文：《HYPIC》提出位置无关缓存加速混合注意力LLM服务，以及《A Hippocampus for Linear Attention》用海马体类比解决线性注意力的遗忘问题。建议普通读者优先精读这两篇，再结合速读中内嗅皮层空间地图的神经科学发现，探索生物机制与AI架构的交叉创新。
-- 详情：[/202607/03/README](/202607/03/README)
+今日研读11篇神经科学论文，聚焦记忆与导航的神经机制。最值得关注：GluN2D型NMDA受体支持齿状回颗粒细胞兴奋性与记忆（9.0分），以及脑机接口导航中不同的海马编码（8.0分）。建议进一步了解特定受体（如GluN2D）在记忆巩固中的作用，以及海马编码在非自然行为中的适应性变化。
+- 详情：[/202607/04/README](/202607/04/README)
 
 ### 精读区论文标签
-1. [HYPIC: Accelerating Hybrid-Attention LLM Serving with Position-Independent Caching](/202607/03/2607.01299v1-hypic-accelerating-hybrid-attention-llm-serving-with-position-independent-caching)  
-   标签：评分：9.0/10、query:la
-   evidence：混合注意力LLM服务中的线性注意力层
-2. [A Hippocampus for Linear Attention: An Exact Memory for What the Recurrent State Forgets](/202607/03/2607.02303v1-a-hippocampus-for-linear-attention-an-exact-memory-for-what-the-recurrent-state-forgets)  
-   标签：评分：9.0/10、query:la
-   evidence：海马启发的线性注意力结合精确KV缓存用于联想记忆
-3. [A two-stage algorithm underlies the transformation from vision to familiarity in the primate brain](/202607/03/biorxiv-10-1101-2025-06-13-659490-v3-a-two-stage-algorithm-underlies-the-transformation-from-vision-to-familiarity-in-the-primate-brain)  
+1. [GluN2D-containing NMDA receptors support dentate granule cell excitability, synaptic plasticity, and memory](/202607/04/biorxiv-10-64898-2026-03-06-710109-v2-glun2d-containing-nmda-receptors-support-dentate-granule-cell-excitability-synaptic-plasticity-and-memory)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：研究从视觉到熟悉度的两阶段转换，涉及ITC和海马体
-4. [Ghost in the Kernel: In-Context Learning with Efficient Transformers via Domain Generalization](/202607/03/2607.00479v1-ghost-in-the-kernel-in-context-learning-with-efficient-transformers-via-domain-generalization)  
-   标签：评分：8.0/10、query:la
-   evidence：线性注意力特征映射在上下文学习中的理论分析
-5. [Inhibitory and excitatory cFos engram neurons are preferentially reactivated by sharp wave ripples](/202607/03/biorxiv-10-1101-2024-12-17-628897-v3-inhibitory-and-excitatory-cfos-engram-neurons-are-preferentially-reactivated-by-sharp-wave-ripples)  
+   evidence：NMDA受体突触可塑性与记忆
+2. [Distinct hippocampal codes emerge during brain-machine interface navigation](/202607/04/biorxiv-10-64898-2026-05-11-724143-v2-distinct-hippocampal-codes-emerge-during-brain-machine-interface-navigation)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：海马cFos印记神经元在记忆巩固期间被尖波涟漪重新激活
-6. [Stimulus and circuit contributions to the information geometry of neural manifolds](/202607/03/biorxiv-10-64898-2026-06-21-733384-v1-stimulus-and-circuit-contributions-to-the-information-geometry-of-neural-manifolds)  
+   evidence：脑机接口导航中海马位置码重构
+3. [Complementary frontoparietal and corticothalamic contributions to relational reasoning](/202607/04/biorxiv-10-64898-2026-07-03-736406-v1-complementary-frontoparietal-and-corticothalamic-contributions-to-relational-reasoning)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：神经流形的微分几何分析，连接网络连接与信息编码
-7. [Near-critical slow dynamics enable flexible temporal computations and generalization](/202607/03/biorxiv-10-64898-2026-06-29-735180-v1-near-critical-slow-dynamics-enable-flexible-temporal-computations-and-generalization)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：训练递归神经网络在间隔计时任务上揭示近临界慢动力学实现时序计算
+   evidence：额顶叶和皮质丘脑对关系推理的贡献
 
 ### 速读区论文标签
-1. [The medial entorhinal spatial map is built on excitatory-inhibitory network motifs defined by their functional cell type and theta modulation](/202607/03/biorxiv-10-64898-2026-07-02-735850-v1-the-medial-entorhinal-spatial-map-is-built-on-excitatory-inhibitory-network-motifs-defined-by-their-functional-cell-type-and-theta-modulation)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：内侧内嗅皮层空间地图、网格细胞、功能网络模体
-2. [Depth-Staggered Fibonacci Spacing for Sparse Attention: Static Schedules Beat Learned Dilation and Extrapolate Where Dense Attention Fails](/202607/03/2606.28560v1-depth-staggered-fibonacci-spacing-for-sparse-attention-static-schedules-beat-learned-dilation-and-extrapolate-where-dense-attention-fails)  
-   标签：评分：7.0/10、query:la
-   evidence：静态层调度的稀疏注意力以提高效率
-3. [MSNN-LINet: Cross-Modal Learning via Continuous Linear Integration](/202607/03/2606.31135v1-msnn-linet-cross-modal-learning-via-continuous-linear-integration)  
-   标签：评分：7.0/10、query:la
-   evidence：连续线性集成实现跨模态学习
-4. [Multi-Head Recurrent Memory Agents](/202607/03/2607.01523v1-multi-head-recurrent-memory-agents)  
-   标签：评分：7.0/10、query:la
-   evidence：多头递归记忆代理提升长上下文可靠性
-5. [Prefrontal representations can specialize rather thangeneralize with experience](/202607/03/biorxiv-10-64898-2026-03-27-714523-v2-prefrontal-representations-can-specialize-rather-thangeneralize-with-experience)  
+1. [Near-critical slow dynamics enable flexible temporal computations and generalization](/202607/04/biorxiv-10-64898-2026-06-29-735180-v1-near-critical-slow-dynamics-enable-flexible-temporal-computations-and-generalization)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：前额叶表征随经验镜像海马表征
-6. [Interpretable compositional computation with recurrent neural networks](/202607/03/biorxiv-10-64898-2026-06-23-733979-v1-interpretable-compositional-computation-with-recurrent-neural-networks)  
+   evidence：RNN中时间计算的动态机制
+2. [Learning Shapes the Energy Cost of Neural Tasks](/202607/04/biorxiv-10-64898-2026-07-01-735889-v1-learning-shapes-the-energy-cost-of-neural-tasks)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：RNN的可解释组合计算，共享动态结构，任务依赖重配置
-7. [The Premotor Language Area Encodes a Full Acoustic-to-semantic Speech Hierarchy](/202607/03/biorxiv-10-64898-2026-07-01-735929-v1-the-premotor-language-area-encodes-a-full-acoustic-to-semantic-speech-hierarchy)  
+   evidence：学习降低神经任务能耗
+3. [A Generalized Spatial Progress Code for Navigation in the Medial Prefrontal Cortex](/202607/04/biorxiv-10-64898-2026-07-02-735049-v1-a-generalized-spatial-progress-code-for-navigation-in-the-medial-prefrontal-cortex)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：前运动皮层中语音层次的计算编码
-8. [Information-Regularized Attention for Visual-Centric Reasoning](/202607/03/2607.00434v1-information-regularized-attention-for-visual-centric-reasoning)  
-   标签：评分：6.0/10、query:la
-   evidence：信息正则化注意力，随机注意力机制，调节视觉信息
-9. [LASER: A Corrective Lens for LVLMs via Visual Attention Preservation and Sink Suppression](/202607/03/2607.01707v1-laser-a-corrective-lens-for-lvlms-via-visual-attention-preservation-and-sink-suppression)  
-   标签：评分：6.0/10、query:la
-   evidence：视觉注意力保持与注意力沉点抑制
-10. [Bayesian Nonparametric Identification of Frequency-Selective Neural Oscillatory States](/202607/03/biorxiv-10-64898-2025-12-20-695571-v3-bayesian-nonparametric-identification-of-frequency-selective-neural-oscillatory-states)  
+   evidence：内侧前额叶皮层神经元编码与路径无关的空间进展信号
+4. [The pERKs of Temporal Order Memory in mice](/202607/04/biorxiv-10-64898-2026-07-02-736134-v1-the-perks-of-temporal-order-memory-in-mice)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：时间顺序记忆与突触可塑性
+5. [Time space signatures of hybrid search resolution using EEG and eye movements concurrent recordings](/202607/04/biorxiv-10-64898-2026-06-22-733836-v1-time-space-signatures-of-hybrid-search-resolution-using-eeg-and-eye-movements-concurrent-recordings)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：贝叶斯非参数识别神经振荡状态
-11. [Random innervation of cerebellar Purkinje cells as a substrate for diverse representational learning](/202607/03/biorxiv-10-64898-2026-06-26-734775-v1-random-innervation-of-cerebellar-purkinje-cells-as-a-substrate-for-diverse-representational-learning)  
+   evidence：混合视觉与记忆搜索的EEG和眼动研究
+6. [Inverse reinforcement learning reveals action-oriented value signals in naturalistic decision making](/202607/04/biorxiv-10-64898-2026-06-24-733779-v1-inverse-reinforcement-learning-reveals-action-oriented-value-signals-in-naturalistic-decision-making)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：小脑随机支配作为神经计算中多样化表征学习的基础
-12. [Distinct nanoscale architectures of GABAergic inhibitory synapses predict diverse synaptic output](/202607/03/biorxiv-10-64898-2026-06-26-734878-v1-distinct-nanoscale-architectures-of-gabaergic-inhibitory-synapses-predict-diverse-synaptic-output)  
+   evidence：自然任务中的决策价值信号
+7. [Repetition Dissociates Pointer and Content-based Representations in Visual Working Memory: Contrasting the CDA with Multivariate Shape Decoding](/202607/04/biorxiv-10-64898-2026-06-28-735064-v1-repetition-dissociates-pointer-and-content-based-representations-in-visual-working-memory-contrasting-the-cda-with-multivariate-shape-decoding)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：GABA能突触的纳米结构预测突触输出
+   evidence：视觉工作记忆中记忆表征的计算神经科学研究
+8. [Rapid value learning reveals generalized and context-dependent codes in frontal cortex](/202607/04/biorxiv-10-64898-2026-07-03-736027-v1-rapid-value-learning-reveals-generalized-and-context-dependent-codes-in-frontal-cortex)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：快速学习过程中前额叶皮层的价值编码
 
 
 <div class="dpr-home-promo-card">
