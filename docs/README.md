@@ -6,50 +6,57 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-05
-- 运行时间：2026-07-05 21:19:12 UTC
+- 最新运行日期：2026-07-06
+- 运行时间：2026-07-06 21:15:30 UTC
 - 运行状态：成功
-- 本次总论文数：10
-- 精读区：1
-- 速读区：9
+- 本次总论文数：12
+- 精读区：0
+- 速读区：12
 
 ### 今日简报（AI）
-今日精读一篇高分论文，揭示海马体尖波涟漪的空间区隔由局部抑制拓扑决定，并速读三篇记忆与学习相关研究（互补记忆系统、LLM记忆更新、小脑学习机制）。最值得看精读论文，它阐明了神经环路中抑制性神经元如何精细调控活动区隔；对AI感兴趣的读者可关注互补记忆系统在视觉语言模型测试时适应中的应用。下一步建议优先精读这篇，再浏览速读中的互补记忆论文以获取跨领域启发。
-- 详情：[/202607/05/README](/202607/05/README)
+今日速览12篇论文，精读0篇，速读12篇；其中一篇关于前额眼场引领分布式眼动回路实现抽象类别决策的研究得分最高（7.0分），值得关注。建议优先阅读该篇，以了解大脑在抽象决策中如何协调眼动环路。
+- 详情：[/202607/06/README](/202607/06/README)
 
 ### 精读区论文标签
-1. [Local inhibitory topology dictates the spatial compartmentalization of hippocampal sharp-wave ripples](/202607/05/biorxiv-10-64898-2026-06-30-735500-v1-local-inhibitory-topology-dictates-the-spatial-compartmentalization-of-hippocampal-sharp-wave-ripples)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：海马尖波涟漪，空间区室化，生物物理模型
+- 本次无精读推荐。
 
 ### 速读区论文标签
-1. [ComMem: Complementary Memory Systems for Test-Time Adaptation of Vision-Language Models](/202607/05/2606.28719v1-commem-complementary-memory-systems-for-test-time-adaptation-of-vision-language-models)  
-   标签：评分：7.0/10、query:la
-   evidence：受海马和新皮质启发的互补记忆系统
-2. [The Past Is Prologue: A Plug-in Controller for Selective Updates in Sequentially Evolving LLM Memory](/202607/05/2606.31121v1-the-past-is-prologue-a-plug-in-controller-for-selective-updates-in-sequentially-evolving-llm-memory)  
-   标签：评分：7.0/10、query:la
-   evidence：LLM记忆演化的选择性更新控制器
-3. [Random innervation of cerebellar Purkinje cells as a substrate for diverse representational learning](/202607/05/biorxiv-10-64898-2026-06-26-734775-v1-random-innervation-of-cerebellar-purkinje-cells-as-a-substrate-for-diverse-representational-learning)  
+1. [Frontal Eye Field Leads a Distributed Oculomotor Circuit for Abstract Categorical Decisions](/202607/06/biorxiv-10-64898-2026-06-30-735630-v1-frontal-eye-field-leads-a-distributed-oculomotor-circuit-for-abstract-categorical-decisions)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：小脑回路建模与表征学习的计算神经科学研究
-4. [A thalamic inhibitory circuit aligns sensory coding with learned value](/202607/05/biorxiv-10-64898-2026-06-29-735190-v1-a-thalamic-inhibitory-circuit-aligns-sensory-coding-with-learned-value)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：丘脑抑制回路根据价值进行感觉过滤
-5. [The human language processing system straightens natural speech](/202607/05/biorxiv-10-64898-2026-06-30-735613-v1-the-human-language-processing-system-straightens-natural-speech)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：语音表征拉直的计算神经科学研究
-6. [Cognitive resilience despite metabolic dysfunction after adolescent-onset high-fat high-sucrose diet exposure in rats](/202607/05/biorxiv-10-64898-2026-07-02-736000-v1-cognitive-resilience-despite-metabolic-dysfunction-after-adolescent-onset-high-fat-high-sucrose-diet-exposure-in-rats)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：海马空间模式分离
-7. [Approximate Attention Weighting for Sustainable FPGA-Based Vision Transformer Inference](/202607/05/2607.01798v1-approximate-attention-weighting-for-sustainable-fpga-based-vision-transformer-inference)  
+   evidence：前额叶视野、侧顶叶和上丘在抽象类别决策中的神经回路机制
+2. [HSAP: A Hierarchical Sequence-aware Parallelism for Hybrid-Context Generative Models](/202607/06/2606.30460v2-hsap-a-hierarchical-sequence-aware-parallelism-for-hybrid-context-generative-models)  
    标签：评分：6.0/10、query:la
-   evidence：近似注意力权重计算用于高效FPGA推理
-8. [Sparse Distributed Archetypes Reveal Compressible Network Motifs Underlying Naturalistic Cognition](/202607/05/biorxiv-10-64898-2026-06-26-734861-v1-sparse-distributed-archetypes-reveal-compressible-network-motifs-underlying-naturalistic-cognition)  
+   evidence：针对打包序列的因果注意力并行化
+3. [Distributed encoding of action-mediated outcome drives consistent population dynamics during goal-directed reaching](/202607/06/biorxiv-10-1101-2024-11-04-621878-v2-distributed-encoding-of-action-mediated-outcome-drives-consistent-population-dynamics-during-goal-directed-reaching)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：自然认知脑网络基序的计算分析
-9. [EEG biomarkers of reinforcement learning and motivation: A multi-task battery](/202607/05/biorxiv-10-64898-2026-06-28-735051-v1-eeg-biomarkers-of-reinforcement-learning-and-motivation-a-multi-task-battery)  
+   evidence：神经群体编码动作结果
+4. [A unified theory of context-conditioned efficient and predictive coding](/202607/06/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：强化学习与动机的EEG生物标志物，涉及突触可塑性
+   evidence：上下文条件下高效与预测编码的统一理论
+5. [Distinct sensorimotor encoding in tuft dendrites and somata associated with action, correction, and learning](/202607/06/biorxiv-10-64898-2026-05-06-722323-v2-distinct-sensorimotor-encoding-in-tuft-dendrites-and-somata-associated-with-action-correction-and-learning)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：运动学习过程中额叶皮层树突和胞体的感觉运动编码
+6. [Time space signatures of hybrid search resolution using EEG and eye movements concurrent recordings](/202607/06/biorxiv-10-64898-2026-06-22-733836-v1-time-space-signatures-of-hybrid-search-resolution-using-eeg-and-eye-movements-concurrent-recordings)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：使用EEG和眼动追踪研究混合视觉和记忆搜索
+7. [Learning sculpts microstructure in real time: evidence from dense temporal sampling of diffusion MRI](/202607/06/biorxiv-10-64898-2026-06-24-734293-v1-learning-sculpts-microstructure-in-real-time-evidence-from-dense-temporal-sampling-of-diffusion-mri)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：学习诱导的微观结构可塑性
+8. [Random innervation of cerebellar Purkinje cells as a substrate for diverse representational learning](/202607/06/biorxiv-10-64898-2026-06-26-734775-v1-random-innervation-of-cerebellar-purkinje-cells-as-a-substrate-for-diverse-representational-learning)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：小脑表征学习与连接计算
+9. [Uncovering internal states with a robust shared-state multi-neuron GLM-HMM framework](/202607/06/biorxiv-10-64898-2026-06-27-734988-v1-uncovering-internal-states-with-a-robust-shared-state-multi-neuron-glm-hmm-framework)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：多神经元GLM-HMM框架用于神经状态推断
+10. [Repetition Dissociates Pointer and Content-based Representations in Visual Working Memory: Contrasting the CDA with Multivariate Shape Decoding](/202607/06/biorxiv-10-64898-2026-06-28-735064-v1-repetition-dissociates-pointer-and-content-based-representations-in-visual-working-memory-contrasting-the-cda-with-multivariate-shape-decoding)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：使用EEG研究重复对工作记忆表征的影响
+11. [A thalamic inhibitory circuit aligns sensory coding with learned value](/202607/06/biorxiv-10-64898-2026-06-29-735190-v1-a-thalamic-inhibitory-circuit-aligns-sensory-coding-with-learned-value)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：丘脑回路在感觉编码中整合习得价值
+12. [Connectome-scale self-supervised representation learning reveals neuronal organization beyond canonical labels](/202607/06/biorxiv-10-64898-2026-06-30-735468-v1-connectome-scale-self-supervised-representation-learning-reveals-neuronal-organization-beyond-canonical-labels)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：连接组尺度自监督表征学习与图神经网络
 
 
 <div class="dpr-home-promo-card">

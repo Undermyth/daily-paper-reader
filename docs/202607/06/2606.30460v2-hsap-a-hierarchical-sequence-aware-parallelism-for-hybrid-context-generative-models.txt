@@ -1,0 +1,308 @@
+Title: HSAP: A Hierarchical Sequence-aware Parallelism for Hybrid-Context Generative Models
+
+URL Source: https://arxiv.org/pdf/2606.30460v2
+
+Published Time: Wed, 01 Jul 2026 01:01:58 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+## HSAP: A Hierarchical Sequence-aware Parallelism for Hybrid-Context Generative Models 
+
+Songxin Zhang 1*, Zejian Xie 1*† , Zhuoyang Song 1*,Cong lin 1, Junyu Lu 1,2 , Jiaxing Zhang 2, Bingyi Jing 1†,
+
+> 1
+
+Department of Statistics and Data Science, Southern University of Science and Technology 
+
+> 2
+
+International Digital Economy Academy  
+
+> Correspondence: xiezj@mail.sustech.edu.cn jingby@sustech.edu.cn
+
+Abstract 
+
+In this paper, we aim to combine the advantages of existing sequence parallelism paradigms and overcomes their drawbacks, the most serious of which is the incapability to correctly compute causal attention on the hybrid-context packed sequences, in a stronger sequence parallelism framework. The practical technique of pack-ing sequences for efficiently pretraining and fine-tuning large language models causes cross-contamination problem in attention computa-tion, which can be effectively solved when no parallelism in the sequence length dimen-sion is taken. However, in sequence paral-lelism, existing approaches either ignore the scenario of hybrid-context sequences or con-versely sacrifice and limit parallelism degree for supporting the scenario. To this end, we innovatively propose an efficient Sequence-Aware Parallelism algorithm to conquer the ob-stacles of intensive tensor transmission and par-tial attention computation across multiple de-vice groups. Our algorithm utilizes JIT (Just-In-Time) compilation to optimize the communica-tion strategy of all device groups in NCCL level. Further, we integrate existing sequence paral-lelism paradigms into a Hierarchical Sequence-Aware Parallelism framework which benefits from our sequence-aware algorithm. We ad-ditionally elaborate on the memory and com-munication overhead management of the hi-erarchical framework to optimize its perfor-mance. Through multiple experiments, we demonstrate that our proposed approach out-perform other state-of-the-arts sequence paral-lelism approches in multiple metrics. 
+
+1 Introducion 
+
+Numerous complex generative tasks have necessi-tated modelling over long context in both spatial and temporal domains, driving the trend of gener-ative models capable of handling long sequences, 
+
+> *Equal Contribution
+> †Correspending Author
+
+particularly in multi-modal foundational models that process speech, images, and wavelengths (Liu et al., 2023b; Li et al., 2023a; Xiong et al., 2023). Large language models (LLMs) like Claude and ChatGPT(OpenAI et al., 2023; Brown et al., 2020) have pioneeringly extended sequence length to over 100K tokens, while multi-modal models Gem-ini(Gemini Team et al., 2023) and Sora(Brooks et al., 2024) have propelled this trend to exceed 1M tokens. However, training on ultra-long sequences presents a challenge for existing distributed sys-tems due to the significant increase in activation memory footprints (Liu et al., 2024). Recently, milestone sequence parallelism (SP) works such as Deepspeed-Ulysess (Jacobs et al., 2023) and Ring-Attention (Liu et al., 2023a) have been widely adopted, alleviating memory stress by partitioning activations along the sequence length dimension. They have standardized SP into two paradigms with Deepspeed-Ulysess using all-to-all communication to compute attention within the parallel group (intra-group) and Ring-Attention us-ing peer-to-peer (P2P) communication to compute attention across parallel groups (inter-group). How-ever, the parallelism degree of DeepSpeed-Ulysses is up-bounded by the number of attention heads, and the predefined topology in Ring-Attention in-creases the communication and computation over-head. More importantly, the common practice of packing unrelated hybrid-context sequences into longer sequencesm, which saves the computational waste on padded tokens in batch training, does not function properly with SP due to the cross-contamination attention problem. In this paper, we address the challenges of se-quence parallelism on hybrid-context long packed sequences for training LLMs. We first present a comprehensive analysis on sequence packing and the existing SP paradigms, and point out that we can combine the complimentary advantages of those paradigms in a novel SP framework and adapt 1
+
+> arXiv:2606.30460v2 [cs.LG] 30 Jun 2026
+
+it to the correct attention computation on hybrid-context packed sequences. To this end, we invent an innovative Sequence-Aware Parallelism (SAP) algorithm that utilizes JIT (just-in-time) compi-lation idea to realize the extremely complicated scheduling and organization of incomplete QKV tensors transmission and irregular attention pat-terns computation. Then, we hierarchically com-bine the existing SP paradigms in the Hierarchical 
+
+Sequence-Aware Parallelism (HSAP) framework to obtain a stronger paradigm as well as benefits from the SAP. Our main contributions are summa-rized as below: • We propose the SAP algorithm, a fast and ef-ficient algorithm to compute exact attention on hybrid-context packed sequences distribut-edly. SAP follows the idea of JIT compilation to generate a series of operation codes for each distributed rank so that the sophisticated P2P communications can be arranged efficiently and harmonically. • We develop the HSAP framework which in-tegrates the benefits of both inter-group and intra-group sequence parallelism. The frame-work combines SAP mechanism with im-proved memory and communication manage-ment and provide a scalable solution for han-dling extremely long sequences for training LLMs. • We conduct a number of informative experi-ments to manifest the effectiveness of our pro-posed SAP algorithm and HSAP framework. Performance results show that our approach can extend sequence length to over 512K, out-performing other state-of-the-art sequence par-allelism approaches. We achieve the highest efficiency in terms of TGS (tokens per GPU second) when training on real hybrid-context datasets compared with vanilla sequence pack-ing and batch training. We also achieve higher speed of attention computation on packed se-quences than the existing SP paradigms. 
+
+2 Preliminaries 
+
+We begin with the ubiquitous practice of sequence packing, which serves as the motivation for our sequence-aware parallelism. Then, we introduce two different designs that mark the milestone in sequence parallelism development. 
+
+2.1 Sequence Packing 
+
+To ensure efficiency of training on length-variable sequences, the practice of sequence packing is com-monly adopted in both pretraining and fine-turning cases by concatenating multiple short sequences to fill the max sequence length as much as possible [Raffel et al. (2019); Krell et al. (2022); Shi et al. (2023); Staniszewski_2023]. Besides efficiency, this approach has multiple significant advantages over the alternative batching approach where ran-dom or grouped-by-length sequences are padded to meet the max sequence length in the batch (Krell et al., 2022). For example, by retrieving and pack-ing related documents to form hybrid-context se-quences for pretraining, LLMs can catch longer context dependency (Shi et al., 2023; Staniszewski et al., 2023). Batched Data PAD S2 S1 S3 S5 S6 S4 Packed Sequence S2 S1 S3 S5 S6 S4 
+
+> Figure 1: Packing hybrid-context data into single se-quence reduces computational waste caused by padding.
+
+However, in general cases, the use of sequence packing is hindered by the cross-contamination at-tention problem that the hybrid-context segments in the packed sequence attend to each other unexpect-edly. As shown in Figure 1, to match the behavior of causal attention, it requires custom kernel design or unpacking the sequence back to batch (Krell et al., 2022), which is either complicated or ineffi-cient. Thanks to FlashAttention (Dao et al., 2022), the challenge can be effectively dealed with using 
+
+cu_len (cumulative length) methods to only com-pute attention within each segment as long as the packed sequence can fit into a single GPU. Unfor-tunately, with recent advances in LLMs and multi-modal models, the context length has unprecedent-edly grown so long that even without packing, a single sequence may not fit into a GPU. Parallelism along the sequence length dimension is hence ne-cessitated and it confronts sequence packing with new issues. 
+
+2.2 Sequence Parallelism 
+
+Sequence parallelism has been proposed to slice long sequences, scatter the segments to multiple device groups, and parallelize attention computa-2tion. Its challenge lies in the trade-off between lowering memory cost for activation and maintain-ing communication cost. Early attempts feature Megatron-LM (Korthikanti et al., 2023) who im-plements sequence parallelism as an extension to its tensor parallelism, an unsatisfactory way that the high complexity attention is not parallelized in the length dimension. But by now, sequence par-allelism has evolved into two distinct paradigms which we summarize as Inter-group sequence par-allelism (InterSP) and Intra-group sequence paral-lelism (IntraSP). 
+
+2.2.1 Inter-group Sequence Parallelism 
+
+Recall attention calculation (Vaswani et al., 2017). Given query, key, and value sequences Q, K, V ∈
+
+RN ×H×d where N , H and d represent the length, the number of attention heads and the head size respectively. In single-head case with H = 1 , the attention is given by Attention (Q, K, V ) = Softmax  
+
+> (
+
+QK T
+
+√d
+
+> )
+
+V, 
+
+while in multi-head case, H single-head attentions are first computed respectively in the number of heads dimension and the outputs are then concate-nated along the head size dimension followed by a linear projection. In InterSP, the sliced blocks Qi, K i, V i ∈
+
+Rn×H×d where n = N/P inter and i ≤ Pinter are al-located to Pinter device groups permanently without reunifying the complete sequences during compu-tation. For the locally stored Qi, Kj and Vj blocks in other groups are still needed in attention, and In-terSP approaches (Li et al., 2023d; Liu et al., 2023a; Li et al., 2023c,b) leverage P2P communucation in a ring-style topology with each rank sending and receiving Kj and Vj and computing attention concurrently in an online manner (Milakov and Gimelshein, 2018). While InterSP achieves maximal efficiency by overlapping communication and computation pro-cess, its ring-style topology is incompatible with sequence packing because the predefined topology determines that only in the case where the local segment should attend to all previous segments can it function properly. For a long packed sequence, segments with unrelated hybrid context should not attend to each other, and InterSP will either take unnecessary overhead to compute incorrect atten-tion, or integrate intractable strategies to skip some communications. 
+
+2.2.2 Intra-group Sequence Parallelism 
+
+Compared to InterSP, IntraSP maintains the en-tire sequence in each group for attention computa-tion but instead distributes the heads across groups. Formally, before computing attention, the sliced blocks Qi, K i, V i ∈ Rn×H×d with n = N/P intra 
+
+and i ≤ Pintra are maintained among Pintra device groups. IntraSP (e.g. (Jacobs et al., 2023)) then leverages all-to-all operation to move the paral-lelism from the length n to the number of heads H
+
+and obtain blocks Qintra  
+
+> i
+
+, K intra  
+
+> i
+
+, V intra  
+
+> i
+
+∈ RN ×h×d
+
+with h = H/P intra . Since each block now has the complete length N , multi-head attention can be directly computed within the local rank. After that, another all-to-all operation moves the parallelism back to the length dimension as it is in the initial blocks. Unlike InterSP, IntraSP has no problems with packed sequences because it can use FlashAtten-tion as usual to compute multi-head attention for the complete sequence within a single group. How-ever, it is obvious that its parallelism degree Pintra 
+
+cannot exceed the number of heads H, which seri-ously limits its practicality as N is usually much larger than H.
+
+3 Adapt Sequence Parallelism to Hybrid Context 
+
+We aim to build a new paradigm for sequence par-allelism that combines InterSP and IntraSP and overcomes their drawbacks. To this end, we first propose the novel SAP algorithm to make InterSP function properly with packed sequences. Then, we present our combined sequence parallelism in the HSAP framework with SAP mechanism and improved management on memory and communi-cation. 
+
+3.1 Sequence-aware Parallelism via Just-in-time Compilation 
+
+The primary challenge is that the ring-style atten-tion on packed sequences involves diverse attention patterns and transmission of incomplete Qi, K i, V i
+
+across ranks. It will be sophisticated and not ro-bust to program the transmission scheduling and computation by inspecting the miscellaneous con-ditional branches. Inspired by JIT compilation, we instead propose to compile a series of codes in a sequence-aware way ahead of the communitation and computation. Our JIT compile-execute architecture for SAP 3Batched Data PAD S2 S1 S3 S5 S6 S4 Packed Sequence S2 S1 S3 S5 S6 S4 Sequence-aware Just-in-time Compiling S2 Jitted codes for rank 1 S2 Jitted codes for rank 2 S2 S3 Jitted codes for rank 3 S3 Jitted codes for rank 4 S5 S3 Jitted codes for rank 5 S4 S5 Jitted codes for rank 6 S1 S6 Jitted codes for rank 7 S2 Jitted codes for rank 0 Rank 7 Comm. Comp. Local GPU Rank 6 Comm. Comp. Local GPU Rank 5 Comm. Comp. Local GPU Rank 4 Comm. Comp. Local GPU Rank 3 Comm. Comp. Local GPU Rank 2 Comm. Comp. Local GPU Rank 1 Comm. Comp. Local GPU Rank 0 Comm. Comp. Local GPU Executing Jitted codes on each ranks 
+
+> P2P communications Copy locally Computing
+
+Figure 2: SAP’s just-in-time compile-execute architecture. According to the structure of hybrid-context, attention is compiled just-in-time into distributed computation and communication operations, forming jitted codes.Each rank performs peer-to-peer communication, computation, and memory operations according to its own codes.         
+
+> Communication Syntax create $send-op ${q, kv, o, dq, dkv, do} %{dst}
+> Semantics Create a peer-to-peer operation, sending {q, kv, o, dq, dkv, or do} to {dst} rank.
+> Syntax create $recv-op ${q, kv, o, dq, dkv, do} %{src}
+> Semantics Create a peer-to-peer operation, receiving {q, kv, o, dq, dkv, or do} from {src} rank.
+> Computing Syntax computing
+> Semantics Perform attention computation using tensors within the computing buffer.
+> Copy locally Syntax copy-$q, kv, o, dq, dkv, do ${buffer_src} ${buffer_dst}
+> Semantics Locally copy {q, kv, o, dq, dkv, do} from the src buffer to the dst buffer.
+
+Table 1: Definition of instructions used in jitted codes. 
+
+is shown in Figure 2. Given a packed sequence, our SAP algorithm dynamically generate a code series for each rank respective. When executing the series step by step, all ranks cooperate in harmony. By fusing operations and reducing bubbles, the compilation can reduce the communication cost of all ranks in NCCL level. Concretely, SAP can catch a src rank’s need to P2P transfer KV tensors to a dst rank. At the same position in the series of src and dst rank, SAP places create-${send}-op ${kv} %{dst} 
+
+code and create-${receive}-op ${kv} %{src} code respectively. When computing attention, copy-${kv}-${comm}-${comp} moves KV tensors be-tween buffers, and compute orders the rank to com-pute flash attention on QKV tensors in the buffer. More details in Table 1. 
+
+3.2 Compiling for Computing-efficient Communication Strategies 
+
+Based on our SAP JIT compiling architecture, the efficiency improvement of sequence parallelism in hybrid-context scenarios comes from the quality of the jitted code, which needs to consider the spe-cific structure of the packed sequence and trim re-dundant communication and computation. Shown in Figure 3, we propose a compiling algorithm for computation-friendly communication strategy that takes the sequence topology, sequence parallel world size, max sequence length per rank as inputs to generate efficient execution instructions for each rank. 
+
+Partition attention computation blocks. Con-sider the complete attention mask that is split across InterSP ranks. Naturally, we partition the attention computation into local attention block based on the distribution of sequences across different InterSP ranks. As is shown in Figure 3 Step 1, we can infer from the map that there are only 5 kinds of attention patterns for each rank block in the map (i.e. A1~A5). Based on this, we can apply different computation strategies in different ranks. 
+
+Generate Regional Strategy and Resolve Global Conflict. Based on the partitioned atten-tion blocks, we assign the computation tasks of each attention block to SAP ranks according to the sequence and ring-attention load balancing. 4Packed Sequence S2 S1 S3 S5 S6 S4         
+
+> 07654321Ring Rank 01234567
+
+𝑄 𝑖 𝐾𝑉 𝑖 
+
+A3: Cross-UP Attn A4: Cross-Right Attn A5: Cross-Corner Attn A1: Causal Attn A2: Cross Attn Attention Mask A1 N N N N N N NA2 A1 N N N N N NA2 A2 A1 N N N N NA3 A3 A3 A1 N N N NN N N A4 A1 N N NN N N A5 A3 A1 N NN N N N N A5 A1 NN N N N N N N A1         
+
+> 07654321Ring Rank 01234567
+
+Local Attention Blocks Compute on which ring rank Compute on which stage 0 N N N N N N N1 1 N N N N N N0 2 2 N N N N N0 1 3 3 N N N NN N N 4 4 N N NN N N 3 5 5 N NN N N N N 6 6 NN N N N N N N 7       
+
+> 0765432101234567
+
+0 N N N N N N N1 0 N N N N N N2 1 0 N N N N N1 2 1 0 N N N NN N N 1 0 N N NN N N 1 1 0 N NN N N N N 1 0 NN N N N N N N 0       
+
+> 0765432101234567
+
+2Computing-efficient Strategy Rank 0 0: create $recv-op $q %3 1: copy-q $local $comp 2: copy-kv $local $comp 3: copy-kv $comp $comm 4: create $send-op $kv %1 5: compute 6: copy-o $comp $local 7: copy-q $comm $comp 8: create $recv-op $q %2 9: create $send-op $kv %2 10: compute 11: copy-o $comp $ comm 12: create $send-op $o %3 13: copy-q $comm $comp 14: create $send-op $kv %3 15: compute 16: copy-o $comp $comm 17: create $send-op $o %2 Rank 3 0: create $recv-op $ kv %2 1: copy-q $local $comp 2: copy-kv $local $comp 3: copy-kv $comp $comm 4: create $send-op $kv %4 5: compute 6: copy-o $comp $local 7: copy-kv $comm $comp 8: create $recv-op $q %5 9: compute 10: create $recv-op $o %0 11: copy-o $comp $local 12: copy-o $comm $lcoal 13: copy-q $comm $comp 14: compute 15: create $recv-op $o %1 16: copy-o $comm $local 17: copy-o $comp $comm 18: create $send-op $o %5 …………Jitted codes on each ring rank Step 1 Step 2 Step 4 Step 3 Figure 3: Compilation Algorithms for Computationally Efficient Communication Strategies. 
+
+As shown in the bottom-left diagram of Figure 3, step 2 conduct workload balancing within each causal attention (red dashed box in Figure 3), where the specific load balancing strategy is similar to the scheduling algorithm in (Li et al., 2023b) With this arrangement, we approximately achieve load balancing of the computation overhead (the number of attention blocks to be computed in the figure) for each rank. Step 2 resulted in a layout showing which rank computes each attention block. Globally, regional load balancing might cause conflicts for ranks in overlapping regions (i.e. rank 3 in Figure 3). Step 3 address conflicts caused by an SAP rank being required to two reagion (i.e. re-gion 0~3 and region 3~5), while also striving to balance the computation load across all SAP ranks globally. Ultimately, step 3 resulted in a layout showing the computation order of attention blocks (a.k.a. computing on which stage). 
+
+Jitted code Generation. The objective of this step is to compile the computation layout of atten-tion blocks obtained in the previous step into the final operation sequence list that needs to be passed to the HSAP attention operator. These lists corre-spond to the instruction set of Table 1, as shown in the lower right corner of Figure 3. In this phrase, we arrange the communication and computation tasks for each computation stage based on the tasks of current computation stage and the next stage. Specifically, we aim to have a legiti-mate communication task occurring simultaneously with the computation task whenever possible. This includes the transmission of computation results (O/dQ/dKV) or data (Q, KV, dO, etc.) from other SAP Ranks for the next stage. The initiation of this communication task requires the send/receive pair to be activated simultaneously between the two SAP ranks involved in the P2P communications. When handling batched P2P operations within a group, NCCL coalesces them into efficient group operations to maximize the utilization of NVLink bandwidth. Therefore, when compiling into the ac-tual intruction series, we strive to ensure that each 
+
+batch_isend_irecv operation covers the entire SAP group without conflicts. 
+
+3.3 Hierarchically Combine InterSP and IntraSP 
+
+As shown in Figure 4, we now present HSAP to integrate IntraSP into InterSP in a hierarchical way 5GPU 5 GPU 3 GPU 1 S1 GPU 1 GPU 2 GPU 3 GPU 4 GPU 5 GPU 6 GPU 7 GPU 0 S2 S3 S4 S5 PAD GPU 1 GPU 2 GPU 3 GPU 4 GPU 5 GPU 0 GPU 6 GPU 7 GPU 2 GPU 4 GPU 0 P2P All2All GPU 6 GPU 7 Figure 4: The hierarchical network hardware topology. 
+
+for pursuing higher sequence parallelism degree and benefits from SAP. In HSAP, we coordinate InterSP and IntraSP to partition sequences along the length dimension. The total SP groups are now composed of two orthogonal groups: InterSP at the upper level and IntraSP at the lower level. The Q, K, V sequences are first distributed across Pinter InterSP groups, each of which main-tains Qinter  
+
+> i
+
+, K inter  
+
+> i
+
+, V inter  
+
+> i
+
+∈ R(N/P inter )×H×d and utilizes P2P for necessary block transmission. Each group is further divided into Pintra IntraSP groups that respectively maintain Qinter  
+
+> i,j
+
+, K inter  
+
+> i,j
+
+, V inter  
+
+> i,j
+
+∈
+
+Rn×H×d, where n = N/ (Pinter × Pintra ) and i ≤
+
+Pinter , j ≤ Pintra are indices in the length dimen-sion. The actual computation happens in this level with an all-to-all operation collecting and reform-ing Qinter  
+
+> i,j
+
+, K inter  
+
+> i,j
+
+, V inter  
+
+> i,j
+
+into Qintra  
+
+> i,j
+
+, K intra  
+
+> i,j
+
+, V intra  
+
+> i,j
+
+∈
+
+R(N/P inter )×(H/P intra )×d, where j becomes index in the number of heads dimension. Then, we can utilize the InterSP level P2P for comput-ing Attention (Qintra  
+
+> j
+
+, K intra  
+
+> j
+
+, V intra  
+
+> j
+
+) where the argu-ments have the shape N ×(H/P intra )×d. Since this attention has nothing to do across IntraSP groups, SAP can be smoothly adopted. 
+
+3.4 Manage Memory and Communication 
+
+To further control memeory peak and accelerate communication, we design a novel method in HSAP for memory and communication manage-ment. We first follow (Li et al., 2023b) to bal-ance workload of different InterSP groups by ad-ditionally transfering Qi blocks. Upon that, in each group, we allocate a global memory buffer for storing the local Qi, K i, V i and the received 
+
+Qj , K j , V j . The size of the buffer is a fixed mul-tiple of (N/P inter ) × H × d such that there is no memory jitter during transmissions. With N/P inter 
+
+fixed, HSAP can constantly extend sequence length with controllable memory peak. To optimize the hierarchical communication effe-cacy of HSAP, we distribute InterSP and IntraSP groups on clusters with different network infrastruc-tures based on the properties of P2P and all-to-all operators. IntraSP groups with communication-intensive all-to-all are placed among closely sit-uated ranks connected via NVLink, and InterSP groups with communication-moderate P2P are placed among ranks with lower bandwidth con-nected via InfiniBand. 
+
+4 Experiments 
+
+In this section, we evaluate the performance of our proposed SAP algorithm together with the HSAP framework from the perspectives of the perfor-mance on hybrid context, attention computation efficiency, and scalability to ultra-long sequences on large LLM. 
+
+Baselines. Our experiments focus on compar-isons with recent state-of-the-art sequence parallel algorithms and systems listed as follows: • We compare with DeepSpeed-Ulysses (Jacobs et al., 2023), the pioneer and dominator of In-traSP which is integrated into the DeepSpeed system (Rasley et al., 2020) for parallelizing large model training. • We compare with the DistFlashAttn (Li et al., 2023b), the latest InterSP algorithm that dis-tributes flash attention and improves the load scheduling of the ring-style communication topology. • We also compare with ColAI (Li et al., 2023c) and Megatron-LM (Shoeybi et al., 2019; Korthikanti et al., 2023), comprehen-sive distributed training systems which sup-port InterSP with the implementation of ring-attention (Liu et al., 2023a) and also other parallelism including tensor and pipeline par-allelism. Note that sequence parallelism is orthogonal to other parallelisms which are configured optimally if needed. 
+
+Model setup. We evaluete the proposed HSAP framework on a 30B GPT model in line with other systems for sequence length scalability comparison. For other experiments, we use LLaMA2 and its variants which are more common architectures in practice. 6Max Seq Len 8K 16K 32K 64k 128K SP size 2 2 4 4 8 8 16 16 DistFlashAttn 9.0 24.5 16.2 36.2 112.0 218.1 4373.7 8254.5         
+
+> Ours 7.9 14.6 11.1 25.8 73.0 137.3 1912.3 3333.1
+> Table 2: Computation efficiency of single attention in different Hybrid-context scenarios, measured by mil-liseconds.
+
+Hardware setup. Depending on the resources required for each experiment, we conduct experi-ments on the following two hardware platforms: 1. Eight DGX nodes, each with 8 x A100 40G GPUs. GPUs within the nodes are connected via NVLink, and nodes are connected via In-finiband. 2. A single HGX node equipped with 8 x A100 80G GPUs. GPUs within the nodes are con-nected via NVLink. 
+
+4.1 Attention Performance Evaluation 
+
+We first experimented with the efficiency improve-ment of SAP in hybrid-context scenarios. We con-duct an experiment on 8×A100 devices to compare the single attention computation time between Dis-FlashAttn and sequence-aware parallelism (SAP). Empirically, we set the num_head to 16 and hid-den_size to 128. For a fair comparison, we take the maximum attention computation time across all ranks and calculate the average time (ms) for 1000 forward and backward passes as the experiment result. As illustrated in Table 2, We can observe that as SP size increases from 2 to 16 and the maximum se-quence length increases from 8K to 256K, the com-putation time of both SAP and DisFlashAttn ex-hibits near-exponential growth due to the increased communication and computation load. Owing to sequence-aware just-in-time compilation, SAP can coordinate all ranks during communication and computation to fuse operations and reduce bubbles, significantly mitigating the exponential growth rate of attention computation. Then, we also conducted experiments on the effi-ciency of HSAP at the granularity of a single atten-tion, comparing it with Ulysses and DistFlashAttn. Specifically, we scale up the sequence length per GPU, the total number of GPUs (i.e., maximum sequence length). As illustrated in Table 3, The experiment results present that Deepspeed-Ulysess is highly sensitive to the number of attention heads and cannot adapt to scenarios where the parallelism exceeds the num-ber of attention heads. Additionally, we can ob-serve that with few devices, HSAP primarily main-tains a constant communication volume through low-level intraSP, achieving slightly better perfor-mance than Deepspeed-Ulysess under improved communication and memory management strate-gies. As the number of devices increases, sinece HSAP uses two orthogonal parallel groups to ad-dress the load imbalance issue, it consistently out-performs the standalone Deepspeed-Ulysses and DisFlashAttn methods in terms of performance. 
+
+4.2 End-to-end training Evaluation 
+
+In practical training scenarios, we compared our algorithm with two existing training methods to detect performance differences in end-to-end sce-nario training. We selected FineWeb (Lozhkov et al., 2024), Slim-Pajama(Computer, 2023), and UltraChat(Ding et al., 2023), as we believe these cover a wide range of scenarios from pre-training to fine-tuning. The length distribution of datasets used in these scenarios varies slightly, resulting in different training performances, but our method consistently outperforms the others Table 4. In Table 4, we used two pre-training datasets (fineweb and pajama) and one SFT dataset (ultra-chata) to validate the superiority of HSAP in ad-dressing the long-tail problem under various N×M topologies (N representing interSP and M repre-senting intraSP). Compared to pure batching and packing methods, HSAP offers higher throughput and training efficiency. As the sequence length in-creases, the disadvantage of the batching method is gradually apparent due to the requirement to pad all sequences to a uniform length. In contrast to the packing method, the sequence-aware paral-lel strategies better leverages the overlap between communication and computation. 
+
+4.3 Sequence Scalability Comparison 
+
+We compare Ulysses, HSAP, Megatron-LM, and ColAI-SP for 30B GPT models running various sequence lengths. We chose the sequence paral-lelism degree and micro-batch size that produced the best performance (measured as TFLOPs) for the four methods, this we call optimal (batch size-sequence length) configurations. For HSAP, we uti-lize the integrated benefits of both inter-group and intra-group sequence parallelism, ensuring efficient handling of extremely long sequences while main-taining high performance. As illustrate in Figure 5, 7Sequence Per GPU 4K 8K 16K 32K GPUs 8 16 64 8 16 64 8 16 64 8 16 64 Ulysses 14.6 29.31 OOM 49.74 100.42 OOM 176.23 349.85 OOM 664.33 1367.85 OOM DistFlashAttn 20.46 54.58 282.82 60.57 136.99 613.12 205.29 436.65 1788.33 763.13 1545.35 6427.15 HSAP 13.4 26.87 116.68 45.88 92.54 436.45 168.44 335.71 1645.43 662.98 1350.28 6156.32 
+
+Table 3: The speed of HSAP, DistFlashAttn, and Deepspeed-Ulysses on different sequence lengths. The speed is measured by milliseconds. OOM indicates that the model runs out of memory. The best performance is highlighted in bold.                                                                                    
+
+> Method HSAP/Packing/Batching
+> Metric throughput ↑iter/s ↑
+> dataset fineweb pajama ultrachat fineweb pajama ultrachat
+> 16K 1x8 2002.1 /1998.31/1997.5 2693.44 /2005.0/2003.36 2709.42 /1765.25/1766.04 1.09 /1.08/1.08 1.46 /1.09/1.09 1.67 /1.09/1.09 2x4 2435.17 /2430.87/2442.83 2833.45 /2434.12/2444.45 2859.2 /2166.41/2162.06 1.32 /1.32/1.33 1.54 /1.32/1.33 1.76 /1.33/1.33 4x2 2480.91/ 2485.24 /2475.36 3064.3 /2484.06/2494.58 2901.98 /2191.22/2196.04 1.35 /1.35/1.34 1.66 /1.35/1.35 1.79 /1.35/1.35 8x1 2863.02/ 2883.24 /2877.61 3255.92 /2854.79/2875.19 3008.3 /2530.93/2541.83 1.55 /1.56/1.56 1.77 /1.55/1.56 1.85 /1.56/1.56 32K 1x8 3642.88 /2067.07/1037.41 3235.0 /2070.18/2073.62 2129.07 /1200.87/512.46 0.99 /0.56/0.56 0.88 /0.56/0.56 0.99 /0.56/0.56 2x4 3510.77 /2121.79/1070.83 3196.2 /2135.73/2123.38 2023.12 /1254.6/539.04 0.95 /0.58/0.58 0.87 /0.58/0.58 0.94 /0.59/0.59 4x2 3574.18 /2060.45/1040.75 3286.72 /2057.39/2049.6 2125.67 /1213.83/521.49 0.97 /0.56/0.56 0.89 /0.56/0.56 0.99 /0.57/0.57 8x1 3598.57 /2519.64/1277.91 3477.07 /2522.72/2511.99 2149.12 /1472.33/629.15 0.98 /0.68/0.69 0.94 /0.68/0.68 1.0 /0.69/0.68 64K 1x8 3100.68 /1622.0/97.67 3414.77 /1618.27/1091.89 2994.03 /1251.3/593.16 0.42 /0.22/0.22 0.46 /0.22/0.22 0.52 /0.22/0.22 2x4 3267.28 /1611.48/96.83 3281.22 /1614.85/1082.69 2811.5 /1254.9/589.35 0.44 /0.22/0.22 0.45 /0.22/0.22 0.49 /0.22/0.22 4x2 3250.4 /1482.95/88.79 3312.26 /1438.61/970.22 2819.46 /1150.47/543.82 0.44 /0.2/0.2 0.45 /0.2/0.2 0.49 /0.2/0.2 8x1 3459.34 /1900.28/114.41 3487.24 /1851.67/1243.12 2899.35 /1444.84/678.12 0.47 /0.26/0.26 0.47 /0.25/0.25 0.51 /0.25/0.25
+
+Table 4: We validated the end-to-end performance of our method on Finewerb, pajama, and ultrachat, with throughput measured in tokens per second and iter/s representing the training speed of sequences with context length. The topology (intraSP×interSP) indicates how we mix sequence parallelism, where 1×8 and 8×1 are the cases where we degenerate to DistFlashAttn and Ulysess, respectively. Out of Memory 
+
+> HSAP Deepspeed - Ulysses ColAI Megatron- LM
+
+Figure 5: Evaluation Megatron vs ColAL-SP vs Ulysses and HSAP on GPT-30B parameter model with dense attention (64 GPUs). 
+
+HSAP can accommodate ultra-long sequences with-out adding extra burden. 
+
+5 Conclusion 
+
+In conclusion, this paper presents an innovative approach to addressing the challenges of sequence parallelism on hybrid-context long packed se-quences for training large language models (LLMs). By introducing the Sequence-Aware Parallelism (SAP) algorithm, we leverage the just-in-time (JIT) compilation idea to manage the intricate scheduling and organization of incomplete QKV tensor trans-mission and irregular attention patterns computa-tion. Our approach not only ensures the efficient and harmonious arrangement of sophisticated P2P communications but also integrates the benefits of both inter-group and intra-group sequence paral-lelism through the Hierarchical Sequence-Aware Parallelism (HSAP) framework. This integration enhances memory and communication manage-ment, providing a scalable solution for handling extremely long sequences. Our comprehensive experiments demonstrate the superiority of our proposed SAP algorithm and HSAP framework over existing sequence paral-lelism approaches. We successfully extend se-8quence lengths to over 512K, achieving the high-est efficiency in terms of tokens per GPU sec-ond (TGS) when training on real hybrid-context datasets. Additionally, our method shows faster attention computation on packed sequences com-pared to current state-of-the-art sequence paral-lelism paradigms. These results underscore the significant advancements our approach offers in the realm of sequence parallelism for LLM train-ing. The primary limitation of our paper is that due to lack of enough computational resourses, we did not go through the complete pretraining procedure of large scaled models to examine its performance. We hope to supplement this experiment in the fur-ture. 
+
+6 Limitations 
+
+The primary limitation of our paper is that due to lack of enough computational resourses in a period of time, we did not go through the complete pretraining procedure of large scaled models to examine its performance. We hope to supplement this experiment in the furture. We also think of a promising direction to lever-age Triton or PyTorch CUDA C++ extensions to fuse the copy and rescale operations directly into the attention computation. This fusion can poten-tially enhance computational efficiency by reduc-ing the overhead associated with separate oper-ations and streamlining the data flow within the GPU. Additionally, integrating these operations at a lower level within the CUDA framework allows for more fine-grained optimization and better uti-lization of the GPU’s capabilities. By exploring these advanced techniques, we can further improve the performance of our method. 
+
+References 
+
+Tim Brooks, Bill Peebles, Connor Holmes, Will DePue, Yufei Guo, Li Jing, David Schnurr, Joe Taylor, Troy Luhman, Eric Luhman, Clarence Ng, Ricky Wang, and Aditya Ramesh. 2024. Video generation models as world simulators. Tom B Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, et al. 2020. Language models are few-shot learners. In Proceedings of the 34th International Conference on Neural Information Processing Sys-tems , pages 1877–1901. Together Computer. 2023. Redpajama: an open dataset for training large language models. Tri Dao, Dan Fu, Stefano Ermon, Atri Rudra, and Christopher Ré. 2022. Flashattention: Fast and memory-efficient exact attention with io-awareness. 
+
+Advances in Neural Information Processing Systems ,35:16344–16359. Ning Ding, Yulin Chen, Bokai Xu, Yujia Qin, Zhi Zheng, Shengding Hu, Zhiyuan Liu, Maosong Sun, and Bowen Zhou. 2023. Enhancing chat language models by scaling high-quality instructional conver-sations. Preprint , arXiv:2305.14233. Gemini Team, Rohan Anil, Sebastian Borgeaud, Yonghui Wu, Jean-Baptiste Alayrac, Jiahui Yu, Radu Soricut, Johan Schalkwyk, Andrew M. Dai, Anja Hauth, Millican..na, Tim Green, Demis Hassabis, Ko-ray Kavukcuoglu, Jeffrey Dean, and Oriol Vinyals. 2023. Gemini: A family of highly capable multi-modal models. ArXiv:2312.11805 [cs]. Sam Ade Jacobs, Masahiro Tanaka, Chengming Zhang, Minjia Zhang, Leon Song, Samyam Rajbhandari, and Yuxiong He. 2023. Deepspeed ulysses: Sys-tem optimizations for enabling training of extreme long sequence transformer models. arXiv preprint arXiv:2309.14509 .Vijay Anand Korthikanti, Jared Casper, Sangkug Lym, Lawrence McAfee, Michael Andersch, Mohammad Shoeybi, and Bryan Catanzaro. 2023. Reducing ac-tivation recomputation in large transformer models. 
+
+Proceedings of Machine Learning and Systems , 5. Mario Michael Krell, Matej Kosec, Sergio P. Perez, and Andrew Fitzgibbon. 2022. Efficient sequence pack-ing without cross-contamination: Accelerating large language models without impacting performance. ArXiv:2107.02027 [cs, math]. Dacheng Li, Rulin Shao, Anze Xie, Ying Sheng, Lian-min Zheng, Joseph Gonzalez, Ion Stoica, Xuezhe Ma, and Hao Zhang. 2023a. How long can context length of open-source llms truly promise? In NeurIPS 2023 Workshop on Instruction Tuning and Instruction Fol-lowing .Dacheng Li, Rulin Shao, Anze Xie, Eric P Xing, Joseph E Gonzalez, Ion Stoica, Xuezhe Ma, and Hao Zhang. 2023b. Lightseq:: Sequence level parallelism for distributed training of long context transformers. In Workshop on Advancing Neural Network Training: Computational Efficiency, Scalability, and Resource Optimization (WANT@ NeurIPS 2023) .Shenggui Li, Hongxin Liu, Zhengda Bian, Jiarui Fang, Haichen Huang, Yuliang Liu, Boxiang Wang, and Yang You. 2023c. Colossal-ai: A unified deep learn-ing system for large-scale parallel training. In Pro-ceedings of the 52nd International Conference on Parallel Processing , pages 766–775. Shenggui Li, Fuzhao Xue, Chaitanya Baranwal, Yong-bin Li, and Yang You. 2023d. Sequence parallelism: Long sequence training from system perspective. In 
+
+Proceedings of the 61st Annual Meeting of the As-sociation for Computational Linguistics (Volume 1: 
+
+9Long Papers) , pages 2391–2404, Toronto, Canada. Association for Computational Linguistics. Hao Liu, Wilson Yan, Matei Zaharia, and Pieter Abbeel. 2024. World model on million-length video and language with blockwise ringattention. Preprint ,arXiv:2402.08268. Hao Liu, Matei Zaharia, and Pieter Abbeel. 2023a. Ring attention with blockwise transformers for near-infinite context. In NeurIPS 2023 Workshop on In-struction Tuning and Instruction Following .Nelson F Liu, Kevin Lin, John Hewitt, Ashwin Paran-jape, Michele Bevilacqua, Fabio Petroni, and Percy Liang. 2023b. Lost in the middle: How lan-guage models use long contexts. arXiv preprint arXiv:2307.03172 .Anton Lozhkov, Loubna Ben Allal, Leandro von Werra, and Thomas Wolf. 2024. Fineweb-edu. Maxim Milakov and Natalia Gimelshein. 2018. Online normalizer calculation for softmax. arXiv: Perfor-mance,arXiv: Performance .OpenAI, Josh Achiam, Steven Adler, Sandhini Agarwal, Lama Ahmad, Ilge Akkaya, Florencia Leoni Aleman, Diogo Almeida, Janko Altenschmidt, Sam Altman, ..rvin Anadkat, Shengjia Zhao, Tianhao Zheng, Jun-tang Zhuang, William Zhuk, and Barret Zoph. 2023. Gpt-4 technical report. ArXiv:2303.08774 [cs]. Colin Raffel, Noam Shazeer, Adam Roberts, Katherine Lee, Sharan Narang, Michael Matena, Yanqi Zhou, Wei Li, and PeterJ. Liu. 2019. Exploring the limits of transfer learning with a unified text-to-text trans-former. arXiv: Learning,arXiv: Learning .Jeff Rasley, Samyam Rajbhandari, Olatunji Ruwase, and Yuxiong He. 2020. Deepspeed. Weijia Shi, Sewon Min, Maria Lomeli, Chunting Zhou, Margaret Li, Rich James, Xi Victoria Lin, Noah A. Smith, Luke Zettlemoyer, Scott Yih, and Mike Lewis. 2023. In-context pretraining: Language modeling beyond document boundaries. ArXiv:2310.10638 [cs]. Mohammad Shoeybi, Mostofa Patwary, Raul Puri, Patrick LeGresley, Jared Casper, and Bryan Catan-zaro. 2019. Megatron-lm: Training multi-billion parameter language models using model parallelism. 
+
+arXiv preprint arXiv:1909.08053 .Konrad Staniszewski, Szymon Tworkowski, Sebastian Jaszczur, Henryk Michalewski, -Lukasz Kuci’nski, and Piotr Milo’s. 2023. Structured packing in llm training improves long context utilization. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. In Proceedings of the 31st International Conference on Neural Information Processing Sys-tems , pages 6000–6010. Wenhan Xiong, Jingyu Liu, Igor Molybog, Hejia Zhang, Prajjwal Bhargava, Rui Hou, Louis Martin, Rashi Rungta, Karthik Abinav Sankararaman, Barlas Oguz, et al. 2023. Effective long-context scaling of founda-tion models. arXiv preprint arXiv:2309.16039 .
+
+10
