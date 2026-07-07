@@ -1,0 +1,1486 @@
+Title: Structural determinants of dynamical state transitions in disorders of consciousness: a whole-brain modeling approach
+
+URL Source: https://www.biorxiv.org/content/10.64898/2026.06.26.734644v1.full.pdf
+
+Published Time: Tue, 07 Jul 2026 21:10:10 GMT
+
+Number of Pages: 28
+
+Markdown Content:
+# Structural determinants of dynamical state transitions in disorders of consciousness: a whole-brain modeling approach 
+
+Fernando Lehue 1,2 , Iv´ an Mindlin 3 Carlos Coronel-Oliveros 4,5 Enzo Tagliazucchi 4,6 
+
+Patricio Orio 1,7 Jacobo D. Sitt 3
+
+1 Centro Interdisciplinario de Neurociencia de Valpara´ ıso, Harrington 287, Valpara´ ıso, Chile 
+
+2 Programa de Doctorado en Ciencias, menci´ on Biof´ ısica y Biolog´ ıa Computacional, Universidad de Valpara´ ıso, Valpara´ ıso, Chile 
+
+3 Paris Brain Institute (ICM), Paris, France 
+
+4 Latin American Brain Health Institute (BrainLat), Universidad Adolfo Ib´ a˜ nez, Diagonal Las Torres 2640, Pe˜ nalol´ en, Santiago, Chile 
+
+5 Global Brain Health Institute (GBHI), University of California San Francisco (UCSF), California US and Trinity College Dublin, Ireland 
+
+6 Buenos Aires Physics Institute and Physics Department, University of Buenos Aires, Intendente G¨ uiraldes 2160 - Ciudad Universitaria, Buenos Aires, Argentina 
+
+7 Instituto de Neurociencia, Facultad de Ciencias, Universidad de Valpara´ ıso, Gran Breta˜ na 1091, Valpara´ ıso, Chile 
+
+# Abstract 
+
+Disorders of consciousness (DoC) are associated with large-scale alterations in brain dynamics, yet the structural factors that constrain these changes remain unclear. Here, we investigate how the topology of the structural connectome shapes the sensitivity of brain dynamics to perturbation using a whole-brain computational model constrained by diffusion MRI-derived connectivity. We systematically probed the effects of node removal and targeted modulation of local excitation–inhibition balance on dynamic June 25, 2026 1/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+functional connectivity, quantifying dynamical richness via transitions between recurrent connectivity states and jump length distributions in functional connectivity space. We show that a node’s integration within the structural connectome, quantified using a spectral integration measure, strongly predicts its impact on global brain dynamics. Lesions to highly integrative hubs drive the system toward low-complexity dynamical regimes resembling those observed in DoC, particularly posterior medial regions such as the precuneus and posterior cingulate cortex. Analogously, increasing excitability in these regions restores healthy-like dynamics in silico. In contrast, perturbations to weakly integrated regions have limited global effects. These results demonstrate that generic features of structural connectivity constrain whole-brain dynamical stability and help explain why damage to specific hubs disproportionately disrupts conscious brain activity. 
+
+# Introduction 1
+
+Disorders of consciousness (DoC) present a significant challenge in clinical neuroscience, 2
+
+characterized by profound alterations in awareness and responsiveness following severe 3
+
+brain injury [1]. DoCs are commonly classified using the Coma Recovery Scale [2] in the 4
+
+Minimally Conscious State (MCS) when there are traces of volitional responses to 5
+
+external stimuli, or Unresponsive Wakefulness Syndrome (UWS, also known as the 6
+
+Vegetative State) when there are none [3]. 7
+
+A key approach to understanding these alterations has been the study of large-scale 8
+
+patterns of spontaneous brain activity, which reflect the coordinated dynamics of 9
+
+distributed neural systems even in the absence of external stimulation. In DoC patients, 10 
+
+such patterns are systematically disrupted, offering a neurophysiological correlate of 11 
+
+impaired consciousness [4]. Functional Connectivity (FC) is defined as the statistical 12 
+
+correlations between brain areas, usually when no explicit task is being performed 13 
+
+(resting state). Although reduced activity in specific cortical regions (e.g., the precuneus 14 
+
+and cingulate cortex) was long recognized as a hallmark of UWS [5], later PET work 15 
+
+showed that UWS is strongly associated with disruptions in FC in large scale networks 16 
+
+of the resting brain [6] [7], especially the Default Mode Network (DMN). The DMN is a 17 
+
+group of brain areas whose FC is intricately linked with processes such as self-referential 18 
+
+June 25, 2026 2/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+thinking, episodic memory recall, goal-directed cognition, self-projection, and theory of 19 
+
+mind [8], and that has been central in studies of consciousness [9]. 20 
+
+Nowadays, it is accepted that consciousness does not rely on a single cortical area or 21 
+
+network but requires brain-wide communication [10], and whole-brain FC alterations in 22 
+
+DoC have provided insights and correlates of DoC’s etiology and mechanisms [8] [11]. In 23 
+
+this regard, Demertzi et.al. [4] demonstrated that healthy individuals (CNT) and DoC 24 
+
+patients can be distinguished by systematic changes in the occupation of dynamic 25 
+
+patterns of FC. 26 
+
+Although static FC and dynamic FC (dFC) have been used to characterize the role 27 
+
+of brain areas and their relation to consciousness [12] [13], what features of Structural 28 
+
+Connectivity (SC) are crucial for explaining the role of each brain area on dynamic 29 
+
+brain states is not fully understood. Advancements in computational neuroscience and 30 
+
+graph theory offer powerful tools to model brain dynamics and investigate the impact of 31 
+
+structural features on FC [14] [15]. 32 
+
+Whole-brain computational models offer a principled framework to go beyond 33 
+
+characterization and probe causal mechanisms. By fitting biophysical models to 34 
+
+empirical FC or dFC, previous work has shown that DoC patients require lower global 35 
+
+coupling to reproduce their spontaneous dynamics [13, 16, 17], and that virtual lesions 36 
+
+can recapitulate features of pathological brain states [18]. However, whether the 37 
+
+structural properties of individual nodes can systematically predict their dynamical 38 
+
+influence remains unclear 39 
+
+Here we ask how the structural connectivity profile of individual brain areas shapes 40 
+
+their causal influence on whole-brain dynamics, using virtual lesions and local 41 
+
+perturbations in a computational model fitted to empirical dFC measures in CNT and 42 
+
+DoC patients. To this end, we introduce a whole-brain computational model that 43 
+
+simulates virtual brain lesions and quantifies their impact on dFC. Specifically, we link 44 
+
+a graph-theoretical integration measure, computed from the SC matrix, to the causal 45 
+
+influence each node exerts on brain-wide dFC when it is disconnected or locally 46 
+
+stimulated. This approach contributes to a mechanistic understanding of the structural 47 
+
+underpinnings of dFC and their relevance to disorders of consciousness. 48 
+
+We first introduce the empirical measures that our model aims to replicate and 49 
+
+subsequently perturb, following the hypothesis that the brain’s dynamical repertoire is 50 
+
+June 25, 2026 3/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+impaired by brain lesions: 1) We provide a statistical description of the rate of change 51 
+
+between consecutive time points of the dFC stream (which we call jump lengths), whose 52 
+
+change in distribution serves as a dynamical blueprint of CNT and DoC individuals, 53 
+
+and 2) following [4], we train a K-Means clustering algorithm on the dFC stream, which 54 
+
+shows that DoC individuals occupy states of connectivity more correlated with the SC 55 
+
+than CNT individuals. In the next subsection, with the objective of showing how nodes 56 
+
+influence dynamics differently depending on their structural connectivity profile, we 57 
+
+systematically perturbed them in a computational model that generates fMRI-like 58 
+
+signals, fitting it first to the empirical jump length distributions and to the occupancy 59 
+
+rates. After this, we study the effect of 1) removing nodes from the network and 2) 60 
+
+perturbing the excitation-inhibition balance locally, leveraging a graph-theoretical 61 
+
+integration measure that accounts for the magnitude of the effect of these local 62 
+
+perturbations [19] [20]. While traditional measures of connectivity like nodal strength 63 
+
+show a significant correlation with the effect of node removal, in this study integration 64 
+
+emerges as a more precise predictor, effectively distinguishing nodes that orchestrate 65 
+
+widespread activity from those that do not, with a clear threshold. 66 
+
+# Results 67 
+
+## dFC stream jump length distribution 68 
+
+We first sought to characterize the temporal dynamics of FC changes. For this we 69 
+
+calculated the instantaneous phases of BOLD signals between regions defined by the 70 
+
+AAL parcellation ( [21]). This allowed us to represent each time point with a FC matrix 71 
+
+of phase connectivity (see Methods), which we call the dynamic FC stream (dFC 72 
+
+stream). We then calculated the euclidean distance between consecutive FC matrices, 73 
+
+obtaining a distribution of jump lengths for each registering session. This is what we 74 
+
+call ”jump lengths” in the dFC stream: larger jump lengths imply bigger changes in the 75 
+
+connectivity profile. We can characterize the dFC stream by considering these jump 76 
+
+lengths as steps lengths of a random walk, in a random direction chosen isotropically, 77 
+
+and length drawn from a given positive distribution. On average, CNT individuals 78 
+
+display shorter jump lengths than MCS and UWS (mean jump length at 24 .591, 26 .829 79 
+
+June 25, 2026 4/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+and 27 .299 for CNT, MCS and UWS, respectively), but are more spread out 80 
+
+(Coefficient of Variation = 0 .377 , 0.28 , 0.252, see Fig 2A). 81 
+
+We further characterized the jump lengths by fitting a Weibull distribution, from 82 
+
+which we estimated their distributions’ skewness and entropy. We chose the Weibull 83 
+
+distribution because of its flexible and interpretable parameters: k for shape and λ for 84 
+
+scale. For each individual, a KS test between their empirical jump distribution and its 85 
+
+corresponding Weibull fit fails to reject the hypothesis that the distribution is different. 86 
+
+Nevertheless, when using the Kolmogorov Smirnov statistic as a dissimilarity measure 87 
+
+between simulated and empirical data, we observed a slightly better fit for CNT than 88 
+
+MCS and UWS (Fig 2B, bottom). On average, CNT jumps are better described by 89 
+
+higher λ and lower k values than MCS and UWS, which represent heavier tails in CNT, 90 
+
+but MCS and UWS do not display significant differences in their optimal parameters 91 
+
+distributions (three groups Kruskal-Wallis p < 0.001 for k parameters, CNT vs MCS 92 
+
+p = 0 .003, CNT vs UWS p = 0 .001, MCS vs UWS p = 0 .28 two sided T-tests, 93 
+
+Benjamini-Hochberg corrected) (three groups Kruskal-Wallis p = 0 .016 for λ parameters, 94 
+
+CNT vs MCS p = 0 .023, CNT vs UWS p = 0 .023, MCS vs UWS p = 0 .71 two sided 95 
+
+T-tests, Benjamini-Hochberg corrected). 96 
+
+We calculate sample skewness values directly from jump length distributions, and 97 
+
+find that they do not distinguish between CNT, MCS and UWS. In contrast, skewness 98 
+
+values obtained from our Weibull distribution fit are significantly higher in CNT than 99 
+
+MCS and UWS (Fig2B, top), which is to be interpreted as CNT jump length 100 
+
+distributions having heavier tails and therefore being more outlier-dominated (i.e., 101 
+
+occasional long jumps are more common). From the Weibull fit, the entropy of jump 102 
+
+lengths is significantly higher for CNT individuals than MCS and UWS patients (three 103 
+
+groups Kruskal-Wallis p = 0 .0019 for entropy values, CNT vs MCS p = 0 .014, CNT vs 104 
+
+UWS p < 0.001, MCS vs UWS p = 0 .306, two sided T-tests, Benjamini-Hochberg 105 
+
+corrected), which we interpret as their distributions containing more uncertainty and 106 
+
+being less concentrated around a central value (see the center row of Fig 2B). 107 
+
+June 25, 2026 5/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+## Occupation of dynamic states of connectivity in CNT and DoC 108 
+
+After characterizing temporal changes in the dFC stream, we studied the main 109 
+
+spatio-temporal patterns governing brain activity. For this, we leveraged on a 110 
+
+cluster-based analysis developed in [4], and reproduced in several other 111 
+
+studies [22] [23] [24]. We used a K-Means clustering algorithm (K=4, see Methods), 112 
+
+trained over all concatenated and flattened time-resolved FC matrices of the dFC 113 
+
+stream. We sorted centroids according to their resemblance to SC, as measured by the 114 
+
+FC-SC correlation coefficient of each centroid (see Fig 3A). 115 
+
+From the algorithm’s labels (indicating which cluster the dFC belongs to at each 116 
+
+time step), we calculated the transition rate between clusters (Fig3 B) for CNT, MCS 117 
+
+and UWS, from which the Markov chain Shannon entropy rate can be estimated, 118 
+
+obtaining 0 .787 , 0.713 , 0.567 (nats) for CNT, MCS and UWS transition matrices, 119 
+
+respectively. This monotonic decrease in entropy rate from CNT to UWS reflects a 120 
+
+progressive reduction in the diversity of transitions between connectivity states, 121 
+
+consistent with the loss of dynamical richness observed in the jump length distributions. 122 
+
+We define occupancy as the count of how many fMRI volumes our K-means 123 
+
+algorithm assigned to each cluster, and Fig3 C shows the across-individuals average 124 
+
+occupation of each cluster. We also analyzed occupancies per individual, placing each 125 
+
+centroid SC-FC correlation value on an x-axis, and considering the occupancy of each 126 
+
+cluster as a function of its FC-SC resemblance. We found that CNT individuals tend to 127 
+
+occupy the three clusters at nearly the same rate (flat dependence, ρ = 0 .176 , p = 0 .54, 128 
+
+non-significant monotone fit), contrary to MCS and UWS, that consistently occupied 129 
+
+clusters with higher FC-SC correlation (occupancy vs SC-FC resemblance, Spearman’s 130 
+
+ρ = 0 .73 , 0.88 MCS and UWS respectively, both with p < 0.001; Fig 3D). 131 
+
+## Calculating jumps and cluster occupancies using a whole brain 132 
+
+## model 133 
+
+Next, we assessed whether certain brain regions are more likely to induce changes in the 134 
+
+dFC stream. For this, we used a whole-brain model of spontaneous activity fitted to the 135 
+
+distribution of jumps and occupancy of connectivity profiles. We generated BOLD-like 136 
+
+activity using the fast DMF model [25], over which we calculated the simulated dFC 137 
+
+June 25, 2026 6/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+stream using the same pipeline as in empirical data (see Fig 1). 138 
+
+Instead of the widespread strategy of fitting the model to reproduce the FC matrix, 139 
+
+we fitted the global coupling parameter G aiming to reproduce the empirical jump 140 
+
+lengths and occupancies in CNT, MCS and UWS. Jumps were obtained from simulated 141 
+
+dFC in the same way as with empirical data. For obtaining simulated occupancies, we 142 
+
+use the K-Means model that was trained on empirical dFC streams, evaluating its 143 
+
+predicted labels on simulated dFC streams. We compared simulated and empirical jump 144 
+
+lengths using the Kolmogorov Smirnov distance (KS-distance), and cluster occupancies 145 
+
+using the Kullback-Leibler divergence (KL-divergence). 146 
+
+The G parameter, that controls the overal strength of interaction between regions, 147 
+
+was swept in the G ∈ [1 .5, 2.6] range, with a step size of 0.01, and running 20 random 148 
+
+seeds for each G value. Since KL and KS are dissimilarity measures, the optimal G 149 
+
+value for each state was chosen as the one that minimizes the distance between 150 
+
+empirical and simulated per-state pooled jump lengths (and per-state average 151 
+
+occupancies). For jump length distributions and cluster occupancies, the optimal G 152 
+
+value decreased monotonically between CNT, MCS, and UWS, suggesting that healthy 153 
+
+controls require stronger inter-regional interactions than patients with disorders of 154 
+
+consciousness, (jump length optima at G = 2 .4, 2.06 , 1.94 and occupancy optima at 155 
+
+G = 2 .48 , 2.36 , 2.2 for CNT, MCS and UWS, respectively, see Fig 4A and B). 156 
+
+Nodal integration vs the effect of removing areas from the network 157 
+
+Having obtained the 1) jump length and 2) occupancy optimal G values for the CNT 158 
+
+condition, we used them as a starting point from which to test the effect of removing 159 
+
+each brain area, carrying out the following experiment: Fixing G at the CNT optimal, 160 
+
+we disconnected each area from the rest of the network (setting the nth row and column 161 
+
+of the SC matrix to 0) and re-ran the model, obtaining a “virtual lesion” version of 162 
+
+jump lengths and occupancies, that we compared to their empirical counterparts of 163 
+
+CNT, MCS, and UWS. 164 
+
+We found that for most brain areas, their removal does not significantly affect the 165 
+
+ability of model to fit the empirical jump distributions or state occupancy. Only 10 166 
+
+nodes showed an important impact in the dynamics, making the model to depart from 167 
+
+the CNT fit and, importantly, making it closer to the MCS and UWS conditions (y axis 168 
+
+June 25, 2026 7/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+in Fig 5 A). Considering that the only heterogeneity between brain areas in our model is 169 
+
+their connectivity structure, we sought to look for structural determinants that might 170 
+
+explain this fact. We center our analyses on Nodal Integration, that is calculated from a 171 
+
+hierarchical SVD decomposition of the SC matrix, and represents how globally coupled 172 
+
+the system is (see Methods) [20]. Calculating this measure for each node sets a clear 173 
+
+boundary between low and high integration nodes (that we highlight in Fig 1). 174 
+
+Removing high integration nodes significantly worsens the fit to CNT jumps when 175 
+
+compared against removing low integration ones, and the opposite is true for MCS and 176 
+
+UWS (T-test, Benjamini-Hochberg corrected p < 0.001 for CNT, MCS and UWS, see 177 
+
+boxplots in Fig 5 A). Notably, removing certain areas (especially high integration ones) 178 
+
+can improve the jump length fit to MCS even beyond its own G-sweep optima (compare 179 
+
+with baseline in Fig 5A). 180 
+
+For occupancies, removing each area worsens the fit to CNT and makes the model’s 181 
+
+occupancies be more similar to the ones of MCS and UWS, as measured by a decrease 182 
+
+in the KL-divergence to each states’ occupancies, however not as close as their own 183 
+
+optimal fit from the G sweep (see baseline lines in Fig 5A). Removing high integration 184 
+
+nodes significantly worsens the fit to CNT compared to low integration nodes, and the 185 
+
+opposite is true for MCS and UWS occupancies (T-test, Bonferroni-Hochberg corrected 186 
+
+p < 0.001 for CNT, MCS and UWS, see boxplots in Fig5A, see brain areas in Fig 5B). 187 
+
+Stimulating Brain Areas 188 
+
+In the previous section we performed structural ”virtual lesions” to a model fitted to 189 
+
+CNT dynamics comparing it to DoC observables. Here we assessed which nodes can be 190 
+
+functionally modulated to shift a model fitted to DoC back towards healthy dynamics. 191 
+
+For this, we perturbed the E/I balance of each node from sweeping the local inhibitory 192 
+
+feedback parameter intercept C of the fast DMF model, a parameter that increases 193 
+
+local inhibition (see Methods). We set our baseline as 1) the best fit to UWS jump 194 
+
+lengths ( G = 1 .94) and 2) the best fit to UWS empirical occupancies ( G = 2 .2), and 195 
+
+compared the perturbed model’s fit to CNT jumps and occupancies. The optimal fits to 196 
+
+CNT empirical jumps and occupancies are found with negative ∆ C values, which are to 197 
+
+be interpreted as higher excitability of each node that is required to approximate CNT 198 
+
+dynamics. 199 
+
+June 25, 2026 8/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+We find a stark difference between stimulating high and low integration nodes: high 200 
+
+integration nodes reach their optimal fit to CNT jumps around C = −1 (highlighted in 201 
+
+Fig 6A), while low integration nodes’ optimals are more spread. Also, high integration 202 
+
+nodes reach significantly better fits (lower KS-distance) to CNT jumps than low 203 
+
+integration nodes (see boxplots in Fig 6A, T-test, p < 0.001). 204 
+
+When calculating KL-divergence values between empirical and simulated CNT 205 
+
+occupations, low integration nodes do not reach a clear optimal, as the fit keeps 206 
+
+improving even beyond when the local JF IC value is no longer meaningful (see sweep in 207 
+
+Fig 6B). On the other hand, high integration nodes do reach a clear optimal around 208 
+
+C = −0.7 (highlighted in Fig 6A right). High integration nodes reach better fits (lower 209 
+
+KL-divergence) to CNT occupancies than low integration nodes (see boxplots in Fig 6B, 210 
+
+T-test, p < 0.001). 211 
+
+Areas with high nodal strength but low integration values 212 
+
+Emphasizing on the fact that the local integration measure that we calculate completely 213 
+
+distinguishes which nodes are going to affect dynamics the most (as can be seen in the 214 
+
+scatters of Fig 5 A, 6 B), it is important to notice that connectivity strength alone does 215 
+
+not predict this. 216 
+
+From our UWS G optimal, we fix the excitability perturbation at C = −1 and find a 217 
+
+negative correlation between the fit to CNT jumps and node integration (Spearman 218 
+
+monotone dependence ρ = −0.907 , p < 0.001), and also with node strength, although 219 
+
+with a lower correlation value in this case ( ρ = −0.622 , p < 0.001). However, there are 220 
+
+areas with high nodal strength whose stimulation does not fit CNT empirical jumps well 221 
+
+(see scatters in Fig6B). Analogously, taking the fit to CNT occupations at C = −0.7, we 222 
+
+also observe a negative correlation between both node integration 223 
+
+(ρ = −0.899 , p < 0.001) and node strength ( ρ = −0.753 , p < 0.001) versus the fit to 224 
+
+CNT occupancies, but there are also areas with high nodal strength whose stimulation 225 
+
+does not fit CNT empirical occupations well (see scatters with Node Strength in Fig6B). 226 
+
+Looking deeper into these nodal measures, there are areas whose nodal strength is 227 
+
+low, but their integration component is high. Normalizing each measure (dividing by 228 
+
+the maximum) we find the following AAL90 areas with a high nodal strength but low 229 
+
+integration component (setting thresholds at nodal strength greater than 0 .7 and 230 
+
+June 25, 2026 9/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+integration component smaller than 0 .4): Left Frontal Superior Orbital Gyrus, Left 231 
+
+Rolandic operculum, Left and Right Insula, Left and Right Putamen, Left Occipital 232 
+
+Middle Gyrus, and Right Frontal Superior Gyrus (not in any particular order). 233 
+
+# Discussion 234 
+
+In this study, we examined how large-scale structural connectivity constrains the 235 
+
+sensitivity of whole-brain dynamics to perturbations, focusing on transitions between 236 
+
+dFC regimes characteristic of CNT and DoC conditions. First, we quantified dynamical 237 
+
+richness using measures derived from transitions in functional connectivity space. Using 238 
+
+perturbations on a whole-brain model, we found that applying the Hierarchical Modular 239 
+
+Decomposition integration component to the SC matrix revealed nodes that are central 240 
+
+to large-scale brain connectivity, as regions with highest integration component best 241 
+
+explain transitions from CNT-like to DoC-like dynamics when removed from the 242 
+
+network, and transitions from DoC-like to CNT-like dynamics when perturbed toward 243 
+
+higher excitability. 244 
+
+Highly integrated nodes overlap with regions previously identified as belonging to 245 
+
+the rich club, defined as areas whose connectivity profiles make them particularly 246 
+
+important for global information integration [26]. While the precise anatomical identity 247 
+
+of such hubs can depend on methodological choices such as parcellation and binarization 248 
+
+thresholds [26], our results consistently identify the Precuneus and Posterior Cingulate 249 
+
+cortex (core components of the default mode network DMN [7]) as the regions with 250 
+
+both the highest integration and the largest impact on network dynamics. The 251 
+
+relevance of the Precuneus for consciousness-related processes is well established [27], 252 
+
+and its activity is consistently reduced in DoC patients [28], while its connectivity 253 
+
+profile has been shown to predict clinical outcomes following coma [12]. 254 
+
+A methodological advantage of the integration measure used here is that it does not 255 
+
+depend on arbitrary thresholding of the SC matrix. Although the Hierarchical Modular 256 
+
+Decomposition framework was originally developed for functional connectivity [20], 257 
+
+being defined over a spectral decomposition basis makes it applicable to general 258 
+
+matrices, including SC. Although choosing a different parcellation may partially alter 259 
+
+the anatomical identity of which nodes are highly integrated (preserving the 260 
+
+June 25, 2026 10/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+approximate position on the cortex), they preserve the underlying spectral and 261 
+
+topological features that give rise to global integration. We therefore expect the 262 
+
+observed relationship between nodal integration and dynamical impact to be robust to 263 
+
+changes in parcellation, even though the specific nodes identified as hubs may vary. 264 
+
+SC sets the conditions under which FC emerges [29]. From a dynamical systems 265 
+
+perspective, highly integrative hubs occupy bottleneck positions in state space, such 266 
+
+that local perturbations disproportionately affect global trajectories. Identifying which 267 
+
+structural characteristics best predict the controllability of a network toward a desired 268 
+
+working point is a question of broad interest in mathematics and biology. In 269 
+
+neuroscience, this perspective is particularly relevant to understand how targeted 270 
+
+interventions can modulate pathological brain dynamics. Non-invasive stimulation 271 
+
+techniques such as transcranial magnetic stimulation (TMS) have shown measurable 272 
+
+improvements in clinical scales on DoC patients when applied to regions such as the 273 
+
+dorsolateral prefrontal cortex [30] or posterior parietal areas [31] [32]. Our results 274 
+
+provide a structural rationale for why perturbing integrative hubs may be particularly 275 
+
+effective in reshaping global brain dynamics. 276 
+
+Consistent with this interpretation, increasing local excitation–inhibition balance in 277 
+
+specific cortical regions in our model is sufficient to restore healthy-like dynamics from a 278 
+
+DoC regime. This finding aligns with the view that DoC corresponds to a network 279 
+
+operating in a sub-excitable state [33] [28], in which activity fails to propagate and 280 
+
+integrate across cortical hubs [34]. 281 
+
+Given that our integration metric reflects cortico–cortical spectral dominance, it is 282 
+
+not surprising that the thalamus did not emerge as a highly influential node in our 283 
+
+simulations, despite prior work identifying the thalamus as crucial for sustaining arousal, 284 
+
+using a similar pipeline for estimating dFC [24]. We attribute this discrepancy to 285 
+
+simplifying assumptions in our model, which does not capture key cytoarchitectural 286 
+
+differences between thalamic and cortical regions, subreticular nuclei, subcortical and 287 
+
+sensory inputs, or the full complexity of corticothalamic pathways that underlie thalamic 288 
+
+function beyond what can be inferred from DTI-derived connectivity alone [35]. 289 
+
+An interesting observation is that DoC patients tend to occupy connectivity clusters 290 
+
+with higher SC FC similarity, yet lower global coupling values are required to fit DoC 291 
+
+dynamics than CNT dynamics. Similar findings have been reported when fitting 292 
+
+June 25, 2026 11/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+different fMRI-derived observables [17] [36] [16]. We interpret this as reflecting the 293 
+
+capacity of the healthy human connectome to support emergent dynamics that are 294 
+
+constrained by structure [18], yet richer dynamically. Further work using more detailed 295 
+
+models will be necessary to investigate this phenomenon in greater depth. 296 
+
+Several limitations should be acknowledged. The specific parcellation used may 297 
+
+influence the anatomical identity of highly integrated or high-impact regions, although 298 
+
+the relationship between nodal integration and dynamical impact is expected to depend 299 
+
+primarily on global network structure rather than precise spatial subdivision. In 300 
+
+addition, the whole-brain model relies on simplifying assumptions, including 301 
+
+predominantly excitatory interareal coupling and a fixed hemodynamic response model, 302 
+
+which are expected to affect quantitative aspects of the dynamics rather than the 303 
+
+qualitative relationships reported here. Stimulation was implemented as a simplified 304 
+
+modulation of local E/I balance, providing a controlled and interpretable perturbation 305 
+
+but not capturing the full biophysical complexity of neuromodulatory interventions. A 306 
+
+further limitation is that we relied on a normative structural connectome, which may 307 
+
+not accurately reflect individual or pathology-specific connectivity in DoC patients. 308 
+
+Accordingly, our results are not intended as patient-specific predictions, but rather as a 309 
+
+characterization of general relationships between structural integration and dynamical 310 
+
+sensitivity that can inform future studies using individualized connectomes. 311 
+
+Taken together, our results show that generic features of large-scale structural 312 
+
+connectivity, as measured by diffusion MRI, constrain the stability of whole-brain 313 
+
+dynamical states and their transitions between brain-wide regimes, providing a 314 
+
+principled framework for understanding how structural integration shapes sensitivity to 315 
+
+perturbation in health and disorders of consciousness. 316 
+
+# Materials and methods 317 
+
+## Participants 318 
+
+Our study includes fMRI data of 11 MCS and 10 UWS patients, along with 13 CNT. 319 
+
+The Coma Recovery Scale-Revised (CRS-R) was used for scoring the participants’ level 320 
+
+of consciousness [2], and was conducted by medical professionals. A diagnosis of MCS 321 
+
+June 25, 2026 12/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+was assigned to patients displaying behaviours potentially indicative of awareness, such 322 
+
+as visual tracking, localization of noxious stimulation, or consistent response to 323 
+
+commands. Conversely, patients were categorized as UWS if they exhibited arousal 324 
+
+(eye-opening) without any indications of awareness, never displaying purposeful 325 
+
+voluntary movements. This study received approval from the french ethics committee 326 
+
+Comit´ e de Protection des Personnes ˆIle de France 1 (Paris, France) under the 327 
+
+designation ‘Recherche en soins courants’ (NEURODOC protocol, no. 2013-A01385-40). 328 
+
+Informed consent was obtained from the patients’ legal guardians, and adhered to the 329 
+
+principles of the Declaration of Helsinki and French regulations. 330 
+
+## BOLD time series extraction 331 
+
+MRI images were acquired with two different acquisition protocols. In the first protocol, 332 
+
+MRI data of 26 patients and 13 healthy controls were acquired on a 3T General Electric 333 
+
+Signa System. T2*-weighted whole brain resting state images were acquired with a 334 
+
+gradient-echo EPI sequence using axial orientation (200 volumes, 48 slices, slice 335 
+
+thickness: 3mm, TR/TE: 2400ms/30ms, voxel size: 3.4375 ×3.4375 ×3.4375mm, flip 336 
+
+angle: 90 °, FOV: 220 mm2). An anatomical volume was also acquired using a 337 
+
+T1-weighted MPRAGE sequence in the same acquisition session (154 slices, slice 338 
+
+thickness: 1.2mm, TR/TE: 7.112ms/3.084ms, voxel size: 1 ×1×1mm, flip angle: 15 °). 339 
+
+In the second protocol, MRI data of 51 patients were acquired on a 3T Siemens 340 
+
+Skyra System. T2*-weighted whole brain resting state images were recorded with a 341 
+
+gradient-echo EPI sequence using axial orientation (180 volumes, 62 slices, slice 342 
+
+thickness: 2.5mm, TR/TE: 2000ms/30ms, voxel size: 2 ×2×2mm, flip angle: 90 °, FOV: 343 
+
+240mm2, multiband factor: 2). An anatomical volume was acquired in the same session 344 
+
+using a T1-weighted MPRAGE sequence (208 slices, slice thickness: 1.2mm, TR/TE: 345 
+
+1800 ms/2.35ms, voxel size: 0.85 ×0.85 ×0.85mm, flip angle: 8 °). 346 
+
+All registering sessions lasted between 7 and 8 minutes (190-200 timepoints), and 347 
+
+empirical and simulated BOLD signals were filtered in the band [0 .01 − 0.1] Hz before 348 
+
+subsequent analyses, using a 2nd order bessel filter from the scipy library in python. 349 
+
+June 25, 2026 13/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+## Dynamic FC calculation 350 
+
+We applied phase-based estimation of time-resolved Functional Connectivity. For each 351 
+
+registering session, we use the Hilbert Transform to get the analytical expression of our 352 
+
+signals in the complex plane, whose angle we extract to obtain the instantaneous phase 353 
+
+of all areas’ BOLD signals {ϕi(t) ∈ [−π, π ], i = 1 , 2, ..., 90 }, and measure the phase 354 
+
+coherence matrix at time t between areas i and j as 355 
+
+dF C (t)ij = cos( ϕi(t) − ϕj (t)) which is equal to 1 when the two areas are in the same phase, zero when they are 356 
+
+orthogonal (difference of π/ 2), and -1 if they are in antiphase (difference of π). Given 357 
+
+that cos is a pair function, these matrices are symmetric, so we take the lower triangular 358 
+
+entries (4005 in total) to perform our analyses. 359 
+
+## Clustering algorithm on dFC matrices 360 
+
+A K-means algorithm was applied on the concatenated lower triangulars of all 361 
+
+individuals, using the scikit-learn native implementation of the algorithm. The number 362 
+
+of clusters (K=4) was chosen such that the variability between the inter-cluster 363 
+
+correlations is maximized, subject that the occupancy of each cluster was greater than 364 
+
+zero by all three states. 365 
+
+## Jump length calculation 366 
+
+Given the flattened lower triangular part of the dFC stream matrices, we calculated the 367 
+
+jump length at time t as the euclidean distance between matrices corresponding to 368 
+
+consecutive time points JL (ti) = euc( dF C (ti) − dF C (ti−1)). 369 
+
+## Dynamic Mean Field model (fastDMF implementation) 370 
+
+The Dynamic Mean Field model (DMF) of brain activity [37] is a group of stochastic 371 
+
+differential equations that model the dynamics of the interactions between different 372 
+
+brain areas. We use the FastDMF implementation in C with a python API, with default 373 
+
+parameters [25]. The equations that define the excitatory ( E) and inhibitory ( I) 374 
+
+June 25, 2026 14/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+dynamics of each node n ∈ { 1, 2, ..., 90 } are: 375 
+
+I(E) 
+
+> n
+
+= WE I0 + w+JN M DA S(E) 
+
+> n
+
++ GJN M DA NX
+
+> p
+
+Mnp S(E) 
+
+> p
+
+− JF IC n S(I) 
+
+> n
+
+, (1) 
+
+I(I) 
+
+> n
+
+= WI I0 + JN M DA S(E) 
+
+> n
+
+− S(I) 
+
+> n
+
+, (2) 
+
+r(E) 
+
+> n
+
+= FE (I(E) 
+
+> n
+
+) = gE (I(E) 
+
+> n
+
+− I(E) 
+
+> thr
+
+)1 − exp( −dE gE (I(E) 
+
+> n
+
+− I(E) 
+
+> thr
+
+)) , (3) 
+
+r(I) 
+
+> n
+
+= FI (I(I) 
+
+> n
+
+) = gI (I(I) 
+
+> n
+
+− I(I) 
+
+> thr
+
+)1 − exp( −dI gI (I(I) 
+
+> n
+
+− I(I) 
+
+> thr
+
+)) , (4) dS(E) 
+
+> n
+
+(t)dt = − S(E)
+
+> n
+
+τN M DA 
+
++ (1 − S(E) 
+
+> n
+
+)γr (E) 
+
+> n
+
++ ση n(t), (5) dS(I) 
+
+> n
+
+(t)dt = − S(I)
+
+> n
+
+τGABA 
+
++ r(I) 
+
+> n
+
++ ση n(t), (6) where I(E),(I) 
+
+> n
+
+is total input current, r(E),(I) 
+
+> n
+
+is firing rate, and S(E),(I) 
+
+> n
+
+is the 376 
+
+synaptic gating variable of the ( E) and ( I) populations. FE (·), F I (·) are transfer 377 
+
+functions that define the relationship between input current and output firing rate of 378 
+
+the ( E) and ( I) populations. As is custom in brain modeling, brain areas are connected 379 
+
+through their excitatory activities, according to a weighted undirected SC matrix M , 380 
+
+whose influence is proportional to the coupling parameter G. 381 
+
+JF IC n is the local Feedback Inhibition Control (FIC) parameter, that was shown to 382 
+
+optimally follow a linear dependency with node strength [25]: 383 
+
+JF IC n = αGβ n + c,
+
+where βn = P 
+
+> p
+
+Mnp is the node strength of the n−th area. In our work, the 384 
+
+intercept is subdivided in a baseline and a change parameter c = c + C, with c = 1 and 385 
+
+a C parameter that we change to modulate the local E/I balance. All other parameters 386 
+
+are set as in [25]. 387 
+
+## Balloon-Windkessel Hemodynamic model of BOLD response 388 
+
+BOLD signals are obtained with an online-calculation (on the run) of the 389 
+
+Balloon-Windkessel model [38] [39]. In this model, an increase in excitatory activity 390 
+
+June 25, 2026 15/28 
+
+.CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint induces an exponentially decaying vasodilatory response sn, which in turn triggers and 391 
+
+is affected by blood inflow fn and changes in blood volume vn and deoxyhemoglobin 392 
+
+content qn, following: 393 
+
+dsn
+
+dt = 0 .5r(E) 
+
+> n
+
++ 3 − κs n − γBW (fn − 1) , (7) dfn
+
+dt = sn, (8) 
+
+τBW 
+
+dqn
+
+dt = fn(1 − ρ)1/f n
+
+ρ − qnv1/α BW 
+
+> n
+
+vn
+
+, (9) 
+
+Bn = V0[k1(1 − qn) + k2(1 − qn
+
+vn
+
+) + k3(1 − vn)] , (10) where Bn is the simulated BOLD signal, ρ is the resting oxygen extraction ratio, αBW 394 
+
+accounts for mechanical resistance of veins, τBW is a time constant, and k1, k 2 and k3 395 
+
+are coefficients estimated from data. All biophysical parameters are the same as in [39]. 396 
+
+The model sampling rate was set as T R = 2 .4, and simulations had a duration of 9 397 
+
+minutes, from which a transient of 1 minute was discarded from the beginning, in order 398 
+
+to work with steady-state dynamics. Filtering was the same as in empirical data. 399 
+
+## Goodness of fit 400 
+
+For comparing empirical and simulated jump distributions, we used the Kolmogorov- 401 
+
+Smirnov distance, that we calculate in python using scipy.stats.kstest. This is equal to 402 
+
+the greatest absolute gap between two random vectors’ CDFs. 403 
+
+Occupancies can be seen as discrete probability distributions, while jump 404 
+
+distributions are continuous, so we follow two different approaches for comparing 405 
+
+between simulated and empirical occupancies. 406 
+
+To assess the similarity between empirical and simulated occupations of clusters, we 407 
+
+apply the Kullback-Leibler (KL) divergence (equivalent to relative entropy, and 408 
+
+calculated in python using scipy.special.rel entr). Occupancies are defined as the count 409 
+
+of fMRI volumes in each cluster (6 values) divided by the total number of volumes, so 410 
+
+that they sum up to 1. For obtaining a symmetrical measure, we took the final 411 
+
+similarity between probability vectors {P1, P 2} as: 412 
+
+June 25, 2026 16/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+SIM (P1, P 2) = (KL( P1, P 2) + KL( P2, P 1)) 2 .
+
+## Effect size estimation 413 
+
+To quantify the magnitude of difference between low- and high-integration node groups 414 
+
+(e.g., Fig 5, Fig 6), we used Cohen’s d, computed as: 415 
+
+D = x1 − x2
+
+spooled 
+
+, spooled =
+
+s
+
+(n1 − 1) s21 + ( n2 − 1) s22
+
+n1 + n2 − 2where x1, x 2 and s1, s 2 are the means and standard deviations of the two groups to 416 
+
+compare, and n1, n 2 their respective sample sizes. Significance of the difference between 417 
+
+groups was assessed using two-sided T-tests, with multiple-comparison correction 418 
+
+applied via the Benjamini-Hochberg procedure where relevant. 419 
+
+## Integration and Segregation using Hierarchical Modular Analysis 420 
+
+To identify functional modules in the SC matrix, and quantify their integration and 421 
+
+segregation components, we used the Hierarchical Modular Analysis (HMA) 422 
+
+method [19] [20]. The method applies an SVD decomposition of the SC matrix to find 423 
+
+its eigenvectors and eigenvalues (sorted by eigenvalue magnitude, from largest to 424 
+
+smallest). The regions whose corresponding entries in a given eigenvector have the same 425 
+
+signs are assumed to have joint activity (cooperation) and put in the same module, one 426 
+
+for positive and one for negative values. Given that all entries of the SC matrix are 427 
+
+positive, the first functional level (largest eigenvalue) consists of a sole one module that 428 
+
+encompasses all brain areas, the second level can divide the brain in two modules 429 
+
+according to the signs of the entries of the second eigenvector, the third can divide each 430 
+
+of these in two more modules, and so on. During this partition process, we save the 431 
+
+number of modules in each level Mi, and the size of each module mj . 432 
+
+The single large module on the first level with the largest eigenvalue Λ 1 corresponds 433 
+
+to global network integration. The second level defines two modules that support local 434 
+
+integration within each one and segregation between them, which are weighted by a 435 
+
+lower eigenvalue. In subsequent levels, more modules reflect deeper levels of segregation, 436 
+
+accompanied by smaller eigenvalues Λ. The weighted module number in each level can 437 
+
+June 25, 2026 17/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+be defined to reflect the hierarchical segregated and integrated interactions: 438 
+
+Hi = Λ 2 
+
+> i
+
+Mi(1 − pi)/N, 
+
+where pi =   
+
+> P
+> j|mj−N/M i|
+> N
+
+is a correction factor that takes into account heterogeneous 439 
+
+modular sizes. 440 
+
+After this, the global integration component is taken from the first level 441 
+
+Hin = H1/N , and the segregation component is obtained as a sum from the 2nd to the 442 
+
+N th level, as Hse = PNi=2 Hi/N . Finally, the local component of segregation Hj 
+
+> se
+
+and 443 
+
+integration Hj 
+
+> in
+
+for each brain area j can be obtained by weighting the integration 444 
+
+components for the corresponding entries of the eigenvectors, as: 445 
+
+Hjin = H1u21j
+
+Hjse =
+
+> N
+
+X
+
+> i=2
+
+Hiu2 
+
+> ij
+
+,
+
+where uij is the j−th eigenvector entry at the i−th level. More details and previous 446 
+
+applications of these measures can be found in [19] [20]. 447 
+
+June 25, 2026 18/28 
+
+.CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint Fig 1. Data analysis pipeline and experimental design. A) Data can either be empirical fMRI or simulated BOLD signals generated using the fastDMF model, from which we estimate instantaneous phase coherence matrices (dFC stream), and calculate jump lengths (euclidean distance between consecutive dFC matrices) and occupations (proportion of fMRI volumes assigned to each cluster). B) Hierarchical Modular Decomposition of the Structural Connectivity matrix. After sorting eigenvalues by magnitude, nodes are assigned to modules in nested hierarchical levels, according to the sign of their respective entries in the eigenvectors. Integration comes from the strength of the first level (the fully integrated level), and segregation is the number of modules that deeper and deeper levels define. These measures can be projected onto individual nodes for obtaining a local value (see Methods). Given the clear bimodal distribution of integration values, we set an arbitrary threshold of integration at 0 .4 and found that high integration nodes (higher than the threshold) comprise Posterior Cingulum, Precuneus, Cuneus, Superior Occipital cortex, and Calcarine gyrus (all bilateral). June 25, 2026 19/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+Fig 2. Jump length distribution of empirical dFC streams. A) Per-state pooled and individual jump distributions, with a weibull distribution fit on top. B) Each individual’s empirical and weibull fit statistics and comparisons between states. 
+
+Fig 3. K-means clustering centroids and occupations. A) Centroids found by the algorithm, sorted by their FC-SC correlation. Areas are grouped by RSN. B) Transition Matrix of the cluster occupation (considering the concatenated dFC stream of all individuals). C) Average occupation of clusters when pooling CNT, MCS and UWS individuals. D) Occupation of clusters for all individuals. E) Structural Connectivity matrix. June 25, 2026 20/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+Fig 4. Model fitting to empirical dynamic functional connectivity via jump-length and cluster-occupancy distributions. A) Top: Kolmogorov-Smirnov (KS) distance between simulated and empirical jump-length distributions as a function of global coupling G,computed separately for each group (CNT, MCS, UWS). Dashed vertical lines mark the optimal coupling value G that minimizes the KS distance for each group. Bottom: histograms comparing the jump-length distributions generated by the model at its optimal G (darker bars) against the empirical jump-length distributions (lighter bars), for CNT (blue), MCS (orange), and UWS (green). B) Top: Kullback-Leibler (KL) divergence between simulated and empirical discrete cluster-occupancy distributions as a function of G, for each group. Dashed vertical lines indicate the optimal G minimizing the KL divergence. Bottom: bar plots comparing model-optimal (darker) versus empirical (lighter) occupancy fractions across the four FC states ( c1 − c4), for each group. June 25, 2026 21/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+Fig 5. In-silico effect of a virtual lesion in the structural matrix. Starting from the model fit at the CNT-optimal coupling G, each node was individually disconnected, the model was re-simulated, and the resulting KS-distance to jumps and KL-divergence to occupancies were recalculated, for each group (CNT, MCS, UWS) separately. A) Left two columns: KS-distance after node exclusion as a function of the excluded node’s integration. Each marker corresponds to one excluded node (gray = low integration node, colored × = high integration node). Pearson’s r quantifies the relationship between node integration and the resulting distance. The red dashed line indicates the baseline distance with no nodes excluded. Adjacent box plots compare the distance distributions for low- vs. high-integration node exclusions; D indicates the effect size. Right two columns: same analysis using KL-divergence to occupancies as the outcome metric. B) Cortical surface maps showing, for each excluded node, the resulting distance value (KS-dist to jumps, left; KL-div to occupancies, right) for each group (CNT, MCS, UWS), highlighting the spatial distribution of nodes whose disconnection most strongly disrupts model fit. June 25, 2026 22/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+Fig 6. Effect of stimulating areas (increasing or decreasing the inhibitory feedback tone) from optimal UWS jumps and occupations G parameters. Lower intercept JFIC (C) is higher excitability. Starting from the model fit to UWS at its optimal coupling, the excitability of each node was individually swept via its feedback-inhibition-control intercept (JFIC; lower values correspond to higher excitability), and at each value the distance between the modulated model and the empirical CNT data was recalculated. 
+
+A) Left pair: KS-distance to empirical CNT jump-length distributions as a function of JFIC intercept, with one line per node (blue = high node-integration nodes, gray = low node-integration nodes). The dashed vertical line marks a representative JFIC value (C = -1.0) chosen near where the per-node optima cluster; the adjacent box plot shows the distribution of KS-distances at this slice, split into low- vs. high-integration nodes (effect size D as before). Right pair: same analysis for KL-divergence to empirical CNT cluster occupancies, with the representative slice at C = -0.7. B) Same slice as in A), per-node distance plotted against normalized node integration (top) and node strength (bottom), with cortical maps of distance values (right). Node integration, but not strength, separates low- and high-impact nodes. Cortical surface maps (right) show the spatial distribution of per-node distance values for the KS-distance (jumps) and KL-divergence (occupancies) metrics. June 25, 2026 23/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+# References 448 
+
+1. Bodien YG, Chatelle C, Edlow BL. Functional networks in disorders of 449 
+
+consciousness. In: Seminars in neurology. vol. 37. Thieme Medical Publishers; 450 
+
+2017. p. 485–502. 451 
+
+2. Giacino JT, Kalmar K, Whyte J. The JFK Coma Recovery Scale-Revised: 452 
+
+measurement characteristics and diagnostic utility. Archives of physical medicine 453 
+
+and rehabilitation. 2004;85(12):2020–2029. 454 
+
+3. Giacino JT, Schnakers C, Rodriguez-Moreno D, Kalmar K, Schiff N, Hirsch J. 455 
+
+Behavioral assessment in patients with disorders of consciousness: gold standard 456 
+
+or fool’s gold? Progress in brain research. 2009;177:33–48. 457 
+
+4. Demertzi A, Tagliazucchi E, Dehaene S, Deco G, Barttfeld P, Raimondo F, et al. 458 
+
+Human consciousness is supported by dynamic complex patterns of brain signal 459 
+
+coordination. Science advances. 2019;5(2):eaat7603. 460 
+
+5. Laureys S. The neural correlate of (un) awareness: lessons from the vegetative 461 
+
+state. Trends in cognitive sciences. 2005;9(12):556–559. 462 
+
+6. Cauda F, Micon B, Sacco K, Duca S, D’Agata F, Geminiani G, et al. Disrupted 463 
+
+intrinsic functional connectivity in the vegetative state. Journal of Neurology, 464 
+
+Neurosurgery & Psychiatry. 2009;80(4):429–431. 465 
+
+7. Beckmann CF, DeLuca M, Devlin JT, Smith SM. Investigations into resting-state 466 
+
+connectivity using independent component analysis. Philosophical Transactions 467 
+
+of the Royal Society B: Biological Sciences. 2005;360(1457):1001–1013. 468 
+
+8. Buckner RL, DiNicola LM. The brain’s default network: updated anatomy, 469 
+
+physiology and evolving insights. Nature reviews neuroscience. 470 
+
+2019;20(10):593–608. 471 
+
+9. Gattuso JJ, Perkins D, Ruffell S, Lawrence AJ, Hoyer D, Jacobson LH, et al. 472 
+
+Default mode network modulation by psychedelics: a systematic review. 473 
+
+International Journal of Neuropsychopharmacology. 2023;26(3):155–188. 474 
+
+June 25, 2026 24/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+10. Seth AK, Bayne T. Theories of consciousness. Nature reviews neuroscience. 475 
+
+2022;23(7):439–452. 476 
+
+11. Altmayer V, Sangare A, Calligaris C, Puybasset L, Perlbarg V, Naccache L, et al. 477 
+
+Functional and structural brain connectivity in disorders of consciousness. Brain 478 
+
+Structure and Function. 2024;229(9):2285–2298. 479 
+
+12. Wu H, Qi Z, Wu X, Zhang J, Wu C, Huang Z, et al. Anterior precuneus related 480 
+
+to the recovery of consciousness. NeuroImage: Clinical. 2022;33:102951. 481 
+
+13. Deco G, Cruzat J, Cabral J, Tagliazucchi E, Laufs H, Logothetis NK, et al. 482 
+
+Awakening: Predicting external stimulation to force transitions between different 483 
+
+brain states. Proceedings of the National Academy of Sciences. 484 
+
+2019;116(36):18088–18097. 485 
+
+14. Coronel-Oliveros C, Castro S, Cofr´ e R, Orio P. Structural features of the human 486 
+
+connectome that facilitate the switching of brain dynamics via noradrenergic 487 
+
+neuromodulation. Frontiers in Computational Neuroscience. 2021; p. 61. 488 
+
+15. Hagmann P, Cammoun L, Gigandet X, Meuli R, Honey CJ, Wedeen VJ, et al. 489 
+
+Mapping the structural core of human cerebral cortex. PLoS biology. 490 
+
+2008;6(7):e159. 491 
+
+16. Escrichs A, Perl YS, Uribe C, Camara E, T¨ urker B, Pyatigorskaya N, et al. 492 
+
+Unifying turbulent dynamics framework distinguishes different brain states. 493 
+
+Communications Biology. 2022;5(1):638. 494 
+
+17. Mindlin I, Herzog R, Belloli L, Manasova D, Monge-Asensio M, Vohryzek J, et al. 495 
+
+Whole brain modelling for simulating pharmacological interventions on patients 496 
+
+with disorders of consciousness. Communications Biology. 2024;7(1):1176. 497 
+
+18. Luppi AI, Mediano PA, Rosas FE, Allanson J, Pickard JD, Williams GB, et al. 498 
+
+Reduced emergent character of neural dynamics in patients with a disrupted 499 
+
+connectome. NeuroImage. 2023;269:119926. 500 
+
+19. Wang R, Lin P, Liu M, Wu Y, Zhou T, Zhou C. Hierarchical connectome modes 501 
+
+and critical state jointly maximize human brain functional diversity. Physical 502 
+
+review letters. 2019;123(3):038301. 503 
+
+June 25, 2026 25/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+20. Wang R, Liu M, Cheng X, Wu Y, Hildebrandt A, Zhou C. Segregation, 504 
+
+integration, and balance of large-scale resting brain networks configure different 505 
+
+cognitive abilities. Proceedings of the National Academy of Sciences. 506 
+
+2021;118(23):e2022288118. 507 
+
+21. Cabral J, Vidaurre D, Marques P, Magalh˜ aes R, Silva Moreira P, Miguel Soares J, 508 
+
+et al. Cognitive performance in healthy older adults relates to spontaneous 509 
+
+switching between states of functional connectivity during rest. Scientific reports. 510 
+
+2017;7(1):5135. 511 
+
+22. Mortaheb S, Van Calster L, Raimondo F, Klados MA, Boulakis PA, Georgoula K, 512 
+
+et al. Mind blanking is a distinct mental state linked to a recurrent brain profile 513 
+
+of globally positive connectivity during ongoing mentation. Proceedings of the 514 
+
+National Academy of Sciences. 2022;119(41):e2200511119. 515 
+
+23. T¨ urker B, Belloli L, Owen AM, Naci L, Sitt JD. Processing of the same narrative 516 
+
+stimuli elicits common functional connectivity dynamics between individuals. 517 
+
+Scientific Reports. 2023;13(1):21260. 518 
+
+24. Hoffner G, Castro P, Uhrig L, Signorelli CM, Dupont M, Tasserie J, et al. 519 
+
+Transcranial direct current stimulation modulates primate brain dynamics across 520 
+
+states of consciousness. eLife. 2025;13:RP101688. doi:10.7554/eLife.101688. 521 
+
+25. Herzog R, Mediano PA, Rosas FE, Luppi AI, Sanz-Perl Y, Tagliazucchi E, et al. 522 
+
+Neural mass modeling for the masses: Democratizing access to whole-brain 523 
+
+biophysical modeling with FastDMF. Network Neuroscience. 2024;8(4):1590–1612. 524 
+
+26. Kim DJ, Min BK. Rich-club in the brain’s macrostructure: Insights from graph 525 
+
+theoretical analysis. Computational and Structural Biotechnology Journal. 526 
+
+2020;18:1761–1773. 527 
+
+27. Dadario NB, Sughrue ME. The functional role of the precuneus. Brain. 528 
+
+2023;146(9):3598–3607. 529 
+
+28. Hannawi Y, Lindquist MA, Caffo BS, Sair HI, Stevens RD. Resting brain activity 530 
+
+in disorders of consciousness: a systematic review and meta-analysis. Neurology. 531 
+
+2015;84(12):1272–1280. 532 
+
+June 25, 2026 26/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+29. Su´ arez LE, Markello RD, Betzel RF, Misic B. Linking structure and function in 533 
+
+macroscale brain networks. Trends in cognitive sciences. 2020;24(4):302–315. 534 
+
+30. Fan J, Zhong Y, Wang H, Aierken N, He R. Repetitive transcranial magnetic 535 
+
+stimulation improves consciousness in some patients with disorders of 536 
+
+consciousness. Clinical Rehabilitation. 2022;36(7):916–925. 537 
+
+31. Xu C, Wu W, Zheng X, Liang Q, Huang X, Zhong H, et al. Repetitive 538 
+
+transcranial magnetic stimulation over the posterior parietal cortex improves 539 
+
+functional recovery in nonresponsive patients: A crossover, randomized, 540 
+
+double-blind, sham-controlled study. Frontiers in Neurology. 2023;14:1059789. 541 
+
+32. Legostaeva L, Poydasheva A, Iazeva E, Sinitsyn D, Sergeev D, Bakulin I, et al. 542 
+
+Stimulation of the angular gyrus improves the level of consciousness. Brain 543 
+
+sciences. 2019;9(5):103. 544 
+
+33. Sala A, Annen J, Thibaut A, Laureys S. Disturbance of brain glucose metabolism 545 
+
+in disorders of consciousness: a meta-analysis; 2021. 546 
+
+34. Rosanova M, Fecchio M, Casarotto S, Sarasso S, Casali A, Pigorini A, et al. 547 
+
+Sleep-like cortical OFF-periods disrupt causality and complexity in the brain of 548 
+
+unresponsive wakefulness syndrome patients. Nature communications. 549 
+
+2018;9(1):4427. 550 
+
+35. Sherman SM, Guillery R. The role of the thalamus in the flow of information to 551 
+
+the cortex. Philosophical Transactions of the Royal Society of London Series B: 552 
+
+Biological Sciences. 2002;357(1428):1695–1708. 553 
+
+36. L´ opez-Gonz´ alez A, Panda R, Ponce-Alvarez A, Zamora-L´ opez G, Escrichs A, 554 
+
+Martial C, et al. Loss of consciousness reduces the stability of brain hubs and the 555 
+
+heterogeneity of brain dynamics. Communications biology. 2021;4(1):1037. 556 
+
+37. Deco G, Cruzat J, Cabral J, Knudsen GM, Carhart-Harris RL, Whybrow PC, 557 
+
+et al. Whole-brain multimodal neuroimaging model using serotonin receptor 558 
+
+maps explains non-linear functional effects of LSD. Current biology. 559 
+
+2018;28(19):3065–3074. 560 
+
+June 25, 2026 27/28 
+
+> .CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
+
+38. Buxton RB, Wong EC, Frank LR. Dynamics of blood flow and oxygenation 561 
+
+changes during brain activation: the balloon model. Magnetic resonance in 562 
+
+medicine. 1998;39(6):855–864. 563 
+
+39. Stephan KE, Weiskopf N, Drysdale PM, Robinson PA, Friston KJ. Comparing 564 
+
+hemodynamic models with DCM. Neuroimage. 2007;38(3):387–401. 565 
+
+June 25, 2026 28/28 
+
+.CC-BY 4.0 International license available under a was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made The copyright holder for this preprint (which this version posted July 1, 2026. ;https://doi.org/10.64898/2026.06.26.734644 doi: bioRxiv preprint
