@@ -6,80 +6,68 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-07
-- 运行时间：2026-07-07 21:14:12 UTC
+- 最新运行日期：2026-07-08
+- 运行时间：2026-07-08 21:34:46 UTC
 - 运行状态：成功
-- 本次总论文数：20
-- 精读区：8
+- 本次总论文数：16
+- 精读区：4
 - 速读区：12
 
 ### 今日简报（AI）
-今日推荐20篇论文，精选8篇精读，其中混合双向扩散语言模型与无限上下文建模两项研究均获9.0高分，处于绝对领先位置。核心价值在于：混合扩散模型通过部分双向性提升生成质量，层次稀疏注意力则突破长文本处理瓶颈；意识障碍动态建模与神经元自监督表示学习也值得关注。建议优先阅读精读列表的两篇满分论文，把握当下NLP最前沿的技术方向。
-- 详情：[/202607/07/README](/202607/07/README)
+今日精读16篇，聚焦稀疏分布式记忆编码与海马CA1空间地图机制两篇高分研究。值得关注Rank-Order N-of-M编码对噪声鲁棒性的解析，以及直接内嗅皮层输入对CA1空间地图形成的必要性。建议优先精读这两篇9.0分论文，并对比速读中缓存策略与主动记忆导航的关联。
+- 详情：[/202607/08/README](/202607/08/README)
 
 ### 精读区论文标签
-1. [Training Hybrid Block Diffusion Language Models with Partial Bidirectionality](/202607/07/2607.02805v1-training-hybrid-block-diffusion-language-models-with-partial-bidirectionality)  
+1. [Rank-Order N-of-M Codes for Sparse Distributed Memory: Disentangling Representation and Learning Effects in Noise Robustness Against Contemporary Neuromorphic Architectures](/202607/08/2607.02967v2-rank-order-n-of-m-codes-for-sparse-distributed-memory-disentangling-representation-and-learning-effects-in-noise-robustness-against-contemporary-neuromorphic-architectures)  
    标签：评分：9.0/10、query:la
-   evidence：结合高效注意力和Mamba等线性时间混合器的混合块扩散模型
-2. [Hierarchical Sparse Attention Done Right: Toward Infinite Context Modeling](/202607/07/2607.02980v1-hierarchical-sparse-attention-done-right-toward-infinite-context-modeling)  
-   标签：评分：9.0/10、query:la
-   evidence：提出分层稀疏注意力机制用于高效长上下文建模
-3. [SHiPPO: Recurrent Memory with Transported Polynomial Projections](/202607/07/2607.03055v1-shippo-recurrent-memory-with-transported-polynomial-projections)  
-   标签：评分：9.0/10、query:la
-   evidence：SHiPPO: 带传输多项式投影的递归记忆，现代RNN架构
-4. [ELiTeFormer: An Efficient Transformer for FPGAs](/202607/07/2607.03652v1-eliteformer-an-efficient-transformer-for-fpgas)  
-   标签：评分：9.0/10、query:la
-   evidence：混合线性注意力与三元投影结合用于高效序列处理
-5. [Sequential Correlations Change In-Context Learning: Effective Context Length and Architectural Mismatch](/202607/07/2607.03660v1-sequential-correlations-change-in-context-learning-effective-context-length-and-architectural-mismatch)  
-   标签：评分：9.0/10、query:la
-   evidence：基于线性注意力处理相关数据中上下文学习的可解模型
-6. [Topographic CA1 input shapes subicular spatial coding](/202607/07/biorxiv-10-64898-2026-03-24-714092-v2-topographic-ca1-input-shapes-subicular-spatial-coding)  
+   evidence：使用排序编码的稀疏分布式存储器用于联想记忆
+2. [The emergence of a novel CA1 spatial map requires direct entorhinal input](/202607/08/biorxiv-10-64898-2026-07-02-736055-v1-the-emergence-of-a-novel-ca1-spatial-map-requires-direct-entorhinal-input)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：CA1拓扑输入塑造下托空间编码
-7. [The medial entorhinal spatial map is built on excitatory-inhibitory network motifs defined by their functional cell type and theta modulation](/202607/07/biorxiv-10-64898-2026-07-02-735850-v1-the-medial-entorhinal-spatial-map-is-built-on-excitatory-inhibitory-network-motifs-defined-by-their-functional-cell-type-and-theta-modulation)  
+   evidence：海马CA1空间地图重映射需要内嗅皮层输入，海马表征计算
+3. [Selective convergence and graded divergence of hippocampal and amygdala subregions using functional connectivity](/202607/08/biorxiv-10-64898-2026-07-06-736898-v1-selective-convergence-and-graded-divergence-of-hippocampal-and-amygdala-subregions-using-functional-connectivity)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：内侧内嗅皮层空间地图及细胞类型特异性连接
-8. [Hippocampal engrams configure prefrontal context representations to guide flexible decisions](/202607/07/biorxiv-10-64898-2026-07-06-732916-v1-hippocampal-engrams-configure-prefrontal-context-representations-to-guide-flexible-decisions)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：海马印迹与前额叶表征
+   evidence：海马亚区功能连接图谱
+4. [Curiosity shapes brain-like architectures and functions](/202607/08/biorxiv-10-64898-2026-07-02-735826-v1-curiosity-shapes-brain-like-architectures-and-functions)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：通过好奇心驱动和生物约束的RNN学习模拟类脑架构涌现
 
 ### 速读区论文标签
-1. [Structural determinants of dynamical state transitions in disorders of consciousness: a whole-brain modeling approach](/202607/07/biorxiv-10-64898-2026-06-26-734644-v1-structural-determinants-of-dynamical-state-transitions-in-disorders-of-consciousness-a-whole-brain-modeling-approach)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：意识障碍中动态状态转变的全脑建模
-2. [Connectome-scale self-supervised representation learning reveals neuronal organization beyond canonical labels](/202607/07/biorxiv-10-64898-2026-06-30-735468-v1-connectome-scale-self-supervised-representation-learning-reveals-neuronal-organization-beyond-canonical-labels)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：自监督连接组表示学习揭示神经元组织
-3. [Presynaptic Terminals Dynamically Modulate Spontaneous Release Frequency During Early Synaptic Plasticity Through and Entropic Force Framework](/202607/07/biorxiv-10-64898-2026-07-03-736394-v1-presynaptic-terminals-dynamically-modulate-spontaneous-release-frequency-during-early-synaptic-plasticity-through-and-entropic-force-framework)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：海马培养中的突触可塑性和熵力框架
-4. [Synaptic Organization of Surface AMPARs Changes by Brain Region and Tauopathy](/202607/07/biorxiv-10-1101-2024-07-22-604547-v3-synaptic-organization-of-surface-ampars-changes-by-brain-region-and-tauopathy)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：AMPAR组织与突触可塑性
-5. [A unified theory of context-conditioned efficient and predictive coding](/202607/07/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：上下文条件的高效与预测编码统一理论
-6. [A neural network model of free recall learns multiple memory strategies](/202607/07/biorxiv-10-1101-2025-09-25-678592-v2-a-neural-network-model-of-free-recall-learns-multiple-memory-strategies)  
+1. [When Classic Cache Policies Fail: Learning-Augmented Replacement for Semantic Retrieval Buffers](/202607/08/2607.00394v1-when-classic-cache-policies-fail-learning-augmented-replacement-for-semantic-retrieval-buffers)  
    标签：评分：7.0/10、query:la
-   evidence：自由回忆神经网络模型学习多种记忆策略
-7. [Distinct sensorimotor encoding in tuft dendrites and somata associated with action, correction, and learning](/202607/07/biorxiv-10-64898-2026-05-06-722323-v2-distinct-sensorimotor-encoding-in-tuft-dendrites-and-somata-associated-with-action-correction-and-learning)  
+   evidence：LLM代理中语义检索缓冲区的学习增强缓存替换
+2. [Rank-Order N-of-M Codes for Sparse Distributed Memory: Disentangling Representation and Learning Effects in Noise Robustness Against Contemporary Neuromorphic Architectures](/202607/08/2607.02967v1-rank-order-n-of-m-codes-for-sparse-distributed-memory-disentangling-representation-and-learning-effects-in-noise-robustness-against-contemporary-neuromorphic-architectures)  
+   标签：评分：7.0/10、query:la
+   evidence：评估稀疏分布式记忆编码方案，一种经典关联记忆模型
+3. [From Passive Retrieval to Active Memory Navigation: Learning to Use Memory as a Structured Action Space](/202607/08/2607.05794v1-from-passive-retrieval-to-active-memory-navigation-learning-to-use-memory-as-a-structured-action-space)  
+   标签：评分：7.0/10、query:la
+   evidence：将记忆作为结构化的动作空间用于对话代理，与记忆增强神经网络相关
+4. [DepthWeave-KV: Token-Adaptive Cross-Layer Residual Factorization for Long-Context KV Cache Compression](/202607/08/2607.06523v1-depthweave-kv-token-adaptive-cross-layer-residual-factorization-for-long-context-kv-cache-compression)  
+   标签：评分：7.0/10、query:la
+   evidence：令牌自适应的键值缓存压缩以提升注意推理效率
+5. [Graph Convolutional Attention: A Spectral Perspective on Graph Denoising and Diffusion](/202607/08/2607.06546v1-graph-convolutional-attention-a-spectral-perspective-on-graph-denoising-and-diffusion)  
+   标签：评分：7.0/10、query:la
+   evidence：分析线性注意力在图去噪中的局限性
+6. [Changes in perceptual sampling contribute to representational drift](/202607/08/biorxiv-10-64898-2026-06-24-734121-v1-changes-in-perceptual-sampling-contribute-to-representational-drift)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：额叶皮层树突和胞体在动作和学习中的感觉运动编码
-8. [Repetition Dissociates Pointer and Content-based Representations in Visual Working Memory: Contrasting the CDA with Multivariate Shape Decoding](/202607/07/biorxiv-10-64898-2026-06-28-735064-v1-repetition-dissociates-pointer-and-content-based-representations-in-visual-working-memory-contrasting-the-cda-with-multivariate-shape-decoding)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：重复分离视觉工作记忆中的指针和内容表征
-9. [Approximate Attention Weighting for Sustainable FPGA-Based Vision Transformer Inference](/202607/07/2607.01798v2-approximate-attention-weighting-for-sustainable-fpga-based-vision-transformer-inference)  
+   evidence：表征漂移归因于突触可塑性和注意力变化
+7. [S-EMBER: A Large-Scale Benchmark for Streaming Egocentric Memory Retrieval](/202607/08/2607.02689v1-s-ember-a-large-scale-benchmark-for-streaming-egocentric-memory-retrieval)  
    标签：评分：6.0/10、query:la
-   evidence：用于高效FPGA推理的近似注意力
-10. [Latent Visual Cache for Video Reasoning](/202607/07/2607.02607v1-latent-visual-cache-for-video-reasoning)  
+   evidence：流式情景记忆检索基准
+8. [MemDefrag: Latent Memory Defragmentation for Large Language Models](/202607/08/2607.05969v1-memdefrag-latent-memory-defragmentation-for-large-language-models)  
    标签：评分：6.0/10、query:la
-   evidence：用于记忆检索的视觉缓存
-11. [Induction Heads Interpolate N-Grams](/202607/07/2607.02800v1-induction-heads-interpolate-n-grams)  
-   标签：评分：6.0/10、query:la
-   evidence：分析归纳头作为transformer中的联想记忆电路，揭示平滑机制
-12. [SAF3R: Dynamic Sparse Attention for Feed-Forward 3D Reconstruction Transformers](/202607/07/2607.03612v1-saf3r-dynamic-sparse-attention-for-feed-forward-3d-reconstruction-transformers)  
-   标签：评分：6.0/10、query:la
-   evidence：动态稀疏注意力用于高效3D重建Transformer
+   evidence：利用注意力密度的大型语言模型潜在内存碎片整理
+9. [A unified theory of context-conditioned efficient and predictive coding](/202607/08/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：计算神经科学中高效与预测编码的统一理论。
+10. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/08/biorxiv-10-64898-2026-06-10-731214-v10-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：计算神经科学中评估神经表征生物保真度的方法。
+11. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/08/biorxiv-10-64898-2026-06-10-731214-v8-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：表示几何作为生物保真度指标
+12. [Toward Optimizing Thalamic Deep Brain Stimulation for Cortical Modulation: A Surrogate Brain Approach](/202607/08/biorxiv-10-64898-2026-06-26-734900-v1-toward-optimizing-thalamic-deep-brain-stimulation-for-cortical-modulation-a-surrogate-brain-approach)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：使用替代脑方法优化丘脑深部脑刺激的计算框架，属于计算神经科学主题
 
 
 <div class="dpr-home-promo-card">
