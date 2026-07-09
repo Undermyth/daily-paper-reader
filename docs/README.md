@@ -6,68 +6,74 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-08
-- 运行时间：2026-07-08 21:34:46 UTC
+- 最新运行日期：2026-07-09
+- 运行时间：2026-07-09 22:12:18 UTC
 - 运行状态：成功
-- 本次总论文数：16
-- 精读区：4
+- 本次总论文数：18
+- 精读区：6
 - 速读区：12
 
 ### 今日简报（AI）
-今日精读16篇，聚焦稀疏分布式记忆编码与海马CA1空间地图机制两篇高分研究。值得关注Rank-Order N-of-M编码对噪声鲁棒性的解析，以及直接内嗅皮层输入对CA1空间地图形成的必要性。建议优先精读这两篇9.0分论文，并对比速读中缓存策略与主动记忆导航的关联。
-- 详情：[/202607/08/README](/202607/08/README)
+今日推荐18篇论文，重点精读两篇9.0高分作：《Sparse Delta Memory》通过稀疏性扩展线性RNN状态，《The Key to Going Linear》以分析驱动实现Transformer线性化。速读中，《Memory in the Loop》将检索作为语言智能体工作记忆，《TriRoute》统一学习路由以联合分配注意力、专家和KV缓存。建议优先阅读两篇精读论文，把握线性模型前沿动态。
+- 详情：[/202607/09/README](/202607/09/README)
 
 ### 精读区论文标签
-1. [Rank-Order N-of-M Codes for Sparse Distributed Memory: Disentangling Representation and Learning Effects in Noise Robustness Against Contemporary Neuromorphic Architectures](/202607/08/2607.02967v2-rank-order-n-of-m-codes-for-sparse-distributed-memory-disentangling-representation-and-learning-effects-in-noise-robustness-against-contemporary-neuromorphic-architectures)  
+1. [Sparse Delta Memory: Scaling the State of Linear RNNs through Sparsity](/202607/09/2607.07386v1-sparse-delta-memory-scaling-the-state-of-linear-rnns-through-sparsity)  
    标签：评分：9.0/10、query:la
-   evidence：使用排序编码的稀疏分布式存储器用于联想记忆
-2. [The emergence of a novel CA1 spatial map requires direct entorhinal input](/202607/08/biorxiv-10-64898-2026-07-02-736055-v1-the-emergence-of-a-novel-ca1-spatial-map-requires-direct-entorhinal-input)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：海马CA1空间地图重映射需要内嗅皮层输入，海马表征计算
-3. [Selective convergence and graded divergence of hippocampal and amygdala subregions using functional connectivity](/202607/08/biorxiv-10-64898-2026-07-06-736898-v1-selective-convergence-and-graded-divergence-of-hippocampal-and-amygdala-subregions-using-functional-connectivity)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：海马亚区功能连接图谱
-4. [Curiosity shapes brain-like architectures and functions](/202607/08/biorxiv-10-64898-2026-07-02-735826-v1-curiosity-shapes-brain-like-architectures-and-functions)  
+   evidence：通过稀疏记忆扩展线性RNN状态
+2. [The Key to Going Linear: Analysis-Driven Transformer Linearization](/202607/09/2607.07706v1-the-key-to-going-linear-analysis-driven-transformer-linearization)  
+   标签：评分：9.0/10、query:la
+   evidence：线性注意力Transformer线性化分析
+3. [Dual Latent Memory in Vision-Language-Action Models for Robotic Manipulation](/202607/09/2607.07608v1-dual-latent-memory-in-vision-language-action-models-for-robotic-manipulation)  
+   标签：评分：8.0/10、query:la
+   evidence：用于视觉-语言-动作模型的双重潜在记忆
+4. [NeuroVLM: A generative vision-language framework for human neuroimaging](/202607/09/biorxiv-10-64898-2026-02-06-704508-v3-neurovlm-a-generative-vision-language-framework-for-human-neuroimaging)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：通过好奇心驱动和生物约束的RNN学习模拟类脑架构涌现
+   evidence：计算神经科学，用于神经影像的视觉语言模型
+5. [Coordinated acetylcholine release and adaptation of neuronal representations in the retrosplenial cortex during contextual uncertainty](/202607/09/biorxiv-10-64898-2026-05-02-722331-v2-coordinated-acetylcholine-release-and-adaptation-of-neuronal-representations-in-the-retrosplenial-cortex-during-contextual-uncertainty)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：不确定条件下乙酰胆碱释放与神经元表征适应
+6. [Dissociation between impaired explicit spatial remapping and preserved implicit neural dynamics in Alzheimers disease](/202607/09/biorxiv-10-64898-2026-07-06-736718-v1-dissociation-between-impaired-explicit-spatial-remapping-and-preserved-implicit-neural-dynamics-in-alzheimers-disease)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：阿尔茨海默病中海马空间重映射与隐含神经动力学的分离
 
 ### 速读区论文标签
-1. [When Classic Cache Policies Fail: Learning-Augmented Replacement for Semantic Retrieval Buffers](/202607/08/2607.00394v1-when-classic-cache-policies-fail-learning-augmented-replacement-for-semantic-retrieval-buffers)  
+1. [Memory in the Loop: In-Process Retrieval as ExtendedWorking Memory for Language Agents](/202607/09/2607.05690v1-memory-in-the-loop-in-process-retrieval-as-extendedworking-memory-for-language-agents)  
    标签：评分：7.0/10、query:la
-   evidence：LLM代理中语义检索缓冲区的学习增强缓存替换
-2. [Rank-Order N-of-M Codes for Sparse Distributed Memory: Disentangling Representation and Learning Effects in Noise Robustness Against Contemporary Neuromorphic Architectures](/202607/08/2607.02967v1-rank-order-n-of-m-codes-for-sparse-distributed-memory-disentangling-representation-and-learning-effects-in-noise-robustness-against-contemporary-neuromorphic-architectures)  
+   evidence：进程内内存检索实现高效的类注意力内存访问
+2. [TriRoute: Unified Learned Routing for Joint Adaptive Attention, Experts, and KV-Cache Allocation](/202607/09/2607.06601v1-triroute-unified-learned-routing-for-joint-adaptive-attention-experts-and-kv-cache-allocation)  
    标签：评分：7.0/10、query:la
-   evidence：评估稀疏分布式记忆编码方案，一种经典关联记忆模型
-3. [From Passive Retrieval to Active Memory Navigation: Learning to Use Memory as a Structured Action Space](/202607/08/2607.05794v1-from-passive-retrieval-to-active-memory-navigation-learning-to-use-memory-as-a-structured-action-space)  
-   标签：评分：7.0/10、query:la
-   evidence：将记忆作为结构化的动作空间用于对话代理，与记忆增强神经网络相关
-4. [DepthWeave-KV: Token-Adaptive Cross-Layer Residual Factorization for Long-Context KV Cache Compression](/202607/08/2607.06523v1-depthweave-kv-token-adaptive-cross-layer-residual-factorization-for-long-context-kv-cache-compression)  
-   标签：评分：7.0/10、query:la
-   evidence：令牌自适应的键值缓存压缩以提升注意推理效率
-5. [Graph Convolutional Attention: A Spectral Perspective on Graph Denoising and Diffusion](/202607/08/2607.06546v1-graph-convolutional-attention-a-spectral-perspective-on-graph-denoising-and-diffusion)  
-   标签：评分：7.0/10、query:la
-   evidence：分析线性注意力在图去噪中的局限性
-6. [Changes in perceptual sampling contribute to representational drift](/202607/08/biorxiv-10-64898-2026-06-24-734121-v1-changes-in-perceptual-sampling-contribute-to-representational-drift)  
+   evidence：基于自适应路由的高效注意力机制
+3. [Distributed encoding of action-mediated outcome drives consistent population dynamics during goal-directed reaching](/202607/09/biorxiv-10-1101-2024-11-04-621878-v2-distributed-encoding-of-action-mediated-outcome-drives-consistent-population-dynamics-during-goal-directed-reaching)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：表征漂移归因于突触可塑性和注意力变化
-7. [S-EMBER: A Large-Scale Benchmark for Streaming Egocentric Memory Retrieval](/202607/08/2607.02689v1-s-ember-a-large-scale-benchmark-for-streaming-egocentric-memory-retrieval)  
+   evidence：目标导向运动中神经群体动态与结果编码
+4. [A unified theory of context-conditioned efficient and predictive coding](/202607/09/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：上下文条件下的高效与预测编码统一理论
+5. [Eye-hand coordination beyond vision: preceding gaze history shapes reaching memories](/202607/09/biorxiv-10-1101-2025-11-11-687771-v3-eye-hand-coordination-beyond-vision-preceding-gaze-history-shapes-reaching-memories)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：注视历史影响伸手记忆的可塑性
+6. [Uncovering internal states with a robust shared-state multi-neuron GLM-HMM framework](/202607/09/biorxiv-10-64898-2026-06-27-734988-v1-uncovering-internal-states-with-a-robust-shared-state-multi-neuron-glm-hmm-framework)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：计算神经科学，多神经元GLM-HMM用于内部状态
+7. [Progressive loss of independence in neuronal representations predicts cognitive decline](/202607/09/biorxiv-10-64898-2026-06-28-734833-v1-progressive-loss-of-independence-in-neuronal-representations-predicts-cognitive-decline)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：阿尔茨海默病模型中神经元表征独立性的丧失
+8. [Sparse Attention for Dense Open-Vocabulary Prediction in CLIP](/202607/09/2607.07135v1-sparse-attention-for-dense-open-vocabulary-prediction-in-clip)  
    标签：评分：6.0/10、query:la
-   evidence：流式情景记忆检索基准
-8. [MemDefrag: Latent Memory Defragmentation for Large Language Models](/202607/08/2607.05969v1-memdefrag-latent-memory-defragmentation-for-large-language-models)  
-   标签：评分：6.0/10、query:la
-   evidence：利用注意力密度的大型语言模型潜在内存碎片整理
-9. [A unified theory of context-conditioned efficient and predictive coding](/202607/08/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
+   evidence：使用entmax实现稀疏注意力的高效注意力机制
+9. [Action Progress Provides an Abstract Coordinate for Motor Memory](/202607/09/biorxiv-10-64898-2026-02-09-704807-v2-action-progress-provides-an-abstract-coordinate-for-motor-memory)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：计算神经科学中高效与预测编码的统一理论。
-10. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/08/biorxiv-10-64898-2026-06-10-731214-v10-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   evidence：运动记忆组织与抽象进展坐标
+10. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/09/biorxiv-10-64898-2026-06-10-731214-v10-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：计算神经科学中评估神经表征生物保真度的方法。
-11. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/08/biorxiv-10-64898-2026-06-10-731214-v8-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   evidence：计算神经科学，神经表征几何，连接组约束网络
+11. [Tuning Diversity Improves Discrimination and Detection Performance under Metabolic Constraints](/202607/09/biorxiv-10-64898-2026-06-29-735317-v1-tuning-diversity-improves-discrimination-and-detection-performance-under-metabolic-constraints)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：表示几何作为生物保真度指标
-12. [Toward Optimizing Thalamic Deep Brain Stimulation for Cortical Modulation: A Surrogate Brain Approach](/202607/08/biorxiv-10-64898-2026-06-26-734900-v1-toward-optimizing-thalamic-deep-brain-stimulation-for-cortical-modulation-a-surrogate-brain-approach)  
+   evidence：调谐多样性在代谢约束下改善神经群体编码
+12. [Computational demands shape seizure susceptibility in recurrent neural networks](/202607/09/biorxiv-10-64898-2026-07-02-735135-v1-computational-demands-shape-seizure-susceptibility-in-recurrent-neural-networks)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：使用替代脑方法优化丘脑深部脑刺激的计算框架，属于计算神经科学主题
+   evidence：递归神经网络中的计算需求影响癫痫易感性
 
 
 <div class="dpr-home-promo-card">
