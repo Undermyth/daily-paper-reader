@@ -6,74 +6,77 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-09
-- 运行时间：2026-07-09 22:12:18 UTC
+- 最新运行日期：2026-07-10
+- 运行时间：2026-07-10 21:53:34 UTC
 - 运行状态：成功
-- 本次总论文数：18
-- 精读区：6
+- 本次总论文数：19
+- 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-今日推荐18篇论文，重点精读两篇9.0高分作：《Sparse Delta Memory》通过稀疏性扩展线性RNN状态，《The Key to Going Linear》以分析驱动实现Transformer线性化。速读中，《Memory in the Loop》将检索作为语言智能体工作记忆，《TriRoute》统一学习路由以联合分配注意力、专家和KV缓存。建议优先阅读两篇精读论文，把握线性模型前沿动态。
-- 详情：[/202607/09/README](/202607/09/README)
+今日推荐19篇论文，两篇精读均获9.0高分，聚焦线性RNN与注意力机制的前沿进展。最值得关注的方向：稀疏化扩展线性RNN状态规模（《Sparse Delta Memory》）与跨层路由机制的体系性梳理（《Linear Attention Architectures》）。建议优先精读这两篇高分论文，并留意速读中关于主动感知、块稀疏注意力及记忆压缩的实用技术。
+- 详情：[/202607/10/README](/202607/10/README)
 
 ### 精读区论文标签
-1. [Sparse Delta Memory: Scaling the State of Linear RNNs through Sparsity](/202607/09/2607.07386v1-sparse-delta-memory-scaling-the-state-of-linear-rnns-through-sparsity)  
+1. [Sparse Delta Memory: Scaling the State of Linear RNNs through Sparsity](/202607/10/2607.07386v1-sparse-delta-memory-scaling-the-state-of-linear-rnns-through-sparsity)  
    标签：评分：9.0/10、query:la
-   evidence：通过稀疏记忆扩展线性RNN状态
-2. [The Key to Going Linear: Analysis-Driven Transformer Linearization](/202607/09/2607.07706v1-the-key-to-going-linear-analysis-driven-transformer-linearization)  
+   evidence：通过稀疏记忆扩展线性RNN的状态大小
+2. [Linear Attention Architectures: Mechanisms, Trade-offs, and Cross-Layer Routing](/202607/10/2607.07953v1-linear-attention-architectures-mechanisms-trade-offs-and-cross-layer-routing)  
    标签：评分：9.0/10、query:la
-   evidence：线性注意力Transformer线性化分析
-3. [Dual Latent Memory in Vision-Language-Action Models for Robotic Manipulation](/202607/09/2607.07608v1-dual-latent-memory-in-vision-language-action-models-for-robotic-manipulation)  
-   标签：评分：8.0/10、query:la
-   evidence：用于视觉-语言-动作模型的双重潜在记忆
-4. [NeuroVLM: A generative vision-language framework for human neuroimaging](/202607/09/biorxiv-10-64898-2026-02-06-704508-v3-neurovlm-a-generative-vision-language-framework-for-human-neuroimaging)  
+   evidence：线性注意力架构的比较研究
+3. [Human medial temporal lobe neurons link future reward coding with intertemporal choice and impulsivity](/202607/10/biorxiv-10-64898-2026-07-09-737293-v1-human-medial-temporal-lobe-neurons-link-future-reward-coding-with-intertemporal-choice-and-impulsivity)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：海马单神经元奖赏编码
+4. [Connectivity patterns predictive of cognition, but not affect, reflect a segregated intrinsic network architecture](/202607/10/biorxiv-10-64898-2026-02-10-704998-v2-connectivity-patterns-predictive-of-cognition-but-not-affect-reflect-a-segregated-intrinsic-network-architecture)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：计算神经科学，用于神经影像的视觉语言模型
-5. [Coordinated acetylcholine release and adaptation of neuronal representations in the retrosplenial cortex during contextual uncertainty](/202607/09/biorxiv-10-64898-2026-05-02-722331-v2-coordinated-acetylcholine-release-and-adaptation-of-neuronal-representations-in-the-retrosplenial-cortex-during-contextual-uncertainty)  
+   evidence：静息态连接模式预测认知能力
+5. [Curiosity shapes brain-like architectures and functions](/202607/10/biorxiv-10-64898-2026-07-02-735826-v1-curiosity-shapes-brain-like-architectures-and-functions)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：不确定条件下乙酰胆碱释放与神经元表征适应
-6. [Dissociation between impaired explicit spatial remapping and preserved implicit neural dynamics in Alzheimers disease](/202607/09/biorxiv-10-64898-2026-07-06-736718-v1-dissociation-between-impaired-explicit-spatial-remapping-and-preserved-implicit-neural-dynamics-in-alzheimers-disease)  
+   evidence：好奇心驱动且受脑样约束的神经网络涌现突触发育
+6. [Learning complex temporal dependencies via local synaptic plasticity](/202607/10/biorxiv-10-64898-2026-07-09-737423-v1-learning-complex-temporal-dependencies-via-local-synaptic-plasticity)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：阿尔茨海默病中海马空间重映射与隐含神经动力学的分离
+   evidence：局部突触可塑性学习时间依赖关系
+7. [Learning the wiring rules of a mammalian cortical column](/202607/10/biorxiv-10-64898-2026-07-09-737432-v1-learning-the-wiring-rules-of-a-mammalian-cortical-column)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：使用表示学习学习皮层柱的连接规则
 
 ### 速读区论文标签
-1. [Memory in the Loop: In-Process Retrieval as ExtendedWorking Memory for Language Agents](/202607/09/2607.05690v1-memory-in-the-loop-in-process-retrieval-as-extendedworking-memory-for-language-agents)  
+1. [Seek to Segment: Active Perception for Panoramic Referring Segmentation](/202607/10/2607.02497v1-seek-to-segment-active-perception-for-panoramic-referring-segmentation)  
    标签：评分：7.0/10、query:la
-   evidence：进程内内存检索实现高效的类注意力内存访问
-2. [TriRoute: Unified Learned Routing for Joint Adaptive Attention, Experts, and KV-Cache Allocation](/202607/09/2607.06601v1-triroute-unified-learned-routing-for-joint-adaptive-attention-experts-and-kv-cache-allocation)  
+   evidence：使用VLM的记忆增强智能体用于全景指代分割
+2. [Uncertainty-gated selection for block-sparse attention](/202607/10/2607.07724v1-uncertainty-gated-selection-for-block-sparse-attention)  
    标签：评分：7.0/10、query:la
-   evidence：基于自适应路由的高效注意力机制
-3. [Distributed encoding of action-mediated outcome drives consistent population dynamics during goal-directed reaching](/202607/09/biorxiv-10-1101-2024-11-04-621878-v2-distributed-encoding-of-action-mediated-outcome-drives-consistent-population-dynamics-during-goal-directed-reaching)  
+   evidence：基于不确定性门控的块稀疏高效注意力
+3. [What to Keep, What to Forget: A Rate--Distortion View of Memory Compaction in LLMs and Agents](/202607/10/2607.08032v1-what-to-keep-what-to-forget-a-rate--distortion-view-of-memory-compaction-in-llms-and-agents)  
+   标签：评分：7.0/10、query:la
+   evidence：LLM中记忆压缩的率失真视角，涵盖KV缓存和状态
+4. [Disruption of prefrontal cortex accelerates sensory anchoring but dissociates online recognition from implicit consolidation of sound sequences](/202607/10/biorxiv-10-64898-2026-06-11-731781-v2-disruption-of-prefrontal-cortex-accelerates-sensory-anchoring-but-dissociates-online-recognition-from-implicit-consolidation-of-sound-sequences)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：目标导向运动中神经群体动态与结果编码
-4. [A unified theory of context-conditioned efficient and predictive coding](/202607/09/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
+   evidence：前额叶皮层在感觉锚定和内隐巩固中的因果作用
+5. [Anticipatory organization of neural population dynamics speeds behavioral decisions](/202607/10/biorxiv-10-64898-2026-06-30-735699-v1-anticipatory-organization-of-neural-population-dynamics-speeds-behavioral-decisions)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：上下文条件下的高效与预测编码统一理论
-5. [Eye-hand coordination beyond vision: preceding gaze history shapes reaching memories](/202607/09/biorxiv-10-1101-2025-11-11-687771-v3-eye-hand-coordination-beyond-vision-preceding-gaze-history-shapes-reaching-memories)  
+   evidence：期望条件下的神经群体动力学与决策
+6. [Hippocampal CA3 forms a two-layer network of molecularly distinct cell types in mice and humans](/202607/10/biorxiv-10-64898-2026-07-04-736487-v1-hippocampal-ca3-forms-a-two-layer-network-of-molecularly-distinct-cell-types-in-mice-and-humans)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：注视历史影响伸手记忆的可塑性
-6. [Uncovering internal states with a robust shared-state multi-neuron GLM-HMM framework](/202607/09/biorxiv-10-64898-2026-06-27-734988-v1-uncovering-internal-states-with-a-robust-shared-state-multi-neuron-glm-hmm-framework)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：计算神经科学，多神经元GLM-HMM用于内部状态
-7. [Progressive loss of independence in neuronal representations predicts cognitive decline](/202607/09/biorxiv-10-64898-2026-06-28-734833-v1-progressive-loss-of-independence-in-neuronal-representations-predicts-cognitive-decline)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：阿尔茨海默病模型中神经元表征独立性的丧失
-8. [Sparse Attention for Dense Open-Vocabulary Prediction in CLIP](/202607/09/2607.07135v1-sparse-attention-for-dense-open-vocabulary-prediction-in-clip)  
+   evidence：海马CA3区自身关联记忆与分子亚型
+7. [Whareformer: Learning to Track What is Where in Long Egocentric Videos](/202607/10/2607.08537v1-whareformer-learning-to-track-what-is-where-in-long-egocentric-videos)  
    标签：评分：6.0/10、query:la
-   evidence：使用entmax实现稀疏注意力的高效注意力机制
-9. [Action Progress Provides an Abstract Coordinate for Motor Memory](/202607/09/biorxiv-10-64898-2026-02-09-704807-v2-action-progress-provides-an-abstract-coordinate-for-motor-memory)  
+   evidence：基于transformer的可更新记忆跟踪模型
+8. [A unified theory of context-conditioned efficient and predictive coding](/202607/10/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：运动记忆组织与抽象进展坐标
-10. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/09/biorxiv-10-64898-2026-06-10-731214-v10-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   evidence：上下文条件下的高效与预测编码统一理论
+9. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/10/biorxiv-10-64898-2026-06-10-731214-v10-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：计算神经科学，神经表征几何，连接组约束网络
-11. [Tuning Diversity Improves Discrimination and Detection Performance under Metabolic Constraints](/202607/09/biorxiv-10-64898-2026-06-29-735317-v1-tuning-diversity-improves-discrimination-and-detection-performance-under-metabolic-constraints)  
+   evidence：表征几何作为连接组约束网络的度量，与计算神经科学相关
+10. [Repetition Dissociates Pointer and Content-based Representations in Visual Working Memory: Contrasting the CDA with Multivariate Shape Decoding](/202607/10/biorxiv-10-64898-2026-06-28-735064-v1-repetition-dissociates-pointer-and-content-based-representations-in-visual-working-memory-contrasting-the-cda-with-multivariate-shape-decoding)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：调谐多样性在代谢约束下改善神经群体编码
-12. [Computational demands shape seizure susceptibility in recurrent neural networks](/202607/09/biorxiv-10-64898-2026-07-02-735135-v1-computational-demands-shape-seizure-susceptibility-in-recurrent-neural-networks)  
+   evidence：工作记忆表征与EEG神经标记
+11. [Tuning Diversity Improves Discrimination and Detection Performance under Metabolic Constraints](/202607/10/biorxiv-10-64898-2026-06-29-735317-v1-tuning-diversity-improves-discrimination-and-detection-performance-under-metabolic-constraints)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：递归神经网络中的计算需求影响癫痫易感性
+   evidence：调谐多样性通过计算模型改善群体编码
+12. [Computational demands shape seizure susceptibility in recurrent neural networks](/202607/10/biorxiv-10-64898-2026-07-02-735135-v1-computational-demands-shape-seizure-susceptibility-in-recurrent-neural-networks)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：计算需求影响递归神经网络中的癫痫易感性
 
 
 <div class="dpr-home-promo-card">
