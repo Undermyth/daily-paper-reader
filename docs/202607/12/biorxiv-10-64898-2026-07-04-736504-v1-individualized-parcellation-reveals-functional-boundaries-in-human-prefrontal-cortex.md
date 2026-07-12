@@ -1,0 +1,25 @@
+---
+title: Individualized parcellation reveals functional boundaries in human prefrontal cortex
+title_zh: 个体化分区揭示人类前额叶皮层的功能边界
+authors: "Xiang, J. D., Zhi, D., Arafat, B., Nettekoven, C., Diedrichsen, J., Mur, M."
+date: 2026-07-06
+pdf: "https://www.biorxiv.org/content/10.64898/2026.07.04.736504v1.full.pdf"
+tags: ["query:comp-neuro"]
+score: 7.0
+evidence: 个体化分区分割揭示前额叶功能边界
+tldr: 人类前额叶皮层（PFC）的功能组织是连续梯度还是离散边界存在争议。传统群体图谱因个体差异而无法揭示真实边界。本研究结合群体图谱与多任务fMRI数据，为每个个体估计个性化功能分区，发现群体图谱显示大尺度梯度，而个体化分区揭示了被平均掩盖的锐利功能边界，且PFC组织比其它联合皮层更精细。这表明PFC是个体化的精细亚区镶嵌在宏观梯度中，对理解多需求系统等核心构念具有重要意义。
+source: biorxiv
+selection_source: fresh_fetch
+figures_json: "[{\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/fig-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1764, \"height\": 1541, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/fig-002.webp\", \"caption\": \"\", \"page\": 0, \"index\": 2, \"width\": 1754, \"height\": 2010, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/fig-003.webp\", \"caption\": \"\", \"page\": 0, \"index\": 3, \"width\": 1740, \"height\": 813, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/fig-004.webp\", \"caption\": \"\", \"page\": 0, \"index\": 4, \"width\": 1715, \"height\": 808, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/fig-005.webp\", \"caption\": \"\", \"page\": 0, \"index\": 5, \"width\": 1754, \"height\": 1996, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/fig-006.webp\", \"caption\": \"\", \"page\": 0, \"index\": 6, \"width\": 1761, \"height\": 1579, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/fig-007.webp\", \"caption\": \"\", \"page\": 0, \"index\": 7, \"width\": 1763, \"height\": 1580, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/fig-008.webp\", \"caption\": \"\", \"page\": 0, \"index\": 8, \"width\": 1698, \"height\": 2310, \"label\": \"Figure\"}]"
+tables_json: "[{\"url\": \"assets/tables/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/table-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1753, \"height\": 270, \"label\": \"Table\"}, {\"url\": \"assets/tables/biorxiv/biorxiv-10-64898-2026-07-04-736504-v1/table-002.webp\", \"caption\": \"\", \"page\": 0, \"index\": 2, \"width\": 1751, \"height\": 197, \"label\": \"Table\"}]"
+motivation: PFC功能组织是连续梯度还是离散边界存在争议，群体图谱受个体差异限制无法揭示真实边界。
+method: 结合群体图谱与多任务fMRI数据，为每个个体估计个性化功能分区。
+result: 群体图谱显示大尺度梯度，个体化分区揭示了被平均掩盖的锐利功能边界，且PFC组织比其它联合皮层更精细。
+conclusion: PFC组织是个体化的精细功能亚区镶嵌在大尺度梯度中，对认知控制核心构念定义有重要意义。
+---
+
+## 摘要
+人类前额叶皮层在任务执行中支持多种高级认知功能。越来越多的证据表明，这些功能沿着大规模梯度组织，例如支持从抽象到具体信息逐步处理的头尾轴。同时，PFC内的区域特异化，包括对特定刺激类别有选择性的局灶斑块，提示存在离散的功能边界。PFC的组织是连续梯度还是离散分区更能体现其特征，这一问题尚未解决。此处我们显示，PFC中任务诱发的功能组织表现出显著的个体间变异性，限制了传统群体图谱在检验功能边界方面的效用。为应对这一挑战，我们通过将群体图谱与涵盖多种认知任务的任务诱发fMRI数据结合，估计了个体化的功能分区。群体图谱揭示了PFC上的大规模功能梯度，而个体化分区还额外揭示了被群体平均所掩盖的锐利功能边界。此外，PFC中的功能组织比其他联合皮层更加细粒度，这与其在认知控制中的整合作用一致。总之，这些发现表明，PFC组织反映了嵌入在更广泛大规模梯度中的细粒度功能分区的个体化镶嵌图，对定义诸如多重需求系统等核心构念具有重要意义。
+
+## Abstract
+Human prefrontal cortex (PFC) supports diverse higher-order cognitive functions during task execution. Increasing evidence suggests that these functions are organized along large-scale gradients, such as a rostro-caudal axis supporting progressively abstract-to-concrete information processing. At the same time, regional specialization within PFC, including focal patches selective for specific stimulus categories, suggests the presence of discrete functional boundaries. Whether PFC organization is best characterized by continuous gradients or discrete subdivisions remains unresolved. Here we show that task-evoked functional organization in PFC exhibits substantial inter-individual variability, limiting the usefulness of conventional group atlases in testing for functional boundaries. To address this challenge, we estimated individualized functional parcellations by combining a group atlas with task-evoked fMRI data spanning diverse cognitive tasks. The group atlas revealed large-scale functional gradients across PFC, whereas individualized parcellations additionally uncovered sharp functional boundaries obscured by group averaging. Moreover, functional organization in PFC was substantially more fine-grained than in other association cortices, consistent with its integrative role in cognitive control. Together, these findings suggest that PFC organization reflects an individualized mosaic of fine-grained functional subdivisions embedded within broader large-scale gradients, with important implications for defining core constructs such as the multiple-demand system.

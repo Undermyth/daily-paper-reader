@@ -1,0 +1,24 @@
+---
+title: A unified theory of context-conditioned efficient and predictive coding
+title_zh: 上下文条件的高效与预测编码的统一理论
+authors: "Tavoni, G."
+date: 2026-07-06
+pdf: "https://www.biorxiv.org/content/10.1101/2025.02.24.639817v2.full.pdf"
+tags: ["query:comp-neuro"]
+score: 7.0
+evidence: 神经回路中上下文条件高效预测编码的统一理论
+tldr: 感官处理受其他感觉模态、动作和行为背景的调节，如何利用上下文信息优化局部感觉回路编码是神经编码理论的核心问题。本文发展了一种统一的高效与预测编码理论，通过分析证明在给定上下文条件下，高效编码的解对应一个可解释的神经算法：上下文信号提供局部感官输入的期望，局部神经元编码与期望的偏差，递归相互作用白化残差信号。该框架揭示了上下文条件高效编码与预测编码的数学等价性，统一解释了跨模态抑制、多模态感受野等现象，并作为极限情况恢复经典单模态编码效应。
+source: biorxiv
+selection_source: fresh_fetch
+figures_json: "[{\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-02-24-639817-v2/fig-001.webp\", \"caption\": \"\", \"page\": 6, \"index\": 1, \"width\": 981, \"height\": 426}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-02-24-639817-v2/fig-002.webp\", \"caption\": \"\", \"page\": 6, \"index\": 2, \"width\": 983, \"height\": 434}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-02-24-639817-v2/fig-003.webp\", \"caption\": \"\", \"page\": 15, \"index\": 3, \"width\": 2225, \"height\": 1653}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-02-24-639817-v2/fig-004.webp\", \"caption\": \"\", \"page\": 15, \"index\": 4, \"width\": 2220, \"height\": 785}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-02-24-639817-v2/fig-005.webp\", \"caption\": \"\", \"page\": 15, \"index\": 5, \"width\": 454, \"height\": 411}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-02-24-639817-v2/fig-006.webp\", \"caption\": \"\", \"page\": 15, \"index\": 6, \"width\": 462, \"height\": 431}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-02-24-639817-v2/fig-007.webp\", \"caption\": \"\", \"page\": 15, \"index\": 7, \"width\": 461, \"height\": 431}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-02-24-639817-v2/fig-008.webp\", \"caption\": \"\", \"page\": 18, \"index\": 8, \"width\": 2166, \"height\": 1390}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-02-24-639817-v2/fig-009.webp\", \"caption\": \"\", \"page\": 20, \"index\": 9, \"width\": 2115, \"height\": 1719}]"
+motivation: 现有编码理论要么忽略上下文，要么依赖层次贝叶斯推理，缺乏统一框架解释多模态交互如何优化局部回路表示。
+method: 通过数学推导建立上下文条件高效编码与预测编码的等价性，将压缩目标映射为神经算法中的预测残差和白化过程。
+result: 理论统一解释跨模态对预测输入的抑制和多模态感受野，并恢复经典单模态编码效应作为特例。
+conclusion: 该工作提供了一个原则性基础，揭示分布式的神经回路如何利用上下文塑造局部表示，连接编码目标、回路机制与实验现象。
+---
+
+## 摘要
+感觉处理并非孤立发生：在给定感觉模态中，神经元所表征的内容受到来自其他感觉、动作和行为背景的信号塑造。这种上下文依赖性对神经编码理论提出了一个基本问题：电路如何在利用大脑其他部位可用信息的同时，高效地编码其局部输入？本文发展了一个高效与预测编码的统一理论，展示了多模态上下文信息如何优化局部感觉电路内的表征。我们通过分析证明，高效编码解映射到一个可解释的神经算法：上下文信号为局部电路提供关于感觉输入的预期，局部神经元编码与这些预期的偏差，而循环相互作用则对残差信号进行白化。这一结果建立了上下文条件的高效编码与预测编码之间的数学等价性，揭示了预测计算可以从由上下文引导的高效输入压缩中涌现。所得框架既不同于单模态内的经典冗余减少，也不同于层次贝叶斯推理。该理论解释并统一了多样的实验现象，包括对预测输入响应的跨模态抑制，以及跨感觉运动、视听、视觉-嗅觉和听觉-体感电路的多模态感受野，同时将经典单模态编码效应恢复为极限情况。通过将编码目标、电路机制和实验观察到的现象统一在一个分析框架内，这项工作为理解分布式神经系统如何利用上下文塑造局部表征提供了原则性的基础。
+
+## Abstract
+Sensory processing does not occur in isolation: what neurons represent in a given sensory modality is shaped by signals from other senses, actions, and behavioral context. This context dependence raises a fundamental question for theories of neural coding: how can circuits efficiently encode their local input while using information available elsewhere in the brain? Here we develop a unified theory of efficient and predictive coding that shows how multimodal contextual information can optimize representations within a local sensory circuit. We demonstrate analytically that the efficient-coding solution maps onto an interpretable neural algorithm: contextual signals provide expectations about the sensory input to the local circuit, local neurons encode deviations from those expectations, and recurrent interactions whiten the residual signals. This result establishes a mathematical equivalence between context-conditioned efficient coding and predictive coding, revealing that predictive computations can emerge from efficient input compression guided by context. The resulting framework is distinct from both classical redundancy reduction within a single modality and hierarchical Bayesian inference. The theory explains and unifies diverse experimental phenomena, including cross-modal suppression of responses to predicted inputs and multimodal receptive fields across sensorimotor, audiovisual, visual-olfactory, and auditory-somatosensory circuits, while recovering classical unimodal coding effects as limiting cases. By linking coding objectives, circuit mechanisms, and experimentally observed phenomena within a single analytical framework, this work provides a principled foundation for understanding how distributed neural systems use context to shape local representations.
