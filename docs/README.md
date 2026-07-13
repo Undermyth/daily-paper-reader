@@ -6,76 +6,77 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-12
-- 运行时间：2026-07-12 21:04:21 UTC
+- 最新运行日期：2026-07-13
+- 运行时间：2026-07-13 20:35:22 UTC
 - 运行状态：成功
-- 本次总论文数：18
-- 精读区：6
+- 本次总论文数：19
+- 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-今日精读6篇、速读12篇，重点聚焦LLM记忆增强与AI智能体长期记忆方案。  
-最值得关注的是TF-Engram（9.0分）实现免训练的记忆外挂，以及MRMS（8.0分）的多分辨率记忆子结构。  
-建议优先精读TF-Engram论文，对理解轻量级扩展LLM记忆有直接参考价值。
-- 详情：[/202607/12/README](/202607/12/README)
+今日共推荐19篇论文，精选7篇精读，其中《MOSAIC》与《Early spatial and contextual coding deficits》获最高分9.0。值得关注异构视觉语言模型的高效层间组合方法及阿尔茨海默病模型中CA1区早期编码缺陷的研究。普通读者可优先精读高分论文，速读部分关注绿色大模型发展与稀疏注意力节能推理方向。
+- 详情：[/202607/13/README](/202607/13/README)
 
 ### 精读区论文标签
-1. [TF-Engram: A Train-Free Engram with SSD-Backed Memory for Large Language Models](/202607/12/2607.07388v1-tf-engram-a-train-free-engram-with-ssd-backed-memory-for-large-language-models)  
+1. [MOSAIC: Adaptive Inter-layer Composition for Efficient Heterogeneous Vision-Language Models](/202607/13/2607.09029v1-mosaic-adaptive-inter-layer-composition-for-efficient-heterogeneous-vision-language-models)  
    标签：评分：9.0/10、query:la
-   evidence：离线构建短语级语义记忆作为联想记忆
-2. [MRMS: A Multi-Resolution Memory Substrate for Long-Lived AI Agents](/202607/12/2607.04617v1-mrms-a-multi-resolution-memory-substrate-for-long-lived-ai-agents)  
+   evidence：线性注意力在高效异构视觉语言模型架构搜索中的应用
+2. [Early spatial and contextual coding deficits in hippocampal CA1 precede performance decline in an Alzheimer's disease model.](/202607/13/biorxiv-10-1101-2025-02-05-636661-v4-early-spatial-and-contextual-coding-deficits-in-hippocampal-ca1-precede-performance-decline-in-an-alzheimers-disease-model)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：阿尔茨海默病模型中海马CA1空间与情境编码缺陷
+3. [COBS: Cumulant Order Block Sparse Attention](/202607/13/2607.09052v1-cobs-cumulant-order-block-sparse-attention)  
    标签：评分：8.0/10、query:la
-   evidence：提出结构-向量-图记忆基板，增强神经网络记忆与类似注意力的检索
-3. [Dendritic Wave Recurrent Neural Networks](/202607/12/biorxiv-10-64898-2026-07-03-736415-v1-dendritic-wave-recurrent-neural-networks)  
-   标签：评分：8.0/10、query:la
-   evidence：树突波RNN作为现代RNN架构
-4. [Pyramidal neuron synapses in M2 exhibit properties intermediate between prefrontal cortex and M1 synapses](/202607/12/biorxiv-10-64898-2026-07-06-736741-v1-pyramidal-neuron-synapses-in-m2-exhibit-properties-intermediate-between-prefrontal-cortex-and-m1-synapses)  
+   evidence：块稀疏注意力用于高效KV缓存读取
+4. [Probing the role of sequential sampling and integration in decisions about protracted, noiseless stimuli](/202607/13/biorxiv-10-1101-2025-10-22-684029-v5-probing-the-role-of-sequential-sampling-and-integration-in-decisions-about-protracted-noiseless-stimuli)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：M2区域的突触特性介于前额叶和初级运动皮层之间
-5. [Upregulation of Calbindin in Adult Inhibitory Neurons Reactivates Critical Period Plasticity in Mouse Visual Cortex](/202607/12/biorxiv-10-64898-2026-07-08-737337-v1-upregulation-of-calbindin-in-adult-inhibitory-neurons-reactivates-critical-period-plasticity-in-mouse-visual-cortex)  
+   evidence：知觉决策中的顺序采样与整合
+5. [A Unified Computational Framework for Deep Brain Stimulation at the Cellular and Network Levels](/202607/13/biorxiv-10-64898-2026-07-02-736102-v1-a-unified-computational-framework-for-deep-brain-stimulation-at-the-cellular-and-network-levels)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：Calbindin上调重新激活关键期可塑性
-6. [Egocentric spatial scaffolds organize cortical memory engrams](/202607/12/biorxiv-10-64898-2026-07-09-737550-v1-egocentric-spatial-scaffolds-organize-cortical-memory-engrams)  
+   evidence：深度脑刺激调制尖峰活动的计算模型，纳入突触约束
+6. [BraiNN: A Modern Simulator for Clinically Feasible Personalized Whole-Brain Network Modeling](/202607/13/biorxiv-10-64898-2026-07-08-737156-v1-brainn-a-modern-simulator-for-clinically-feasible-personalized-whole-brain-network-modeling)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：皮层记忆印迹中的自我中心空间框架
+   evidence：全脑网络模拟器用于神经科学
+7. [A single dynamical property can account for the capacity to learn, from artificial networks to the mammalian brain.](/202607/13/biorxiv-10-64898-2026-07-09-737603-v1-a-single-dynamical-property-can-account-for-the-capacity-to-learn-from-artificial-networks-to-the-mammalian-brain)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：接近临界点的距离预测小鼠运动皮层学习速率
 
 ### 速读区论文标签
-1. [MemPose: Category-level Object Pose Estimation with Memory](/202607/12/2607.04930v1-mempose-category-level-object-pose-estimation-with-memory)  
+1. [A Survey on the Green Development of Large Models: From Resource-Efficient Architectures to Hardware-Software Co-Design](/202607/13/2607.09084v1-a-survey-on-the-green-development-of-large-models-from-resource-efficient-architectures-to-hardware-software-co-design)  
    标签：评分：7.0/10、query:la
-   evidence：用于姿态估计的外部记忆缓冲
-2. [NativeMEM: Native Memory Compression for Long-Horizon Robotic Manipulation](/202607/12/2607.06678v1-nativemem-native-memory-compression-for-long-horizon-robotic-manipulation)  
+   evidence：综述涵盖线性复杂度架构与注意力优化
+2. [STEEL: Sparsity-Aware Fused Attention for Energy-Efficient Long-Sequence Inference on AMD's XDNA NPU](/202607/13/2607.09385v1-steel-sparsity-aware-fused-attention-for-energy-efficient-long-sequence-inference-on-amds-xdna-npu)  
    标签：评分：7.0/10、query:la
-   evidence：VLA中的内存压缩用于注意力
-3. [A unified theory of context-conditioned efficient and predictive coding](/202607/12/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
+   evidence：稀疏感知融合注意力实现NPU上高效长序列推理
+3. [Memory Traces Reflect How They Were Last Retrieved](/202607/13/biorxiv-10-1101-2025-05-30-657135-v2-memory-traces-reflect-how-they-were-last-retrieved)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：神经回路中上下文条件高效预测编码的统一理论
-4. [NiCLIP: Neuroimaging contrastive language-image pretraining model for predicting text from brain activation images](/202607/12/biorxiv-10-1101-2025-06-14-659706-v4-niclip-neuroimaging-contrastive-language-image-pretraining-model-for-predicting-text-from-brain-activation-images)  
+   evidence：识别时神经活动受先前语义访问历史影响
+4. [Representations of active grasp maintenance emerge during reach-grasp-carry learning in mouse motor cortex](/202607/13/biorxiv-10-64898-2026-06-30-735546-v1-representations-of-active-grasp-maintenance-emerge-during-reach-grasp-carry-learning-in-mouse-motor-cortex)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：对比学习用于从脑激活预测认知过程
-5. [Functional Specialization of Angular Gyrus and Precuneus Subregions for Perspective-Guided Autobiographical Memory Retrieval](/202607/12/biorxiv-10-1101-2025-06-20-660447-v4-functional-specialization-of-angular-gyrus-and-precuneus-subregions-for-perspective-guided-autobiographical-memory-retrieval)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：自传体记忆提取的神经机制
-6. [Individualized parcellation reveals functional boundaries in human prefrontal cortex](/202607/12/biorxiv-10-64898-2026-07-04-736504-v1-individualized-parcellation-reveals-functional-boundaries-in-human-prefrontal-cortex)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：个体化分区分割揭示前额叶功能边界
-7. [Quantitative assessment of mesoscale cellular order and organization in the mouse hippocampus](/202607/12/biorxiv-10-64898-2026-07-06-736467-v1-quantitative-assessment-of-mesoscale-cellular-order-and-organization-in-the-mouse-hippocampus)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：海马体细胞组织的定量分析
-8. [Data-driven oscillatory network modeling with condition-dependent coupling laws: Identifying directed neural interactions in working memory attention dynamics](/202607/12/biorxiv-10-64898-2026-07-06-736523-v1-data-driven-oscillatory-network-modeling-with-condition-dependent-coupling-laws-identifying-directed-neural-interactions-in-working-memory-attention-dynamics)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：工作记忆注意力振荡网络建模
-9. [Do All Visual Tokens Matter Equally? Object-Evidence Preserving Token Merging for Vision-Language Retrieval](/202607/12/2607.04605v1-do-all-visual-tokens-matter-equally-object-evidence-preserving-token-merging-for-vision-language-retrieval)  
+   evidence：运动皮层在学习过程中的表征
+5. [Full-Stack FP4: Stable LLM Pretraining with Quantized Projections, Optimizers, and Attention](/202607/13/2607.04422v1-full-stack-fp4-stable-llm-pretraining-with-quantized-projections-optimizers-and-attention)  
    标签：评分：6.0/10、query:la
-   evidence：面向对象的令牌合并以实现高效检索
-10. [FreqDepthKV: Frequency-Guided Depth Sharing for Robust KV Cache Compression in Long-Context LLM Inference](/202607/12/2607.06519v1-freqdepthkv-frequency-guided-depth-sharing-for-robust-kv-cache-compression-in-long-context-llm-inference)  
+   evidence：注意力和线性层的4位量化以实现高效预训练
+6. [Co-LMLM: Continuous-Query Limited Memory Language Models](/202607/13/2607.07707v1-co-lmlm-continuous-query-limited-memory-language-models)  
    标签：评分：6.0/10、query:la
-   evidence：通过KV缓存压缩实现高效注意力
-11. [Distributed encoding of action-mediated outcome drives consistent population dynamics during goal-directed reaching](/202607/12/biorxiv-10-1101-2024-11-04-621878-v2-distributed-encoding-of-action-mediated-outcome-drives-consistent-population-dynamics-during-goal-directed-reaching)  
+   evidence：语言模型中基于连续查询的外部记忆机制
+7. [REMIND: RE-Identification with Memory for INDoor Navigation](/202607/13/2607.09267v1-remind-re-identification-with-memory-for-indoor-navigation)  
+   标签：评分：6.0/10、query:la
+   evidence：用于室内导航的记忆增强再识别跟踪器
+8. [Distributed encoding of action-mediated outcome drives consistent population dynamics during goal-directed reaching](/202607/13/biorxiv-10-1101-2024-11-04-621878-v2-distributed-encoding-of-action-mediated-outcome-drives-consistent-population-dynamics-during-goal-directed-reaching)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：目标导向行为中结果编码的分布式神经动态
-12. [Flexible neuronal participation within a reliable motor sequence](/202607/12/biorxiv-10-64898-2026-07-10-737866-v1-flexible-neuronal-participation-within-a-reliable-motor-sequence)  
+   evidence：结果的分布式神经编码，目标导向行为，群体动力学
+9. [A unified theory of context-conditioned efficient and predictive coding](/202607/13/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：斑胸草雀HVC中可靠运动序列的灵活神经元参与
+   evidence：统一的高效与预测编码理论，整合多模态上下文
+10. [TRACR: an anterograde transneuronal tracing system for genetic access across synapses and longitudinal circuit analysis](/202607/13/biorxiv-10-64898-2026-02-08-704659-v2-tracr-an-anterograde-transneuronal-tracing-system-for-genetic-access-across-synapses-and-longitudinal-circuit-analysis)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：用于神经回路分析的跨突触追踪工具
+11. [The Premotor Language Area Encodes a Full Acoustic-to-semantic Speech Hierarchy](/202607/13/biorxiv-10-64898-2026-07-01-735929-v2-the-premotor-language-area-encodes-a-full-acoustic-to-semantic-speech-hierarchy)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：前运动皮层语音层次的计算编码模型
+12. [Computational demands shape seizure susceptibility in recurrent neural networks](/202607/13/biorxiv-10-64898-2026-07-02-735135-v1-computational-demands-shape-seizure-susceptibility-in-recurrent-neural-networks)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：递归神经网络基于计算需求建模癫痫易感性
 
 
 <div class="dpr-home-promo-card">
