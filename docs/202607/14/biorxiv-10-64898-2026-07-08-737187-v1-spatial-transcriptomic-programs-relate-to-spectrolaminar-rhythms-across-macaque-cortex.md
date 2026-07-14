@@ -1,0 +1,25 @@
+---
+title: Spatial transcriptomic programs relate to spectrolaminar rhythms across macaque cortex
+title_zh: 空间转录组程序与猕猴皮层光谱层板节律的关联
+authors: "Reyes, R. G., Vezoli, J., Valdes-Sosa, P. A."
+date: 2026-07-09
+pdf: "https://www.biorxiv.org/content/10.64898/2026.07.08.737187v1.full.pdf"
+tags: ["query:comp-neuro"]
+score: 6.0
+evidence: 整合空间转录组与皮层节律，计算神经科学方法
+tldr: 皮层节律的层状组织被认为反映细胞类型结构，但跨灵长类皮层尚未明确。本研究开发了spectro-omic框架，通过层4投影（L4P）对齐空间转录组和电生理深度剖面，并采用局部频谱扩展（LSE）模型分解LFP功率图。在12个猕猴皮层区域，转录组预测器将LSE六层光谱组成的预测R²从0.384提升至0.621。结果揭示深层谷氨酸能程序与δ/β节律相关，浅中层GABAergic/PVALB抑制程序与γ节律相关，表明分子细胞结构是光谱层状基质的合理基础。
+source: biorxiv
+selection_source: fresh_fetch
+figures_json: "[{\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/fig-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1718, \"height\": 991}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/fig-002.webp\", \"caption\": \"\", \"page\": 0, \"index\": 2, \"width\": 1860, \"height\": 1654}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/fig-003.webp\", \"caption\": \"\", \"page\": 0, \"index\": 3, \"width\": 1569, \"height\": 1931}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/fig-004.webp\", \"caption\": \"\", \"page\": 0, \"index\": 4, \"width\": 1884, \"height\": 1893}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/fig-005.webp\", \"caption\": \"\", \"page\": 0, \"index\": 5, \"width\": 1726, \"height\": 1127}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/fig-006.webp\", \"caption\": \"\", \"page\": 0, \"index\": 6, \"width\": 1755, \"height\": 2181}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/fig-007.webp\", \"caption\": \"\", \"page\": 0, \"index\": 7, \"width\": 1892, \"height\": 1960}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/fig-008.webp\", \"caption\": \"\", \"page\": 0, \"index\": 8, \"width\": 1868, \"height\": 1146}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/fig-009.webp\", \"caption\": \"\", \"page\": 0, \"index\": 9, \"width\": 993, \"height\": 485}]"
+tables_json: "[{\"url\": \"assets/tables/biorxiv/biorxiv-10-64898-2026-07-08-737187-v1/table-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1732, \"height\": 775}]"
+motivation: 探究皮层层状动态与细胞类型结构之间的关系，为跨猕猴皮层的节律多样性提供分子解释。
+method: 开发spectro-omic框架，结合LSE模型和L4P转换，将单细胞空间转录组与LFP深度剖面在层4坐标系中统一比较。
+result: 转录组预测器显著提升LSE六层光谱组成预测（R²从0.384到0.621），PLS1解码将δ/β与深层谷氨酸能程序、γ与浅中层GABAergic程序关联。
+conclusion: 层状分子和细胞架构是皮层光谱层状节律的合理生物学基质，支持神经调控的细胞靶点。
+---
+
+## 摘要
+皮层动力学的层状组织被认为反映了潜在的细胞类型结构，但这种关系在灵长类皮层中尚未被解析。我们开发了一种光谱-组学框架，允许在共同的第四层参考坐标系中比较层状局部场电位和单细胞空间转录组学。我们不依赖原始频带功率分析，而是使用局部光谱扩展（LSE），这是一种光谱层板成分模型，将频率-深度LFP功率图分解为不同的δ、θ、β、低γ和高γ成分。然后我们引入了第四层投影（L4P），将非线性的空间转录组皮层带展开为与电生理深度剖面兼容的平坦的第四层参考流形。在12个匹配的猕猴皮层区域中，转录组预测因子在部分logit模型中改善了对LSE衍生的六解剖层光谱组成的留出预测，超越了层级加层的基线：R²=0.621对比0.384；ΔR²=+0.237；r=0.809对比0.692。这种增益得到了保持层级的移位/反射零假设检验[公式]和Freedman-Lane区域块残差置换检验[公式]的支持。全深度PLS1解码将β过程与深层、特别是L4/5/6和L6的谷氨酸能程序联系起来，这些程序富含轴突、突触和髓鞘相关生物学，而低γ和高γ过程则与浅层至中层的GABAergic/PVALB富集的抑制性程序以及兴奋性、离子稳态、非神经元和能量代谢特征相关联。这些观察到的光谱-组学关系表明，层状分子和细胞结构形成了猕猴皮层光谱层板基序的合理底物。
+
+## Abstract
+The laminar organization of cortical dynamics is thought to reflect underlying cell-type architecture, but this relationship has not been resolved across primate cortex. Here we developed a spectro-omic framework that allows laminar local field potentials and single-cell spatial transcriptomics to be compared within a common layer-4-referenced coordinate system. Instead of relying on raw band-power analysis, we used Local Spectral Expansion (LSE), a spectrolaminar component model that resolves frequency-by-depth LFP power maps into distinct{delta} , {theta}, , {beta}, low-{gamma} and high-{gamma} components. We then introduced layer-4 projection (L4P) to unfold nonlinear spatial transcriptomic cortical ribbons into flat layer-4-referenced manifolds compatible with the electrophysiological depth profiles. Across twelve matched macaque cortical regions, transcriptomic predictors improved held-out prediction of LSE-derived six-anatomical-layer spectral composition beyond a hierarchy-plus-layer baseline in a partwise logit model: R2 = 0.621 versus 0.384; {Delta}R2 = +0.237; r = 0.809 versus 0.692. This gain was supported by hierarchy-preserving shift/reflect nulls [Formula] and by a Freedman-Lane region-block residual-permutation test [Formula]. Full-depth PLS1 decoding linked /{beta} processes to deep-layer, especially L4/5/6 and L6, glutamatergic programs enriched for axonal, synaptic and myelin-associated biology, whereas low-{gamma} and high-{gamma} processes were linked to superficial-to-middle-layer GABAergic/PVALB-enriched inhibitory programs together with excitability, ion-homeostasis, non-neuronal and energy-metabolism signatures. Together, these observed spectro-omic relationships suggest that laminar molecular and cellular architecture forms a plausible substrate for the spectrolaminar motif across macaque cortex.

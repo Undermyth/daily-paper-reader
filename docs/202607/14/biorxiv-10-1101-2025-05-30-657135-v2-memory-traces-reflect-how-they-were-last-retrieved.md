@@ -1,0 +1,25 @@
+---
+title: Memory Traces Reflect How They Were Last Retrieved
+title_zh: 记忆痕迹反映它们上次被检索的方式
+authors: "Qi, X., Coutanche, M. N."
+date: 2026-07-12
+pdf: "https://www.biorxiv.org/content/10.1101/2025.05.30.657135v2.full.pdf"
+tags: ["query:comp-neuro"]
+score: 7.0
+evidence: 海马情景记忆检索的神经表征
+tldr: 情景记忆在每次检索中会发生改变。本研究通过fMRI实验，让参与者以不同语义层次（项目、类别、主题）访问记忆，发现识别时的神经活动可依据先前语义访问历史分类，尤其在早期视觉皮层、腹侧颞叶和海马体。类别级访问增加项目间的神经相似性，而项目级访问导致更区分的表示。这些结果揭示了语义-情景交互如何动态塑造记忆痕迹。
+source: biorxiv
+selection_source: fresh_fetch
+figures_json: "[{\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/fig-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1685, \"height\": 243}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/fig-002.webp\", \"caption\": \"\", \"page\": 0, \"index\": 2, \"width\": 1244, \"height\": 737}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/fig-003.webp\", \"caption\": \"\", \"page\": 0, \"index\": 3, \"width\": 1021, \"height\": 1405}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/fig-004.webp\", \"caption\": \"\", \"page\": 0, \"index\": 4, \"width\": 1274, \"height\": 1140}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/fig-005.webp\", \"caption\": \"\", \"page\": 0, \"index\": 5, \"width\": 2153, \"height\": 1687}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/fig-006.webp\", \"caption\": \"\", \"page\": 0, \"index\": 6, \"width\": 899, \"height\": 1179}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/fig-007.webp\", \"caption\": \"\", \"page\": 0, \"index\": 7, \"width\": 1167, \"height\": 1316}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/fig-008.webp\", \"caption\": \"\", \"page\": 0, \"index\": 8, \"width\": 1568, \"height\": 845}]"
+tables_json: "[{\"url\": \"assets/tables/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/table-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1710, \"height\": 367}, {\"url\": \"assets/tables/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/table-002.webp\", \"caption\": \"\", \"page\": 0, \"index\": 2, \"width\": 2365, \"height\": 1026}, {\"url\": \"assets/tables/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/table-003.webp\", \"caption\": \"\", \"page\": 0, \"index\": 3, \"width\": 2368, \"height\": 1676}, {\"url\": \"assets/tables/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/table-004.webp\", \"caption\": \"\", \"page\": 0, \"index\": 4, \"width\": 2361, \"height\": 333}, {\"url\": \"assets/tables/biorxiv/biorxiv-10-1101-2025-05-30-657135-v2/table-005.webp\", \"caption\": \"\", \"page\": 0, \"index\": 5, \"width\": 1719, \"height\": 450}]"
+motivation: 探索在情景检索中以不同方式访问语义知识如何影响后续记忆的神经表示。
+method: 参与者学习词-图像对，然后在三种语义层次（项目、类别、主题）下再暴露，最后完成识别任务并记录fMRI。
+result: 识别时神经活动可解码先前的语义访问层次，类别级访问增加早期视觉皮层的相似性，项目级访问增加视觉词形区的区分性。
+conclusion: 语义访问方式在记忆痕迹中留下可测量的神经痕迹，表明语义-情景交互动态塑造记忆表示。
+---
+
+## 摘要
+情景记忆被认为会随着每次检索而改变。我们假设在情景检索过程中以不同方式获取语义知识——从独特的知觉特征到分类和主题背景——会塑造这些记忆在后续识别中的表征方式。在这项功能性磁共振成像（fMRI）研究中，人类参与者学习新的词-图配对，并经历需要在三个不同层面（项目、类别或主题）之一获取语义知识的重新暴露。随后参与者完成一项识别任务。尽管行为记忆表现在不同条件下相匹配，但识别期间的神经活动会根据先前的语义获取历史而变化。对于被记住的概念，根据早期视觉皮层、腹侧颞叶皮层和海马中的先前语义获取，识别模式可以被分类。一项全脑搜索光分析揭示了沿腹侧视觉通路的双侧簇，在那里语义获取历史是可解码的。为进一步表征先前的语义获取历史如何塑造识别期间的神经表征，我们测试了在同一语义层面被获取的记忆是否在大脑中被表达得更相似或更独特。类别层面的获取增加了早期视觉皮层中项目之间的相似性，而项目层面的获取则在视觉词形区导致了更加分化的表征。总之，这些发现表明，在情景检索中我们获取语义知识的方式会在后续神经表征中留下可测量的痕迹，揭示了语义-情景交互如何塑造记忆表征。
+
+## Abstract
+Episodic memories are known to change with each act of retrieval. We hypothesize that accessing semantic knowledge in different ways during episodic retrieval -- from unique perceptual features to taxonomic and thematic context -- shapes how those memories are subsequently represented during recognition. In this functional magnetic resonance imaging (fMRI) study, human participants learned novel word-image pairs and underwent re-exposure that required accessing semantic knowledge at one of three different levels: item, category, or theme. Participants then completed a recognition task. Although behavioral memory performance was matched across conditions, neural activity during recognition varied based on prior semantic access history. Recognition patterns could be classified according to prior semantic access in early visual cortex, ventral temporal cortex and the hippocampus for remembered concepts. A whole-brain searchlight analysis revealed bilateral clusters along the ventral visual stream where semantic access history was decodable. To further characterize how prior semantic access history shaped neural representations during recognition, we tested whether memories accessed at the same semantic level were expressed more similarly or distinctly in the brain. Category-level access increased similarity among items in early visual cortex, while item-level access led to more differentiated representations in the visual word form area. Together, these findings show that how we access semantic knowledge during episodic retrieval leaves measurable traces in subsequent neural representations, revealing how semantic-episodic interactions shape memory representations.
