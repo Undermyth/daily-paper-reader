@@ -6,68 +6,77 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-14
-- 运行时间：2026-07-14 21:43:23 UTC
+- 最新运行日期：2026-07-15
+- 运行时间：2026-07-15 21:38:22 UTC
 - 运行状态：成功
-- 本次总论文数：16
-- 精读区：4
+- 本次总论文数：19
+- 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-今日精读两篇高分论文，聚焦Transformer长上下文优化：Dirichlet过程缓存与关联循环记忆。最值得关注《Remembering Distinct Items》提出的可学习DP缓存方法，以及《Extending LLM Context》的记忆扩展机制。建议优先精读这两篇，了解如何突破上下文长度瓶颈。
-- 详情：[/202607/14/README](/202607/14/README)
+今日关注两项9分研究：模型记忆机制的创新（Dirichlet过程缓存）及大脑学习后海马-皮层沟通再平衡。最值得精读的两篇分别是“Remembering Distinct Items, Not Tokens”和“A cortical-hippocampal communication undergoes rebalancing after new learning”。建议优先阅读这两篇高分论文，把握记忆机制与神经可塑性的前沿交叉方向。
+- 详情：[/202607/15/README](/202607/15/README)
 
 ### 精读区论文标签
-1. [Remembering Distinct Items, Not Tokens: A Learnable Dirichlet-Process Cache Between State-Space Models and Attention](/202607/14/2607.09889v1-remembering-distinct-items-not-tokens-a-learnable-dirichlet-process-cache-between-state-space-models-and-attention)  
+1. [Remembering Distinct Items, Not Tokens: A Learnable Dirichlet-Process Cache Between State-Space Models and Attention](/202607/15/2607.09889v1-remembering-distinct-items-not-tokens-a-learnable-dirichlet-process-cache-between-state-space-models-and-attention)  
    标签：评分：9.0/10、query:la
-   evidence：基于狄利克雷过程稀疏缓存的关联记忆方法
-2. [Extending LLM Context via Associative Recurrent Memory](/202607/14/2607.11614v1-extending-llm-context-via-associative-recurrent-memory)  
-   标签：评分：9.0/10、query:la
-   evidence：联想递归记忆变换器用于高效序列处理，通过线性注意力扩展上下文
-3. [A unified theory of context-conditioned efficient and predictive coding](/202607/14/biorxiv-10-1101-2025-02-24-639817-v2-a-unified-theory-of-context-conditioned-efficient-and-predictive-coding)  
+   evidence：基于狄利克雷过程的可学习稀疏缓存，实现高效关联记忆
+2. [A cortical-hippocampal communication undergoes rebalancing after new learning](/202607/15/biorxiv-10-1101-2025-03-26-645547-v2-a-cortical-hippocampal-communication-undergoes-rebalancing-after-new-learning)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：计算神经科学中的上下文条件高效编码理论
-4. [Increased CA3 burst activity in Doc2α and Syt7 knockout mice](/202607/14/biorxiv-10-64898-2026-07-01-735713-v1-increased-ca3-burst-activity-in-doc2-and-syt7-knockout-mice)  
+   evidence：海马尖波涟漪与记忆巩固再平衡
+3. [NMDA receptor-dependent Hebbian plasticity refines hippocampal spatial representations during two-dimensional navigation learning](/202607/15/biorxiv-10-64898-2026-07-13-734058-v1-nmda-receptor-dependent-hebbian-plasticity-refines-hippocampal-spatial-representations-during-two-dimensional-navigation-learning)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：NMDA依赖的Hebbian可塑性优化海马空间表征
+4. [LiteTopK: Exploiting the Curse of Dimensionality for a Fused Indexer-TopK Kernel in Long-Context Sparse Attention](/202607/15/2607.11976v1-litetopk-exploiting-the-curse-of-dimensionality-for-a-fused-indexer-topk-kernel-in-long-context-sparse-attention)  
+   标签：评分：8.0/10、query:la
+   evidence：融合索引器TopK内核用于稀疏注意力
+5. [Differentiable Clone-Structured Causal Graphs for End-to-End Cognitive Map Learning from Image Sequences](/202607/15/2607.12382v1-differentiable-clone-structured-causal-graphs-for-end-to-end-cognitive-map-learning-from-image-sequences)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：海马CA3突触可塑性机制与爆发活动
+   evidence：可微分克隆结构因果图用于认知地图学习，模拟海马功能
+6. [A geometric and dynamical theory of latent computations in biological neural networks](/202607/15/biorxiv-10-64898-2026-07-10-737763-v1-a-geometric-and-dynamical-theory-of-latent-computations-in-biological-neural-networks)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：生物神经网络中潜在计算的几何与动力学理论，计算神经科学核心
+7. [Attention reshapes the information dynamics of thalamic and cortical prediction-error learning](/202607/15/biorxiv-10-64898-2026-07-10-737794-v2-attention-reshapes-the-information-dynamics-of-thalamic-and-cortical-prediction-error-learning)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：注意力调节丘脑-皮层预测误差编码，直接相关于计算神经科学
 
 ### 速读区论文标签
-1. [HSA: Hierarchical Slot Attention for Multi-granularity Scene-Decomposition](/202607/14/2607.08249v1-hsa-hierarchical-slot-attention-for-multi-granularity-scene-decomposition)  
+1. [From Self-Attention to Connection Laplacian: A Unified Operator View of Transformers](/202607/15/2607.10677v1-from-self-attention-to-connection-laplacian-a-unified-operator-view-of-transformers)  
    标签：评分：7.0/10、query:la
-   evidence：用于多粒度场景分解的层次化槽注意力
-2. [Context by Distinct Information: An Auditable Dirichlet-Process Working Memory for Long, Redundant Context Streams](/202607/14/2607.10441v1-context-by-distinct-information-an-auditable-dirichlet-process-working-memory-for-long-redundant-context-streams)  
+   evidence：自注意力的统一算子视角：连接漫步
+2. [AVQ-Attention: Adaptive Vector-Quantized Attention](/202607/15/2607.12789v1-avq-attention-adaptive-vector-quantized-attention)  
    标签：评分：7.0/10、query:la
-   evidence：提出基于新颖性分配槽的工作记忆，与记忆增强神经网络相关
-3. [MemDecay: Region-Aware KV Cache Eviction for Efficient LLM Agent Inference](/202607/14/2607.10582v1-memdecay-region-aware-kv-cache-eviction-for-efficient-llm-agent-inference)  
+   evidence：自适应向量量化注意力用于高效序列处理
+3. [Inhibited Self-Attention: Sharpening Focus in Vision Transformers](/202607/15/2607.12881v1-inhibited-self-attention-sharpening-focus-in-vision-transformers)  
    标签：评分：7.0/10、query:la
-   evidence：提出区域感知KV缓存逐出以提升LLM智能体推理效率，直接与高效注意力相关
-4. [Memory Traces Reflect How They Were Last Retrieved](/202607/14/biorxiv-10-1101-2025-05-30-657135-v2-memory-traces-reflect-how-they-were-last-retrieved)  
+   evidence：抑制性自注意力使用负分数抑制无关特征
+4. [Distinct regimes of spatial prediction across the visual field during natural vision](/202607/15/biorxiv-10-64898-2026-03-27-714859-v2-distinct-regimes-of-spatial-prediction-across-the-visual-field-during-natural-vision)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：海马情景记忆检索的神经表征
-5. [NiCLIP: Neuroimaging contrastive language-image pretraining model for predicting text from brain activation images](/202607/14/biorxiv-10-1101-2025-06-14-659706-v4-niclip-neuroimaging-contrastive-language-image-pretraining-model-for-predicting-text-from-brain-activation-images)  
+   evidence：自然视觉中视觉皮层的预测计算机制
+5. [Image-grounded encoding models reveal distinct temporal profiles of naturalistic object and scene processing in the human brain](/202607/15/biorxiv-10-64898-2026-04-24-720581-v2-image-grounded-encoding-models-reveal-distinct-temporal-profiles-of-naturalistic-object-and-scene-processing-in-the-human-brain)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：从脑激活预测认知过程，与推理计算机制相关
-6. [Changes in perceptual sampling contribute to representational drift](/202607/14/biorxiv-10-64898-2026-06-24-734121-v3-changes-in-perceptual-sampling-contribute-to-representational-drift)  
+   evidence：基于图像的编码模型揭示大脑中物体/场景处理时程
+6. [Generating whole-brain neural activity and behavior through unified latent dynamics](/202607/15/biorxiv-10-64898-2026-06-05-730482-v2-generating-whole-brain-neural-activity-and-behavior-through-unified-latent-dynamics)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：表征漂移与感知采样变化相关，涉及突触可塑性
-7. [Generative and discriminative recurrence employ opposing strategies for robust vision](/202607/14/biorxiv-10-64898-2026-07-02-736066-v1-generative-and-discriminative-recurrence-employ-opposing-strategies-for-robust-vision)  
+   evidence：通过统一潜在动力学生成神经和行为
+7. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/15/biorxiv-10-64898-2026-06-10-731214-v11-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：视觉中循环连接的计算机制
-8. [Stars2Cells: Astrometric Tracking of Neurons Across Imaging Sessions](/202607/14/biorxiv-10-64898-2026-07-03-736144-v1-stars2cells-astrometric-tracking-of-neurons-across-imaging-sessions)  
+   evidence：表征几何作为连接组网络的保真度量
+8. [BraiNN: A Modern Simulator for Clinically Feasible Personalized Whole-Brain Network Modeling](/202607/15/biorxiv-10-64898-2026-07-08-737156-v1-brainn-a-modern-simulator-for-clinically-feasible-personalized-whole-brain-network-modeling)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：使用天文方法跨成像会话跟踪神经元
-9. [Functional Specialization of Angular Gyrus and Precuneus Subregions for Perspective-Guided Autobiographical Memory Retrieval](/202607/14/biorxiv-10-1101-2025-06-20-660447-v4-functional-specialization-of-angular-gyrus-and-precuneus-subregions-for-perspective-guided-autobiographical-memory-retrieval)  
+   evidence：基于JAX的全脑网络模拟器，支持计算神经科学研究
+9. [Do You Remember? Toward Memory-Centric Multimodal AI](/202607/15/2607.11919v1-do-you-remember-toward-memory-centric-multimodal-ai)  
+   标签：评分：6.0/10、query:la
+   evidence：用于多模态大语言模型的重建记忆架构
+10. [Forgetful Attention: A Trainable Support-Vector Memory with Certified Selection and Exact Unlearning](/202607/15/2607.12204v1-forgetful-attention-a-trainable-support-vector-memory-with-certified-selection-and-exact-unlearning)  
+   标签：评分：6.0/10、query:la
+   evidence：用于记忆检索的高效注意力机制，支持可验证遗忘
+11. [Neuromodulation enhances the capability and efficiency of spiking neural networks](/202607/15/biorxiv-10-1101-2025-07-25-666748-v2-neuromodulation-enhances-the-capability-and-efficiency-of-spiking-neural-networks)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：视角引导的自传体记忆检索神经机制
-10. [Computational demands shape seizure susceptibility in recurrent neural networks](/202607/14/biorxiv-10-64898-2026-07-02-735135-v1-computational-demands-shape-seizure-susceptibility-in-recurrent-neural-networks)  
+   evidence：神经调制提升脉冲神经网络效率和能力
+12. [Entropy regularised reinforcement learning reconciles aversive and action prediction errors in the tail of the striatum](/202607/15/biorxiv-10-64898-2026-07-09-737461-v1-entropy-regularised-reinforcement-learning-reconciles-aversive-and-action-prediction-errors-in-the-tail-of-the-striatum)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：通过网格细胞吸引子动力学的海马计算
-11. [BraiNN: A Modern Simulator for Clinically Feasible Personalized Whole-Brain Network Modeling](/202607/14/biorxiv-10-64898-2026-07-08-737156-v1-brainn-a-modern-simulator-for-clinically-feasible-personalized-whole-brain-network-modeling)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：全脑网络模拟器，计算神经科学工具
-12. [Spatial transcriptomic programs relate to spectrolaminar rhythms across macaque cortex](/202607/14/biorxiv-10-64898-2026-07-08-737187-v1-spatial-transcriptomic-programs-relate-to-spectrolaminar-rhythms-across-macaque-cortex)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：整合空间转录组与皮层节律，计算神经科学方法
+   evidence：熵正则化强化学习模型调和尾状核厌恶与动作预测误差，属于计算神经科学主题
 
 
 <div class="dpr-home-promo-card">
