@@ -1,0 +1,399 @@
+Title: Visual Place Recognition Using Rate-Encoded Spiking Neural Networks with Discrete STDP Learning
+
+URL Source: https://arxiv.org/pdf/2607.13584v1
+
+Published Time: Thu, 16 Jul 2026 00:45:43 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+> IEEE ROBOTICS AND AUTOMATION LETTERS 1
+
+# Visual Place Recognition Using Rate-Encoded Spiking Neural Networks with Discrete STDP Learning 
+
+Altzi Tsanko, Oikonomou Katerina Maria and Antonios Gasteratos Senior Member, IEEE 
+
+Abstract —Spiking Neural Networks (SNNs) trained through unsupervised Spike-Timing-Dependent Plasticity (STDP) have been explored as solutions to visual loop closure problems, driven by the prospect of efficient on-device inference on neu-romorphic devices. State-of-the-art STDP-based models deliver high classification accuracy but fail to reach the high Recall at 100% Precision (R@100P) needed for reliable autonomous navigation. We present a discrete, tensor-native implementation of the STDP-based SNN-VPR pipeline using PyTorch with snnTorch and evaluate it on a 100-place Nordland dataset using 15 independently-trained networks. The contribution of three decisions in the implementation is investigated. First, we show how to perform neuron assignment with a closed-form, deterministic tensor pipeline and show that it provides significantly higher R@100P than a standard argmax proce-dure. However, some of this gain comes from implementation differences compared to prior continuous-time models, which we measure independently. Second, ablation in isolation shows that state reset after each query helps improve R@100P regardless of the way neurons are assigned. Third, velocity-compensated sliding window aggregation over k consecutive frames reaches R@100P = 100 .00% ± 0.00% at k = 5 for constant-velocity traversal and an additional 0.20 ms latency. Taken together, these findings show the impact of inference stage design decisions in STDP-based SNN-VPR on recall precision, although the separate contribution of each mechanism and implementation differences is only partially disentangled and needs further examination. 
+
+Index Terms —Spiking Neural Networks, Visual Place Recog-nition, Winner-Take-All, snnTorch, STDP, design analysis. 
+
+I. I NTRODUCTION 
+
+# VISUAL Place Recognition (VPR) serves as one of the essential components of SLAM [1], allowing the robot to recognize a place it was seen before using only visual data. The primary condition that should be satisfied by VPR for loop closure is not just high classification accuracy, but high retrieval precision, since confident but wrong place match will introduce geometrical errors to robot’s map, and therefore will compromise further localization. This is quantified by Recall at 100% Precision (R@100P), or the amount of correct matches that can be made with the condition that zero false positive places can be used. Obtaining high R@100P proves to be a much harder task compared to classification accuracy, especially under the perceptual aliasing due to cross-seasonal and cross-illumination conditions. SNNs provide an attractive platform for on-device ap-plications such as VPR. As the third generation of neural 
+
+A. Tsanko, K. Oikonomou, and A. Gasteratos are with the Department of Production and Management Engineering, Democritus University of Thrace, Xanthi 67100, Greece, e-mails: {altztsan, aioikono, agaster }@pme.duth.gr. 
+
+networks [2], SNNs operate on sparse, event-driven spikes and can be trained using STDP, a biologically motivated unsupervised learning algorithm [3] avoiding the need for computationally expensive backpropagation. The applicability of this approach proved to go far beyond classification tasks. Spiking actor networks have been used to perform closed-loop robotic arm control [4], spiking feature-discrimination archi-tectures have been developed to improve multimodal audio-visual fusion [5], three-dimensional spiking convolutional net-works have been utilized for in-cabin activity recognition within autonomous vehicles [6]. However, STDP-based VPR approaches continue to demonstrate substantial gap between classification accuracy and retrieval precision. This gap is currently not fully understood. While previous works [7], [8] demonstrated that going beyond argmax assign-ment led to tangible improvements in R@100P, there are three potential confounds in separating the effect of the strategy. First, the issue of ambiguity, the proposed assignment strate-gies were formulated conceptually without giving determinis-tic formulas, making it impossible to distinguish between the gain coming from the strategy itself and the implementation peculiarities. Second, the problem of conflating simulations, continuous-time ODE solvers like Brian2 cannot guarantee the isolation of neuronal state across independent query presenta-tions. Thus, how much does the temporal leakage influence the reported R@100P? Third, the variance issue, no evaluation of the current approaches reports multiple-runs estimates, making it impossible to distinguish the methodology effect from the seed-to-seed variance of unsupervised STDP training. The confounds are overcome in this study through a con-trolled ablation experiment. The primary approach involves a tensor-native ablation implementation using snnTorch in PyTorch, enabling independent toggling of each confound and explicit assignment strategies via tensor operations. The methodology is precisely specified through formalization, state isolation using a binary criterion, and reporting of all outcomes as means and standard deviations across 15 independently trained networks. It should be stressed that realizing the energy-efficiency ben-efit of SNNs necessitates running them on specialized substrate such as Intel Loihi [9] or BrainScaleS [10]. Energy efficiency of SNNs in GPU simulation is no better and could even be worse compared to ANN inference due to simulation windows needed for SNN simulation. Thus, this paper concerns itself only with precision gains in algorithms within the discrete GPU-native framework. The contribution of this letter include: arXiv:2607.13584v1 [cs.NE] 15 Jul 2026 IEEE ROBOTICS AND AUTOMATION LETTERS 2 
+
+> •
+
+Probabilistic Assignment Formalization as the Pri-mary Precision Driver. Reformulation of probabilistic assignment and weighted assignment is made into a deter-ministic tensor pipeline formulation complete with partic-ipation regularization, response magnitude normalization, missing spike penalty, and L1-normalized probability output, without referring to any particular ODE solver. Using fifteen independently-trained networks, this tensor pipeline provides a mean R@100P of 77 .93% ±3.97% on Nordland in comparison to the baseline assignment which obtains 44.13%, whereas classification accuracy does not change much ( ≈ 94% ).  
+
+> •
+
+State Isolation as a Contributing Factor. The within-system isolation experiment, where architecture, train-ing procedure, and assignment methodology remain un-changed, shows that nullification of membrane potentials and synaptic traces before each query trial increases a bit performance of AUC-PR and positively impacts R@100P.  
+
+> •
+
+Sequence Aggregation as a Sufficient Condition for High-Precision Retrieval. Summing the probabilities for each frame across the velocity-adjusted sliding window of k frames yields an improvement in the average R@100P from 77 .93% ± 3.97% when k = 1 to 100 .00% ± 0.00% 
+
+when k = 5 at the cost of a further latency of 0.20 ms. This result holds even in the case where the velocity estimate may be wrong by ±10% .The rest of the letter proceeds in the following way. Related work is discussed in Section II. Section III describes the implementation of our solution. The experiment setting is described in Section IV. Results are presented in Section V. Section VI concludes with an agenda for future research. II. R ELATED WORK 
+
+A. Unsupervised SNN Training 
+
+The first major issue related to the use of SNNs is the nondifferentiable nature of the spiking activation function called the “dead neuron problem” [11], [12]. ANN-to-SNN conversion and BPTT-based training in conjunction with the spiking function show good results, yet the supervised learning signal makes these techniques not applicable to an unsu-pervised on-device regime that we consider [13], [14]. The only biological unsupervised learning rule at hand is STDP, and even its GPU-based stochastic implementations remain quite robust with respect to quantization up to 2-bit fixed-point precision [13], [15]. However, the STDP-trained network has a smaller retrieval precision compared to the supervised counterpart [14]. 
+
+B. STDP-Based VPR and Neuronal Assignment 
+
+The earliest bio-inspired VPR systems have explored down-sampling in combination with lightweight SeqSLAM tech-niques using event-camera [16], while other systems like Fly-Net have attempted to address significant day-night variations with sparse projections based on insects with less than 75,000 parameters [17]. Most relevant literature is found in [7], [8], [18], where authors present weighted neuronal assignment, leveraging the full response distribution of a neuron rather than a single peak response as an approach to reduce ambiguity of neurons [7]. Additionally, a probabilistic extension of the idea was presented, where population spike responses are transformed into a normalized confidence distribution [8]. A related scalable extension focused on ensembling spiking neural networks (SNNs) in regional fashion using Nordland and Oxford RobotCar datasets [18]. There are two issues left unresolved, first, an assignment strategy was only considered conceptually rather than being proposed as closed-form tensor computation. Second, the simulation of a continuous ODE may not isolate the neuronal state for every individual query presentation, hence the effect of time-spillover of the process on performance results cannot be untangled from the assign-ment procedure. Another bio-inspired direction, VPRTempo, uses supervised delta-rule learning to substitute rate coding by temporal coding, providing an inference greater than 1900 Hz on GPU hardware [19]. 
+
+C. Sequence-Based Place Recognition 
+
+SeqSLAM and its derivatives improve accuracy through short sequence matching by utilizing the robot’s continuous movement and overcoming any ambiguities in single frame matches [16]. Although probability outputs are incorporated into STDP-based SNN-VPR [8], the incorporation of both sequence level aggregation and confidence at the population level have never been attempted in previous works. This study makes this innovation in the field for the first time in the STDP-based SNN-VPR context. A different path of research is concerned with VPR from asynchronous event streams using deep spiking encoders with contrastive or residual learn-ing [20], [21]. 
+
+D. Positioning 
+
+Prior studies [7] proved the significance of the assignment strategy in controlling R@100P in STDP based SNN-VPR and devised weighted and probability based assignment strate-gies, which form the foundation of this paper. Subsequent researches [8], [18] focused on scalability through use of modular ensemble architecture, showed high sensitivity of SNN to sequence matching at R@1 and offered an indicator for sequence matching efficiency. But in all of these studies, argmax assignment was used consistently and no investigation on the behavior of probability based output at R@100P with sequence aggregation was conducted. This leaves three open issues unaddressed. The first concerns the extent to which the assignment strategy contributes to the improvement of R@100P, independent of errors introduced by continuous ODE simulation. The second concerns the seed-to-seed variance among independently trained networks, as opposed to ensem-bles. The third is whether velocity-compensated probability sequence aggregation can achieve perfect R@100P, and if so, within what operational window. This paper addresses each of these issues in turn. III. M ETHODOLOGY 
+
+To enable controlled analysis of the design choices impact-ing the retrieval accuracy, the STDP-driven VPR algorithm IEEE ROBOTICS AND AUTOMATION LETTERS 3
+
+is implemented as a discrete tensor-based algorithm using PyTorch via snnTorch 1. With the ability to consider each design decision, assignment policy, isolation of state variables, and temporal summation as individual, separately controllable components, the implementation enables controlled dissection not possible with continuous-time ODE implementations. This framework is based on biological methods outlined in [7], which are translated into batched step functions eliminating ODE error and enabling GPU optimization while retaining strict unsupervised on-device learning without backpropaga-tion. 
+
+A. Image Preprocessing and Spike Encoding 
+
+In the presence of cross-seasonal illumination variations typical of benchmarks such as the Nordland dataset, severe perceptual aliasing occurs. To mitigate this, we apply a patch-based preprocessing pipeline before encoding. 
+
+1) Patch Normalization: Images are converted to greyscale, downsampled to 28 × 28 , and partitioned into non-overlapping 
+
+7 × 7 patches. Localised Min-Max normalization is applied independently to each patch Pk:
+
+ˆPk = Pk − min( Pk)max( Pk) − min( Pk) (1) This inductive bias forces the network to extract high-frequency structural edges rather than absolute scene lumi-nance, improving robustness to day-night cycles. 
+
+2) Poisson Rate Encoding and State Isolation: The nor-malised pixel intensities ˆpi are converted into discrete spike trains si[t] ∈ { 0, 1} over a fixed simulation window ( T = 150 
+
+or T = 300 ) via a Poisson process where P (si[t] = 1) ∝ ˆpi.Our discrete framework enforces explicit state isolation by zeroing all membrane potentials and synaptic traces at t = 0 
+
+for every new query image. This eliminates the temporal spill-over inherent to continuous ODE simulations, where decaying traces from previous images may corrupt the responses to subsequent queries. 
+
+B. Discrete Leaky Integrate-and-Fire (LIF) Dynamics 
+
+The architecture comprises a feedforward input layer with 
+
+Nin = 784 inputs and one excitatory layer with Nexc dis-crete Leaky Integrate-and-Fire (LIF) neurons. The membrane potential Uj [t] of neuron j evolves iteratively: 
+
+Uj [t] = βU j [t − 1] + Ij [t] (2) Here, β is the membrane decay factor, and Ij [t] =
+
+PNin  
+
+> i=1
+
+wij si[t] is the afferent synaptic current from input spikes. A neuron fires Sj [t] = 1 when its membrane potential crosses an adaptive threshold θj , after which the potential is reset. 
+
+> 1Available at: https://github.com/AltziTS007/torchVPRSNN.
+
+C. Lateral Inhibition via Hard Winner-Take-All (WTA) 
+
+To enforce a sparse, competitive representation, we math-ematically formalize the Hard WTA mechanism over the active set. Let A[t] represent candidate neurons whose afferent current exceeds their adaptive threshold at time t:
+
+A[t] = k ∈ { 1, . . . , N exc } | Ik[t] > θ k (3) A neuron j fires if and only if it possesses the maximum current among valid candidates: 
+
+Sj [t] = 
+
+(
+
+1 if j ∈ A [t] and Ij [t] = max k∈A [t](Ik[t]) 0 otherwise (4) If A[t] = ∅, the network remains quiescent. 
+
+D. Unsupervised Learning Mechanisms 1) Discrete Weight-Dependent STDP: We replace continu-ous, event-driven ODE STDP traces with batch-based discrete updates. Pre-synaptic ( xi) and post-synaptic ( yj ) traces decay iteratively: 
+
+xi[t] = xi[t − 1] 
+
+
+
+1 − 1
+
+τpre 
+
+
+
++ si[t] (5) 
+
+yj [t] = yj [t − 1] 
+
+
+
+1 − 1
+
+τpost 
+
+
+
++ Sj [t] (6) The weight update ∆wij at timestep t incorporates a soft upper bound ( wmax ) to prevent runaway growth: 
+
+∆wij = A+(wmax − wij ) xi[t] Sj [t] − A− wij yj [t] si[t] (7) Following batched STDP updates, L2 normalization is applied column-wise across the weight matrix: wij ←
+
+wij /
+
+qP 
+
+> k
+
+w2 
+
+> kj
+
+.
+
+2) Global Homeostatic Stability: To ensure cohesive place-to-neuron mappings, our framework implements global batch-level homeostasis . The threshold θj is adjusted using the empirical mean firing rate ¯rj = 1
+
+> T
+
+P 
+
+> t
+
+Sj [t] evaluated over the entire simulation window: 
+
+θj ← θj + ηθ (¯ rj − rtarget ) (8) Where ηθ is the adaptation rate and rtarget is the de-sired sparsity. Unlike local spike-driven adaptation, batch-level homeostasis prevents rapid refractoriness from fragmenting the representation of a single physical location traversed at low speed. 
+
+E. Inference and Neuronal Assignments 
+
+Because STDP is purely unsupervised, a calibration phase assigns neurons to geographic locations. The training dataset is re-presented with plasticity disabled. Let SR ∈ NNexc ×Nclasses 
+
+represent the training spike count matrix, where SRil is the total spikes emitted by neuron i for place l.IEEE ROBOTICS AND AUTOMATION LETTERS 4
+
+1) Standard Assignment (Baseline): A neuron i is mapped exclusively to the class l∗ that elicits its maximum average spike count: l∗ = arg max l SRil . The query score for class l is the sum of spikes SQi for all neurons assigned to l.
+
+2) Weighted Assignment: Weighted assignment utilises the full response distribution, inherently down-weighting ambigu-ous, non-selective neurons. 
+
+a. Regularization by Involvement : let ωi = P 
+
+> l
+
+I(SRil > 0) 
+
+be the number of places neuron i fired for. 
+
+S′ 
+
+> il
+
+=
+
+
+
+SRil × 1
+
+ωi
+
+if ωi > γ · Nclasses 
+
+SRil otherwise (9) Here, γ ∈ (0 , 1) is the involvement threshold; neurons whose responses span more than a γ fraction of all classes are considered non-selective and penalised by 1/ω i.
+
+b. Response Strength Normalization :
+
+S′′  
+
+> il
+
+= S′ 
+
+> il
+
+× SRil 
+
+P 
+
+> m
+
+SRim 
+
+(10) 
+
+c. Missing Spikes Penalty :
+
+Score l = X
+
+> i
+
+SQi · S′′ 
+
+> il
+
+!
+
+×
+
+X
+
+> m∈Active
+
+SRml 
+
+X
+
+> m
+
+SRml 
+
+(11) where Active is the set of neurons that fired during the query. 
+
+3) Probability-Based Assignment: This strategy converts raw weighted scores Score l into a probability distribution P (l |
+
+Q) for each query, providing a threshold-independent con-fidence metric. First, query-specific Min-Max normalization bounds the responses: 
+
+\Score l = Score l − min m(Score m)max m(Score m) − min m(Score m) (12) Then L1-normalization converts bounded scores into a valid probability distribution: 
+
+P (l | Q) = \Score l
+
+P 
+
+> m
+
+\Score m
+
+(13) IV. E XPERIMENTAL SETUP AND IMPLEMENTATION 
+
+The data sets, network architecture, training procedure, and hardware are specified. We reiterate that the experimental results in this paper have been generated using a proof-of-concept setting in which 100 place benchmarks sequences, constant velocity traversals, and GPU simulations have been used. The specific choice of the experimental settings was made to facilitate a clean factorial ablation of design choices. 
+
+A. Datasets and Preprocessing 
+
+Robustness against seasonal and illumination changes is evaluated on two VPR datasets [7], [18], [19]. In the Nordland dataset, tunnels, stationary parts, and slow-motion periods are ignored for frame alignment, sampling takes place at 100 meters distance apart from the first quartile where spring and autumn passes serve as reference, and summer pass is considered as query. In the urban Oxford RobotCar dataset, samples are collected at every 10 meters interval where sunny and rainy passes act as reference and dusk pass is the query. All images are preprocessed as described in Section III-A, with T = 150 time-steps for Oxford and T = 300 time-steps for the Nordland dataset. 
+
+B. Network Architecture and Implementation Details 
+
+The discrete simulation is implemented natively in PyTorch via snnTorch. The network comprises an input layer of Nin =784 neurons (flattened image pixels) densely connected to an excitatory population of Nexc = 400 neurons. Membrane decay factors are empirically set to βe = 0 .95 (excitatory) and βi = 0.90 (inhibitory). Lateral inhibition is enforced via Hard WTA tensor-masking, ensuring instantaneous sup-pression of competing neurons. The initial firing threshold is θinit = 1 .5 for excitatory neurons and fixed at 1.0 for inhibitory neurons. The proposed SNN architecture is shown in Fig. 1. 
+
+C. Unsupervised Training Protocol 
+
+Training is purely unsupervised using the discrete weight-dependent STDP mechanism described in Section III, with learning rates A+ = 5 × 10 −4 (potentiation) and A− = 5 ×
+
+10 −6 (depression), trace decay constants τpre = τpost = 15 .0,and synaptic weights clamped to wmax = 1 .0. Global, batch-level homeostatic threshold adaptation maintains a stable, sparse representation, with target firing rate rtarget = 0 .01 
+
+and adaptation rate ηθ = 0 .001 . Training uses a batch size of 64. 
+
+D. Hardware Setup and Evaluation Metrics 
+
+All experiments were performed on a workstation with Ubuntu 22.04 LTS, which includes an Intel Core i7–7700K processor (4.20 GHz), 32 GB of RAM, and an NVIDIA GeForce RTX 3090 graphics card that speeds up tensor computations. Once the unsupervised learning process ends, the plasticity is frozen, and the calibration process associates 400 excitatory neurons with the geographical categories. The results obtained in terms of retrieval performance are assessed using three different neuron assignment methods: Standard Assignment (baseline), Weighted Assignment, and Probability-based Assignment, measured by Accuracy, P@100R, and R@100P. V. R ESULTS 
+
+All results are reported as means and standard deviations across 15 independently trained networks unless otherwise noted. 
+
+A. R@100P Across Assignment Strategies 
+
+In Fig. 2, R@100P for all three methods of assignment is shown for Nordland and Oxford with 100 place fields. The method of assignment makes practically no difference to coarse accuracy, which is around 94% in all cases, but IEEE ROBOTICS AND AUTOMATION LETTERS 5         
+
+> Preprocessing & Encoding
+> SNN Core
+> Inference & Readout
+> Raw Image Greyscale & Downsampling
+> Patch Normalization
+> Spike Encoding (Poisson Rate)
+> State Reset (per query, t=0 )
+> LIF Neuron Processing
+> Winner-Take-All (WTA)
+> STDP Learning
+> Adaptive Homeostasis
+> Spike Count Readout
+> Neuronal Assignment (W+Prob)
+> Sequence Aggregation
+> Calibration (offline, frozen weights)
+> Final Place Prediction
+> Fig. 1. Proposed SNN-based Visual Place Recognition architecture. Dashed orange paths indicate processes active exclusively during the training phase (parallel updates for STDP and homeostasis driven by WTA). The dashed grey path indicates the one-time calibration step that establishes the fixed neuron-to-place mapping used by every subsequent query; this mapping is not recomputed at inference. State Reset denotes the explicit zeroing of membrane potentials and synaptic traces once at t= 0 for each new query image, prior to LIF simulation.
+> Fig. 2. R@100P across assignment strategies on (a) Nordland (left side) and (b) Oxford RobotCar (right side) with 100-place benchmarks and N= 15
+> networks.
+
+it does make a big difference to the precision of the re-trievals. Standard assignment results in a mean R@100P of 44.13% on Nordland, whereas weighted assignment raises this to 54.13% by using all the response information from the neuron and punishing ambiguous neurons. Probability-Based Assignment (W+Prob) gives the greatest increase, rising to 
+
+77 .93% ± 3.97% , where the upper quartiles are around 86%. 
+
+B. Comparison with Prior Work 
+
+Table I shows comparisons of our method to the continuous-time ODE SNN-VPR system presented in [7], [8], including NetVLAD [22] and SAD [16] for reference as traditional approaches to VPR. Using the Probability-Based Assignment (W+Prob) matching strategy, our discrete state-isolated system achieves an average R@100P of 77.9% on Nordland, in contrast to 47.5% of the previous ODE system, a difference of 30.4 percentage points. As explained in Section V-F, this gap mainly arises due to different codebases and discretization techniques, and not simply state isolation. The Standard and Weighted baselines consistently outperform their continuous-time variants on both datasets. On Oxford RobotCar dataset, the highest performance achieved is 27.1% R@100P with W+Prob, owing to more viewpoint changes in the urban setting. Sequence aggregation on Oxford and a comparative analysis against other recent methods (Patch-NetVLAD [23], SeqNet [24], AnyLoc [25]) on larger maps is left for future work (Section VI). 
+
+C. Computational Profile 
+
+The tensor-based implementation takes 17.52 ms to perform the entire computation of T = 300 time-steps, consuming about 380 MFLOPS, while the contribution from sequence aggregation is only 0.20 ms. This results in an overall latency of 17.72 ms, achieving throughput of 56.4 Hz, which surpasses the traditional 30 Hz frequency of robot cameras. As stated in Section I, demonstration of the efficiency of our approach in terms of power consumption against that of artificial neural networks requires neuromorphic hardware. 
+
+D. Ablation Studies 1) Core Mechanism Contributions: As shown in Table II, the contributions of Hard Winner-Take-All (WTA), global homeostasis, and patch normalization are all necessary for the stable generation of place cells, since their elimination results in nearly total failure of the model. Hard WTA generates competitive representations and does not allow overlapping vi-sual features to fire together. Batch-level homeostatic threshold adaptation counteracts the effect of overstimulation caused by IEEE ROBOTICS AND AUTOMATION LETTERS 6
+
+TABLE I MEAN R@100P P ERFORMANCE COMPARISON . C ONTINUOUS -ODE SNN-VPR RESULTS FROM [7], [8]. N ET VLAD AND SAD ARE INCLUDED AS CONTEXTUAL REFERENCES ONLY AND ARE NOT EVALUATED UNDER THE SAME PROTOCOL AS THE SNN SYSTEMS . S EQUENCE AGGREGATION RESULTS ON OXFORD ROBOT CAR AND LARGE -SCALE EVALUATIONS ARE DEFERRED TO FUTURE WORK .                          
+
+> Continuous-ODE SNN-VPR [7], [8] Traditional VPR (Reference Only) snntorchVPR (Ours) Dataset Standard Weighted W+Prob NetVLAD SAD Standard Weighted W+Prob
+> Nordland 12.8% 29.7% 47.5% 15.3% 51.7% 44.13% 54.13% 77.93% Oxford RobotCar 2.5% 8.8% 12.0% 11.0% 11.3% 15.2% 16.3% 27.1%
+
+TABLE II CORE NETWORK COMPONENT ABLATION (100-PLACE NORDLAND ,W+P ROB ASSIGNMENT ).           
+
+> Configuration Acc. (%) R@100P (%) Full Architecture 94.07 77.93
+> w/o Hard WTA ∼1.00 0.00 w/o Global Homeostasis ∼1.00 0.00 w/o Patch Normalization <5.00 0.00
+
+TABLE III ASSIGNMENT STRATEGY ABLATION ON 100-PLACE NORDLAND (MEAN ACROSS N = 15 SEEDS ). W+P ROB DENOTES WEIGHTED PROBABILISTIC ASSIGNMENT .              
+
+> Strategy Acc. P@100R R@100P
+> (%) (%) (%) Standard 93.40 93.40 44.13 Weighted 94.07 94.07 54.13 W+Prob 94.07 94.07 77.93
+
+the most dominant neurons and allows the remaining neurons to become active. Patch normalization reduces the luminance variance and highlights the local structural patterns necessary for successful place recognition. 
+
+2) Neuronal Assignment Strategies: According to Table III, the effect of assignment strategy on coarse accuracy is min-imal, while its impact on retrieval accuracy is significant. The probability-based strategy (W+Prob) reduces the effect of perceptual aliasing by treating spike numbers as probability distributions and thus reducing the noise of secondary activa-tions, leading to the average R@100P rate of 77.93%. 
+
+3) Scalability Analysis: To evaluate the scalability of the proposed SNN-based VPR system, we examine the effect of the number of reference places N on AUC-PR by using the sliding-window evaluation protocol outlined in [7]. For each 
+
+N ∈ {25 , 50 , 100 , 150 , 200 , 250 , 300 , 350 , 400 }, the dataset is split into overlapping windows of N sequential places, where the network is trained and evaluated independently on each window with corresponding mean and standard deviation of AUC-PR being computed. The Nordland experiments are carried out with T = 300 simulation timesteps, while the Oxford RobotCar experiments are done with T = 150 . Fig. 3 illustrates the results of these experiments. On Nordland, the network obtains 94 .83 ± 5.41% AUC-PR for N = 25 and gracefully degrades to 39.02% for N = 400 . On Oxford RobotCar, the performance AUC-PR is substantially worse for all scales considered ( 17 .66 ± 17 .77% for N = 25 down to 6.54% for N = 400 ), due to higher visual complexity and perceptual aliasing in the urban environment compared 
+
+Fig. 3. AUC-PR as a function of the number of reference places on Nordland ( T =300 ) and Oxford RobotCar ( T =150 ). Error bars denote ±1
+
+standard deviation across sliding-window segments. The Nordland curve closely reproduces the trend reported in [7], confirming that the discrete-time formulation faithfully reproduces the scalability characteristics of the continuous-time ODE baseline. 
+
+to the railroad corridor of the Nordland dataset. The high variance for small N in the Oxford dataset demonstrates that the performance is highly dependent on the choice of the geographic segment, since some areas of the route are more discriminative visually than others. Overall, there are two major insights obtained from these results: (i) the discrete-time SNN model is comparable with the continuous-time ODE-based model on the Nordland dataset without the need of an ODE solver and is thus suitable for fast GPU-accelerated batch training; and (ii) the non-modular single SNN has fundamental capacity limitations when applied to a challenging urban visual environment, which is the reason for the sequence aggregation method presented in Section V-E. 
+
+4) Operational Envelope: Velocity Mismatch and Traversal Discontinuities: Table IV depicts deployment constraints of the aggregation scheme ( k = 5 , product rule) on average over 10 trained networks (seeds 16–25). The network op-erates stably with velocity errors in the range of ±10% 
+
+(100 .00% ± 0.00% ) but fails rapidly at ±20% mismatch (2.92% ± 5.90% ). However, its failures differ depending on the direction of the velocity mismatch, being faster than required does not completely ruin window overlaps ( +20% :
+
+5.83% ± 7.25% ), while being slower causes complete failure of the retrieval ( −20% : 0.00% ). Traversal reversals prevent the generation of any proper windows. Frames dropping is successfully overcome by the algorithm: with 10% frame drops R@100P is equal to 100 .00% ± 0.00% , while at 50% frame drops R@100P falls down to 90 .00% ± 30 .00% . Thus, high IEEE ROBOTICS AND AUTOMATION LETTERS 7
+
+TABLE IV OPERATIONAL ENVELOPE OF SEQUENCE AGGREGATION (k = 5 , PRODUCT RULE ), N ORDLAND , 100 PLACES . R ESULTS ARE AVERAGED OVER 10  
+
+> RANDOM SEEDS
+
+(16–25).                               
+
+> Condition Mean R@100P (%) Std Dev
+> Baseline ( 1.0×)100.00 ±0.00 Velocity mismatch ( +10% )100.00 ±0.00 Velocity mismatch ( −10% )100.00 ±0.00 Velocity mismatch ( +20% )5.83 ±7.25 Velocity mismatch ( −20% )0.00 ±0.00 Velocity mismatch ( +50% )0.00 ±0.00 Velocity mismatch ( −50% )0.00 ±0.00 Reverse traversal 0.00 ±0.00 10% dropped frames 100.00 ±0.00 50% dropped frames 90.00 ±30.00 Route deviations 100.00 ±0.00
+> Combined Velocity Mismatches
+> Velocity mismatch ( ±10% )100.00 ±0.00 Velocity mismatch ( ±20% )2.92 ±5.90 Velocity mismatch ( ±50% )0.00 ±0.00
+
+drop ratios can cause some networks to fail to provide enough contiguous windows for aggregation. Route deviations reset windows locally but do not affect retrieval accuracy in other windows ( 100 .00% ± 0.00% ). 
+
+E. Sequential Aggregation Performance 
+
+We perform velocity-based sliding window aggregation fol-lowing the product (log sum) rule by testing 15 networks with 
+
+k from {1, 3, 5, 7, 10 , 15 } as in Section V-A. We present the results in Table V. For k = 1 , we get the mean R@100P to be 77 .93% ± 3.97% . Going to k = 3 brings us an increase to 99 .93% ± 0.25% . For k ≥ 5, we have 100 .00% ± 0.00% 
+
+retrieval for all 15 networks, which holds true until k =15 . The greatly decreased standard deviation at k ≥ 3 in comparison to the rather high standard deviation at k = 1 
+
+suggests that in addition to raising the mean performance of sequence aggregation helps to reduce the variability of seeds used during unsupervised STDP training, those seeds that provide a low performance at k = 1 yield near-perfect retrieval after incorporating temporal context. The overhead of the aggregation at k = 5 is 0.20 ms per query. 
+
+TABLE V SEQUENTIAL AGGREGATION : M EAN R@100P VS . W INDOW SIZE k
+
+(N ORDLAND , 100 PLACES , CONSTANT -VELOCITY TRAVERSAL , PRODUCT RULE , MEAN ± STD , N = 15 NETWORKS ). 
+
+k Mean R@100P (%) Std. Dev. (%) 1 77.93 3.97 3 99.93 0.25 5 100.00 0.00 7 100.00 0.00 10 100.00 0.00 15 100.00 0.00 
+
+F. State Isolation: Within-System Ablation 
+
+Turning off the explicit state isolation in our discrete pipeline allows us to observe whether temporal spillover (ac-tive membrane potentials and synaptic traces across questions) 
+
+TABLE VI WITHIN -S YSTEM ABLATION OF QUERY -S TATE ISOLATION (N ORDLAND ,100 P LACES ; W+P ROB ASSIGNMENT )                                               
+
+> Method State Acc. (%) P@100R (%) R@100P (%) AUC-PR (%)
+> Standard Isolated 94.00 94.00 45.00 91.47 Standard Spillover 87.00 87.00 41.00 82.49 Weighted Isolated 95.00 95.00 50.00 93.90 Weighted Spillover 90.00 90.00 51.00 88.05 W+Prob Isolated 95.00 95.00 71.00 94.42 W+Prob Spillover 90.00 90.00 65.00 89.21 SeqAgg ( k= 5 )Isolated 100.00 100.00 100.00 100.00 SeqAgg ( k= 5 )Spillover 100.00 100.00 100.00 100.00
+
+can impact results while other factors remain equal. Table VI presents results of our experiment on one representative net-work for the 100-place Nordland benchmark. This is a targeted ablation study on a single run, but multi-seed replication on the entire 15-seed set is planned for the future, as mentioned in Section VI. Our reported 6-point attribution of R@100P should be viewed cautiously due to the presence of seed-to-seed variability ( σ = 3 .97% at k = 1 ). Disabling the state isolation results in lower accuracy and AUC-PR for all three assignment strategies. The largest reduction is observed for W+Prob (accuracy decreases from 95% to 90% ; AUC-PR decreases from 94 .42% to 89 .21% ). R@100P is decreased for Standard (45% to 41% ) and W+Prob (71% to 65% )assignments. In Weighted condition, we have seen a small increase ( 50% to 51% ), which is most likely due to single-run noise. Two conclusions can be drawn from this study. First, the 6-point reduction of R@100P within the system for W+Prob is much less significant than 30.4 points gap between systems in Section V-B. This means that codebase and time steps difference accounts for the most part of that gap, and not the state isolation itself. Second, applying sequence aggregation at 
+
+k = 5 solves the problem of time step spillover completely— with or without isolation, R@100P becomes 100 .00% (N =96 sliding windows). It shows that the temporal aggregation makes the algorithm insensitive to both STDP seed variance and state management issues. VI. C ONCLUSION 
+
+The controlled ablation study on the inference-stage de-sign choices governing retrieval precision of STDP-based SNN-VPR was performed using a discrete tensor-native pipeline in PyTorch with snnTorch. We identified three neces-sary/sufficient design choices ensuring high-precision retrieval on the used benchmark. The first design choice, formalization of probabilistic as-signment as a closed-form tensor pipeline, is a major source of precision. It increased the mean R@100P from 44.13% to 77.93%, while maintaining the coarse accuracy around 94% .The second choice, verified with the help of an in-system ablation study, is that of explicit state isolation, which pos-itively influences retrieval performance regardless of assign-ment strategy and increases R@100P in Standard and W+Prob strategies. Yet, its isolated contribution of 6 percentage points in the case of W+Prob assignment in one representative network accounts only partially for the 30.4 percentage point gap between our results and those of [7]. IEEE ROBOTICS AND AUTOMATION LETTERS 8
+
+The third, sufficient condition for perfect retrieval on 100-place Nordland benchmark under the assumption of constant-velocity traversal is velocity-compensated sequence aggrega-tion, which results in 100 .00% ± 0.00% recall at k = 5
+
+on all 15 networks without change of any other upstream component. The variance between seeds disappears starting with k = 3 , suggesting that temporal aggregation compensates for stochasticity during STDP training as well. The operational envelope, stable within ±10% velocity error range, with a sharp failure point at ±20% defines the practical engineering target for further velocity-robust inference approaches. Next steps are intended to, validate on neuromorphic hardware (Intel Loihi, BrainScaleS or FPGA), assessing the energy-efficiency of the inference pipeline as compared to ANN inference. Perform large-scale multi-dataset evaluation on Nordland Sequence Benchmark, Brisbane-Event-VPR, and other datasets with real viewpoint variance. Compare to the state-of-the-art solutions such as PatchNetVLAD [23], Se-qNet [24], AnyLoc [25], VPRTempo [19] and foundation-model-based VPR at similar map scale and replicate the multi-seed state-isolation ablation. Finally extend the velocity toler-ance to beyond ±10% through adaptive velocity estimation and window probability calculation. REFERENCES [1] S. Lowry, N. S¨ underhauf, P. Newman, J. J. Leonard, D. Cox, P. Corke, and M. J. Milford, “Visual place recognition: A survey,” IEEE Trans-actions on Robotics , pp. 1–19, 2016. [2] W. Maass, “Networks of spiking neurons: The third generation of neural network models,” Neural Networks , pp. 1659–1671, 1997. [3] G. Bi and M.-m. Poo, “Synaptic modifications in cultured hippocampal neurons: Dependence on spike timing, synaptic strength, and postsynap-tic cell type,” The Journal of neuroscience : the official journal of the Society for Neuroscience , pp. 10464–72, 1999. [4] K. M. Oikonomou, I. Kansizoglou, and A. Gasteratos, “A hybrid rein-forcement learning approach with a spiking actor network for efficient robotic arm target reaching,” IEEE Robotics and Automation Letters ,pp. 3007–3014, 2023. [5] K. M. Oikonomou, I. Kansizoglou, and A. Gasteratos, “Spiking neural network feature discrimination boosts modality fusion,” IEEE Transac-tions on Cognitive and Developmental Systems , pp. 1–13, 2025. [6] D. Manolakis, A. Lalas, K. M. Oikonomou, A. Gasteratos, and K. Votis, “3d spiking convolutional networks for robust human activity recogni-tion in av cabins,” in 2025 IEEE International Conference on Imaging Systems and Techniques (IST) , pp. 1–6, 2025. [7] S. Hussaini, M. Milford, and T. Fischer, “Spiking neural networks for visual place recognition via weighted neuronal assignments,” IEEE Robotics and Automation Letters , vol. 7, p. Article 7(2), 2022. [8] S. Hussaini, M. Milford, and T. Fischer, “Applications of spiking neural networks in visual place recognition,” IEEE Transactions on Robotics ,vol. 41, p. Article 41, 2025. [9] M. Davies, N. Srinivasa, T.-H. Lin, G. Chinya, Y. Cao, S. H. Choday, G. Dimou, P. Joshi, N. Imam, S. Jain, Y. Liao, C.-K. Lin, A. Lines, R. Liu, D. Mathaikutty, S. McCoy, A. Paul, J. Tse, G. Venkataramanan, Y.-H. Weng, A. Wild, Y. Yang, and H. Wang, “Loihi: A neuromorphic manycore processor with on-chip learning,” IEEE Micro , pp. 82–99, 2018. [10] J. Schemmel, D. Br¨ uderle, A. Gr¨ ubl, M. Hock, K. Meier, and S. Millner, “A wafer-scale neuromorphic hardware system for large-scale neural modeling,” in 2010 IEEE International Symposium on Circuits and Systems (ISCAS) , pp. 1947–1950, 2010. [11] J. K. Eshraghian, M. Ward, E. O. Neftci, X. Wang, G. Lenz, G. Dwivedi, M. Bennamoun, D. S. Jeong, and W. D. Lu, “Training spiking neural networks using lessons from deep learning,” Proceedings of the IEEE ,vol. 111, pp. 1016–1054, 2021. [12] K. Yamazaki, V. K. Vo-Ho, D. Bulsara, and N. Le, “Spiking neural networks and their applications: A review,” Brain Sciences , vol. 12, p. 863, 2022. [13] J. D. Nunes, M. Carvalho, D. Carneiro, and J. S. Cardoso, “Spiking neural networks: A survey,” IEEE Access , vol. 10, pp. 60738–60764, 2022. [14] S. G. Aribe, “Spiking neural networks: The future of brain-inspired com-puting,” International Journal of Engineering Trends and Technology ,vol. 73, pp. 32–48, 2025. [15] X. She, Y. Long, and S. Mukhopadhyay, “Fast and low-precision learning in gpu-accelerated spiking neural network,” Proceedings of the 2019 Design, Automation and Test in Europe Conference and Exhibition, DATE 2019 , pp. 450–455, 2019. [16] M. Milford, H. Kim, M. Mangan, S. Leutenegger, T. Stone, B. Webb, and A. Davison, “Place recognition with event-based cameras and a neural implementation of seqslam,” 2015. [17] M. Chanc´ an, L. Hernandez-Nunez, A. Narendra, A. B. Barron, and M. Milford, “A hybrid compact neural architecture for visual place recognition,” IEEE Robotics and Automation Letters , pp. 993–1000, 2020. [18] S. Hussaini, M. Milford, and T. Fischer, “Ensembles of compact, region-specific & regularized spiking neural networks for scalable place recognition,” 2022. [19] A. D. Hines, P. G. Stratton, M. Milford, and T. Fischer, “Vprtempo: A fast temporally encoded spiking neural network for visual place recognition,” Proceedings IEEE International Conference on Robotics and Automation , p. Article undefined, 2024. [20] G. Keime, N. Cuperlier, and B. R. Cottereau, “Event-driven neuromor-phic vision enables energy-efficient visual place recognition,” 2026. [21] Z. Liu, Y. Li, C. Hu, D. Kong, J. Jiang, and Z. Fang, “Spike-evpr: Deep spiking residual networks with snn-tailored representations for event-based visual place recognition,” IEEE Robotics and Automation Letters ,vol. 11, pp. 6959–6966, 2026. [22] R. Arandjelovic, P. Gronat, A. Torii, T. Pajdla, and J. Sivic, “Netvlad: Cnn architecture for weakly supervised place recognition,” in Pro-ceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , pp. 5297–5307, 2016. [23] S. Hausler, S. Garg, M. Xu, M. Milford, and T. Fischer, “Patch-NetVLAD: Multi-scale fusion of locally-global descriptors for place recognition,” in Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition (CVPR) , pp. 14141–14152, 2021. [24] S. Garg, M. Vankadari, and M. Milford, “SeqNet: Learning descriptors for sequence-based hierarchical place recognition,” IEEE Robotics and Automation Letters , vol. 6, no. 4, pp. 8275–8282, 2021. [25] N. Keetha, A. Mishra, J. Karhade, K. M. Jatavallabhula, S. Scherer, M. Krishna, and S. Garg, “AnyLoc: Towards universal visual place recognition,” IEEE Robotics and Automation Letters , vol. 9, no. 2, pp. 1286–1293, 2024.

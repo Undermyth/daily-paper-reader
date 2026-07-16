@@ -6,77 +6,77 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-15
-- 运行时间：2026-07-15 21:38:22 UTC
+- 最新运行日期：2026-07-16
+- 运行时间：2026-07-16 21:32:28 UTC
 - 运行状态：成功
 - 本次总论文数：19
 - 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-今日关注两项9分研究：模型记忆机制的创新（Dirichlet过程缓存）及大脑学习后海马-皮层沟通再平衡。最值得精读的两篇分别是“Remembering Distinct Items, Not Tokens”和“A cortical-hippocampal communication undergoes rebalancing after new learning”。建议优先阅读这两篇高分论文，把握记忆机制与神经可塑性的前沿交叉方向。
-- 详情：[/202607/15/README](/202607/15/README)
+今日精选19篇论文，重点深入研读两篇9.0分神作：个性化全脑网络模拟器BraiNN与聚焦超声联合TMS的突触可塑性理论。最值得关注的方向是临床可用的脑网络建模与神经调控，以及LLM推理中KV缓存的结构-角色偏差自适应滤波。建议普通读者优先阅读这两篇精读文章，理解如何将脑模拟与临床结合，以及注意力机制如何重塑预测误差学习。
+- 详情：[/202607/16/README](/202607/16/README)
 
 ### 精读区论文标签
-1. [Remembering Distinct Items, Not Tokens: A Learnable Dirichlet-Process Cache Between State-Space Models and Attention](/202607/15/2607.09889v1-remembering-distinct-items-not-tokens-a-learnable-dirichlet-process-cache-between-state-space-models-and-attention)  
-   标签：评分：9.0/10、query:la
-   evidence：基于狄利克雷过程的可学习稀疏缓存，实现高效关联记忆
-2. [A cortical-hippocampal communication undergoes rebalancing after new learning](/202607/15/biorxiv-10-1101-2025-03-26-645547-v2-a-cortical-hippocampal-communication-undergoes-rebalancing-after-new-learning)  
+1. [BraiNN: A Modern Simulator for Clinically Feasible Personalized Whole-Brain Network Modeling](/202607/16/biorxiv-10-64898-2026-07-08-737156-v1-brainn-a-modern-simulator-for-clinically-feasible-personalized-whole-brain-network-modeling)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：海马尖波涟漪与记忆巩固再平衡
-3. [NMDA receptor-dependent Hebbian plasticity refines hippocampal spatial representations during two-dimensional navigation learning](/202607/15/biorxiv-10-64898-2026-07-13-734058-v1-nmda-receptor-dependent-hebbian-plasticity-refines-hippocampal-spatial-representations-during-two-dimensional-navigation-learning)  
+   evidence：用于临床的全脑网络模拟器
+2. [Unifying transcranial focused ultrasound and transcranial magnetic stimulation effects with calcium-dependent synaptic plasticity theory](/202607/16/biorxiv-10-64898-2026-07-09-737614-v1-unifying-transcranial-focused-ultrasound-and-transcranial-magnetic-stimulation-effects-with-calcium-dependent-synaptic-plasticity-theory)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：NMDA依赖的Hebbian可塑性优化海马空间表征
-4. [LiteTopK: Exploiting the Curse of Dimensionality for a Fused Indexer-TopK Kernel in Long-Context Sparse Attention](/202607/15/2607.11976v1-litetopk-exploiting-the-curse-of-dimensionality-for-a-fused-indexer-topk-kernel-in-long-context-sparse-attention)  
-   标签：评分：8.0/10、query:la
-   evidence：融合索引器TopK内核用于稀疏注意力
-5. [Differentiable Clone-Structured Causal Graphs for End-to-End Cognitive Map Learning from Image Sequences](/202607/15/2607.12382v1-differentiable-clone-structured-causal-graphs-for-end-to-end-cognitive-map-learning-from-image-sequences)  
+   evidence：钙依赖性突触可塑性理论统一TFUS和TMS效应
+3. [CA3 sparsity stabilises high-connectivity recurrent autoassociation: complementary binary and spiking computational modes in a DG->CA3 model](/202607/16/biorxiv-10-64898-2026-07-09-737637-v1-ca3-sparsity-stabilises-high-connectivity-recurrent-autoassociation-complementary-binary-and-spiking-computational-modes-in-a-dg-ca3-model)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：建模DG-CA3回路研究模式分离与递归自关联
+4. [The impact of homeostatic inhibitory plasticity in a generative biophysical model](/202607/16/biorxiv-10-64898-2026-01-12-699008-v2-the-impact-of-homeostatic-inhibitory-plasticity-in-a-generative-biophysical-model)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：可微分克隆结构因果图用于认知地图学习，模拟海马功能
-6. [A geometric and dynamical theory of latent computations in biological neural networks](/202607/15/biorxiv-10-64898-2026-07-10-737763-v1-a-geometric-and-dynamical-theory-of-latent-computations-in-biological-neural-networks)  
+   evidence：生物物理模型中的稳态抑制性可塑性
+5. [Local inhibitory topology dictates the spatial compartmentalization of hippocampal sharp-wave ripples](/202607/16/biorxiv-10-64898-2026-06-30-735500-v2-local-inhibitory-topology-dictates-the-spatial-compartmentalization-of-hippocampal-sharp-wave-ripples)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：生物神经网络中潜在计算的几何与动力学理论，计算神经科学核心
-7. [Attention reshapes the information dynamics of thalamic and cortical prediction-error learning](/202607/15/biorxiv-10-64898-2026-07-10-737794-v2-attention-reshapes-the-information-dynamics-of-thalamic-and-cortical-prediction-error-learning)  
+   evidence：展示抑制拓扑决定海马尖波涟漪的空间分隔
+6. [Diffusion Latent Representations for Neural Decoding](/202607/16/biorxiv-10-64898-2026-07-08-737343-v1-diffusion-latent-representations-for-neural-decoding)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：注意力调节丘脑-皮层预测误差编码，直接相关于计算神经科学
+   evidence：扩散潜在表示用于神经解码
+7. [A geometric and dynamical theory of latent computations in biological neural networks](/202607/16/biorxiv-10-64898-2026-07-10-737763-v1-a-geometric-and-dynamical-theory-of-latent-computations-in-biological-neural-networks)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：生物神经网络中潜在计算的几何与动力理论
 
 ### 速读区论文标签
-1. [From Self-Attention to Connection Laplacian: A Unified Operator View of Transformers](/202607/15/2607.10677v1-from-self-attention-to-connection-laplacian-a-unified-operator-view-of-transformers)  
-   标签：评分：7.0/10、query:la
-   evidence：自注意力的统一算子视角：连接漫步
-2. [AVQ-Attention: Adaptive Vector-Quantized Attention](/202607/15/2607.12789v1-avq-attention-adaptive-vector-quantized-attention)  
-   标签：评分：7.0/10、query:la
-   evidence：自适应向量量化注意力用于高效序列处理
-3. [Inhibited Self-Attention: Sharpening Focus in Vision Transformers](/202607/15/2607.12881v1-inhibited-self-attention-sharpening-focus-in-vision-transformers)  
-   标签：评分：7.0/10、query:la
-   evidence：抑制性自注意力使用负分数抑制无关特征
-4. [Distinct regimes of spatial prediction across the visual field during natural vision](/202607/15/biorxiv-10-64898-2026-03-27-714859-v2-distinct-regimes-of-spatial-prediction-across-the-visual-field-during-natural-vision)  
+1. [Adaptive Filtering of the KV Cache: Diagnosing and Correcting Structural-Role Bias in LLM Inference](/202607/16/2607.13205v1-adaptive-filtering-of-the-kv-cache-diagnosing-and-correcting-structural-role-bias-in-llm-inference)  
+   标签：评分：8.0/10、query:la
+   evidence：KV缓存淘汰用于现代RNN/LLM的高效注意力
+2. [Attention reshapes the information dynamics of thalamic and cortical prediction-error learning](/202607/16/biorxiv-10-64898-2026-07-10-737794-v2-attention-reshapes-the-information-dynamics-of-thalamic-and-cortical-prediction-error-learning)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：注意力调节丘脑皮层回路中的预测误差编码，计算神经科学
+3. [Local Redundancy: An Information-Theoretic Measure of Plasticity from Synthetic Memorization](/202607/16/2607.13432v1-local-redundancy-an-information-theoretic-measure-of-plasticity-from-synthetic-memorization)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：自然视觉中视觉皮层的预测计算机制
-5. [Image-grounded encoding models reveal distinct temporal profiles of naturalistic object and scene processing in the human brain](/202607/15/biorxiv-10-64898-2026-04-24-720581-v2-image-grounded-encoding-models-reveal-distinct-temporal-profiles-of-naturalistic-object-and-scene-processing-in-the-human-brain)  
+   evidence：从记忆化中推导可塑性的信息论度量，与突触可塑性相关
+4. [Granule cells reorient cortical trajectories to separate contexts](/202607/16/biorxiv-10-64898-2026-03-03-709240-v2-granule-cells-reorient-cortical-trajectories-to-separate-contexts)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：基于图像的编码模型揭示大脑中物体/场景处理时程
-6. [Generating whole-brain neural activity and behavior through unified latent dynamics](/202607/15/biorxiv-10-64898-2026-06-05-730482-v2-generating-whole-brain-neural-activity-and-behavior-through-unified-latent-dynamics)  
+   evidence：小脑颗粒细胞与情境分离的计算神经科学研究
+5. [Image-grounded encoding models reveal distinct temporal profiles of naturalistic object and scene processing in the human brain](/202607/16/biorxiv-10-64898-2026-04-24-720581-v2-image-grounded-encoding-models-reveal-distinct-temporal-profiles-of-naturalistic-object-and-scene-processing-in-the-human-brain)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：通过统一潜在动力学生成神经和行为
-7. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/15/biorxiv-10-64898-2026-06-10-731214-v11-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   evidence：大脑中物体/场景的计算表征
+6. [Generating whole-brain neural activity and behavior through unified latent dynamics](/202607/16/biorxiv-10-64898-2026-06-05-730482-v2-generating-whole-brain-neural-activity-and-behavior-through-unified-latent-dynamics)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：表征几何作为连接组网络的保真度量
-8. [BraiNN: A Modern Simulator for Clinically Feasible Personalized Whole-Brain Network Modeling](/202607/15/biorxiv-10-64898-2026-07-08-737156-v1-brainn-a-modern-simulator-for-clinically-feasible-personalized-whole-brain-network-modeling)  
+   evidence：全脑神经活动和行为的统一生成模型
+7. [Data-driven oscillatory network modeling with condition-dependent coupling laws: Identifying directed neural interactions in working memory attention dynamics](/202607/16/biorxiv-10-64898-2026-07-06-736523-v1-data-driven-oscillatory-network-modeling-with-condition-dependent-coupling-laws-identifying-directed-neural-interactions-in-working-memory-attention-dynamics)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：基于JAX的全脑网络模拟器，支持计算神经科学研究
-9. [Do You Remember? Toward Memory-Centric Multimodal AI](/202607/15/2607.11919v1-do-you-remember-toward-memory-centric-multimodal-ai)  
-   标签：评分：6.0/10、query:la
-   evidence：用于多模态大语言模型的重建记忆架构
-10. [Forgetful Attention: A Trainable Support-Vector Memory with Certified Selection and Exact Unlearning](/202607/15/2607.12204v1-forgetful-attention-a-trainable-support-vector-memory-with-certified-selection-and-exact-unlearning)  
-   标签：评分：6.0/10、query:la
-   evidence：用于记忆检索的高效注意力机制，支持可验证遗忘
-11. [Neuromodulation enhances the capability and efficiency of spiking neural networks](/202607/15/biorxiv-10-1101-2025-07-25-666748-v2-neuromodulation-enhances-the-capability-and-efficiency-of-spiking-neural-networks)  
+   evidence：提出数据驱动振荡网络建模框架，推断工作记忆注意力动态中的条件依赖神经连接
+8. [Low-latency neuromorphic closed-loop control of hippocampal ripples in vivo](/202607/16/biorxiv-10-64898-2026-07-09-737518-v1-low-latency-neuromorphic-closed-loop-control-of-hippocampal-ripples-in-vivo)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：利用低延迟事件驱动计算实现海马 ripple 的神经形态闭环控制
+9. [Visual Place Recognition Using Rate-Encoded Spiking Neural Networks with Discrete STDP Learning](/202607/16/2607.13584v1-visual-place-recognition-using-rate-encoded-spiking-neural-networks-with-discrete-stdp-learning)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：神经调制提升脉冲神经网络效率和能力
-12. [Entropy regularised reinforcement learning reconciles aversive and action prediction errors in the tail of the striatum](/202607/15/biorxiv-10-64898-2026-07-09-737461-v1-entropy-regularised-reinforcement-learning-reconciles-aversive-and-action-prediction-errors-in-the-tail-of-the-striatum)  
+   evidence：脉冲神经网络的STDP学习用于视觉位置识别，突触可塑性
+10. [On the Optimal Temporal Resolution for Information Representation in Neural Activity: A Theoretical Analysis](/202607/16/biorxiv-10-64898-2026-05-19-726394-v2-on-the-optimal-temporal-resolution-for-information-representation-in-neural-activity-a-theoretical-analysis)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：熵正则化强化学习模型调和尾状核厌恶与动作预测误差，属于计算神经科学主题
+   evidence：神经信息表征最优时间分辨率的理论分析
+11. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/16/biorxiv-10-64898-2026-06-10-731214-v11-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：将表征几何作为连接组网络生物保真度的度量
+12. [Stars2Cells: Astrometric Tracking of Neurons Across Imaging Sessions](/202607/16/biorxiv-10-64898-2026-07-03-736144-v1-stars2cells-astrometric-tracking-of-neurons-across-imaging-sessions)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：用于纵向钙成像的神经元追踪流程
 
 
 <div class="dpr-home-promo-card">
