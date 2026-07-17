@@ -1,0 +1,25 @@
+---
+title: A Unified Computational Framework for Deep Brain Stimulation at the Cellular and Network Levels
+title_zh: 一个关于细胞和网络水平深部脑刺激的统一计算框架
+authors: "Crompton, D. B., Milosevic, L., Lankarany, M."
+date: 2026-07-16
+pdf: "https://www.biorxiv.org/content/10.64898/2026.07.02.736102v2.full.pdf"
+tags: ["query:comp-neuro"]
+score: 7.0
+evidence: 整合突触约束的深部脑刺激计算模型
+tldr: 深部脑刺激（DBS）对神经回路的作用机制尚不明确。本研究构建了整合突触和细胞约束的现象学计算模型，系统分析了刺激参数、突触连接强度与密度、下游电路基序等因素对神经元活动调制的影响。结果表明，DBS调制的尖峰活动特性由刺激核团内在属性、架构组织及下游回路结构共同决定。该统一框架揭示了DBS信号表征与传播的机制，为优化临床刺激参数提供理论指导。
+source: biorxiv
+selection_source: fresh_fetch
+figures_json: "[{\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/fig-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1319, \"height\": 563, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/fig-002.webp\", \"caption\": \"\", \"page\": 0, \"index\": 2, \"width\": 777, \"height\": 400, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/fig-003.webp\", \"caption\": \"\", \"page\": 0, \"index\": 3, \"width\": 1268, \"height\": 315, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/fig-004.webp\", \"caption\": \"\", \"page\": 0, \"index\": 4, \"width\": 1330, \"height\": 1407, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/fig-005.webp\", \"caption\": \"\", \"page\": 0, \"index\": 5, \"width\": 1253, \"height\": 501, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/fig-006.webp\", \"caption\": \"\", \"page\": 0, \"index\": 6, \"width\": 1263, \"height\": 738, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/fig-007.webp\", \"caption\": \"\", \"page\": 0, \"index\": 7, \"width\": 1264, \"height\": 816, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/fig-008.webp\", \"caption\": \"\", \"page\": 0, \"index\": 8, \"width\": 1254, \"height\": 497, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/fig-009.webp\", \"caption\": \"\", \"page\": 0, \"index\": 9, \"width\": 1176, \"height\": 1173, \"label\": \"Figure\"}]"
+tables_json: "[{\"url\": \"assets/tables/biorxiv/biorxiv-10-64898-2026-07-02-736102-v2/table-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 405, \"height\": 374, \"label\": \"Table\"}]"
+motivation: 揭示DBS在不同神经元回路架构下的作用机制，为临床参数优化提供理论依据。
+method: 构建综合现象学计算模型，结合实验约束模拟DBS对同质神经元群体的调制，并通过编码器分析下游传播。
+result: 发现突触特性、连接密度和下游电路基序是决定DBS调制活动的三个关键因素。
+conclusion: 统一模型阐明了DBS在细胞和网络层面的表示与传播机制，有助于指导临床刺激参数设计。
+---
+
+## 摘要
+深部脑刺激已被证明是治疗神经系统疾病的有效干预手段，但其对神经元回路影响的潜在机制仍未完全明了。在本研究中，我们提出一个综合的现象学计算模型，该模型在纳入经实验验证的突触和细胞约束的同时，解释了电刺激参数对神经元回路的影响。我们研究了深部脑刺激脉冲如何调节代表刺激核的均质神经元群体的放电活动，系统性地考察了回路结构的影响，包括突触连接强度（弱对比强）和组织方式（稀疏对比丰富）。为了表征深部脑刺激调节的神经元活动如何在下游网络中传播，我们开发了一个简单的编码器，该编码器揭示了由刺激核不同架构配置产生的不同编码模式。此外，通过将刺激核连接到递归连接的神经元群体，我们研究了深部脑刺激调节的神经元同步性在各种回路基序中的传播。我们的结果表明，三个关键因素决定了深部脑刺激调节的神经元活动：(a) 刺激核的内在突触和细胞特性，(b) 刺激核在突触强度和连接密度方面的架构组织，以及(c) 由刺激核的突触后目标形成的回路基序。这个统一模型为理解深部脑刺激在神经元网络中的表征和传播提供了一个机制框架，其见解可能有助于临床应用中刺激参数的优化。
+
+## Abstract
+Deep brain stimulation (DBS) has been demonstrated to be a successful therapeutic intervention for neurological disorders, yet the mechanisms underlying its effects on neuronal circuits remain incompletely understood. In this study, we propose a comprehensive phenomenological computational model that accounts for the impact of electrical stimulation parameters on neuronal circuits while incorporating experimentally-validated synaptic and cellular constraints. We investigate how DBS pulses modulate spiking activity in populations of homogeneous neurons representing stimulated nuclei, systematically examining the influence of circuitry architecture, including synaptic connectivity strength (weak vs. strong) and organization (sparse vs. rich). To characterize how DBS-modulated neuronal activity propagates through downstream networks, we develop a simple encoder that reveals distinct encoding patterns arising from different architectural configurations of stimulated nuclei. Furthermore, by connecting stimulated nuclei to recurrently connected neuronal populations, we examine the propagation of DBS-modulated neuronal synchrony across various circuit motifs. Our results demonstrate that three critical factors shape DBS-modulated neuronal activity: (a) the intrinsic synaptic and cellular properties of stimulated nuclei, (b) the architectural organization of stimulated nuclei in terms of synaptic strength and connectivity density, and (c) the circuit motifs formed by postsynaptic targets of stimulated nuclei. This unified model provides a mechanistic framework for understanding DBS representation and propagation in neuronal networks, offering insights that may inform optimization of stimulation parameters for clinical applications.
