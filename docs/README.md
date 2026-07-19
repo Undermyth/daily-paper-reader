@@ -6,62 +6,70 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-18
-- 运行时间：2026-07-18 21:24:35 UTC
+- 最新运行日期：2026-07-19
+- 运行时间：2026-07-19 20:48:19 UTC
 - 运行状态：成功
-- 本次总论文数：14
-- 精读区：2
+- 本次总论文数：16
+- 精读区：4
 - 速读区：12
 
 ### 今日简报（AI）
-今日日报收录14篇论文，精读聚焦海马体棕榈酰化重塑与跨尺度学习动力学两项8分研究。最值得关注的是记忆可塑性分子机制与统一学习理论的交叉，以及MLP事实存储、脉冲网络训练和长上下文微调等实用技术。建议先精读这两篇理解生物与人工学习的共性，再按兴趣探索高效实现方法。
-- 详情：[/202607/18/README](/202607/18/README)
+1. 今日精选16篇论文，精读2篇分别聚焦记忆模型与睡眠认知，速读覆盖大模型缓存压缩、全脑神经活动生成及屏状核回路调控。
+2. 最值得关注DSSMs通过时滞微分方程实现显式记忆，以及午睡慢波振幅预测稀疏视觉线索的模式完成。
+3. 建议优先阅读这两篇精读论文，理解记忆机制的新范式与睡眠认知的实际应用，速读文章可后续按兴趣筛选。
+- 详情：[/202607/19/README](/202607/19/README)
 
 ### 精读区论文标签
-1. [Learning-specific remodeling of the hippocampal palmitoylome](/202607/18/biorxiv-10-64898-2026-05-15-725211-v2-learning-specific-remodeling-of-the-hippocampal-palmitoylome)  
+1. [DSSMs: State Space Models with Explicit Memory via Delay Differential Equations](/202607/19/2607.10244v1-dssms-state-space-models-with-explicit-memory-via-delay-differential-equations)  
+   标签：评分：9.0/10、query:la
+   evidence：DSSM通过显式延迟状态反馈扩展SSM，实现高效长序列处理
+2. [Post-encoding slow-wave amplitude during a daytime nap predicts pattern completion from sparse visual cues](/202607/19/biorxiv-10-64898-2026-07-17-738149-v1-post-encoding-slow-wave-amplitude-during-a-daytime-nap-predicts-pattern-completion-from-sparse-visual-cues)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：睡眠中海马模式完成
+3. [Scalable Training of Continuous-Time Spiking Neural Networks with Differentiable Spike-Time Discretization](/202607/19/2607.14672v1-scalable-training-of-continuous-time-spiking-neural-networks-with-differentiable-spike-time-discretization)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：空间学习中海马palmitoylome重塑
-2. [A single dynamical property can account for the capacity to learn, from artificial networks to the mammalian brain.](/202607/18/biorxiv-10-64898-2026-07-09-737603-v2-a-single-dynamical-property-can-account-for-the-capacity-to-learn-from-artificial-networks-to-the-mammalian-brain)  
+   evidence：连续时间脉冲神经网络的内存高效训练框架，与计算神经科学相关
+4. [Attention reshapes the information dynamics of thalamic and cortical prediction-error learning](/202607/19/biorxiv-10-64898-2026-07-10-737794-v2-attention-reshapes-the-information-dynamics-of-thalamic-and-cortical-prediction-error-learning)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：临界性预测小鼠运动皮层学习速率和神经元调谐
+   evidence：注意力重塑丘脑皮层预测误差编码，计算机制
 
 ### 速读区论文标签
-1. [MLPs are Hebbians: Constructing Efficient Fact-Storing MLPs for Transformers](/202607/18/2607.10034v1-mlps-are-hebbians-constructing-efficient-fact-storing-mlps-for-transformers)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：MLP中的赫布学习原则用于高效事实存储，与突触可塑性机制相关
-2. [Scalable Training of Continuous-Time Spiking Neural Networks with Differentiable Spike-Time Discretization](/202607/18/2607.14672v1-scalable-training-of-continuous-time-spiking-neural-networks-with-differentiable-spike-time-discretization)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：连续时间脉冲神经网络的可扩展训练框架
-3. [Long-Context Fine-Tuning with Limited VRAM](/202607/18/2607.15105v1-long-context-fine-tuning-with-limited-vram)  
+1. [A JoLT for the KV Cache: Near-Lossless KV Cache Compression via Joint Tucker and JL-Residual Allocation for LLMs](/202607/19/2607.12550v1-a-jolt-for-the-kv-cache-near-lossless-kv-cache-compression-via-joint-tucker-and-jl-residual-allocation-for-llms)  
    标签：评分：7.0/10、query:la
-   evidence：分层全局注意力实现高效长上下文训练
-4. [Representational geometry reveals how neuronal diversity supports perceptual performance](/202607/18/biorxiv-10-1101-2025-06-26-661754-v2-representational-geometry-reveals-how-neuronal-diversity-supports-perceptual-performance)  
+   evidence：通过张量分解压缩KV缓存，提升注意力机制的内存效率
+2. [Generating whole-brain neural activity and behavior through unified latent dynamics](/202607/19/biorxiv-10-64898-2026-06-05-730482-v2-generating-whole-brain-neural-activity-and-behavior-through-unified-latent-dynamics)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：神经元多样性通过表征几何支持知觉表现
-5. [Distinct electrophysiological signatures reveal neuronal heterogeneity in the mouse fasciola cinereum](/202607/18/biorxiv-10-1101-2025-08-13-670170-v2-distinct-electrophysiological-signatures-reveal-neuronal-heterogeneity-in-the-mouse-fasciola-cinereum)  
+   evidence：生成框架NEBULA联合建模全脑神经活动与行为
+3. [A claustro-cortical loop times state transitions for flexible behavior](/202607/19/biorxiv-10-64898-2026-07-10-737800-v1-a-claustro-cortical-loop-times-state-transitions-for-flexible-behavior)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：海马亚区束状回的电生理表征，揭示神经元异质性
-6. [Composing the value signal for dopamine-mediated learning](/202607/18/biorxiv-10-1101-2025-10-10-681616-v4-composing-the-value-signal-for-dopamine-mediated-learning)  
+   evidence：屏状体-皮层环路对状态转换的计时控制
+4. [An Integrated EEG, TMS-EEG and Behavioural Dataset for Investigating the Neural Correlates of Working Memory](/202607/19/biorxiv-10-64898-2026-07-12-738085-v1-an-integrated-eeg-tms-eeg-and-behavioural-dataset-for-investigating-the-neural-correlates-of-working-memory)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：熵正则化强化学习框架用于多巴胺介导的学习
-7. [Attention-Free and Lightweight Token Reduction for Efficient Vision-Language Models](/202607/18/2607.13500v1-attention-free-and-lightweight-token-reduction-for-efficient-vision-language-models)  
+   evidence：包含EEG和TMS-EEG的工作记忆数据集
+5. [Excitatory delay-coupling explains in-phase and antiphase functional connectivity](/202607/19/biorxiv-10-64898-2026-07-17-739148-v1-excitatory-delay-coupling-explains-in-phase-and-antiphase-functional-connectivity)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：神经振荡相位连接的兴奋性延迟耦合模型
+6. [Planning in Nonhuman Primates Emerges from Structure Knowledge and is Distinct from Attention, Working Memory, Effort Control, and Learning](/202607/19/biorxiv-10-64898-2026-07-17-739240-v1-planning-in-nonhuman-primates-emerges-from-structure-knowledge-and-is-distinct-from-attention-working-memory-effort-control-and-learning)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：规划源于结构知识，且区别于注意、工作记忆等
+7. [LightMem-Ego: Your AI Memory for Everyday Life](/202607/19/2607.11487v1-lightmem-ego-your-ai-memory-for-everyday-life)  
    标签：评分：6.0/10、query:la
-   evidence：无注意力令牌精简实现高效VLM推理
-8. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/18/biorxiv-10-64898-2026-06-10-731214-v11-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   evidence：轻量级流式多模态记忆系统，层次化记忆和动态检索
+8. [Neural drift during rest drives walking direction and memory consolidation in Drosophila](/202607/19/biorxiv-10-1101-2025-03-20-644317-v2-neural-drift-during-rest-drives-walking-direction-and-memory-consolidation-in-drosophila)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：表征几何作为连接组约束网络的度量标准
-9. [Rhythmic replay of short-term memory neural patterns revealed by time-resolved error prediction](/202607/18/biorxiv-10-64898-2026-06-22-733876-v2-rhythmic-replay-of-short-term-memory-neural-patterns-revealed-by-time-resolved-error-prediction)  
+   evidence：果蝇导航中的神经漂移与记忆巩固
+9. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/19/biorxiv-10-64898-2026-06-10-731214-v11-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：研究短时记忆中theta节律重放，与突触可塑性和记忆相关
-10. [Data-driven oscillatory network modeling with condition-dependent coupling laws: Identifying directed neural interactions in working memory attention dynamics](/202607/18/biorxiv-10-64898-2026-07-06-736523-v1-data-driven-oscillatory-network-modeling-with-condition-dependent-coupling-laws-identifying-directed-neural-interactions-in-working-memory-attention-dynamics)  
+   evidence：表征几何作为连接组约束网络的保真度度量
+10. [Encoding and Retrieval in Parallel: ERP Correlates of Continuous Recognition Memory for Natural Scenes](/202607/19/biorxiv-10-64898-2026-07-07-736108-v1-encoding-and-retrieval-in-parallel-erp-correlates-of-continuous-recognition-memory-for-natural-scenes)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：数据驱动的振荡网络建模分析工作记忆注意力动态
-11. [Parvalbumin and somatostatin interneurons support distinct computations during auditory scene analysis](/202607/18/biorxiv-10-64898-2026-07-08-736456-v1-parvalbumin-and-somatostatin-interneurons-support-distinct-computations-during-auditory-scene-analysis)  
+   evidence：自然场景连续识别记忆的ERP相关性
+11. [Diffusion Latent Representations for Neural Decoding](/202607/19/biorxiv-10-64898-2026-07-08-737343-v1-diffusion-latent-representations-for-neural-decoding)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：清醒小鼠听觉场景分析中的抑制性回路计算
-12. [The Role of Training Paradigms in Shaping Connectivity and Dynamics: A Comparison of Gradient-Based and Evolutionary Methods in Recurrent Neural Network Models](/202607/18/biorxiv-10-64898-2026-07-09-737022-v1-the-role-of-training-paradigms-in-shaping-connectivity-and-dynamics-a-comparison-of-gradient-based-and-evolutionary-methods-in-recurrent-neural-network-models)  
+   evidence：扩散潜表示用于神经解码
+12. [Hyperbolic Brain Modelling and Neurocognitive Decline Analysis for Disease Detection](/202607/19/biorxiv-10-64898-2026-07-09-737540-v1-hyperbolic-brain-modelling-and-neurocognitive-decline-analysis-for-disease-detection)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：比较BPTT和演化算法训练RNN对神经生物计算解释的影响
+   evidence：双曲几何用于脑网络分析，计算表示
 
 
 <div class="dpr-home-promo-card">

@@ -1,0 +1,1089 @@
+Title: DSSMs: State Space Models with Explicit Memory via Delay Differential Equations
+
+URL Source: https://arxiv.org/pdf/2607.10244v1
+
+Published Time: Tue, 14 Jul 2026 00:39:47 GMT
+
+Number of Pages: 23
+
+Markdown Content:
+# DSSMs: State Space Models with Explicit Memory via Delay Differential Equations 
+
+Yixiao Qian 1 Song Chen 2,∗ Jiaxu Liu 3 Shengze Cai 1 Chao Xu 1,∗
+
+> 1
+
+College of Control Science and Engineering, Zhejiang University 
+
+> 2
+
+Department of Mathematics, National University of Singapore 
+
+> 3
+
+School of Mathematical Sciences, Zhejiang University 
+
+song.chen@nus.edu.sg, cxu@zju.edu.cn 
+
+> ∗
+
+Corresponding authors. 
+
+## Abstract 
+
+State Space Models (SSMs) have emerged as a powerful paradigm for efficient long-sequence modeling, offering parallel training and fast linear-time recurrent inference. However, like other recurrent architectures, SSMs must compress an unbounded history into a fixed-size state, which limits context retention and makes precise retrieval over long-range context inherently difficult. To overcome this limitation, we propose Delay State Space Models (DSSMs), a delay differential equation (DDE)-inspired extension of diagonal SSMs that augments discrete SSM recurrences with explicit delayed-state feedback. Making explicit delayed feedback practical requires new stability parameterization, history management, and FFT-training tools. We address these challenges with a practical discretization and parameterization grounded in a simple delay-independent stability condition. To bypass direct time-domain kernel construction, we derive the DSSM transfer function and compute kernels in the frequency domain, using a kernel contour shift to suppress aliasing and recover accurate FFT training. Empirically, DSSMs substantially improve targeted delayed-retrieval tasks while outperforming S4D on most standard sequence metrics and remaining close on the others. 
+
+## 1 Introduction 
+
+Sequence modeling is a core problem in modern deep learning. Recently, State Space Models (SSMs) have drawn increasing attention as an efficient family of sequence models because they enable parallel training and fast linear-time inference while showing strong performance on long-sequence tasks [Gu et al., 2021, 2022, Gu and Dao, 2024]. However, like other recurrent architectures, SSMs must compress past information into a finite recurrent state, where it is represented through exponentially decaying modes [Wang and Xue, 2023, Wang and Li, 2023], making exact copying and precise retrieval harder than in attention-based models [Jelassi et al., 2024]. This limitation has motivated several complementary directions, including recall-oriented SSM layers such as H3 [Fu et al., 2022], more expressive state-space designs [Lahoti et al., 2026], and hybrid architectures that combine attention with SSMs, such as Jamba, Zamba, and Samba [Lieber et al., 2024, Glorioso et al., 2024, Ren et al., 2024]. This leaves open how to strengthen precise long-range memory while retaining efficient parallel training and fast inference: Transformers offer strong long-range memory and parallel training but incur expensive inference [Shazeer, 2019, Pope et al., 2023], whereas standard SSMs achieve parallel training and efficient inference yet still struggle with precise long-range retrieval. To overcome this bottleneck, we revisit the underlying dynamics and introduce time-delays into the state evolution. Unlike standard ordinary differential equations (ODEs), delay differential equations 
+
+> Preprint. arXiv:2607.10244v1 [cs.LG] 11 Jul 2026 Sum
+> History Buffer
+
+Figure 1: Overview of the discrete DSSM update. The state combines the input term, the main-branch term from ht−1, and the delayed-branch term from the buffered delayed state ˜ht−τ . The formal discrete recurrence is developed in Sec. 3.2. (DDEs) explicitly incorporate historical states through delayed terms, thereby providing a natural mechanism for improving precise long-range memory. Related work in scientific machine learning likewise suggests that introducing delay-aware continuous dynamics can improve expressive power and long-horizon prediction [Zhu et al., 2021, Gupta and Lermusiaux, 2021]. Delayed dynamics, however, also create new challenges: stability analysis becomes more delicate, and delayed feedback breaks the simple time-domain kernel structure that underlies efficient FFT training in modern SSMs. In this work, we show that both difficulties can be resolved within a practical neural sequence-modeling framework. Our contributions can be summarized as follows: • DDE-Inspired Delayed SSMs : We propose Delay State Space Models (DSSMs), a DDE-inspired extension of diagonal SSMs that augments discrete SSM recurrences with explicit delayed-state feedback. We develop corresponding stability, discretization, and parameteri-zation tools for sequence modeling. • Efficient FFT Training via Kernel Contour Shift : We derive the exact transfer function of the delayed recurrence and develop a kernel contour shift technique that suppresses time-domain aliasing in frequency-domain training, enabling parallel training despite delayed feedback. • Empirical Validation : We evaluate DSSMs on targeted delayed-memory tasks, efficiency benchmarks, and standard sequence modeling datasets, showing the delayed-memory mech-anism and its transfer to broader sequence modeling settings. 
+
+## 2 Background 
+
+Continuous State Space Models. SSMs describe the evolution of a continuous-time state h(t) ∈
+
+CN driven by a 1-D input x(t) ∈ R and producing an output y(t) ∈ R. The system can be represented by either the linear ODE in Eq. (1) or by the convolution in Eq. (2): 
+
+˙h(t) = Ah (t) + Bx(t),y(t) = Ch (t). (1) K(t) = CetAB,y(t) = ( K ∗ x)( t). (2) Here, A ∈ CN ×N , B ∈ CN ×1, C ∈ C1×N , K(t) ∈ C, and the operations are defined as: 
+
+etA := 
+
+> ∞
+
+X
+
+> n=0
+
+(tA)n
+
+n! , (K ∗ x)( t) := 
+
+Z t
+
+> 0
+
+K(t − s)x(s)d s. (3) 
+
+Discretization and Convolutional View. Applying the standard zero-order hold (ZOH) discretiza-tion [Gu et al., 2021, Gu and Dao, 2024] to Eq. (1) yields the discrete recurrence: 
+
+ht = ¯Ah t−1 + ¯Bxt, yt = Ch t, (4) 2where the discrete transition matrices are closed-form functions of the step size ∆t:
+
+¯A = exp( A∆t), ¯B = ( ¯A − I)A−1B. (5) While the recurrent form in Eq. (4) enables efficient O(1) step-by-step inference, its sequential dependence limits training parallelism. By the linear time-invariant (LTI) property, for an input sequence x and output sequence y, the same system can be expressed as a global convolution: 
+
+y = ¯K ∗ x, where ¯K =
+
+
+
+C ¯B, C ¯A ¯B, C ¯A2 ¯B, · · · , C ¯AL−1 ¯B
+
+
+
+. (6) The operation ∗ denotes the discrete convolution sum yt = Ptℓ=0 ¯Kℓxt−ℓ, where ¯Kℓ := C ¯Aℓ ¯B.
+
+Structured SSMs. Applying SSMs to practical sequence modeling requires addressing three fundamental challenges: (i) Parameterization: the system must be parameterized to ensure the ODE remains stable over long sequences; (ii) Initialization: proper initialization of A is crucial for capturing long-term dependencies; (iii) Efficiency: the representation must support parallelizable training to handle large-scale data. S4 [Gu et al., 2021] established structured SSMs as a practical framework for long-range sequence modeling through a HiPPO-initialized [Gu et al., 2020] diagonal-plus-low-rank (DPLR) parameterization and an efficient Cauchy-kernel algorithm. Subsequent work further simplified and extended this framework in models such as DSS, S4D, S5, Liquid-S4, and Mamba [Gupta et al., 2022, Gu et al., 2022, Smith et al., 2022, Hasani et al., 2022, Gu and Dao, 2024]. Following the diagonal branch of this literature, we adopt diagonal transition matrices in DSSMs to preserve mode-wise decoupling and support efficient FFT-based training. 
+
+Memory Issues of SSMs. Recent empirical studies point to recall-related gaps between attention-based and state-space or recurrent models. H3 targets token recall and comparison in language modeling using shift and diagonal SSMs with multiplicative interactions [Fu et al., 2022], while other work studies copying and position-structured retrieval benchmarks [Arora et al., 2023, Jelassi et al., 2024, Ren et al., 2025, Waleffe et al., 2024]. At a theoretical level, these gaps are consistent with the memory mechanism of ODE-based SSMs, which compress the entire past into a finite-dimensional recurrent state represented through exponentially decaying modes [Wang and Xue, 2023, Wang and Li, 2023]. These observations motivate revisiting the underlying dynamical formulation itself. 
+
+## 3 Delay State Space Models 
+
+Motivated by these limitations, we revisit the underlying dynamics of SSMs. Standard SSMs are governed by ODEs, so past information can only be retained by being compressed into the current hidden state. By contrast, DDEs incorporate delayed terms that provide explicit access to historical states. We therefore propose DSSMs as a DDE-inspired extension of diagonal SSMs that augments discrete SSM recurrences with explicit delayed-state feedback. 
+
+3.1 Continuous Delay State Space Models 
+
+A DSSM layer with hidden size H consists of H parallel channels, each with state size N . We first present the single-channel formulation and return to the full layer in Sec. 3.4. 
+
+Continuous DSSMs. We first consider a single channel, modeled as the following single-input, single-output (SISO) continuous-time DDE: 
+
+˙h(t) = Ah (t) + Adh(t − τ ) + Bx(t), y(t) = Ch (t), (7) where x(t) ∈ R, y(t) ∈ R, and h(t) ∈ CN denote the input, output, and state, respectively. The learnable parameters are the state matrix A ∈ CN ×N , delay matrix Ad ∈ CN ×N , input projection 
+
+B ∈ CN ×1, output projection C ∈ C1×N , and time delay τ ∈ R+. Following [Gu et al., 2022], we impose conjugate symmetry on the complex parameters to ensure real-valued outputs for real-valued inputs; details are provided in Appendix A.1. 3Diagonal Structure and Decoupling. Following recent advances in structured SSMs, we restrict 
+
+A and Ad to be diagonal. This decouples the N -dimensional system into N independent scalar DDEs. Let A = diag( λ1, · · · , λ N ) and Ad = diag( μ1, · · · , μ N ). Then Eq. (7) reduces to 
+
+˙hn(t) = λnhn(t) + μnhn(t − τ ) + bnx(t), n = 1 , 2, · · · , N, (8) where hn and bn denote the n-th components of h and B, respectively. The following sections instantiate a DDE-inspired discrete DSSM recurrence, together with its stable parameterization, history management, discretization, and initialization. 
+
+3.2 History Management and Discretization History Buffer. To implement delayed-state access in discrete time, we maintain a dense fixed-size buffer on the same grid as the recurrent update. Before computing ht, the pre-update buffer stores the most recent available hidden states: 
+
+Bt−1 = {ht−1−ℓ | 0 ≤ ℓ < min( t, L max )} . (9) After computing ht, it is written into the buffer to form Bt.
+
+Linear Interpolation. Since the learnable delay τ is continuous, the required delayed state generally does not lie exactly on the discrete grid. We decompose the normalized delay as 
+
+τ
+
+∆t := k + α, k ∈ Z+, α ∈ [0 , 1) . (10) Here, k = ⌊τ / ∆t⌋ is treated as an integer index, while gradients flow through the fractional weight 
+
+α. We define hj = 0 for all j < 0, and use zero padding for positions outside the retained buffer: 
+
+ˆhj =
+
+hj , if t − Lmax ≤ j < t, 
+
+0, otherwise , (11) and approximate the delayed state by linear interpolation: 
+
+˜ht−τ = (1 − α)ˆht−k + αˆht−k−1. (12) 
+
+Proposition 1. Consider the scalar discrete-time delayed system 
+
+ht = ¯λh t−1 + ¯ μ [(1 − α)ht−k + αh t−k−1] , k ∈ Z+, α ∈ [0 , 1) . (13) 
+
+The zero-input system is asymptotically stable if 
+
+|¯λ| + |¯μ| < 1. (14) 
+
+Proof. A proof is given in Appendix A.2. 
+
+Discretization. To satisfy the discrete stability condition, we introduce a shared continuous base parameter ζn ∈ C with Re( ζn) < 0. Its ZOH-style discretization defines the total discrete memory budget shared by the main and delayed branches: 
+
+¯ζn = exp( ζn∆t), pn = sigmoid( rn), n = 1 , 2, · · · , N. (15) Its magnitude ¯ζn = exp(Re( ζn)∆ t) ∈ (0 , 1) gives the shared discrete budget, and pn allocates that budget to the delayed branch. We then parameterize the discrete coefficients as 
+
+¯λn = (1 − pn)¯ζn, ¯μn = pn ¯ζn eiθ n . (16) By construction, |¯λn| = (1 − pn)|¯ζn| and |¯μn| = pn|¯ζn|, hence 
+
+|¯λn| + |¯μn| = |¯ζn| < 1, (17) which enforces the discrete stability condition mode-wise. Collecting these coefficients yields 
+
+¯A = diag( ¯λ1, · · · , ¯λN ) and ¯Ad = diag(¯ μ1, · · · , ¯μN ). For the input projection, we use the standard diagonal SSM ZOH form for the non-delayed base dynamics, 
+
+¯B = ( ¯A − I)A−1B, (18) where A = diag( λ1, · · · , λ N ) is the effective continuous-time matrix corresponding to ¯A, with 
+
+λn := ζn + ∆ t−1 log(1 − pn). The delayed branch is parameterized directly in discrete time. The resulting vector recurrence is 
+
+ht = ¯Ah t−1 + ¯Ad ˜ht−τ + ¯Bxt. (19) Figure 1 summarizes this discrete DSSM update. 43.3 Parameterization DSSM Parameterization. We introduce unconstrained scalar parameters ν∆, ν τ ∈ R and vector parameters νre , νim , r, θ ∈ RN . Their non-bold counterparts with subscript n denote the correspond-ing components. The model parameters are defined as follows: • Step Size ∆t: We parameterize 
+
+∆t = softplus( ν∆) > 0. (20) • Shared Base Dynamics : To ensure stability, we set 
+
+ζn = − exp( νre  
+
+> n
+
+) + iν im  
+
+> n
+
+, (21) so that Re( ζn) < 0.• Branch Allocation and Delayed Feedback : We define 
+
+¯ζn = exp( ζn∆t), pn = sigmoid( rn), n = 1 , 2, · · · , N. (22) We then split the shared discrete budget ¯ζn between the main and delayed branches via 
+
+¯λn = (1 − pn)¯ζn, ¯μn = pn ¯ζn eiθ n . (23) • Delay Location τ : We parameterize τ through a bounded ratio 
+
+q = sigmoid( ντ ), τ = ∆ t + q · (τmax − ∆t), (24) where τmax = ( Lmax − 1)∆ t.
+
+Parameterization of B. Following diagonal SSM practice [Gu et al., 2022], we use the explicit parameterization of B; the absorbed form is mathematically equivalent, and details are provided in Appendix A.3. 
+
+3.4 Architecture and Initialization Architecture. We instantiate the proposed DSSMs within the diagonal S4D backbone and denote the resulting model by DS4D. A DS4D layer with hidden size H consists of H parallel channels, each with N diagonal state modes and one learnable delay shared across those modes. 
+
+Shared Base Dynamics Initialization. We follow the S4D initialization [Gu et al., 2022] for the shared base dynamics, using either S4D-Inv or S4D-Lin: 
+
+(S4D-Inv ) ζn = − 12 + i Nπ
+
+ N
+
+2n + 1 − 1
+
+
+
+, (S4D-Lin ) ζn = − 12 + iπn. (25) 
+
+Delayed Branch Initialization. We initialize the delayed branch separately so that delayed feedback is present from the start of training: 
+
+θn = ω + ϵn, (26) where ϵn is a small random perturbation, ω is chosen near 0 or π, and rn is initialized so that pn starts from a small value. Initializing ω near 0 biases the delayed branch toward reinforcing temporally aligned components, whereas initializing ω near π biases it toward emphasizing mismatch or temporal change. Appendix A.4 provides a qualitative intuition for this behavior. 
+
+Delay Location Initialization. For general sequence tasks, we initialize the normalized delay ratios on an evenly spaced grid over the admissible range: 
+
+qj = ϵ + j − 1/2
+
+H (1 − 2ϵ), j = 1 , . . . , H, ντπ(j) = log 
+
+ qj
+
+1 − qj
+
+
+
+, (27) where π is a random permutation of the channel indices. When a task has a known characteristic delay scale, we instead use a task-specific initialization; for example, on image tasks, initializing delays around the image row width can serve as a useful heuristic for matching the delayed branch to the underlying spatial structure. 54 Efficient FFT Training for Delay State Space Models 
+
+Although Sec. 3 yields an efficient recurrent update for inference, sequential training remains prohibitively slow for long sequences. Standard SSMs avoid this bottleneck through convolutional training, and in some cases through parallel scan. In DSSMs, however, delayed feedback breaks the simple time-domain kernel formula available in ODE-based SSMs, while Appendix A.5 explains why parallel scan is also less natural for long-delay DSSMs. We therefore derive a frequency-domain transfer function and combine it with a kernel contour shift to obtain an FFT training algorithm. 
+
+Why Standard FFT Convolution Fails for DSSMs. For standard SSMs, the LTI property yields a global discrete convolution, y = ¯K ∗ x, with a closed-form kernel ¯Kt = C ¯At ¯B. In DSSMs, delayed feedback introduces history accesses and recursive memory echoes. The kernel can still be generated recurrently, but this construction is sequential and less parallel-friendly, motivating the transfer-function route below. 
+
+Exact Z-Domain Transfer Function. We work directly in the Z-domain and derive the exact transfer function. 
+
+Proposition 2 (Frequency-Domain Transfer Function) . Consider the scalar delayed recurrence 
+
+ht = ¯λh t−1 + ¯ μ [(1 − α)ht−k + αh t−k−1] + ¯bx t, yt = ch t, (28) 
+
+where ¯λ and ¯μ are the discrete main-branch and delayed coefficients, ¯b and c are the scalar input and output coefficients, and τ = ( k + α)∆ t with k ∈ Z+ and α ∈ [0 , 1) . Then the input-output transfer function is 
+
+K(z) = c  1 − z−1 ¯λ − z−kD(z)¯ μ−1 ¯b, where D(z) = (1 − α) + αz −1. (29) 
+
+Proof. A proof is given in Appendix A.6. 
+
+From Transfer Functions to FFT Training. A standard FFT-based route to recover a convolution kernel from a transfer function is to evaluate K(z) on the length-M FFT grid, 
+
+ˆK = [ K(z0), K (z1), · · · , K (zM −1)] ⊤, zm = exp( i 2πm M ), (30) and apply IFFT, i.e., ˜K = IFFT( ˆK). Let ¯K denote the desired linear kernel associated with K(z).The IFFT instead recovers the length-M circular kernel, which is the time-domain alias of ¯K:
+
+˜Kt =
+
+> ∞
+
+X
+
+> r=0
+
+¯Kt+rM , 0 ≤ t < M. (31) Because delayed feedback creates long-lived memory echoes, the resulting time-domain aliasing P∞ 
+
+> r=1
+
+¯Kt+rM can be non-negligible. We therefore apply a kernel contour shift by damping the linear kernel as ¯K′ 
+
+> t
+
+= ρt ¯Kt, 0 < ρ < 1, (32) so that the time-domain aliasing P∞ 
+
+> r=1
+
+¯K′ 
+
+> t+rM
+
+becomes sufficiently small. Applying the same FFT recovery route to the shifted transfer function yields the damped circular kernel ˜K′, from which we recover the original linear kernel by reversing the damping, i.e., ¯Kt ≈ ρ−t ˜K′
+
+> t
+
+. Smaller εshift reduces aliasing but increases restoration amplification through ρ−t, so we choose it to balance aliasing suppression and floating-point error. Appendix A.7 provides the full derivation, including the aliasing relation, shifted coefficients, and restoration formula. 
+
+Algorithm Summary. Algorithm 1 summarizes FFT training after discretization. For a full DSSM layer, this procedure is applied independently to each channel. 
+
+Complexity Analysis. Per channel, the computation is dominated by element-wise evaluation of the diagonal transfer function across N modes and M frequencies, which costs O(M N ), and by FFT/IFFT operations of length M , which cost O(M log M ). The per-channel complexity is therefore O(M (N + log M )) , and a full layer with hidden size H costs O(HM (N + log M )) .Implementation-level optimizations used in practice are described in Appendix B. 6Algorithm 1 Efficient FFT Training for DSSMs 
+
+Input: Input sequence x ∈ RL; FFT length M ≥ 2L − 1; Discretized mode-wise coefficients 
+
+¯λ, ¯μ, ¯b, c ∈ CN for one channel; Delay decomposition τ / ∆t = k + α; Shift tolerance εshift .
+
+Output: Output sequence y ∈ RL. 
+
+> 1:
+
+Set the damping radius and shifted dynamics: 
+
+ρ ← ε1/M  
+
+> shift
+
+, ¯λ′ ← ρ¯λ, ¯μ′ ← ρk ¯μ, D′(z) ← (1 − α) + ( αρ )z−1. 
+
+> 2:
+
+for m = 0 to M − 1 do  
+
+> 3:
+
+Sample the shifted transfer function on the FFT grid zm = exp( i 2πm M ):
+
+g(zm) = 
+
+
+
+1 − z−1 
+
+> m
+
+¯λ′ − z−km D′(zm) ¯ μ′−1
+
+, K′(zm) = 
+
+> N
+
+X
+
+> n=1
+
+cngn(zm)¯bn.
+
+Here, the inverse is taken elementwise across modes.  
+
+> 4:
+
+end for  
+
+> 5:
+
+Apply IFFT to obtain the damped circular kernel ˜K′:
+
+ˆK′
+
+← [K′(z0), K ′(z1), · · · , K ′(zM −1)] ⊤, ˜K′ ← IFFT( ˆK′
+
+). 
+
+> 6:
+
+Restore the length-L linear kernel and zero-pad it to length M :
+
+¯Kt ← ˜K′
+
+> t
+
+ρ−t, t = 0 , · · · , L − 1; ¯Kt ← 0, t = L, · · · , M − 1. 
+
+> 7:
+
+Zero-pad the input to length M and multiply in the frequency domain: 
+
+xpad ← [x0, · · · , x L−1, 0, · · · , 0] ⊤ ∈ RM , ˆY = FFT( ¯K) ⊙ FFT( xpad ). 
+
+> 8:
+
+Recover the length-L output: 
+
+yt ←
+
+h
+
+IFFT( ˆY )
+
+i
+
+> t
+
+, t = 0 , · · · , L − 1.
+
+## 5 Experiments 
+
+We evaluate DS4D on targeted delayed-memory tasks, efficiency and memory cost, and standard benchmarks that test broader sequence-modeling performance. More details are provided in Ap-pendix C. 
+
+5.1 Synthetic Tasks 
+
+We use six synthetic benchmarks to test delayed retrieval and aggregation. The three target mappings— 
+
+copy , sum , and weighted sum —probe exact delayed recall, delayed aggregation, and content-sensitive delayed aggregation, each under both fixed-delay and variable-delay regimes. We compare DS4D against five representative baselines: LSTM, S4D, Mamba, a GPT-2 recipe, and a Llama recipe. Figure 2 shows the learning curves, while Appendix C provides the full task definitions, data-generation details, and matched-parameter hyperparameters. As shown in Figure 2, DS4D converges rapidly on all three fixed-delay tasks and remains competitive with the strongest Transformer-based baselines, while under variable delays it is consistently more robust than S4D and Mamba. Table 1 provides a more direct view of the learned mechanism: mean channel delays remain close to their initialization, suggesting that DS4D preserves a distributed bank of channel-wise delays rather than collapsing to a single task-specific lag, while nonzero changes in both τ and ¯μ indicate local retuning within that bank. The ablations support this interpretation, as collapsing the learned delay to its minimum one-step value or removing the delayed branch sharply degrades validation accuracy across all six tasks. 70 500 1000 1500 2000                          
+
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Validation Accuracy
+> Delay Copy (Fixed)
+> 02000 4000 6000 8000
+> Delay Sum (Fixed)
+> 02000 4000 6000 8000
+> Delay Weighted Sum (Fixed)
+> 02000 4000 6000 8000
+> Step
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Validation Accuracy
+> Delay Copy (Variable)
+> 02000 4000 6000 8000
+> Step
+> Delay Sum (Variable)
+> 02000 4000 6000 8000
+> Step
+> Delay Weighted Sum (Variable)
+> S4D DS4D GPT-2 recipe Llama recipe Mamba LSTM
+
+Figure 2: Validation trajectories on the six synthetic benchmarks using the best learning rate selected for each baseline. Curves show the median validation accuracy across three seeds, and shaded bands indicate interquartile ranges. Table 1: Mechanistic evidence on synthetic DS4D checkpoints. (a) Mean channel delay, mean absolute delay shift |∆τ |, and mean absolute delayed-branch change |∆¯ μ| from initialization to the best-validation checkpoint. (b) Validation accuracy under targeted ablations on all six synthetic tasks; 
+
+τmin collapses the learned delay to one step, and |¯μ| = 0 removes the delayed branch. 
+
+(a) Parameter Learning Summary 
+
+Task Mean τ
+
+(init → best) Mean |∆τ | Mean |∆¯ μ|
+
+Copy (F) 544.0 → 543.9 2.6 0.004 Copy (V) 544.0 → 545.7 5.0 0.018 Sum (F) 544.0 → 543.9 4.4 0.005 Sum (V) 288.0 → 288.1 2.3 0.008 W.Sum (F) 544.0 → 543.8 3.8 0.005 W.Sum (V) 288.0 → 288.0 2.4 0.008 
+
+(b) Ablation Results 
+
+Task Learned τmin |¯μ| = 0 
+
+Copy (F) 1.000 0.010 0.012 Copy (V) 0.954 0.011 0.011 Sum (F) 0.984 0.052 0.003 Sum (V) 0.772 0.041 0.010 W.Sum (F) 0.772 0.059 0.005 W.Sum (V) 0.705 0.046 0.003 
+
+5.2 Efficiency and Accuracy 
+
+Figure 3 compares DS4D against S4D under matched-parameter and matched-hidden-size settings, reporting training throughput, decoding throughput, training memory, and decoding memory for sequence lengths from 1024 to 8192 . FFT training remains close to S4D in both settings, consistent with the complexity derived in Sec. 4. During autoregressive inference, decoding throughput remains nearly flat as sequence length increases, matching the expected O(1) per-token compute. Training memory grows linearly with sequence length, while decoding memory scales as O(L) because DS4D retains the hidden-state history required for explicit delayed-state access. Detailed benchmark settings, including the official S4D CUDA backend, the recurrent S4D decode path, and our DS4D fast paths, are provided in Appendix C.3. To verify the FFT algorithm, we compare the FFT path against recurrent path on the same discretized DS4D model and inputs, and find that the numerical discrepancy is negligible. Detailed settings and per-length results are provided in Appendix C.3. 81024 2048 4096 8192            
+
+> Sequence length
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> 2.0
+> 2.5
+> M tok/s
+> Train Throughput
+> 1024 2048 4096 8192
+> Sequence length
+> 0
+> 250
+> 500
+> 750
+> 1000
+> 1250
+> 1500
+> tok/s
+> Decode Throughput
+> 1024 2048 4096 8192
+> Sequence length
+> 0.0
+> 2.5
+> 5.0
+> 7.5
+> 10.0
+> 12.5
+> GB
+> Train Memory
+> 1024 2048 4096 8192
+> Sequence length
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> 2.0
+> GB
+> Decode Memory
+> S4D official DS4D (param matched) DS4D (hidden matched)
+
+Figure 3: Efficiency of DS4D versus S4D under matched-parameter and matched-hidden-size settings. We report training throughput, decoding throughput, training memory, and decoding memory across sequence lengths. FFT training remains close to S4D, decoding throughput stays nearly length-independent, and decoding memory grows with the retained history horizon because DS4D caches past hidden states for explicit delayed-state access. S4D uses the complete official implementation, with the official CUDA Vandermonde backend for full-sequence training and the official recurrent step path for streaming decode. 
+
+5.3 General Sequence Modeling 
+
+Table 2 compares DS4D against S4D on standard sequence benchmarks spanning image, speech, medical time series, and long-range classification. Although these benchmarks do not isolate delayed retrieval, they test whether explicit delayed memory preserves broad sequence-modeling ability. DS4D outperforms S4D on most metrics and remains close on the others, with gains across multimodal and long-range tasks. Full task details and hyperparameters are provided in Appendix C. Table 2: General sequence modeling results for DS4D and S4D. Arrows indicate whether higher or lower is better; BIDMC reports RMSE. S4D results are literature-reported from Gu et al. [2022] except sMNIST. 
+
+(a) Multimodal Tasks 
+
+MODEL SMNIST ↑ SC (AR) ↑ SC (B I.) ↑ BIDMC-RR ↓ BIDMC-HR ↓ BIDMC-S PO2 ↓
+
+S4D 99 .47 ± 0.001 93 .40 ± 0.67 96 .18 ± 0.27 0.254 ± 0.022 0.373 ± 0.024 0.110 ± 0.001 
+
+DS4D 99 .52 ± 0.000 94 .88 ± 0.16 96 .04 ± 0.33 0.262 ± 0.020 0.365 ± 0.014 0.075 ± 0.009 
+
+(b) Long Range Arena 
+
+MODEL LIST OPS ↑ TEXT ↑ RETRIEVAL ↑ IMAGE ↑ PATHFINDER ↑ PATH -X ↑
+
+S4D 60 .18 ± 0.35 87 .34 ± 0.20 91 .09 ± 0.01 87 .83 ± 0.37 93 .78 ± 0.25 92 .80 
+
+DS4D 61 .35 ± 0.56 87 .87 ± 0.11 91 .03 ± 0.11 87 .90 ± 0.04 94 .05 ± 0.36 93 .08 
+
+## 6 Limitations 
+
+When delayed structure is not beneficial for a task, the gains of DS4D over S4D may be limited. Decoding memory still scales with the bounded history horizon Lmax rather than remaining strictly 
+
+O(1) . For fixed Lmax , however, this cost does not grow with the total sequence length, unlike Trans-former KV caches. FFT training relies on a kernel contour shift that balances residual time-domain aliasing against floating-point restoration error. The delayed dynamics are not yet fully understood; in particular, delayed-branch initialization and delay-location design need more systematic study. Finally, we do not yet evaluate DS4D on large-scale autoregressive language modeling, and extending DSSMs with selective or input-dependent mechanisms remains future work. 
+
+## 7 Conclusion 
+
+We introduced Delay State Space Models (DSSMs), a DDE-inspired extension of diagonal SSMs that augments discrete SSM recurrences with explicit delayed-state feedback while retaining efficient FFT training and fast linear-time inference. We developed stable parameterizations, derived an exact frequency-domain transfer function, and proposed a practical FFT training algorithm based on 9kernel contour shift. Empirically, DS4D substantially improves targeted delayed-memory tasks and outperforms S4D on most standard sequence metrics while remaining close on the others. 
+
+## References 
+
+Simran Arora, Sabri Eyuboglu, Aman Timalsina, Isys Johnson, Michael Poli, James Zou, Atri Rudra, and Christopher Ré. Zoology: Measuring and improving recall in efficient language models. arXiv preprint arXiv:2312.04927 , 2023. Daniel Y Fu, Tri Dao, Khaled K Saab, Armin W Thomas, Atri Rudra, and Christopher Ré. Hungry hungry hippos: Towards language modeling with state space models. arXiv preprint arXiv:2212.14052 , 2022. Paolo Glorioso, Quentin Anthony, Yury Tokpanov, James Whittington, Jonathan Pilault, Adam Ibrahim, and Beren Millidge. Zamba: A compact 7b ssm hybrid model. arXiv preprint arXiv:2405.16712 , 2024. Albert Gu and Tri Dao. Mamba: Linear-time sequence modeling with selective state spaces. In First conference on language modeling , 2024. Albert Gu, Tri Dao, Stefano Ermon, Atri Rudra, and Christopher Ré. Hippo: Recurrent memory with optimal polynomial projections. Advances in neural information processing systems , 33: 1474–1487, 2020. Albert Gu, Karan Goel, and Christopher Ré. Efficiently modeling long sequences with structured state spaces. arXiv preprint arXiv:2111.00396 , 2021. Albert Gu, Karan Goel, Ankit Gupta, and Christopher Ré. On the parameterization and initialization of diagonal state space models. Advances in Neural Information Processing Systems , 35:35971– 35983, 2022. Abhinav Gupta and Pierre FJ Lermusiaux. Neural closure models for dynamical systems. Proceedings of the Royal Society A: Mathematical, Physical and Engineering Sciences , 477(2252), 2021. Ankit Gupta, Albert Gu, and Jonathan Berant. Diagonal state spaces are as effective as structured state spaces. Advances in neural information processing systems , 35:22982–22994, 2022. Ramin Hasani, Mathias Lechner, Tsun-Hsuan Wang, Makram Chahine, Alexander Amini, and Daniela Rus. Liquid structural state-space models. arXiv preprint arXiv:2209.12951 , 2022. Sepp Hochreiter and Jürgen Schmidhuber. Long short-term memory. Neural computation , 9(8): 1735–1780, 1997. Samy Jelassi, David Brandfonbrener, Sham M. Kakade, and Eran Malach. Repeat after me: Trans-formers are better than state space models at copying. arXiv preprint arXiv:2402.01032 , 2024. Aakash Lahoti, Kevin Y. Li, Berlin Chen, Caitlin Wang, Aviv Bick, J. Zico Kolter, Tri Dao, and Albert Gu. Mamba-3: Improved sequence modeling using state space principles. arXiv preprint arXiv:2603.15569 , 2026. Opher Lieber, Barak Lenz, Hofit Bata, Gal Cohen, Jhonathan Osin, Itay Dalmedigos, Erez Safahi, Shaked Meirom, Yonatan Belinkov, Shai Shalev-Shwartz, et al. Jamba: A hybrid transformer-mamba language model. arXiv preprint arXiv:2403.19887 , 2024. Reiner Pope, Sholto Douglas, Aakanksha Chowdhery, Jacob Devlin, James Bradbury, Jonathan Heek, Kefan Xiao, Shivani Agrawal, and Jeff Dean. Efficiently scaling transformer inference. 
+
+Proceedings of machine learning and systems , 5:606–624, 2023. Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, Ilya Sutskever, et al. Language models are unsupervised multitask learners. OpenAI blog , 1(8):9, 2019. Liliang Ren, Yang Liu, Yadong Lu, Yelong Shen, Chen Liang, and Weizhu Chen. Samba: Simple hybrid state space models for efficient unlimited context language modeling. arXiv preprint arXiv:2406.07522 , 2024. 10 Ruifeng Ren, Zhicong Li, and Yong Liu. Exploring the limitations of mamba in copy and cot reasoning. In Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing , pages 12550–12574, 2025. Noam Shazeer. Fast transformer decoding: One write-head is all you need. arXiv preprint arXiv:1911.02150 , 2019. Jimmy TH Smith, Andrew Warrington, and Scott W Linderman. Simplified state space layers for sequence modeling. arXiv preprint arXiv:2208.04933 , 2022. Jianlin Su, Murtadha Ahmed, Yu Lu, Shengfeng Pan, Wen Bo, and Yunfeng Liu. Roformer: Enhanced transformer with rotary position embedding. Neurocomputing , 568:127063, 2024. Yi Tay, Mostafa Dehghani, Samira Abnar, Yikang Shen, Dara Bahri, Philip Pham, Jinfeng Rao, Liu Yang, Sebastian Ruder, and Donald Metzler. Long range arena: A benchmark for efficient transformers. arXiv preprint arXiv:2011.04006 , 2020. Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timothée Lacroix, Baptiste Rozière, Naman Goyal, Eric Hambro, Faisal Azhar, et al. Llama: Open and efficient foundation language models. arXiv preprint arXiv:2302.13971 , 2023. Roger Waleffe, Wonmin Byeon, Duncan Riach, Brandon Norick, Vijay Korthikanti, Tri Dao, Albert Gu, Ali Hatamizadeh, Sudhakar Singh, Deepak Narayanan, et al. An empirical study of mamba-based language models. arXiv preprint arXiv:2406.07887 , 2024. Shida Wang and Qianxiao Li. Stablessm: Alleviating the curse of memory in state-space models through stable reparameterization. arXiv preprint arXiv:2311.14495 , 2023. Shida Wang and Beichen Xue. State-space models with layer-wise nonlinearity are universal approximators with exponential decaying memory. arXiv preprint arXiv:2309.13414 , 2023. Qunxi Zhu, Yao Guo, and Wei Lin. Neural delay differential equations. arXiv preprint arXiv:2102.10801 , 2021. 
+
+## A Method Details 
+
+A.1 Conjugate Symmetry and Real-Valued Outputs Proposition 3 (Conjugate Symmetry) . A sufficient and standard way to guarantee real-valued outputs for real-valued inputs is to impose conjugate-pair symmetry on the complex parameters. Specifically, under the explicit input parameterization, for any mode n with complex parameters, we include a corresponding mode m such that 
+
+λm = λ∗
+
+> n
+
+, μm = μ∗
+
+> n
+
+, bm = b∗
+
+> n
+
+, and cm = c∗
+
+> n
+
+. (33) 
+
+Here (·)∗ denotes complex conjugation. Proof. The total system output is the sum of outputs from independent scalar modes: y(t) = 
+
+PNn=1 yn(t), where yn(t) = cnhn(t). Let Hn(s) and X(s) denote the Laplace transforms of the state hn(t) and the input x(t), respectively. Applying the Laplace transform to the scalar DDE (assuming zero initial conditions) yields: 
+
+sH n(s) = λnHn(s) + μne−τ s Hn(s) + bnX(s). (34) Rearranging terms, the transfer function Tn(s) = Hn(s)/X (s) for the n-th mode is: 
+
+Tn(s) = bn
+
+s − λn − μne−τ s . (35) The global transfer function of the system, mapping input X(s) to output Y (s), is: 
+
+G(s) = 
+
+> N
+
+X
+
+> n=1
+
+cnTn(s) = 
+
+> N
+
+X
+
+> n=1
+
+cnbn
+
+s − λn − μne−τ s . (36) 11 Consider the term associated with index n, denoted Gn(s) = cnTn(s). Its conjugate evaluated at s∗
+
+is: 
+
+Gn(s∗)∗ =
+
+ cnbn
+
+s∗ − λn − μne−τ s ∗
+
+∗
+
+= c∗ 
+
+> n
+
+b∗
+
+> n
+
+s − λ∗ 
+
+> n
+
+− μ∗
+
+> n
+
+e−τ s . (37) This expression represents a dynamical system with parameters λ∗
+
+> n
+
+, μ ∗
+
+> n
+
+, b ∗
+
+> n
+
+, c ∗
+
+> n
+
+. Thus, if every complex mode is paired with its conjugate, the corresponding transfer-function terms satisfy Gm(s) = 
+
+Gn(s∗)∗. The summed transfer function is therefore closed under conjugation and satisfies G(s∗) = 
+
+G(s)∗, which corresponds to a real-valued impulse response and preserves real-valued outputs for real-valued inputs. 
+
+A.2 Proof of the Discrete Stability Criterion 
+
+Proof of Proposition 1. For fixed k ∈ Z+ and α ∈ [0 , 1) , the zero-input scalar recurrence is 
+
+ht = ¯λh t−1 + ¯ μ [(1 − α)ht−k + αh t−k−1] . (38) Asymptotic stability is equivalent to requiring that all roots of the corresponding characteristic equation lie strictly inside the unit disk. We seek modal solutions of the form ht = zt with z ∈ C
+
+and z̸ = 0 . Substituting ht = zt into the recurrence gives 
+
+zt = ¯λz t−1 + ¯ μ (1 − α)zt−k + αz t−k−1 . (39) Dividing both sides by zt−k−1 yields the characteristic equation 
+
+zk+1 = ¯λz k + ¯ μ [(1 − α)z + α] . (40) We now prove that under the condition |¯λ| + |¯μ| < 1, this equation cannot admit a root with |z| ≥ 1.Suppose, for contradiction, that there exists such a root. Dividing the characteristic equation by zk+1 
+
+gives 
+
+1 = ¯λz −1 + ¯ μ(1 − α)z−k + ¯ μαz −k−1. (41) Taking absolute values and applying the triangle inequality, we obtain 
+
+1 ≤ | ¯λ|| z|−1 + |¯μ|(1 − α)|z|−k + |¯μ|α|z|−k−1. (42) Since |z| ≥ 1, we have |z|−1 ≤ 1, |z|−k ≤ 1, and |z|−k−1 ≤ 1. Using (1 − α) + α = 1 , this implies 
+
+1 ≤ | ¯λ| + |¯μ|(1 − α) + |¯μ|α = |¯λ| + |¯μ|, (43) which contradicts the assumption |¯λ| + |¯μ| < 1. Hence, every characteristic root must satisfy |z| < 1.Therefore, the zero-input recurrence is asymptotically stable. 
+
+A.3 Input Parameterization Equivalence Proposition 4 (Input Parameterization Equivalence) . For any diagonal DSSM system S =(A, Ad, B, C, τ ) where the input projection elements bn̸ = 0 for all n, there exists an equiva-lent absorbed-input system S′ = ( A, Ad, 1, C′, τ ) such that their outputs are identical for any input 
+
+x(t), with c′ 
+
+> n
+
+= cnbn.Proof. Consider the scalar DDE governing the n-th state mode in system S:
+
+˙hn(t) = λnhn(t) + μnhn(t − τ ) + bnx(t). (44) Since the system is linear, we can define a scaled state variable ˜hn(t) = hn(t)/b n. Substituting 
+
+hn(t) = bn˜hn(t) into the dynamic equation and dividing both sides by the scalar bn, we obtain: 
+
+˙˜hn(t) = λn˜hn(t) + μn˜hn(t − τ ) + 1 · x(t). (45) The output of the original system is given by y(t) = PNn=1 cnhn(t). Substituting the scaled state yields: 
+
+y(t) = 
+
+> N
+
+X
+
+> n=1
+
+(cnbn)˜hn(t). (46) By constructing a new output weight vector C′ such that c′ 
+
+> n
+
+= cnbn, and setting the new input weight to unity ( B′ = 1), we derive the system S′. This new system generates the exact same input-output mapping as S. Therefore, the explicit and absorbed input parameterizations are equivalent up to a mode-wise rescaling. 12 A.4 Phase Initialization Intuition 
+
+The intuition behind delayed-phase initialization is easiest to state under a locally smooth hidden-trajectory assumption: over short windows, background or context features vary more slowly than isolated task-relevant events. In this regime, θ ≈ 0 biases the delayed branch toward reinforcing compatible slowly varying components, whereas θ ≈ π biases it toward sign-inverted cancellation and therefore greater sensitivity to mismatch or temporal change. To visualize these two biases, Fig. 4 compares simple delayed recurrences under the same stable main-branch dynamics but different delayed phases, θ ≈ 0 and θ ≈ π. Here we use a real-valued main-branch coefficient to isolate the effect of the delayed phase itself. Both panels use the scalar discrete system ht = ¯λh t−1 + ¯ μh t−k + xt with real ¯λ = 0 .75 , integer delay k = 16 , and identity input/output projections. Panel (a) uses ¯μ = ±0.10 under a constant background with a sustained pulse event, while panel (b) uses ¯μ = ±0.20 under the same background with a narrow Gaussian spike. In both panels, dashed curves denote the response of the same system to the background-only input, while solid curves denote the response to the background-plus-event input, and the marked positions on the horizontal axis indicate the event onset time t0 and its delayed reappearance at t0 + τ .0 20 40 60 80 100 120 140 160                                      
+
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> Input  xt
+> t0t0+
+> (a) Background + Persistent Signal
+> 020 40 60 80 100 120 140 160
+> 0
+> 1
+> 2
+> Input  xt
+> t0t0+
+> (b) Background + Narrow Spike
+> 020 40 60 80 100 120 140 160
+> Time step t
+> 0
+> 5
+> 10
+> 15
+> 20
+> Output  yt
+> t0t0+
+> 020 40 60 80 100 120 140 160
+> Time step t
+> 0
+> 10
+> 20
+> 30
+> Output  yt
+> t0t0+
+> Background only Background + target signal
+> Main branch only = 0 =
+
+Figure 4: Qualitative effect of delayed-phase initialization under two simple backgrounds. (a) Background + persistent signal: initialization near θ ≈ 0 causes the delayed branch to reinforce temporally aligned signal components, so the persistent event is progressively amplified after t0 + τ ,whereas initialization near θ ≈ π suppresses signal components that remain similar across the delay horizon and therefore emphasizes temporal change. (b) Background + narrow spike: at t0 + τ , the delayed branch re-injects the localized event with a phase determined by θ, producing a constructive delayed echo near θ ≈ 0 and a sign-inverted delayed echo near θ ≈ π. Together, the two panels illustrate the broader bias that θ ≈ 0 favors delayed aggregation of compatible signal components, while θ ≈ π favors sensitivity to mismatch and temporal change. 
+
+A.5 Relation to Scan-Based Parallelization 
+
+Parallel scan is most natural for first-order recurrences of the form 
+
+ht = ¯λh t−1 + ¯bx t, (47) where the update acts on a constant-size state and the associated combine operator remains associative. This is the setting targeted by scan-based SSM implementations such as S5-style discretizations. For simplicity, we suppress the interpolation term and consider the integer-delay recurrence 
+
+ht = ¯λh t−1 + ¯ μh t−k + ¯bx t (48) which is not first-order Markovian in the original state. Recasting it into a scan-friendly first-order form requires augmenting the state with the past k delay slots, e.g., 
+
+Ht = [ ht, h t−1, · · · , h t−k+1 ]⊤. (49) 13 The resulting update again has first-order form, but it now acts on a state whose dimension scales with the delay horizon rather than remaining constant. For small fixed delays this reformulation is still possible, but for long delays it removes the lightweight constant-state advantage that makes scan-based SSMs attractive. In particular, the scan combine step no longer acts on scalar or constant-size diagonal updates, but on k-dimensional transition objects associated with the augmented state. A naive implementation would therefore compose 
+
+k × k transition matrices, while even structure-exploiting implementations must still carry state and intermediate operators whose size grows with k, leading to substantially higher compute and memory cost than in standard first-order SSMs. In contrast, discretized DSSMs remain linear time-invariant, so the exact transfer-function route of Sec. 4 continues to exist and provides a more natural exact path to parallel training. 
+
+A.6 Proof of Transfer Function 
+
+Proof of Proposition 2. Let ht ∈ C and xt ∈ R denote the scalar state and input at discrete step t.With τ = ( k + α)∆ t, the scalar recurrence is 
+
+ht = ¯λh t−1 + ¯ μ [(1 − α)ht−k + αh t−k−1] + ¯bx t. (50) Applying the Z-transform and using the standard integer-shift rules 
+
+Z{ ht−1} = z−1H(z), Z{ ht−k} = z−kH(z), Z{ ht−k−1} = z−k−1H(z),
+
+gives 
+
+H(z) = ¯λz −1H(z) + ¯ μz −k  (1 − α) + αz −1 H(z) + ¯bX (z). (51) Solving for H(z) yields 
+
+H(z) =  1 − ¯λz −1 − ¯μz −k  (1 − α) + αz −1 −1 ¯bX (z). (52) Since yt = ch t, the transfer function for this scalar channel is 
+
+K(z) = c  1 − ¯λz −1 − ¯μz −k  (1 − α) + αz −1 −1 ¯b. (53) 
+
+A.7 From Transfer Functions to FFT Training From Transfer Functions to Convolution Kernels. A standard FFT-based route from a transfer function to a convolution kernel is to evaluate K(z) on the FFT grid zm = exp( i 2πm M ) for m =0, · · · , M − 1, forming the sampled frequency response 
+
+ˆK = [ K(z0), K (z1), · · · , K (zM −1)] ⊤ . (54) Applying IFFT then yields the corresponding length-M circular convolution kernel 
+
+˜K =
+
+h ˜K0, ˜K1, · · · , ˜KM −1
+
+i⊤
+
+= IFFT( ˆK). (55) However, this standard procedure does not directly recover the desired linear kernel ¯K. Instead, the circular kernel is a time-domain alias of the linear kernel: 
+
+˜Kt =
+
+> ∞
+
+X
+
+> r=0
+
+¯Kt+rM , 0 ≤ t < M. (56) Due to the memory echoes characteristic of delay systems, the time-domain aliasing tail P 
+
+> r≥1
+
+¯Kt+rM may remain non-negligible. 
+
+Kernel Contour Shift. To suppress time-domain aliasing, we damp the linear kernel as ¯K′ 
+
+> t
+
+= ρt ¯Kt
+
+with 0 < ρ < 1. Let ρ = exp( −σ∆t) be the damping factor. For an FFT window of length M , we choose σ so that 
+
+ρM ≈ εshift , (57) 14 where εshift ≪ 1 is a small decay target. The corresponding shifted discrete dynamics are 
+
+¯λ′ = ρ¯λ, ¯μ′ = ρk ¯μ, D′(z) = (1 − α) + ( αρ )z−1. (58) We then evaluate the shifted transfer function 
+
+K′(z) = c  1 − z−1 ¯λ′ − z−kD′(z)¯ μ′−1 ¯b. (59) Applying IFFT yields the corresponding damped circular kernel ˜K′:
+
+˜K′ 
+
+> t
+
+=
+
+> ∞
+
+X
+
+> r=0
+
+¯K′ 
+
+> t+rM
+
+=
+
+> ∞
+
+X
+
+> r=0
+
+ρt+rM ¯Kt+rM , 0 ≤ t < M. (60) Here ¯K′ 
+
+> t
+
+denotes the damped linear time-domain kernel associated with K′(z), while ¯Kt denotes the original undamped linear kernel associated with K(z). After the IFFT, we recover the linear kernel by reversing the damping in time: 
+
+ρ−t ˜K′ 
+
+> t
+
+= ¯Kt +
+
+> ∞
+
+X
+
+> r=1
+
+ρrM ¯Kt+rM ⇒ ¯Kt ≈ ρ−t ˜K′
+
+> t
+
+. (61) Since ρM ≈ εshift , each aliased tail term is suppressed by an additional factor of approximately εshift .However, reversing the damping multiplies numerical errors by ρ−t, so very small εshift can amplify floating-point error. In practice, εshift is chosen to balance aliasing suppression and restoration error. 
+
+## B Implementation Details 
+
+We use two CUDA fast paths in our implementation, one for FFT training and one for autoregressive decoding. 
+
+FFT Transfer Construction. For FFT training, we use a custom CUDA kernel to build the contour-shifted transfer function on the frequency grid from the shifted form of Eq. (29) . Instead of materializing the shifted coefficients and delayed terms as separate intermediate tensors in PyTorch, the CUDA kernel directly fuses the following steps on the FFT grid: • construct the contour-shifted main-branch and delayed coefficients; • combine the delayed interpolation factors with the frequency terms z−k and z−k−1;• form the denominator of the rational transfer function for each mode and frequency; • accumulate the mode-wise contributions into the final sampled transfer function. This fused construction is the main implementation optimization behind the FFT-training results in Sec. 5.2. 
+
+Fused Decode Kernel. Given the previous state and the history buffer, a single kernel launch performs the following operations: • locate the two delayed anchors corresponding to t − k and t − k − 1 in the history buffer; • gather the two historical states and apply the validity mask induced by the current cache position; • linearly interpolate them to form the delayed state used by the recurrence; • update the next state using the main branch, delayed branch, and input term; • write the updated state back into the current history-buffer slot; • compute the final readout. This removes a long sequence of small gather, masking, interpolation, recurrence, and writeback kernels from the decode hot path, which is the main reason the optimized DS4D decode remains competitive with S4D. 15 Caching and Precomputation. In addition to the CUDA kernels, we cache recurrent constants and frequency-domain geometry whenever possible. Specifically, inference reuses discretized coefficients and interpolation weights, while FFT training reuses frequency-grid quantities associated with the current sequence length, dtype, and device. These caches further reduce setup overhead without changing the underlying model or algorithm. 
+
+## C Experiment Configurations 
+
+C.1 Baselines 
+
+We compare DS4D against a comprehensive suite of baselines ranging from classic recurrent networks to state-of-the-art Transformers and recent SSM variants. All models are either implemented in PyTorch or imported from the transformers library. Unless otherwise stated, we control the model size by fixing the number of layers and changing the hidden dimension H to ensure a fair comparison across different architectures. • LSTM [Hochreiter and Schmidhuber, 1997]: The classic long short-term memory net-work. It utilizes gating mechanisms to mitigate vanishing gradients but relies on sequential processing, limiting training parallelization. • S4D [Gu et al., 2022]: The diagonal structured SSM. It relies on linear ODEs ( ˙h = Ah +Bx )and HiPPO initialization to model long-range dependencies. • Mamba [Gu and Dao, 2024]: A selective state space model where system parameters are input-dependent. Mamba represents the current state-of-the-art in linear-time sequence modeling. • GPT-2 recipe [Radford et al., 2019]: A standard causal Transformer recipe with absolute positional embeddings and pre-layernorm. • Llama recipe [Touvron et al., 2023]: A modern Transformer recipe incorporating rotary positional embeddings (RoPE) [Su et al., 2024], RMSNorm, and SiLU activation. 
+
+C.2 Synthetic Tasks 
+
+All synthetic tasks use the same prompt-completion format 
+
+x = [ xdata , xlag , x go , xtarget ], (62) where xdata ∈ ZLdata is a random source sequence, xlag is a zero-padding block of length Llag , xgo is a trigger token, and xtarget is the target sequence. We refer to Llag as the padding lag; the absolute source-target offset also depends on the source position and causal next-token alignment. Training uses a standard causal next-token objective, but the loss is computed only on the xtarget segment so that the model is evaluated purely on delayed retrieval or aggregation. The three target mappings differ only in how xtarget is constructed from xdata :• Delay Copy : xtarget = xdata .• Delay Sum : each target token is a sliding-window sum, 
+
+xtarget [t] =  
+
+> W−1
+
+X
+
+> ℓ=0
+
+xdata [t − ℓ], (63) with zero-padding outside the valid range. • Delay Weighted Sum : each target token is a weighted sliding-window sum, 
+
+xtarget [t] =  
+
+> W−1
+
+X
+
+> ℓ=0
+
+G[ℓ]xdata [t − ℓ], (64) where G[ℓ] is a discrete Gaussian kernel 
+
+G[ℓ] = A · exp 
+
+
+
+− (ℓ − μ)2
+
+2σ2
+
+
+
+. (65) 16 All synthetic tasks are formulated as teacher-forced token prediction problems. The data tokens are sampled from {1, · · · , m }, where m is chosen for each task so that all sum or weighted-sum targets fit within the vocabulary after reserving token 0 for padding and the final token for the go symbol. Delay Sum targets are integer-valued by construction, while Delay Weighted Sum targets are rounded to the nearest integer token after applying the Gaussian weights; configurations that would overflow the vocabulary are rejected. Validation accuracy is teacher-forced token accuracy on the supervised target segment. We evaluate these mappings under two delay protocols. In the fixed-delay protocol, all sequences in a task share the same padding lag. In the variable-delay protocol, each sample draws its padding lag uniformly from a task-specific interval. The latter directly tests whether a model can remain effective when the relevant retrieval location varies across examples rather than being captured by a single shared LTI kernel. Consequently, solving these tasks requires the model to look back to the correct long-range position and recover the needed information, making them a strong test of sequence memory. All synthetic models are trained from scratch on each task and optimized with AdamW using a fixed learning-rate schedule without weight decay. For fairness, we keep the number of layers fixed and match total parameter counts across baselines by adjusting the hidden size H. We use the default hidden-size/intermediate-size relation for each architecture family whenever possible: for LSTM and S4-style DSSM blocks, the intermediate size equals the hidden size; for Mamba, the intermediate size is 2H; for the GPT-2 recipe, the feed-forward size is 4H; for the Llama recipe, we use a SwiGLU-style feed-forward size with a slight task-specific adjustment when needed to keep the parameter budget aligned while preserving an even per-head dimension for RoPE. Within the S4D family, we align the state size task-wise: Delay Copy uses N = 64 , while Delay Sum and Delay Weighted Sum use N = 128 . For both S4D and DS4D, we initialize the SSM backbone with the S4D-Lin scheme [Gu et al., 2022]; DS4D then applies the delayed-branch and delay-location initialization described in Sec. 3.4. For the synthetic DS4D runs, we use the default delay initialization: delays are initialized on a uniform grid and randomly assigned to channels, the initial branch fraction is set to 
+
+pn = 0 .1, and the phase is initialized near π with a small random perturbation. For each baseline, we sweep the base learning rate over {2 × 10 −4, 10 −3} and report the best result. For DS4D, we keep the ∆t learning rate fixed at 1 × 10 −4 across all synthetic runs, since we found the model noticeably more sensitive to ∆t updates than to the base learning rate. Since the GPT-2 recipe uses learned absolute positional embeddings, its parameter count scales with the maximum context length; we therefore use task-specific hidden sizes for its fixed-delay and variable-delay settings to keep the total parameter budget aligned. The other baselines reuse the same hidden size across the two protocols. Table 3: Fixed-delay synthetic task setups and training budgets. PARAMETER DELAY COPY DELAY SUM DELAY WEIGHTED SUM 
+
+Train Size 128 ,000 512 ,000 512 ,000 
+
+xdata length 32 32 32 
+
+Padding lag Llag 1024 1024 1024 
+
+Window W – 16 16 
+
+Gaussian Weight A – – 0.75 
+
+Gaussian Center μ – – 8.0
+
+Gaussian Width σ – – 12 .0
+
+Batch Size 64 64 64 
+
+Max Steps 2000 8000 8000 
+
+Table 5 summarizes the core backbone settings used across the three synthetic benchmarks. We only report the most salient architectural knobs here and omit task-independent optimizer details. 
+
+C.3 Efficiency and FFT Accuracy 
+
+All efficiency experiments use a 4-layer backbone with state size 64 , explicit B, pre-norm, GLU final activation, float32 precision, and CUDA execution on a single NVIDIA GeForce RTX 5090 GPU. We compare the S4D baseline against two DS4D variants: a hidden-matched model with hidden size 256 , and a matched-parameter model with hidden size 241 . S4D uses the official CUDA kernel for full-sequence training; streaming decode follows the official recurrent step path, which has no 17 Table 4: Variable-delay synthetic task setups and training budgets. Padding lags are sampled uniformly for each sequence. PARAMETER VARIABLE COPY VARIABLE SUM VARIABLE WEIGHTED SUM 
+
+Train size 512 ,000 512 ,000 512 ,000 
+
+xdata length 32 32 32 
+
+Padding lag range [1014 , 1024] [507 , 512] [507 , 512] 
+
+Window W – 16 16 
+
+Gaussian weight A – – 0.75 
+
+Gaussian center μ – – 8.0
+
+Gaussian width σ – – 12 .0
+
+Batch size 64 64 64 
+
+Max steps 8000 8000 8000 
+
+Table 5: Core baseline settings and total parameter counts across the three synthetic benchmarks. All Delay Copy backbones use 2 layers and full context length 1088 ; all Delay Sum and Delay Weighted Sum backbones use 3 layers, with context/history length 1088 in the fixed-delay setting and 576 
+
+in the variable-delay setting. Hidden sizes are shared across fixed and variable settings except the GPT-2 recipe, whose learned absolute positional embeddings make its parameter count depend on the context length. Family-specific hidden-size/intermediate-size relations follow their default settings whenever possible: LSTM and S4-style DSSM blocks use intermediate size equal to the hidden size, Mamba uses intermediate size 2H with convolution kernel 3, the GPT-2 recipe uses feed-forward size 4H, and the Llama recipe uses a SwiGLU-style feed-forward size with a small task-specific adjustment to preserve an even per-head dimension for RoPE while keeping parameter counts aligned. Within the S4D family, Delay Copy uses state size 64 , while Delay Sum and Delay Weighted Sum use state size 128 . DS4D uses a smaller matched-parameter hidden size than S4D because of its additional delay parameters, while Mamba keeps its default architecture and tunes state size only to best match the total parameter budget. MODEL #L AYERS HIDDEN SIZE #H EADS STATE SIZE #P ARAMS 
+
+DELAY COPY 
+
+LSTM 2 96 – – 168.4k S4D 2 143 – 64 167.3k Mamba 2 88 – 48 167.8k GPT-2 recipe 2 60 4 – 165.4k Llama recipe 2 80 8 – 169.8k DS4D 2 75 – 64 167.4k DELAY SUM 
+
+LSTM 3 177 – – 862.7k S4D 3 260 – 128 866.3k Mamba 3 168 – 76 867.6k GPT-2 recipe (fixed) 3 132 2 – 855.5k GPT-2 recipe (variable) 3 140 2 – 876.0k Llama recipe 3 150 3 – 868.7k DS4D 3 138 – 128 870.5k DELAY WEIGHTED SUM 
+
+LSTM 3 177 – – 862.7k S4D 3 260 – 128 866.3k Mamba 3 168 – 76 867.6k GPT-2 recipe (fixed) 3 132 2 – 855.5k GPT-2 recipe (variable) 3 140 2 – 876.0k Llama recipe 3 150 3 – 868.7k DS4D 3 138 – 128 870.5k 18 Table 6: Best validation accuracy on synthetic tasks. Values are reported in [0 , 1] as mean ± std over three seeds, where each baseline selects its best base learning rate. Best results are bolded, and second-best results are underlined.                                                                                                                         
+
+> DELAY COPY DELAY SUM DELAY WEIGHTED SUM
+> MODEL FIXED VARIABLE FIXED VARIABLE FIXED VARIABLE
+> LSTM 0.01 ±0.00 0.01 ±0.00 0.06 ±0.00 0.06 ±0.00 0.07 ±0.00 0.07 ±0.00
+> S4D 1.00 ±0.00 0.85 ±0.03 0.82 ±0.06 0.59 ±0.03 0.71 ±0.03 0.60 ±0.02
+> Mamba 0.01 ±0.00 0.06 ±0.08 0.39 ±0.04 0.48 ±0.00 0.38 ±0.01 0.41 ±0.02
+> DS4D 1.00 ±0.00 0.95 ±0.00 0.99 ±0.00 0.76 ±0.04 0.80 ±0.01 0.68 ±0.03
+> GPT-2 recipe 1.00 ±0.00 1.00 ±0.00 0.96 ±0.04 0.86 ±0.11 0.74 ±0.03 0.67 ±0.04
+> Llama recipe 1.00 ±0.00 1.00 ±0.00 0.99 ±0.00 0.89 ±0.15 0.75 ±0.01 0.72 ±0.03
+
+dedicated CUDA decode kernel. DS4D uses our custom CUDA fast paths. All benchmarks use sequence lengths {1024 , 2048 , 4096 , 8192 }.Training throughput uses batch size 32 , one burn-in run, 10 warmup steps, and 50 timed steps, reported in tokens per second; training memory reuses the same setup but records peak allocated CUDA memory over 20 timed steps. Autoregressive decoding throughput uses batch size 1, one burn-in run, 32 warmup steps, and 256 timed one-token updates after cache prefilling, with retained history fixed at 8192 so that the trend reflects per-token compute rather than cache growth. For decoding memory, the retained history size is instead set equal to the current sequence length, and we report peak allocated memory together with resident cache size. FFT accuracy compares the same discretized DS4D model evaluated in FFT mode and recurrent mode on identical inputs over 5 random seeds and the same sequence lengths. For these FFT runs, we use M = nextpow2(2 L) and set the contour-shift target to εshift = 10 −3, equivalently ρM = 10 −3.For each seed, we instantiate paired models from the same config, copy the state dict from the FFT-mode model to the recurrent-mode model, and evaluate both on the same randomly generated input sequence. Table 7 reports the per-length summary on the output hidden states: the relative RMS error, normalized by the RMS magnitude of the recurrent-mode output, stays on the order of 
+
+1.0 × 10 −5, and the maximum absolute error stays below 1.2 × 10 −4.Table 7: FFT-versus-recurrent accuracy for the same discretized DS4D model. Metrics are computed on the output hidden states; relative RMSE is normalized by the RMS of the recurrent output. Entries use the shorthand (a ± b)e-c = ( a ± b) × 10 −c and report mean ± std over 5 seeds. 
+
+Metric 1024 2048 4096 8192 Relative RMSE (1 .37 ± 0.04) e-5 (1 .12 ± 0.01) e-5 (1 .07 ± 0.00) e-5 (1 .48 ± 0.01) e-5
+
+Max abs. error (9 .43 ± 0.53) e-5 (7 .49 ± 0.56) e-5 (7 .19 ± 0.37) e-5 (1 .12 ± 0.03) e-4
+
+C.4 General Sequence Modeling 
+
+Our general-sequence experiments cover simple multimodal sequence tasks together with Long Range Arena (LRA). Following the evaluation style of S4D [Gu et al., 2022], we use these tasks to probe whether DS4D retains broad sequence-modeling ability beyond the synthetic delayed-retrieval setting. 
+
+Baseline Results. Except for sMNIST, all baseline results in the general-sequence benchmarks are taken directly from the S4D paper [Gu et al., 2022]. All DS4D results in this section are computed over 2 or 3 random seeds. 
+
+sMNIST. Sequential MNIST (sMNIST) treats each image as a length-784 sequence. We use a unidirectional Delay S4D classifier with mean pooling and fix the delay initialization to one image row, i.e., τ0 = 28 . Because sMNIST does not present a strong delayed-retrieval problem, we initialize the delayed branch with a small gain pn = 0 .015 and phase center ω = 0 .
+
+SC. Speech Commands (SC) is a raw-audio keyword-spotting benchmark in which each input is a 
+
+16000 -sample waveform and the task is 35 -way spoken-word classification. Following the S4D setup, 19 we report both SC (AR) and SC (B I.): the former uses a unidirectional model with last pooling to mimic causal/autoregressive readout, while the latter uses a bidirectional model with mean pooling over the full sequence. 
+
+BIDMC. BIDMC is a medical time-series regression benchmark based on paired electrocardio-gram (EKG) and photoplethysmogram (PPG) signals of length 4000 . The three official targets are respiratory rate (RR), heart rate (HR), and blood oxygen saturation (SpO2). 
+
+LRA. Long Range Arena (LRA) [Tay et al., 2020] evaluates efficient sequence models on a diverse suite of long-context classification tasks. Following the task summaries used in the S4D/S5 literature, we consider: • ListOps. A length-2000 hierarchical arithmetic-expression task that predicts the value of a nested operator sequence and primarily probes compositional parsing over long token streams. • Text. Character-level IMDb sentiment classification on sequences up to roughly 4000 
+
+characters, testing whether the model can compose sentiment evidence over long textual contexts. • Retrieval. The AAN document-matching task, where the model receives two long docu-ments and predicts whether they belong together; this benchmark mainly stresses long-range information compression across paired sequences. • Image. Grayscale CIFAR-10 classification in image-as-sequence form, where the model processes the image as a long pixel stream rather than through a 2D convolutional backbone. • Pathfinder. A binary visual reasoning task that asks whether two marked endpoints are connected by a thin path in a serialized image. • Path-X. The longer and harder Pathfinder variant with substantially larger sequence length, designed to probe extremely long-range visual reasoning. 
+
+Training Setup. For all tasks, we compare DS4D against the S4D baseline using the same backbone depth and closely matched model size, while preserving each benchmark shell whenever possible. The shared training choices are: • Scheduler. We use cosine scheduler for all tasks except BIDMC, which follows the S4D paper in using a multi-step schedule. • Weight Decay. Following the S4D paper, all tasks use weight decay 0.05 except Pathfinder, which uses 0.03 .• Input Projection. All runs use a trainable explicit B.• Parameter Matching. We retune the hidden size H so that the number of trainable parameters stays within about 1% of the corresponding S4D configuration. • SSM Backbone Initialization. All general-sequence runs use the S4D-Inv initialization for the shared SSM backbone, since the S4D paper reports that S4D-Lin does not successfully solve Path-X. • Delay Initialization. We use constant delay only for sMNIST and LRA Image, with τ ≡ 28 
+
+and τ ≡ 32 respectively; all other tasks use the default uniform-grid initialization with random channel assignment. • Learning Rates. We keep the main learning rate aligned with the S4D recipe and use a smaller learning rate only for ∆t. Unlike S4D, DS4D keeps A, Ad, and B on the main learning-rate group rather than assigning them a reduced learning rate. • Directionality. Except for sMNIST and SC (AR), all general-sequence runs use bidirectional models. Table 8 summarizes the benchmark-specific Delay S4D configurations used for these runs. The BIDMC endpoints share the same depth, width, state size, and schedule, but differ slightly in normalization and delayed-branch initialization as shown in the table. The T EXT , R ETRIEVAL , and IMAGE rows correspond to the char-level IMDB, AAN, and grayscale CIFAR-10 wrappers in the codebase, respectively. 20 Table 8: Delay S4D hyperparameters for the general sequence modeling benchmarks. All runs use the S4D-Inv backbone initialization. Here H denotes the hidden size and N denotes the per-channel state size. 
+
+TASK DEPTH H N pn ω NORM PRE -N ORM BATCH LR ∆t LR WD EPOCHS 
+
+MULTIMODAL TASKS SMNIST 6 115 64 0.015 0 BN True 64 1.0e −3 1.0e −4 0.05 20 SC (AR) 6 114 64 0.1 π BN True 16 1.0e −2 1.0e −4 0.05 40 SC (B I.) 6 116 64 0.1 π BN True 16 1.0e −2 1.0e −4 0.05 40 BIDMC-RR 6 101 256 0.1 π LN True 32 1.0e −2 1.0e −4 0.05 500 BIDMC-HR 6 101 256 0.05 π BN True 32 1.0e −2 1.0e −4 0.05 500 BIDMC-S PO2 6 101 256 0.1 π BN True 32 1.0e −2 1.0e −4 0.05 500 LRA T ASKS 
+
+LIST OPS 8 116 64 0.1 π BN False 50 1.0e −2 5.0e −4 0.05 40 TEXT 6 242 64 0.1 π BN True 16 1.0e −2 1.0e −4 0.05 32 RETRIEVAL 6 242 64 0.1 π BN True 64 1.0e −2 1.0e −4 0.05 20 IMAGE 6 497 64 0.01 0 LN False 50 1.0e −2 1.0e −4 0.05 200 PATHFINDER 6 243 64 0.1 π BN True 64 4.0e −3 5.0e −4 0.03 200 PATH -X 6 243 64 0.1 π BN True 16 5.0e −4 1.0e −4 0.05 50 
+
+Approximate Training Time. Table 9 reports rough single-seed wall-clock estimates for the DS4D benchmarks measured on a single NVIDIA GeForce RTX 5090 (32GB) GPU worker. Table 9: Approximate training time for DS4D on the general sequence modeling benchmarks. 
+
+TASK APPROX . TIME SMNIST ∼ 0.3 hSC (AR) ∼ 5.8 hSC (B I.) ∼ 11 .1 hBIDMC ∼ 2.8 hLIST OPS ∼ 2.6 hTEXT ∼ 1.6 hRETRIEVAL ∼ 7.7 hIMAGE ∼ 7.6 hPATHFINDER ∼ 14 .8 hPATH -X ∼ 55 h
+
+C.5 External Assets and Official Links 
+
+We rely on standard public benchmarks and official upstream codebases. Table 10 lists the primary external assets used in this paper together with their official source pages and the license or usage terms currently stated there. Table 10: Primary external assets used in this work. 
+
+ASSET ROLE IN THIS PAPER OFFICIAL SOURCE LICENSE / TERMS STATED BY SOURCE STATE -SPACES /S4 Official upstream S4/S4D codebase used for baseline comparison and reproduction 
+
+state-spaces/s4 (GitHub) Apache License 2.0 MNIST Data source for sMNIST Keras MNIST dataset page CC BY-SA 3.0 SPEECH COMMANDS Data source for Speech Commands benchmark Google Speech Commands dataset card CC BY 4.0 BIDMC Data source for BIDMC RR / HR / SpO2 benchmarks PhysioNet BIDMC dataset page Open Data Commons Attribution License v1.0 LONG RANGE ARENA Benchmark suite used for ListOps, Text, Retrieval, Image, Pathfinder, and Path-X 
+
+google-research/long-range-arena 
+
+(GitHub) Apache License 2.0 
+
+21 D Additional Results 
+
+Figure 5 provides a complementary view of the six synthetic DS4D checkpoints analyzed in Table 1. After sorting channels by learned delay, all six tasks exhibit broad diagonal bands spanning the available history horizon, consistent with DS4D preserving a distributed delay bank rather than collapsing to a single dominant lag. 0 200 400 600 800 1000                          
+
+> Time Step
+> 9
+> 366
+> 715
+> 1079
+> Channel (sorted by learned  )
+> Delay Copy (Fixed)
+> 0200 400 600 800 1000
+> Time Step
+> 6
+> 371
+> 724
+> 1082
+> Delay Sum (Fixed)
+> 0200 400 600 800 1000
+> Time Step
+> 5
+> 362
+> 725
+> 1082
+> Delay Weighted Sum (Fixed)
+> 0200 400 600 800 1000
+> Time Step
+> 9
+> 368
+> 713
+> 1077
+> Channel (sorted by learned  )
+> Delay Copy (Variable)
+> 0100 200 300 400 500
+> Time Step
+> 3
+> 189
+> 384
+> 573
+> Delay Sum (Variable)
+> 0100 200 300 400 500
+> Time Step
+> 3
+> 190
+> 381
+> 573
+> Delay Weighted Sum (Variable)
+> 6
+> 5
+> 4
+> 3
+> 2
+> 1
+> 0
+> log 10  normalized | K(t)|
+
+Figure 5: First-layer impulse-response heatmaps for the six synthetic DS4D checkpoints. Rows are channels sorted by learned delay; y-tick labels report the corresponding learned delay values after sorting. The white dashed line marks the padding lag Llag . Colors show independently normalized 
+
+log 10 impulse-response magnitude. The diagonal bands indicate a distributed family of delay-sensitive channels spanning the available history range. For comparison, Figure 6 shows the corresponding first-layer impulse-response heatmaps for S4D on the same six tasks, using the best-validation checkpoint available for each task. Sorted by empirical peak-response time rather than by a learned delay variable, these kernels are organized mainly by intrinsic response timescale and do not exhibit the same task-aligned diagonal bands. 22 0 200 400 600 800 1000 
+
+> Time Step
+> 0
+> 6
+> 56
+> 1055
+> Channel (sorted by peak response)
+
+Delay Copy (Fixed)      
+
+> 0200 400 600 800 1000
+> Time Step
+> 0
+> 15
+> 64
+> 1057
+
+Delay Sum (Fixed)      
+
+> 0200 400 600 800 1000
+> Time Step
+> 0
+> 13
+> 56
+> 1062
+
+Delay Weighted Sum (Fixed)      
+
+> 0200 400 600 800 1000
+> Time Step
+> 0
+> 15
+> 80
+> 1070
+> Channel (sorted by peak response)
+
+Delay Copy (Variable)      
+
+> 0100 200 300 400 500
+> Time Step
+> 0
+> 15
+> 64
+> 569
+
+Delay Sum (Variable)      
+
+> 0100 200 300 400 500
+> Time Step
+> 0
+> 5
+> 60
+> 546
+
+Delay Weighted Sum (Variable) 
+
+> 6
+> 5
+> 4
+> 3
+> 2
+> 1
+> 0
+> log 10  normalized | K(t)|
+
+Figure 6: First-layer impulse-response heatmaps for the corresponding S4D checkpoints on the six synthetic tasks, using the best-validation checkpoint available for each task. Rows are channels sorted by peak-response time; y-tick labels report the corresponding peak-response times after sorting. The white dashed line marks the padding lag Llag or the center of the variable-delay interval. Colors show independently normalized log 10 impulse-response magnitude. The predominantly horizontal organization reflects a spread of implicit timescales rather than explicit delay-aligned reinjection. 23
