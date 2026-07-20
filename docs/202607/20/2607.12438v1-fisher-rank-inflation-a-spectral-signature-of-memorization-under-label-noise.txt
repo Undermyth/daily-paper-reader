@@ -1,0 +1,2313 @@
+Title: Fisher Rank Inflation: A Spectral Signature of Memorization under Label Noise
+
+URL Source: https://arxiv.org/pdf/2607.12438v1
+
+Published Time: Wed, 15 Jul 2026 12:01:04 GMT
+
+Number of Pages: 47
+
+Markdown Content:
+# Fisher Rank Inflation: A Spectral Signature of Memorization under Label Noise 
+
+# Satwik Bathula, Anand A. Joshi Department of Electrical and Computer Engineering, University of Southern California 
+
+# sbathula@usc.edu, ajoshi@usc.edu 
+
+Abstract 
+
+Deep networks trained with label noise often learn clean structure before memorizing corrupted labels. We show that this transition leaves a spectral signature in the centered scatter of per-example last-layer gradients. Its effective rank transiently expands during memorization and contracts after corrupted labels are fit. We call this phenomenon Fisher Rank Inflation .We show that corrupted labels can increase effective rank by injecting spectral mass into low-energy or previously unused eigendirections, thereby increasing the entropy of the gradient spectrum. We derive a first-order leave-one-out attribution formula and identify conditions under which cor-rupted examples contribute more strongly to rank inflation than clean examples. We further show that once the normalized Fisher-gradient spectrum stabilizes, individual attribution signals vanish, explaining the post-memorization weakening of leave-one-out rank contributions. We empirically test these mechanistic predictions on CIFAR-10 and CIFAR-100 using SmallCNN, ResNet18, and Vision Transformers under symmetric label corruption, and additionally evaluate the phenomenon on CIFAR-10N with naturally occurring human annotation errors. Across datasets and architectures, Fisher effective rank exhibits a consistent inflation–collapse trajectory aligned with memorization dynamics. At peak-rank checkpoints, corrupted examples are strongly enriched among the highest rank-contributing samples, with top-100 noisy fractions ranging from 69 .2% to 96 .2% 
+
+across five-seed experiments under synthetic corruption and reaching 94 .4% ± 1.9% on CIFAR-10N. The first-order spectral attribution closely matches exact leave-one-out rank contributions in the con-volutional models and remains enriched in the Vision Transformer. In addition, a seeded corruption sweep shows that peak Fisher effective rank increases monotonically with corruption severity, rising from 28 .88 ± 1.95 under clean training to 97 .09 ± 1.78 at 60% corruption. In several settings, the retrospectively identified onset of rank inflation precedes observable test degradation. The persistence of Fisher Rank Inflation under both synthetic corruption and naturally occurring human annotation errors suggests that the phenomenon captures a broader spectral signature of memorization rather than an artifact of a particular noise-generation process. These results establish Fisher Rank Inflation as a spectral signature of memorization under label noise and connect the dynamics of the last-layer Fisher-gradient spectrum to corrupted-example enrichment, corruption severity, and the transition from structure learning to memorization. 
+
+# 1 Introduction 
+
+Deep neural networks can achieve near-perfect accuracy even when a substantial fraction of training sam-ples are corrupted. A large body of work has shown that learning under label noise typically proceeds in stages. Networks first learn structured patterns shared across many examples before eventually mem-orizing corrupted labels that are inconsistent with the underlying data distribution. This phenomenon has motivated extensive research on memorization, early learning, label-noise robustness, and data attri-bution. Existing analyses often focus on training and test losses, prediction dynamics, representation geom-etry, or example-level influence. While these perspectives characterize when memorization occurs, they provide less insight into how corrupted examples reshape the spectrum of training gradients during the 1arXiv:2607.12438v1 [cs.LG] 14 Jul 2026 memorization process. The gradient spectrum captures how optimization directions are distributed across the training set, providing a global geometric view of memorization that complements example-level or loss-based analyses. In this work, we study memorization through the covariance structure of per-example last-layer gra-dients. Specifically, we analyze the effective rank of the centered Fisher-gradient scatter matrix. Empiri-cally, we observe a consistent phenomenon across datasets and architectures. As training transitions from structured learning to memorization, the effective rank of the Fisher-gradient scatter undergoes a pro-nounced expansion. This inflation peaks during memorization and subsequently collapses once corrupted labels have been fit. We refer to this phenomenon as Fisher Rank Inflation .Beyond this effect, we use leave-one-out rank attribution to identify which training examples contribute to inflation. For each example i, we compute 
+
+∆i = er( S) − er( S−i),
+
+where S−i is the centered Fisher-gradient scatter after removing example i and re-centering the remaining gradients. Examples with large positive ∆i are those whose removal most reduces effective rank, and therefore contribute most to rank inflation. At the peak of Fisher Rank Inflation, these high-∆i examples are disproportionately corrupted. Removing a corrupted example typically produces a larger reduction in effective rank than removing a clean example. To explain these observations, we develop a spectral theory of Fisher Rank Inflation. We show that corrupted labels can increase effective rank by introducing covariance mass into low-energy or previously unused eigendirections, thereby increasing spectral entropy. We further derive a first-order leave-one-out attribution formula that identifies the spectral conditions under which corrupted examples contribute more strongly to rank inflation than clean examples. Finally, we establish conditions under which these attribution signals weaken after memorization as the normalized Fisher-gradient spectrum becomes stable. We validate the theory under symmetric label corruption on CIFAR-10 and CIFAR-100 using Small-CNN, ResNet18, and Vision Transformers. Across datasets and architectures, we observe a consistent inflation–collapse trajectory. At seed-specific peak-rank checkpoints, corrupted examples are strongly enriched among the highest rank-contributing samples, with top-100 noisy fractions ranging from 69 .2% 
+
+to 96 .2% across five-seed experiments. A seeded corruption sweep further shows that peak Fisher effective rank increases monotonically with corruption severity, rising from 28 .88 ± 1.95 under clean training to 
+
+97 .09 ± 1.78 at 60% corruption. In several settings, the retrospectively identified onset of Fisher Rank Inflation occurs before observable test degradation. Our contributions are summarized as follows: 
+
+• We identify Fisher Rank Inflation , a spectral phenomenon in which the effective rank of the Fisher-gradient scatter expands during memorization and collapses afterward. 
+
+• We explain how corrupted labels inflate effective rank through spectral spreading and derive con-ditions under which corrupted examples exhibit larger leave-one-out rank contributions. 
+
+• We explain the post-memorization weakening of attribution signals as a consequence of normalized spectral stabilization. 
+
+• We validate the phenomenon across multiple architectures, datasets, and noise regimes, including symmetric synthetic label corruption on CIFAR-10 and CIFAR-100 and naturally occurring human annotation noise on CIFAR-10N. Across these settings, we observe consistent inflation–collapse dynamics, strong corrupted-example enrichment at peak-rank checkpoints, and monotonic growth of peak Fisher effective rank with corruption severity. 
+
+# 2 Related Work 
+
+Memorization and generalization in deep networks. Deep networks are known to fit even ran-domly labeled data, challenging classical accounts of generalization based purely on capacity control [43]. 2Subsequent work showed that memorization is not uniform throughout training. Networks tend to learn simple, structured patterns before fitting noisy or exceptional examples [4, 35, 37]. Memorization has also been connected to long-tailed structure in natural data distributions [7, 8]. Related phenomena such as double descent further show that interpolation and generalization can interact in non-classical ways [6, 24]. Our work studies memorization from a different perspective, focusing not on loss, accuracy, or example forgetting, but on how memorization changes the spectrum of the centered covariance of per-example last-layer gradients. 
+
+Learning with noisy labels. A large body of work studies robust training under label noise. Many approaches exploit the empirical observation that clean examples are learned earlier than corrupted ones. Co-teaching and Co-teaching+ select small-loss examples across peer networks [14, 42], while related methods use agreement, co-regularization, semi-supervised learning, or early-learning regularization to prevent noisy-label memorization [39, 20, 21]. Other approaches modify losses or estimate label-noise tran-sition structure, including loss correction, generalized cross entropy, symmetric cross entropy, bootstrap-ping, and mixture-based label-noise modeling [29, 44, 38, 34, 3]. Dataset-level label-quality methods such as Confident Learning, AUM, and CleanNet aim to identify or mitigate mislabeled samples [25, 31, 19]. In contrast to these robust-training methods, our goal is not to propose a new noise-robust optimizer or loss. Instead, we identify a mechanism by which corrupted labels reshape Fisher-gradient scatter during memorization. 
+
+Fisher information, curvature, and spectral structure. Fisher information and natural-gradient geometry have long been used to study learning dynamics and optimization [2]. Practical approximations such as K-FAC and Kronecker-factored Fisher methods exploit structure in the Fisher matrix for scalable second-order optimization [23, 12, 10]. Several works have analyzed spectral properties of Fisher or curvature matrices in neural networks, including Fisher eigenvalue statistics, random-matrix analyses of Fisher spectra, and Hessian spectra in overparameterized models [17, 30, 36, 26]. Related spectral perspectives study heavy-tailed self-regularization, loss-landscape geometry, and terminal representation collapse [22, 9, 27]. Our work differs by studying the training-time dynamics of the centered covariance of per-example last-layer gradients under label corruption. We show that memorization induces a transient effective-rank expansion of this gradient spectrum, followed by collapse after corrupted labels are fit. 
+
+Data attribution and influence. Example-level attribution methods seek to identify which training examples are responsible for model behavior. Influence functions trace predictions back to training data through local sensitivity of the learned model [18]. Subsequent work developed scalable or alternative attribution methods such as TracIn, representer points, Data Shapley, datamodels, TRAK, and FastIF [32, 41, 11, 15, 28, 13]. Other work has highlighted fragility and limitations of influence estimates in deep networks [5]. Our leave-one-out analysis asks a different question. Rather than attributing a prediction or loss to a training example, it attributes changes in the effective rank of the Fisher-gradient scatter, yielding a first-order spectral attribution of each example’s contribution to Fisher Rank Inflation. 
+
+Spectral bias and training dynamics. Our work is also related to analyses of spectral bias and over-parameterized training dynamics. Neural networks often learn low-frequency or simple functions before more complex patterns [33], and theoretical analyses based on the neural tangent kernel and overpa-rameterization have clarified aspects of optimization and interpolation [16, 1]. These works characterize biases in function-space or parameter-space training dynamics. Rank Inflation instead reflects a transient spectral reorganization of the gradient covariance. Corrupted labels inject covariance mass into weak or previously unused eigendirections, increasing Fisher effective rank during memorization and producing a peak-time attribution signal for corrupted examples. 33 A Spectral Mechanism for Fisher-Rank Inflation 
+
+We explain Fisher-rank inflation under label noise via a spectral mechanism. Specifically, we formalize the following empirical observations: (i) Label corruption increases the effective rank of the last-layer gradient covariance. (ii) Corrupted samples have larger leave-one-out rank contributions. (iii) This attribution signal weakens after memorization. The results in this section should be interpreted as local spectral statements at a fixed training checkpoint. They identify spectral conditions under which corrupted-label gradients increase effective rank, receive larger leave-one-out rank attribution, and eventually lose individual attribution strength once the normalized gradient spectrum becomes stable. The training-time inflation–collapse trajectory studied in Section 4 is therefore an empirical phenomenon explained by, and consistent with, these local spectral mechanisms. All the proofs have been deferred to the appendix. 
+
+# 3.1 Setup 
+
+Let fθ (x) ∈ RK denote the logits of a K-class neural network and let ˆpi = softmax( fθ (xi)) be the predicted class-probability vector for training example (xi, y i). We focus on the final affine classification layer. Let zi ∈ Rm denote the penultimate representation of xi. To include both final-layer weights and biases in a single notation, define the augmented representation 
+
+˜zi =
+
+zi
+
+1
+
+
+
+∈ Rm+1 .
+
+Under softmax cross-entropy, the per-example gradient with respect to the final affine layer, including both weights and biases, can be written as 
+
+gi = (ˆ pi − eyi ) ⊗ ˜zi ∈ RK(m+1) .
+
+Thus gi is the vectorized final-layer gradient used throughout both the theory and experiments. In particular, the bias-gradient component is represented by the final coordinate of ˜zi. We set 
+
+d = K(m + 1) ,
+
+and let G ∈ Rn×d denote the matrix whose rows are the per-example gradients g⊤ 
+
+> i
+
+.Following the experiments, we work with centered gradients 
+
+¯gi = gi − μ, μ = 1
+
+n
+
+> n
+
+X
+
+> i=1
+
+gi,
+
+and define the centered empirical scatter matrix 
+
+S =
+
+> n
+
+X
+
+> i=1
+
+¯gi ¯g⊤ 
+
+> i
+
+.
+
+We refer to S as the centered Fisher-gradient scatter matrix. This object is closely related to the empirical Fisher because it is constructed from per-example loss gradients. However, it is not the con-ventional uncentered empirical Fisher matrix, which would take the form P 
+
+> i
+
+gig⊤ 
+
+> i
+
+, or its normalized analogue. The centering step is deliberate. Our goal is to study the spectral dispersion of gradient fluc-tuations across examples, rather than the total second moment of the gradients. Since entropy effective rank is invariant to positive scalar rescaling, the distinction between using the scatter S, the covariance 
+
+S/n , or the equivalent centered Gram matrix does not affect the effective-rank values studied below. 4We use the term “scatter matrix” throughout. Equivalently, S/n is the empirical covariance. Since effective rank is invariant to positive rescaling, using S, S/n , or ¯G⊤ ¯G gives the same effective-rank value. Let C and N denote the clean-label and corrupted-label subsets. For the additive decomposition of the full centered scatter, we use globally centered clean and corrupted scatters: 
+
+Sglob  
+
+> C
+
+= X
+
+> i∈C
+
+(gi − μ)( gi − μ)⊤, Sglob  
+
+> N
+
+= X
+
+> i∈N
+
+(gi − μ)( gi − μ)⊤.
+
+Then 
+
+S = Sglob  
+
+> C
+
++ Sglob  
+
+> N
+
+.
+
+For the noisy-to-clean effective-rank diagnostic used in the experiments, however, we center each subset separately. Define 
+
+μC = 1
+
+|C|
+
+X
+
+> i∈C
+
+gi, μN = 1
+
+|N |
+
+X
+
+> i∈N
+
+gi,
+
+and eSC = X
+
+> i∈C
+
+(gi − μC )( gi − μC )⊤, eSN = X
+
+> i∈N
+
+(gi − μN )( gi − μN )⊤.
+
+The subset-centered scatters eSC and eSN measure within-group spectral dispersion and are distinct from the globally centered additive decomposition S = Sglob  
+
+> C
+
++ Sglob  
+
+> N
+
+.Let λ1(S), . . . , λ r (S) be the positive eigenvalues of S, where r = rank( S). The normalized positive spectrum is 
+
+pk(S) = λk(S)tr( S) .
+
+The entropy effective rank is 
+
+er( S) = exp −
+
+> r
+
+X
+
+> k=1
+
+pk(S) log pk(S)
+
+!
+
+.
+
+Throughout, we assume that every scatter matrix whose effective rank is evaluated has positive trace. 
+
+# 3.2 Sensitivity of Effective Rank 
+
+Lemma 1 (Effective-rank derivative) . Let S have positive simple eigenvalues λ1, . . . , λ r , trace T = tr( S),normalized spectrum pk = λk/T , entropy 
+
+H(S) = −
+
+> r
+
+X
+
+> k=1
+
+pk log pk,
+
+and effective rank er( S) = eH(S). Then 
+
+∂ er( S)
+
+∂λ k
+
+= − er( S)
+
+T
+
+ log pk + H(S).
+
+Consequently, 
+
+∂ er( S)
+
+∂λ k
+
+> 0 ⇐⇒ pk < 1er( S) .
+
+Define the spectral sensitivity coefficient 
+
+βk(S) = − er( S)tr( S)
+
+ log pk(S) + H(S).
+
+Eigenvalue-coordinate directions uku⊤ 
+
+> k
+
+with βk(S) > 0 are infinitesimal effective-rank-increasing direc-tions. 53.3 Centered Leave-One-Out Attribution 
+
+For a training example i, define the leave-one-out scatter matrix by removing example i and re-centering the remaining gradients. Specifically, let 
+
+μ−i = 1
+
+n − 1
+
+X 
+
+> j̸=i
+
+gj ,
+
+and define 
+
+S−i = X 
+
+> j̸=i
+
+(gj − μ−i)( gj − μ−i)⊤.
+
+The leave-one-out Fisher-rank contribution of example i is 
+
+∆i = er( S) − er( S−i).
+
+Thus ∆i > 0 means that removing example i decreases effective rank, so example i contributes positively to Fisher-rank inflation. 
+
+Lemma 2 (Centered deletion identity) . Let 
+
+S =
+
+> n
+
+X
+
+> j=1
+
+¯gj ¯g⊤ 
+
+> j
+
+, ¯gj = gj − μ, μ = 1
+
+n
+
+> n
+
+X
+
+> j=1
+
+gj .
+
+Let S−i be the centered scatter matrix obtained by removing example i and re-centering the remaining 
+
+n − 1 gradients. Then 
+
+S−i = S − nn − 1 ¯gi ¯g⊤ 
+
+> i
+
+.
+
+Lemma 3 (First-order LOO expansion) . Assume the positive eigenvalues of S are simple. Let 
+
+S =
+
+> r
+
+X
+
+> k=1
+
+λkuku⊤ 
+
+> k
+
+, λ1(S) > λ 2(S) > · · · > λ r (S) > 0.
+
+Define the local spectral gap 
+
+δ(S) = min 
+
+
+
+λr (S), min  
+
+> 1≤j<k ≤r
+
+|λj (S) − λk(S)|
+
+
+
+.
+
+When r = 1 , the second minimum is interpreted as +∞, so 
+
+δ(S) = λ1(S).
+
+Since S = P 
+
+> j
+
+¯gj ¯g⊤ 
+
+> j
+
+, each centered gradient ¯gi lies in range( S). Let 
+
+a = nn − 1 .
+
+Assume the deletion perturbation is sufficiently small relative to the local spectral gap: 
+
+a∥¯gi∥2 ≤ cδ (S)
+
+for a sufficiently small universal constant c > 0. Then 
+
+∆i = a
+
+> r
+
+X
+
+> k=1
+
+βk(S)( u⊤ 
+
+> k
+
+¯gi)2 + Ri,
+
+where 
+
+|Ri| ≤ C(S)∥¯gi∥4,
+
+for a constant C(S) depending on a local spectral neighborhood controlled by δ(S).
+
+63.4 Entropy Gain from New Spectral Directions 
+
+Lemma 4 (Entropy gain from new spectral directions) . Let A ⪰ 0 have positive trace and rank r, and let B ⪰ 0. Let PA be the orthogonal projector onto range( A), and QA = I − PA. If 
+
+tr( QABQ A) > 0,
+
+then there exists α0 > 0 such that for all α ∈ (0 , α 0),
+
+er( A + αB ) > er( A).
+
+Lemma 5 (Projected corrupted scatter under random corruption) . Condition on a fixed training check-point and fixed prediction-representation pairs 
+
+{(ˆ pi, ˜zi)}ni=1 .
+
+Let PC be the orthogonal projector onto range( Sglob  
+
+> C
+
+), and let QC = I − PC . Suppose the corrupted labels are sampled randomly according to a corruption distribution, producing corrupted gradients 
+
+gi(˜ yi) = (ˆ pi − e˜yi ) ⊗ ˜zi, i ∈ N. 
+
+Let μ denote the global gradient mean induced by the same corrupted-label realization, and define 
+
+Sglob  
+
+> N
+
+= X
+
+> i∈N
+
+(gi(˜ yi) − μ)( gi(˜ yi) − μ)⊤.
+
+The expectation is only over the random replacement labels {˜yi}i∈N , conditional on the fixed checkpoint and fixed prediction-representation pairs {(ˆ pi, ˜zi)}ni=1 . Then 
+
+E
+
+h
+
+tr( QC Sglob  
+
+> N
+
+QC )
+
+i
+
+= X
+
+> i∈N
+
+E ∥QC (gi(˜ yi) − μ)∥2 .
+
+Consequently, 
+
+E
+
+h
+
+tr( QC Sglob  
+
+> N
+
+QC )
+
+i
+
+> 0
+
+whenever at least one corrupted centered gradient has a nonzero component outside the globally centered clean-gradient span with positive probability. 
+
+# 3.5 Rank Inflation Under Label Corruption 
+
+To analyze how corrupted gradients perturb the full Fisher-gradient scatter, we use the globally centered decomposition 
+
+S = Sglob  
+
+> C
+
++ Sglob  
+
+> N
+
+.
+
+Consider the interpolation 
+
+Sα = Sglob  
+
+> C
+
++ αS glob  
+
+> N
+
+, α ≥ 0.
+
+Lemma 5 provides an expected-case justification for the Case 1 condition in Theorem 1. It shows that 
+
+E
+
+h
+
+tr( QC Sglob  
+
+> N
+
+QC )
+
+i
+
+> 0
+
+whenever random label corruption produces corrupted centered gradients with nonzero projection outside the globally centered clean-gradient span. In our experimental setting, corrupted labels are drawn uni-formly from [K] \ { yi}. Since the augmented representations ˜zi are high-dimensional and the corrupted label directions vary across K − 1 incorrect classes, this nondegeneracy condition is expected to hold generically. Theorem 1 is stated deterministically for the realized scatter matrices. 7Theorem 1 (Local Fisher-rank inflation) . Let PC be the orthogonal projector onto range( Sglob  
+
+> C
+
+), and let 
+
+QC = I − PC .There are two cases. 
+
+Case 1: corrupted gradients create new spectral directions. If 
+
+tr( QC Sglob  
+
+> N
+
+QC ) > 0,
+
+then there exists α0 > 0 such that for all α ∈ (0 , α 0),
+
+er( Sglob  
+
+> C
+
++ αS glob  
+
+> N
+
+) > er( Sglob  
+
+> C
+
+).
+
+Case 2: corrupted gradients lie in the clean-gradient span. Assume additionally that Sglob 
+
+> C
+
+has simple positive eigenvalues 
+
+Sglob  
+
+> C
+
+=
+
+> r
+
+X
+
+> k=1
+
+λkuku⊤ 
+
+> k
+
+.
+
+If 
+
+range( Sglob  
+
+> N
+
+) ⊆ range( Sglob  
+
+> C
+
+)
+
+and rX
+
+> k=1
+
+βk(Sglob  
+
+> C
+
+)u⊤ 
+
+> k
+
+Sglob  
+
+> N
+
+uk > 0,
+
+then there exists α0 > 0 such that for all α ∈ (0 , α 0),
+
+er( Sglob  
+
+> C
+
++ αS glob  
+
+> N
+
+) > er( Sglob  
+
+> C
+
+).
+
+Theorem 1 shows that label corruption can inflate Fisher effective rank in two ways. It can either create new spectral directions outside the globally centered clean-gradient span, or it can place sufficient covariance mass inside existing low-energy directions to which effective rank is positively sensitive. 
+
+# 3.6 Spectral Condition for Larger Corrupted-Sample LOO Contributions 
+
+Lemma 3 shows that, to first order, the LOO contribution of sample i is controlled by a quadratic form in its centered gradient. Define the effective-rank sensitivity matrix 
+
+BS =
+
+> r
+
+X
+
+> k=1
+
+βk(S)uku⊤ 
+
+> k
+
+.
+
+Then the first-order attribution score of sample i is 
+
+Ai(S) = ¯ g⊤ 
+
+> i
+
+BS ¯gi =
+
+> r
+
+X
+
+> k=1
+
+βk(S)( u⊤ 
+
+> k
+
+¯gi)2.
+
+The matrix BS has positive eigenvalues along infinitesimal effective-rank-increasing eigendirections, neg-ative eigenvalues along effective-rank-decreasing eigendirections, and zero eigenvalues on ker( S).Unless otherwise stated, E[· | i ∈ A] denotes the empirical expectation over a uniformly chosen index from group A.For A ∈ { C, N }, define the group second-moment matrix 
+
+ΣA = E ¯gi ¯g⊤ 
+
+> i
+
+| i ∈ A .
+
+Theorem 2 (Spectral condition for corrupted-sample LOO enrichment) . Assume the first-order LOO expansion of Lemma 3 applies uniformly to all samples under consideration. One sufficient condition is that the deletion perturbations satisfy nn − 1 ∥¯gi∥2 ≤ cδ (S)
+
+8for all i in the clean and corrupted groups. Let 
+
+a = nn − 1 , η = max  
+
+> i
+
+∥¯gi∥2.
+
+Here ∥ · ∥ denotes the Euclidean norm, so the remainder bound satisfies 
+
+|Ri| ≤ C(S)∥¯gi∥4 ≤ C(S)η2.
+
+If 
+
+tr ( BS (Σ N − ΣC )) > 2C(S)
+
+a η2,
+
+then 
+
+E[∆ i | i ∈ N ] > E[∆ i | i ∈ C].
+
+Theorem 2 does not claim that corrupted samples always have larger LOO contribution. Rather, it identifies the spectral condition under which the empirical enrichment occurs: corrupted gradients must have larger covariance, relative to clean gradients, in directions weighted positively by the effective-rank sensitivity matrix BS .
+
+Corollary 1 (Rank-increasing subspace sufficient condition) . Let 
+
+K+(S) = {k : βk(S) > 0}.
+
+Assume 
+
+K+(S)̸ = ∅.
+
+Define 
+
+U+ = X
+
+> k∈K+(S)
+
+uku⊤ 
+
+> k
+
+,
+
+and let 
+
+b+ = min  
+
+> k∈K+(S)
+
+βk(S) > 0.
+
+Let 
+
+a = nn − 1 , η = max  
+
+> i
+
+∥¯gi∥2.
+
+Assume the perturbative condition nn − 1 ∥¯gi∥2 ≤ cδ (S)
+
+holds for all samples under consideration. Suppose there exists δ+ > 0 such that 
+
+E ∥U+ ¯gi∥2 | i ∈ N  − E ∥U+ ¯gi∥2 | i ∈ C ≥ δ+.
+
+Suppose also that the contribution from rank-decreasing directions is bounded below by −B−:
+
+X
+
+> k / ∈K+(S)
+
+βk(S)  E (u⊤ 
+
+> k
+
+¯gi)2 | i ∈ N  − E (u⊤ 
+
+> k
+
+¯gi)2 | i ∈ C ≥ − B−.
+
+If 
+
+b+δ+ − B− > 2C(S)
+
+a η2,
+
+then 
+
+E[∆ i | i ∈ N ] > E[∆ i | i ∈ C].
+
+Corollary 1 gives an interpretable sufficient condition for the spectral criterion in Theorem 2. It says that corrupted examples have larger expected LOO contribution when they carry more energy in rank-increasing eigendirections, and when the contribution from rank-decreasing directions does not dominate. 93.7 Noisy-to-Clean Effective-Rank Ratio 
+
+The noisy-to-clean effective-rank ratio used in the experiments is computed from subset-centered clean and corrupted gradient scatter matrices: 
+
+N IR = er( eSN )er( eSC ) .
+
+Here 
+
+μC = 1
+
+|C|
+
+X
+
+> i∈C
+
+gi, μN = 1
+
+|N |
+
+X
+
+> i∈N
+
+gi,
+
+and eSC = X
+
+> i∈C
+
+(gi − μC )( gi − μC )⊤, eSN = X
+
+> i∈N
+
+(gi − μN )( gi − μN )⊤.
+
+Thus N IR measures the within-group spectral dispersion of corrupted gradients relative to clean gradients after subset-specific centering. It is distinct from the globally centered additive decomposition 
+
+S = Sglob  
+
+> C
+
++ Sglob 
+
+> N
+
+used in Theorem 1. This distinction is important because globally centered group scatters can contain between-group mean offsets, whereas eSC and eSN remove the clean and corrupted group means before effective rank is computed. Therefore N IR compares the intrinsic spectral spread of the clean and corrupted gradient clouds rather than their separation in mean. Thus Theorem 1 and Proposition 1 address related but logically distinct quantities: Theorem 1 concerns globally centered additive rank inflation, whereas N IR measures subset-centered within-group spectral dispersion. 
+
+Proposition 1 (Majorization implies N IR ≥ 1). Let p( eSN ) and p( eSC ) be the normalized positive spectra of the subset-centered corrupted and clean scatter matrices, padded with zeros if necessary so that they have the same length. We use the convention 0 log 0 = 0 . If 
+
+p( eSN ) ≺ p( eSC ),
+
+then 
+
+er( eSN ) ≥ er( eSC ).
+
+Consequently, 
+
+N IR = er( eSN )er( eSC ) ≥ 1.
+
+If the majorization is strict and the spectra are not permutations of one another, then N IR > 1.
+
+We emphasize that N IR is an auxiliary diagnostic that quantifies relative within-group spectral dispersion after subset-specific centering. Unlike the Fisher Rank Inflation analyzed in Theorem 1, N IR 
+
+does not arise from the globally centered additive decomposition of the full gradient scatter matrix. 
+
+# 3.8 Post-Memorization Weakening of the LOO Signal 
+
+Effective rank is scale-invariant: 
+
+er( cS ) = er( S), c > 0.
+
+Therefore, absolute gradient shrinkage alone cannot imply ∆i → 0. The correct condition must be stated in terms of normalized spectra. Here ∥ · ∥ 1 denotes the trace norm. 10 Theorem 3 (Normalized spectral stability implies LOO collapse) . As training progresses through epochs 
+
+t, let S(t) and S(t) 
+
+> −i
+
+denote the corresponding full and leave one out centered scatter matrices. Assume that 
+
+S(t) and S(t) 
+
+> −i
+
+have positive trace for all t and i under consideration. Define 
+
+ρ(t) = S(t)
+
+tr( S(t)) , ρ(t) 
+
+> −i
+
+= S(t)
+
+> −i
+
+tr( S(t) 
+
+> −i
+
+) .
+
+If 
+
+max  
+
+> i
+
+ρ(t) − ρ(t) 
+
+> −i1
+
+→ 0 as t → ∞ ,
+
+then 
+
+max  
+
+> i
+
+∆(t) 
+
+> i
+
+→ 0 as t → ∞ .
+
+Large sample interpretation. Let n denote the number of examples used to construct the scatter matrix. Since 
+
+tr( S(t)) = 
+
+> n
+
+X
+
+> j=1
+
+∥¯g(t) 
+
+> j
+
+∥2,
+
+we have 
+
+max 
+
+> i
+
+∥¯g(t) 
+
+> i
+
+∥2
+
+tr( S(t)) ≥ 1
+
+n .
+
+Thus, this ratio cannot vanish as t → ∞ when n is fixed. Instead, suppose that 
+
+max 
+
+> i
+
+∥¯g(t) 
+
+> i
+
+∥2
+
+tr( S(t)) = O(1 /n )
+
+uniformly over the epochs under consideration. This condition means that no individual example con-tributes substantially more than the average scatter mass. Then 
+
+max  
+
+> i
+
+ρ(t) − ρ(t) 
+
+> −i1
+
+= O(1 /n ).
+
+By continuity of entropy, the corresponding leave one out effective rank contributions become small as n
+
+grows. 
+
+# 3.9 Interpretation 
+
+The theory gives a spectral mechanism for Fisher-rank inflation under label noise. First, Lemma 1 identifies which directions increase effective rank. Adding spectral mass to low-energy directions increases spectral entropy. Theorem 1 then shows that corrupted-gradient covariance inflates Fisher effective rank whenever it either creates new spectral directions outside the clean-gradient span or places sufficient energy in existing rank-increasing directions. Second, Lemma 3 shows that the leave-one-out contribution of a sample is governed, to first order, by a quadratic spectral attribution score ¯g⊤ 
+
+> i
+
+BS ¯gi. Theorem 2 identifies the spectral condition under which corrupted samples have larger expected LOO rank contribution. The corrupted-clean covariance difference must have positive net alignment with the effective-rank sensitivity matrix BS . Corollary 1 gives a simpler sufficient condition in terms of extra corrupted-gradient energy in rank-increasing eigendirections. Third, Proposition 1 explains the noisy-to-clean effective-rank diagnostic used in the experiments. For NIR, we compute the effective ranks of the clean and corrupted gradient submatrices after centering each subset separately. This diagnostic measures within-group spectral dispersion and is distinct from the additive globally centered decomposition used in Theorem 1. When the subset-centered noisy spectrum is more diffuse in the majorization sense, the noisy-to-clean rank ratio satisfies N IR ≥ 1, and it is strictly larger than one under strict spectral spreading. 11 Finally, Theorem 3 explains why the LOO signal weakens after memorization. Since effective rank is scale-invariant, the relevant condition is not raw gradient shrinkage but normalized spectral stability. Removing any one example must have vanishing effect on the normalized Fisher-gradient spectrum. This matches the empirical observation that the top noisy fraction among high-LOO contributors is largest during peak Fisher-rank inflation and decreases later in training. The theory should be interpreted as a checkpoint-level spectral mechanism rather than a claim about the entire training trajectory. The experiments below test whether these spectral conditions and attri-bution patterns arise at the peak-rank checkpoints observed during noisy-label training. 
+
+# 4 Experimental Evaluation 
+
+We investigate the empirical behavior of Fisher Rank Inflation across datasets, architectures, and cor-ruption levels. Our experiments focus on four questions: 1. Does label corruption induce a characteristic inflation–collapse trajectory in Fisher effective rank during training? 2. How does the magnitude of rank inflation vary with the corruption level? 3. Which training examples contribute most strongly to Fisher Rank Inflation? 4. Do the observed dynamics generalize across architectures and datasets? 
+
+# 4.1 Experimental Setup 
+
+Datasets. We evaluate Fisher Rank Inflation on CIFAR-10 and CIFAR-100 under synthetic symmet-ric label corruption. CIFAR-10 contains 50,000 training images and 10,000 test images across 10 classes, while CIFAR-100 contains the same number of images distributed across 100 classes. To evaluate whether the phenomenon extends beyond synthetic corruption, we additionally study CIFAR-10N, which provides naturally occurring human annotation errors. In particular, we use the worse_label split for the exper-iments in Section 4.6, while retaining the original CIFAR-10 labels as clean references for evaluation and attribution analysis. 
+
+Label Corruption. We consider symmetric label corruption. For a corruption rate ρ, each training label is independently replaced with a uniformly sampled incorrect class with probability ρ. Unless otherwise specified, we use ρ = 0 .5 (50% corruption). To study the effect of corruption severity, we additionally perform noise-rate sweeps over 
+
+ρ ∈ { 0, 0.2, 0.3, 0.4, 0.5, 0.6}.
+
+Architectures. Experiments are conducted using SmallCNN, ResNet18, and Vision Transformers (ViT) on CIFAR-10. To evaluate behavior on a more challenging dataset, we additionally train ResNet18 on CIFAR-100. For CIFAR-10N, we use the same CIFAR-adapted ResNet18 architecture as in the CIFAR-10 synthetic-noise experiments. 
+
+Fisher-gradient scatter. At each epoch, we compute per-example gradients with respect to the final affine classification layer, including both weights and biases. Equivalently, for each example we use 
+
+gi = (ˆ pi − eyi ) ⊗ ˜zi,
+
+where ˜zi = [ z⊤ 
+
+> i
+
+, 1] ⊤ is the augmented penultimate representation. We then construct the centered Fisher-gradient scatter matrix 
+
+S =
+
+> n
+
+X
+
+> i=1
+
+¯gi ¯g⊤ 
+
+> i
+
+, ¯gi = gi − 1
+
+n
+
+> n
+
+X
+
+> j=1
+
+gj .
+
+12 We track the entropy effective rank er( S) throughout training and identify the epoch at which effective rank attains its maximum value. We refer to this checkpoint as the peak-rank epoch .Throughout the experiments, “Fisher effective rank” refers to the entropy effective rank of the centered per-example final-layer gradient scatter. Thus, the reported spectral quantities measure the dispersion of example-wise gradient fluctuations around their empirical mean. We use the term Fisher-gradient scatter to emphasize that the matrix is built from loss gradients, while reserving the conventional empirical Fisher for the corresponding uncentered second moment. 
+
+Noisy-to-clean inflation ratio. To compare the spectral dispersion of clean and corrupted gradients, we compute 
+
+NIR = er( eSN )er( eSC ) ,
+
+where eSN and eSC denote the subset-centered corrupted and clean gradient scatter matrices, respectively. That is, clean and corrupted gradients are centered separately before their effective ranks are computed. 
+
+Leave-one-out attribution. For each training example, we compute the leave-one-out rank contribu-tion 
+
+∆i = er( S) − er( S−i).
+
+Here S−i is obtained by removing example i, re-centering the remaining gradients, and recomputing the scatter matrix. Unless otherwise stated, leave-one-out analyses are performed at the peak-rank epoch, where Fisher Rank Inflation is strongest. 
+
+Evaluation metrics. We report peak effective rank, peak NIR, rank-onset and overfitting-onset epochs, lead time between rank inflation and test degradation, top-100 noisy fraction, enrichment ratio, AUROC, and AUPRC. For timing comparisons, rank onset is defined as the first evaluated epoch at which Fisher effective rank reaches 20 percent of its maximum increase over the completed training run. This retro-spective threshold is used only to compare the timing of rank inflation and test degradation. 
+
+Subsampling protocol. All experiments use a fixed training subset of 20,000 examples sampled with-out replacement from the original training set using the corresponding random seed. Unless other-wise stated, Fisher effective-rank trajectories are computed on a deterministic non-augmented Fisher-evaluation subset of 4,096 training examples for CIFAR-10 experiments and 2,048 examples for CIFAR-100 experiments. Exact leave-one-out attribution is computed on a deterministic subset of 2,048 examples at the seed-specific peak-rank checkpoint. The same subset ordering is used when recomputing gradient matrices for direct spectral diagnostics, so the leave-one-out contributions and diagnostic quantities are evaluated on matched examples. For CIFAR-10N, we use the same 20,000-example training subset size as in the CIFAR-10 ResNet18 experiments. Fisher trajectories are computed on the first 4,096 examples of the deterministic evaluation ordering, and exact leave-one-out attribution is computed on the first 2,048 examples of the same ordering at the seed-specific peak-rank checkpoint. 
+
+# 4.2 Fisher Rank Inflation During Memorization 
+
+We first examine the evolution of the Fisher-gradient spectrum throughout training under symmetric label corruption. Figure 1 shows a representative training trajectory for ResNet18 trained on CIFAR-10 with 50% label corruption, including the effective rank of the centered Fisher-gradient scatter, the noisy-to-clean inflation ratio (NIR), and classification performance. A clear inflation–collapse trajectory emerges. During the early stages of training, the effective rank increases steadily, indicating that gradient covariance becomes distributed across a progressively larger set of spectral directions. The expansion continues until a peak-rank epoch is reached, after which effective rank declines despite continued optimization. We refer to this transient expansion as Fisher Rank Inflation .13 The evolution of NIR provides complementary evidence for the same spectral transition. As training progresses, the corrupted-gradient scatter becomes more spectrally diffuse relative to the clean-gradient scatter, causing NIR to rise above one during the inflation phase. Near the high-rank portion of training, NIR remains elevated, indicating greater spectral dispersion among corrupted gradients than among clean gradients. This observation is consistent with the theoretical prediction that corrupted labels inject covariance mass into low-energy or previously underutilized eigendirections. The inflation phase coincides with the transition from structure learning to memorization. Early in training, gradients are concentrated along a relatively small number of dominant directions associated with shared structure in the data. As corrupted labels begin to be fit, gradient covariance spreads into weaker directions, increasing both spectral entropy and effective rank. After memorization, the normalized gradient spectrum becomes progressively more stable, leading to a reduction in effective rank and the observed collapse phase. In this representative run, rank inflation begins before observable test degradation and reaches its maximum near the transition from structure learning to memorization. This shows that the identified onset of Fisher Rank Inflation can occur before observable test degradation. The magnitude of this lead time varies across architectures and datasets, so we interpret it as a retrospective timing comparison rather than an online prediction rule. Appendix A.9 shows that this lead-time pattern is robust to a grid of rank-onset and test-drop thresh-olds for the convolutional models, while remaining more threshold-dependent for the Vision Transformer. Taken together, these results identify Fisher Rank Inflation as a spectral signature of memorization under label noise. The existence of a distinct peak-rank epoch further motivates the sample-level analyses presented in the following subsection. 
+
+Figure 1: Representative training trajectory showing Fisher Rank Inflation for ResNet18 on CIFAR-10 with 50% symmetric label corruption. The effective rank of the Fisher-gradient scatter exhibits a characteristic inflation–collapse trajectory in this run, peaking at epoch 40. The noisy-to-clean inflation ratio (NIR) increases during the inflation phase, indicating growing spectral separation between clean and corrupted gradients. Rank inflation begins before observable test degradation and reaches its maximum near the transition from structure learning to memorization. 
+
+# 4.3 Corrupted Examples Drive Fisher Rank Inflation 
+
+The inflation–collapse dynamics observed in the previous subsection establish that Fisher effective rank undergoes a characteristic expansion during memorization. We now investigate which training examples are responsible for this expansion. To quantify the contribution of individual samples, we compute the leave-one-out rank contribution 
+
+∆i = er( S) − er( S−i),
+
+which measures the reduction in effective rank caused by removing example i. Positive values of ∆i
+
+14 indicate that the corresponding sample supports the inflated Fisher spectrum, whereas values near zero indicate a negligible contribution. Figure 2 shows a representative peak-rank leave-one-out analysis for ResNet18 trained on CIFAR-10 with 50% symmetric label corruption. A pronounced separation emerges between clean and corrupted examples. The distribution of corrupted-example contributions is shifted toward larger positive values and exhibits substantially greater variance. In contrast, clean examples are concentrated near zero contribution. This difference is reflected in both mean and median attribution scores in the representative run. Corrupted examples achieve a mean contribution of 0.0125 , compared to −0.0056 for clean examples. Similarly, the median contribution increases from −0.0047 for clean examples to 0.0110 for corrupted examples. Thus, removing a corrupted example typically produces a larger reduction in effective rank than removing a clean example. To further quantify this effect, we rank all evaluated training examples according to their leave-one-out contribution. In this representative run, corrupted examples constitute 49 .4% of the evaluated subset but account for 97% of the top-100 rank-contributing samples. This corresponds to an enrichment factor of approximately 1.96 × relative to the background corruption rate. Across five random seeds, the same ResNet18 CIFAR-10 setting achieves a top-100 noisy fraction of 95 .0% ±1.4% and an enrichment factor of 
+
+1.904 ±0.037 , as reported in Table 2. Thus, the highest-contributing examples are consistently dominated by corrupted samples. These findings provide sample-level evidence consistent with the spectral mechanism developed in Section 3. The theory identifies spectral conditions under which examples aligned with rank-increasing directions contribute disproportionately to Fisher Rank Inflation. Consistent with this mechanism, cor-rupted examples exhibit systematically larger leave-one-out rank contributions than clean examples and dominate the highest-contributing samples across seeds. Fisher Rank Inflation is therefore not a uniform property of the training set. Instead, it is driven primarily by a subset of corrupted examples whose gradients inject variance into rank-expanding directions of the Fisher-gradient scatter. 
+
+Figure 2: Representative leave-one-out rank contributions at the peak-rank checkpoint for ResNet18 on CIFAR-10 with 50% symmetric label corruption. Corrupted examples exhibit substantially larger rank contributions than clean examples, indicating that they disproportionately support the inflated Fisher-gradient spectrum. In this representative run, corrupted samples constitute roughly half of the evaluated training subset but account for 97% of the top-100 rank-contributing examples. Across five seeds, the corresponding top-100 noisy fraction is 95 .0% ± 1.4% , as reported in Table 2. 
+
+# 4.4 Clean-Difficulty Control 
+
+A natural alternative explanation for the leave-one-out Fisher-rank attribution results is that they merely identify difficult training examples rather than corrupted labels. To distinguish optimization difficulty from label corruption, we perform a controlled experiment that explicitly separates these two factors. 15 Table 1: Clean-difficulty control experiment averaged over three random seeds. Results are evaluated at the seed-specific peak Fisher-rank checkpoint for ResNet18 on CIFAR-10 with 50% symmetric label corruption. Group Mean ∆i Median ∆i
+
+High-loss clean −0.0137 ± 0.0012 0.00006 ± 0.00003 
+
+Normal clean 0.0046 ± 0.0005 0.00006 ± 0.00003 
+
+Memorized corrupted 0.0751 ± 0.0027 0.0707 ± 0.0058 
+
+Using ResNet18 on CIFAR-10 with 50% symmetric label corruption, we partition the training samples into three disjoint groups: 1. Normal clean : correctly labeled examples with relatively small training loss. 2. High-loss clean : correctly labeled examples having the largest training losses among all correctly labeled samples. These samples serve as a proxy for rare, ambiguous, or intrinsically difficult examples that remain correctly labeled despite being challenging to optimize. 3. Memorized corrupted : examples whose observed training labels are incorrect but whose training losses with respect to those incorrect labels are already very small. These samples have therefore been successfully memorized by the network despite receiving incorrect supervision. The high-loss clean group controls for optimization difficulty, while the memorized corrupted group isolates label corruption after memorization. If Fisher Rank Inflation primarily reflected sample difficulty, the high-loss clean group would be expected to exhibit the largest leave-one-out Fisher-rank contribu-tions. Conversely, if Fisher Rank Inflation is driven by memorized label corruption, memorized corrupted examples should dominate despite their low training loss. Figure 3 provides a visual comparison of the leave-one-out Fisher-rank contribution distributions for the three groups. Table 1 supports the latter hypothesis. Memorized corrupted examples exhibit substantially larger positive leave-one-out contributions than either category of clean examples, whereas high-loss clean ex-amples have a slightly negative mean contribution. Moreover, memorized corrupted examples account for approximately 96% of the top-100 Fisher-rank contributors across three independent random seeds. These results demonstrate that Fisher Rank Inflation is not simply identifying difficult or rare training examples. Instead, it preferentially identifies examples whose incorrect labels have already been mem-orized, providing additional evidence that the observed Fisher-spectrum expansion is associated with memorized label corruption rather than optimization difficulty alone. 16 Figure 3: Clean-difficulty control experiment for ResNet18 trained on CIFAR-10 with 50% symmetric label corruption. Leave-one-out Fisher-rank contributions ( ∆i) are shown for normal clean examples, high-loss clean examples, and memorized corrupted examples at the seed-specific peak Fisher-rank check-point. Although high-loss clean examples are difficult to optimize, their contributions remain near zero, whereas memorized corrupted examples exhibit substantially larger positive contributions. This indicates that Fisher Rank Inflation preferentially identifies memorized label corruption rather than optimization difficulty. 
+
+# 4.5 Cross-Architecture and Cross-Dataset Validation 
+
+We next investigate whether the attribution patterns observed for ResNet18 on CIFAR-10 generalize across architectures and datasets. Table 2 summarizes leave-one-out attribution statistics at the seed-specific peak-rank checkpoint for all experimental settings considered in this work. For each setting, we report mean and standard deviation across five random seeds. Across all settings, corrupted examples are enriched among the highest rank-contributing samples. Although corrupted examples constitute approximately 50% of the training subset, they account for substantially more than half of the top-100 rank-contributing examples in every architecture and dataset. The top-100 noisy fraction ranges from 69 .2% for ViT on CIFAR-10 to 96 .2% for SmallCNN on CIFAR-10. This enrichment persists across both convolutional and transformer architectures, indicating that Fisher Rank Inflation is not tied to a particular model family. The strongest enrichment is observed for the convolutional CIFAR-10 models. For SmallCNN, cor-rupted examples account for 96 .2% ± 2.0% of the top-100 rank-contributing samples, corresponding to an enrichment factor of 1.928 ± 0.064 relative to the background corruption rate. ResNet18 on CIFAR-10 exhibits similarly strong enrichment. Corrupted examples account for 95 .0% ± 1.4% of the top-100 rank-contributing samples, with enrichment 1.904 ± 0.037 .The effect is weaker but still present in the Vision Transformer. For ViT on CIFAR-10, corrupted examples account for 69 .2% ± 3.7% of the top-100 rank-contributing samples, corresponding to an en-richment factor of 1.387 ± 0.087 . Thus, while the attribution signal is attenuated in the transformer architecture, the highest rank-contributing examples remain enriched for corrupted labels relative to the background corruption rate. The effect also extends to the more challenging CIFAR-100 setting. For ResNet18 on CIFAR-100, corrupted examples account for 92 .2% ± 1.6% of the top-100 rank-contributing samples, corresponding to an enrichment factor of 1.848 ± 0.052 . This indicates that Fisher-rank attribution remains effective even when the number of classes and the final-layer gradient dimension are substantially larger. Rank-contribution attribution provides above-chance, but architecture-dependent, separation between clean and corrupted examples. AUROC values range from 0.601 ± 0.024 for ViT on CIFAR-10 to 0.806 ±
+
+0.011 for ResNet18 on CIFAR-100, while AUPRC values range from 0.601 ± 0.025 to 0.798 ± 0.010 . These values indicate that leave-one-out rank contribution captures information about label corruption beyond 17 a single architecture or dataset. At the same time, we emphasize that rank contribution is intended as a spectral attribution measure rather than a generic noisy-label detector. Loss and confidence baselines can yield stronger global AUROC in some settings. Taken together, these findings show that the relationship between corrupted examples and Fisher Rank Inflation extends across multiple architectures and datasets. The consistent enrichment of corrupted examples among the largest rank contributors supports the view that Fisher Rank Inflation is not an artifact of a single experimental setting, although the strength of the attribution signal varies across model families. Table 2: Cross-architecture and cross-dataset attribution results at the peak-rank checkpoint. Dataset Model Peak Epoch Top-100 Noisy Enrichment AUROC AUPRC CIFAR-10 SmallCNN 66.0 ±4.2 0.962 ±0.020 1.928 ±0.064 0.683 ±0.010 0.757 ±0.008 CIFAR-10 ResNet18 52.0 ±2.7 0.950 ±0.014 1.904 ±0.037 0.681 ±0.024 0.762 ±0.023 CIFAR-10 ViT 101.0 ±6.5 0.692 ±0.037 1.387 ±0.087 0.601 ±0.024 0.601 ±0.025 CIFAR-100 ResNet18 24.0 ±4.2 0.922 ±0.016 1.848 ±0.052 0.806 ±0.011 0.798 ±0.010 
+
+Direct spectral diagnostics. To test the spectral mechanism more directly, we evaluate the checkpoint-level quantities appearing in Section 3 at the seed-specific peak-rank checkpoints. For each setting, we compute the fraction of corrupted-gradient scatter outside the globally centered clean-gradient span, the first-order sensitivity gap E[Ai(S) | i ∈ N ]−E[Ai(S) | i ∈ C], the correlation between the first-order attri-bution score Ai(S) and the exact leave-one-out contribution ∆i, and the corrupted-example enrichment among the top exact leave-one-out contributors. Table 3: Direct diagnostics for the spectral quantities in Section 3, evaluated at seed-specific peak-rank checkpoints under 50% symmetric label corruption. The new-direction fraction is 
+
+tr( QC Sglob  
+
+> N
+
+QC )/ tr( Sglob  
+
+> N
+
+). The sensitivity gap is E[Ai(S) | i ∈ N ] − E[Ai(S) | i ∈ C], where 
+
+Ai(S) = ¯ g⊤ 
+
+> i
+
+BS ¯gi. Results are reported as mean ± standard deviation over five seeds.                                                                            
+
+> Dataset Model New-dir. frac. Sens. gap Spearman Ai,∆i∆N−∆CTop-100 noisy ∆i
+> CIFAR-10 SmallCNN 0.0000 ±0.0000 0.0058 ±0.0006 0.9795 ±0.0038 0.0082 ±0.0008 0.962 ±0.020
+> CIFAR-10 ResNet18 0.0799 ±0.0062 0.0079 ±0.0016 0.9603 ±0.0081 0.0136 ±0.0019 0.950 ±0.014
+> CIFAR-10 ViT 0.1450 ±0.0080 −0.0011 ±0.0011 0.7036 ±0.0270 0.0340 ±0.0037 0.694 ±0.040
+> CIFAR-100 ResNet18 0.5879 ±0.0117 0.0379 ±0.0223 0.6514 ±0.0999 0.1668 ±0.0118 0.922 ±0.016
+
+The direct diagnostics provide checkpoint-level support for the spectral mechanism, while also show-ing that different architectures realize the mechanism in different ways. For CIFAR-10 SmallCNN and ResNet18, the first-order attribution score Ai(S) = ¯ g⊤ 
+
+> i
+
+BS ¯gi is highly aligned with the exact leave-one-out contribution ∆i, with Spearman correlations above 0.96 . In both cases, the corrupted group has a positive sensitivity gap, supporting the sufficient condition in Theorem 2. The two convolutional CIFAR-10 models differ in the role of new spectral directions. For ResNet18, corrupted gradients place a nonzero fraction of their globally centered scatter outside the clean-gradient span. For SmallCNN, the new-direction fraction is numerically zero, while the sensitivity gap remains pos-itive and Ai(S) is strongly correlated with exact leave-one-out attribution. This suggests that SmallCNN rank inflation is primarily explained by corrupted-gradient covariance within existing rank-increasing directions, corresponding to the in-span case of Theorem 1. For CIFAR-100 ResNet18, corrupted gradients place a substantially larger fraction of their scatter outside the clean-gradient span, and exact leave-one-out attribution remains strongly enriched for cor-rupted examples. The correlation between Ai(S) and ∆i is more moderate than in CIFAR-10, suggesting that higher-order deletion effects are more pronounced in the higher-cardinality output setting. For the Vision Transformer, exact leave-one-out attribution still shows corrupted-example enrichment, but the first-order sensitivity gap is slightly negative. Thus, the sufficient condition in Theorem 2 is not 18 uniformly satisfied in the transformer setting. Since Theorem 2 gives a sufficient rather than necessary condition, this does not contradict the theory. Instead, it matches the weaker ViT attribution signal reported in Table 2. 
+
+# 4.6 Rank Inflation Increases with Corruption Severity 
+
+Section 3 suggests that Fisher Rank Inflation should become more pronounced as the amount of label corruption increases. Corrupted examples introduce gradient variability that can populate weak or pre-viously underutilized eigendirections of the Fisher-gradient scatter, thereby increasing spectral entropy and effective rank. As the fraction of corrupted labels grows, a larger number of examples are expected to contribute to this rank-expanding mechanism. To test this prediction, we perform a label-noise sweep on CIFAR-10 using ResNet18 under symmetric corruption rates 
+
+ρ ∈ { 0.0, 0.2, 0.3, 0.4, 0.5, 0.6}.
+
+For each corruption level, we train three random seeds and record the maximum Fisher effective rank attained during training. We also compute the peak noisy-to-clean inflation ratio (NIR), which measures the relative spectral dispersion of corrupted gradients compared to clean gradients. Figure 4 shows that the magnitude of Fisher Rank Inflation increases systematically with corruption severity. Under clean training, the peak Fisher effective rank is 28 .88 ±1.95 . As label corruption increases, the peak effective rank rises to 62 .69 ± 2.32 , 70 .37 ± 2.48 , 78 .98 ± 0.76 , 87 .90 ± 3.63 , and 97 .09 ± 1.78 
+
+for corruption rates of 20% , 30% , 40% , 50% , and 60% , respectively. Thus, increasing corruption severity produces a larger expansion of the Fisher-gradient spectrum. The NIR diagnostic remains consistently above one across noisy settings. Peak NIR values are 2.00 ±
+
+0.10 , 1.97 ± 0.04 , 2.01 ± 0.00 , 1.98 ± 0.03 , and 1.87 ± 0.09 for corruption rates of 20% , 30% , 40% , 50% ,and 60% , respectively. This indicates that corrupted-gradient subsets remain more spectrally dispersed than clean-gradient subsets throughout the noisy-label regimes. Unlike peak effective rank, NIR is not strictly monotonic in the corruption rate, but it remains elevated above one whenever corrupted labels are present. These observations are consistent with the proposed mechanism. Increasing the number of corrupted labels increases the number of examples whose gradients inject covariance mass into weak eigendirections of the Fisher-gradient scatter. The resulting increase in spectral entropy produces larger effective-rank expansions and stronger Fisher Rank Inflation. Taken together, these results provide empirical support for the central mechanistic implication of our theory. Increasing label corruption introduces more gradient covariance in rank-expanding directions and thereby produces larger Fisher-rank expansion. This behavior further supports the view that Fisher Rank Inflation is a consequence of corruption-driven memorization rather than a generic artifact of deep-network training. 19 Figure 4: Dependence of Fisher Rank Inflation on corruption severity for ResNet18 trained on CIFAR-10 under symmetric label corruption. Results are averaged over three random seeds, with error bars denoting standard deviation. Peak Fisher effective rank increases monotonically with the corruption rate, rising from 28 .88 ± 1.95 under clean training to 97 .09 ± 1.78 at 60% corruption. Peak noisy-to-clean inflation ratio (NIR) remains consistently above one across noisy settings, indicating greater spectral dispersion among corrupted gradients than among clean gradients. 
+
+# 4.7 Fisher Rank Inflation under Human Annotation Noise 
+
+The preceding experiments focus on synthetic symmetric label corruption. To evaluate whether Fisher Rank Inflation extends beyond artificially generated noise, we additionally study CIFAR-10N [40], which contains naturally occurring human annotation errors collected from multiple annotators. Unlike syn-thetic corruption, these label errors arise from human mistakes and ambiguity rather than random label replacement. We evaluate ResNet18 on the CIFAR-10N worse_label split using the same training protocol, Fisher-rank computation, and leave-one-out attribution procedure described in Section 4.1. Models are trained using the observed human labels while clean labels are retained for evaluation and attribution analysis. Results are averaged over five random seeds. Table 4: Fisher Rank Inflation under human annotation noise on CIFAR-10N. Results are reported as mean ± standard deviation over five random seeds. The human-noisy fraction is 39 .7% ± 1.0% of the evaluated subset. Dataset Noise Type Top-100 Noisy Enrichment AUROC AUPRC CIFAR-10N worse_label 0.944 ± 0.019 2.377 ± 0.093 0.608 ± 0.010 0.645 ± 0.014 
+
+Despite the substantially different source of label noise, human-noisy examples are strongly enriched among the examples with the largest Fisher-rank contributions. In particular, they account for 94 .4% ±
+
+1.9% of the top-100 rank-contributing samples while constituting only 39 .7% ± 1.0% of the evaluated subset, corresponding to an enrichment factor of 2.377 ± 0.093 .This result supports the view that Fisher-rank attribution captures examples that disproportionately support Fisher-spectrum expansion during memorization. At the same time, rank contribution is not intended as a generic noisy-label detector. Its global separation performance on CIFAR-10N is modest (AUROC 0.608 ± 0.010 , AUPRC 0.645 ± 0.014 ), even though its top-ranked examples are highly enriched for human annotation errors. In addition, Fisher rank onset precedes the chosen overfitting onset criterion under human annotation noise, with a mean lead time of 29 .0 ± 13 .1 epochs across five seeds. These results provide direct evidence that Fisher Rank Inflation is not restricted to synthetic label corruption. The same enrichment phenomenon arises under naturally occurring human annotation errors, 20 suggesting that the spectral mechanism identified in Section 3 captures a broader aspect of memorization than the specific corruption process used to generate noisy labels. 
+
+# 5 Discussion 
+
+Our results suggest that memorization under label noise is accompanied by a distinct spectral reorganiza-tion of the Fisher-gradient scatter. Rather than viewing memorization solely through prediction dynamics or loss trajectories, the Fisher-rank perspective shows how corrupted examples change the distribution of gradient variation across directions during training. In particular, Fisher Rank Inflation emerges when corrupted examples inject covariance mass into weak or previously underutilized eigendirections, increasing spectral entropy and expanding the effective rank of the Fisher-gradient scatter. A key observation of this work is that Fisher Rank Inflation is not driven uniformly by all training examples. The leave-one-out attribution analysis shows that corrupted examples contribute dispropor-tionately to effective-rank expansion and dominate the highest rank-contributing samples across datasets and architectures. This observation provides a sample-level interpretation of the inflation phenomenon and links global spectral dynamics to individual training examples. Our findings also clarify the relationship between memorization and overfitting. While these con-cepts are often discussed interchangeably, they refer to distinct phenomena. Memorization describes the process by which a network fits corrupted or idiosyncratic training examples, whereas overfitting refers to degradation in generalization performance. Fisher Rank Inflation emerges during memorization and often precedes observable test degradation. This suggests that reorganization of gradient covariance oc-curs before generalization performance visibly deteriorates. At the same time, the Vision Transformer experiments demonstrate that the magnitude of this lead time can vary across architectures. Fisher Rank Inflation should therefore be viewed as a spectral signature of memorization rather than a universal predictor of future overfitting. Although our analysis focuses on symmetric label corruption, the underlying mechanism is not tied to a particular corruption model. The theory predicts rank inflation whenever corrupted examples inject covariance mass into weak or previously underrepresented eigendirections of the Fisher-gradient scatter. Consequently, similar behavior may arise under asymmetric, class-dependent, or instance-dependent cor-ruption, provided that the resulting gradients introduce sufficient spectral diversification. Investigating these settings remains an important direction for future work. Several limitations should be noted. First, our theoretical results are local checkpoint spectral state-ments. They identify conditions under which corrupted gradients increase effective rank and receive larger leave-one-out attribution. Second, broader validation across larger models, alternative modalities, and structured or instance-dependent corruption remains necessary. Third, the first-order attribution approx-imation is highly accurate for the convolutional CIFAR-10 models but weaker for the Vision Transformer and CIFAR-100. This indicates that higher-order deletion effects can be important. Fourth, the clean-difficulty control experiment relies on high-loss correctly labeled examples as a proxy for difficult, rare, or ambiguous clean samples. Training loss is an imperfect measure of intrinsic difficulty and may also reflect transient optimization effects, while some genuinely difficult examples may already have low loss. Finally, although Fisher Rank Inflation often precedes test degradation and strongly enriches corrupted examples among the largest contributors, the present results support it primarily as a spectral signature of memorization rather than as a universally validated online stopping rule or generic noisy-label detector. Overall, Fisher Rank Inflation provides a new perspective on memorization in deep networks. By connecting gradient-spectrum dynamics, sample-level attribution, and label corruption through a common spectral framework, our results suggest that effective-rank dynamics offer a useful lens for studying how deep networks transition from learning structure to fitting noise. 
+
+# 6 Conclusion 
+
+We introduced Fisher Rank Inflation , a phenomenon in the gradient spectrum that emerges during memorization under label noise. Across architectures and datasets, we observed a characteristic inflation– 21 collapse trajectory in the effective rank of the Fisher-gradient scatter. Effective rank expands as corrupted labels begin to be fit, reaches its maximum, and subsequently contracts after memorization. To explain this behavior, we link effective-rank to the redistribution of covariance mass across eigendi-rections of the Fisher-gradient scatter. Corrupted examples introduce variance into weak or previously unused spectral directions. This raises the spectral entropy and, in turn, effective rank. We further derived a leave-one-out attribution framework and identified conditions under which corrupted examples contribute more strongly to rank inflation than clean examples. Empirically, we tested these mechanisms on CIFAR-10 and CIFAR-100 using SmallCNN, ResNet18, and Vision Transformers under symmetric label corruption. Fisher Rank Inflation consistently appeared during memorization, increased in magnitude with corruption severity, and was driven disproportionately by corrupted examples. At peak-rank checkpoints, corrupted samples were strongly enriched among the highest rank-contributing examples, with top-100 noisy fractions ranging from 69 .2% to 96 .2% across five-seed experiments. Direct checkpoint-level diagnostics further linked the first-order spectral attri-bution score to exact leave-one-out rank contributions, with architecture-dependent strength. A seeded corruption sweep showed that peak Fisher effective rank increases monotonically with corruption severity, rising from 28 .88 ± 1.95 under clean training to 97 .09 ± 1.78 at 60% corruption. Taken together, these results establish Fisher Rank Inflation as a spectral signature of memorization in deep networks. More broadly, our findings suggest that effective-rank dynamics provide a useful perspective for studying how gradient representations evolve during training and how corrupted examples reshape the spectral structure of learning. Additional experiments on CIFAR-10N demonstrate that Fisher Rank Inflation persists under naturally occurring human annotation errors, indicating that the phenomenon is not an artifact of synthetic symmetric corruption. 
+
+# References 
+
+[1] Z. Allen-Zhu, Y. Li, and Z. Song. A convergence theory for deep learning via over-parameterization. In K. Chaudhuri and R. Salakhutdinov, editors, Proceedings of the 36th International Conference on Machine Learning , volume 97 of Proceedings of Machine Learning Research , pages 242–252. PMLR, 09–15 Jun 2019. [2] S.-i. Amari. Natural gradient works efficiently in learning. Neural Computation , 10(2):251–276, 1998. [3] E. Arazo, D. Ortego, P. Albert, N. O’Connor, and K. Mcguinness. Unsupervised label noise modeling and loss correction. In K. Chaudhuri and R. Salakhutdinov, editors, Proceedings of the 36th Inter-national Conference on Machine Learning , volume 97 of Proceedings of Machine Learning Research ,pages 312–321. PMLR, 09–15 Jun 2019. [4] D. Arpit, S. Jastrzębski, N. Ballas, D. Krueger, E. Bengio, M. S. Kanwal, T. Maharaj, A. Fischer, A. Courville, Y. Bengio, and S. Lacoste-Julien. A closer look at memorization in deep networks. In D. Precup and Y. W. Teh, editors, Proceedings of the 34th International Conference on Machine Learning , volume 70 of Proceedings of Machine Learning Research , pages 233–242. PMLR, 06–11 Aug 2017. [5] S. Basu, P. Pope, and S. Feizi. Influence functions in deep learning are fragile, 2021. [6] M. Belkin, D. Hsu, S. Ma, and S. Mandal. Reconciling modern machine-learning practice and the classical bias–variance trade-off. Proceedings of the National Academy of Sciences , 116(32):15849– 15854, 2019. [7] V. Feldman. Does learning require memorization? a short tale about a long tail. In Proceedings of the 52nd Annual ACM SIGACT Symposium on Theory of Computing , STOC 2020, page 954–959, New York, NY, USA, 2020. Association for Computing Machinery. [8] V. Feldman and C. Zhang. What neural networks memorize and why: Discovering the long tail via influence estimation. In H. Larochelle, M. Ranzato, H. Hadsell, M. Balcan, and H. Lin, editors, 22 Advances in Neural Information Processing Systems , volume 33, pages 2881–2891. Curran Associates, Inc., 2020. [9] S. Fort and S. Ganguli. Emergent properties of the local geometry of neural loss landscapes, 2019. [10] T. George, C. Laurent, X. Bouthillier, N. Ballas, and P. Vincent. Fast approximate natural gradient descent in a kronecker factored eigenbasis. In S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and R. Garnett, editors, Advances in Neural Information Processing Systems ,volume 31. Curran Associates, Inc., 2018. [11] A. Ghorbani and J. Zou. Data shapley: Equitable valuation of data for machine learning. In K. Chaudhuri and R. Salakhutdinov, editors, Proceedings of the 36th International Conference on Machine Learning , volume 97 of Proceedings of Machine Learning Research , pages 2242–2251. PMLR, 09–15 Jun 2019. [12] R. Grosse and J. Martens. A kronecker-factored approximate fisher matrix for convolution layers. In M. F. Balcan and K. Q. Weinberger, editors, Proceedings of The 33rd International Conference on Machine Learning , volume 48 of Proceedings of Machine Learning Research , pages 573–582, New York, New York, USA, 20–22 Jun 2016. PMLR. [13] H. Guo, N. Rajani, P. Hase, M. Bansal, and C. Xiong. FastIF: Scalable influence functions for efficient model interpretation and debugging. In M.-F. Moens, X. Huang, L. Specia, and S. W.-t. Yih, editors, Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing , pages 10333–10350, Online and Punta Cana, Dominican Republic, Nov. 2021. Association for Computational Linguistics. [14] B. Han, Q. Yao, X. Yu, G. Niu, M. Xu, W. Hu, I. Tsang, and M. Sugiyama. Co-teaching: Robust training of deep neural networks with extremely noisy labels. In S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and R. Garnett, editors, Advances in Neural Information Processing Systems , volume 31. Curran Associates, Inc., 2018. [15] A. Ilyas, S. M. Park, L. Engstrom, G. Leclerc, and A. Madry. Datamodels: Predicting predictions from training data, 2022. [16] A. Jacot, F. Gabriel, and C. Hongler. Neural tangent kernel: Convergence and generalization in neural networks. In S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and R. Gar-nett, editors, Advances in Neural Information Processing Systems , volume 31. Curran Associates, Inc., 2018. [17] R. Karakida, S. Akaho, and S.-i. Amari. Universal statistics of fisher information in deep neu-ral networks: Mean field approach. In K. Chaudhuri and M. Sugiyama, editors, Proceedings of the Twenty-Second International Conference on Artificial Intelligence and Statistics , volume 89 of 
+
+Proceedings of Machine Learning Research , pages 1032–1041. PMLR, 16–18 Apr 2019. [18] P. W. Koh and P. Liang. Understanding black-box predictions via influence functions. In D. Precup and Y. W. Teh, editors, Proceedings of the 34th International Conference on Machine Learning ,volume 70 of Proceedings of Machine Learning Research , pages 1885–1894. PMLR, 06–11 Aug 2017. [19] K.-H. Lee, X. He, L. Zhang, and L. Yang. Cleannet: Transfer learning for scalable image classifier training with label noise. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , June 2018. [20] J. Li, R. Socher, and S. C. H. Hoi. Dividemix: Learning with noisy labels as semi-supervised learning, 2020. [21] S. Liu, J. Niles-Weed, N. Razavian, and C. Fernandez-Granda. Early-learning regularization prevents memorization of noisy labels. In H. Larochelle, M. Ranzato, R. Hadsell, M. F. Balcan, and H. Lin, editors, Advances in Neural Information Processing Systems , volume 33, pages 20331–20342. Curran Associates, Inc., 2020. 23 [22] M. Mahoney and C. Martin. Traditional and heavy tailed self regularization in neural network models. In K. Chaudhuri and R. Salakhutdinov, editors, Proceedings of the 36th International Conference on Machine Learning , volume 97 of Proceedings of Machine Learning Research , pages 4284–4293. PMLR, 09–15 Jun 2019. [23] J. Martens and R. Grosse. Optimizing neural networks with kronecker-factored approximate curva-ture. In F. Bach and D. Blei, editors, Proceedings of the 32nd International Conference on Machine Learning , volume 37 of Proceedings of Machine Learning Research , pages 2408–2417, Lille, France, 07–09 Jul 2015. PMLR. [24] P. Nakkiran, G. Kaplun, Y. Bansal, T. Yang, B. Barak, and I. Sutskever. Deep double descent: where bigger models and more data hurt*. Journal of Statistical Mechanics: Theory and Experiment ,2021(12):124003, Dec. 2021. [25] C. G. Northcutt, L. Jiang, and I. L. Chuang. Confident learning: Estimating uncertainty in dataset labels. Journal of Artificial Intelligence Research , 70:1373–1411, 2021. [26] V. Papyan. The full spectrum of deepnet hessians at scale: Dynamics with sgd training and sample size, 2019. [27] V. Papyan, X. Y. Han, and D. L. Donoho. Prevalence of neural collapse during the terminal phase of deep learning training. Proceedings of the National Academy of Sciences , 117(40):24652–24663, 2020. [28] S. M. Park, K. Georgiev, A. Ilyas, G. Leclerc, and A. Madry. Trak: Attributing model behavior at scale, 2023. [29] G. Patrini, A. Rozza, A. Krishna Menon, R. Nock, and L. Qu. Making deep neural networks robust to label noise: A loss correction approach. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , July 2017. [30] J. Pennington and P. Worah. The spectrum of the fisher information matrix of a single-hidden-layer neural network. In S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and R. Garnett, editors, Advances in Neural Information Processing Systems , volume 31. Curran Associates, Inc., 2018. [31] G. Pleiss, T. Zhang, E. Elenberg, and K. Weinberger. Identifying mislabeled data using the area under the margin ranking. In H. Larochelle, M. Ranzato, R. Hadsell, M. F. Balcan, and H. Lin, editors, Advances in Neural Information Processing Systems , volume 33, pages 17044–17056. Curran Associates, Inc., 2020. [32] G. Pruthi, F. Liu, S. Kale, and M. Sundararajan. Estimating training data influence by tracing gra-dient descent. In H. Larochelle, M. Ranzato, R. Hadsell, M. F. Balcan, and H. Lin, editors, Advances in Neural Information Processing Systems , volume 33, pages 19920–19930. Curran Associates, Inc., 2020. [33] N. Rahaman, A. Baratin, D. Arpit, F. Draxler, M. Lin, F. Hamprecht, Y. Bengio, and A. Courville. On the spectral bias of neural networks. In K. Chaudhuri and R. Salakhutdinov, editors, Proceedings of the 36th International Conference on Machine Learning , volume 97 of Proceedings of Machine Learning Research , pages 5301–5310. PMLR, 09–15 Jun 2019. [34] S. Reed, H. Lee, D. Anguelov, C. Szegedy, D. Erhan, and A. Rabinovich. Training deep neural networks on noisy labels with bootstrapping, 2015. [35] D. Rolnick, A. Veit, S. Belongie, and N. Shavit. Deep learning is robust to massive label noise, 2018. [36] L. Sagun, U. Evci, V. U. Guney, Y. Dauphin, and L. Bottou. Empirical analysis of the hessian of over-parametrized neural networks, 2018. 24 [37] M. Toneva, A. Sordoni, R. T. des Combes, A. Trischler, Y. Bengio, and G. J. Gordon. An empirical study of example forgetting during deep neural network learning, 2019. [38] Y. Wang, X. Ma, Z. Chen, Y. Luo, J. Yi, and J. Bailey. Symmetric cross entropy for robust learning with noisy labels. In Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV) , October 2019. [39] H. Wei, L. Feng, X. Chen, and B. An. Combating noisy labels by agreement: A joint training method with co-regularization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , June 2020. [40] J. Wei, Z. Zhu, H. Cheng, T. Liu, G. Niu, and Y. Liu. Learning with noisy labels revisited: A study using real-world human annotations, 2022. [41] C.-K. Yeh, J. S. Kim, I. E. Yen, and P. Ravikumar. Representer point selection for explaining deep neural networks. In Proceedings of the 32nd International Conference on Neural Information Processing Systems , NIPS’18, page 9311–9321, Red Hook, NY, USA, 2018. Curran Associates Inc. [42] X. Yu, B. Han, J. Yao, G. Niu, I. Tsang, and M. Sugiyama. How does disagreement help general-ization against label corruption? In K. Chaudhuri and R. Salakhutdinov, editors, Proceedings of the 36th International Conference on Machine Learning , volume 97 of Proceedings of Machine Learning Research , pages 7164–7173. PMLR, 09–15 Jun 2019. [43] C. Zhang, S. Bengio, M. Hardt, B. Recht, and O. Vinyals. Understanding deep learning requires rethinking generalization, 2017. [44] Z. Zhang and M. R. Sabuncu. Generalized cross entropy loss for training deep neural networks with noisy labels. In S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and R. Garnett, editors, Advances in Neural Information Processing Systems , volume 31. Curran Associates, Inc., 2018. 
+
+# A Appendix 
+
+# A.1 Proofs 
+
+A.1.1 Proof of Lemma 1 
+
+Proof. Since pj = λj /T , we have 
+
+∂p j
+
+∂λ k
+
+= 1{j = k} − pj
+
+T .
+
+Therefore, ∂H ∂λ k
+
+= − X
+
+> j
+
+(log pj + 1) ∂p j
+
+∂λ k
+
+= − 1
+
+T
+
+ log pk + H(S).
+
+Applying the chain rule to er( S) = eH(S) gives 
+
+∂ er( S)
+
+∂λ k
+
+= − er( S)
+
+T
+
+ log pk + H(S).
+
+The sign condition follows because 
+
+log pk + H(S) < 0 ⇐⇒ pk < e −H(S) = 1er( S) .
+
+25 A.1.2 Proof of Lemma 2 
+
+Proof. Let 
+
+μ−i = 1
+
+n − 1
+
+X 
+
+> j̸=i
+
+gj = nμ − gi
+
+n − 1 .
+
+Then 
+
+μ − μ−i = gi − μn − 1 = ¯gi
+
+n − 1 .
+
+Hence, for j̸ = i,
+
+gj − μ−i = ( gj − μ) + ( μ − μ−i) = ¯ gj + ¯gi
+
+n − 1 .
+
+Therefore, 
+
+S−i = X 
+
+> j̸=i
+
+
+
+¯gj + ¯gi
+
+n − 1
+
+  
+
+¯gj + ¯gi
+
+n − 1
+
+⊤
+
+.
+
+Expanding and using Pnj=1 ¯gj = 0 , so that 
+
+X 
+
+> j̸=i
+
+¯gj = −¯gi,
+
+we obtain 
+
+S−i = S − ¯gi ¯g⊤ 
+
+> i
+
+− 2
+
+n − 1 ¯gi ¯g⊤ 
+
+> i
+
++ 1
+
+n − 1 ¯gi ¯g⊤ 
+
+> i
+
+.
+
+Thus 
+
+S−i = S −
+
+
+
+1 + 1
+
+n − 1
+
+
+
+¯gi ¯g⊤ 
+
+> i
+
+= S − nn − 1 ¯gi ¯g⊤ 
+
+> i
+
+.
+
+A.1.3 Proof of Lemma 3 
+
+Proof. By Lemma 2, 
+
+S−i = S − a¯gi ¯g⊤ 
+
+> i
+
+, a = nn − 1 .
+
+The perturbation has operator norm a∥¯gi∥2. The condition 
+
+a∥¯gi∥2 ≤ cδ (S)
+
+ensures that the positive eigenvalues remain isolated from one another and separated from zero along the deletion path 
+
+S − ta ¯gi ¯g⊤ 
+
+> i
+
+, t ∈ [0 , 1] .
+
+Hence the positive spectral support is locally stable, and standard first-order eigenvalue perturbation gives 
+
+λk(S−i) = λk(S) − a(u⊤ 
+
+> k
+
+¯gi)2 + O(∥¯gi∥4).
+
+This follows from standard perturbation theory for symmetric matrices with simple isolated eigenval-ues. The second-order remainder is controlled by the local spectral gap δ(S).Taylor expanding effective rank as a smooth function of the positive eigenvalues inside this local spectral neighborhood gives 
+
+er( S−i) = er( S) − a
+
+> r
+
+X
+
+> k=1
+
+βk(S)( u⊤ 
+
+> k
+
+¯gi)2 + O(∥¯gi∥4).
+
+Rearranging proves the claim. 26 A.1.4 Proof of Lemma 4 
+
+Proof. Let 
+
+T = tr( A) > 0, Aα = A + αB. 
+
+Let PA be the orthogonal projector onto range( A), and let 
+
+QA = I − PA.
+
+By assumption, 
+
+τ := tr( QABQ A) > 0.
+
+Thus the perturbation B places positive trace mass in directions belonging to the zero eigenspace of A.The original positive eigenvalues of A change by O(α). Therefore, their contribution to the normalized spectral entropy changes by O(α). Meanwhile, the total unnormalized spectral mass emerging from the zero eigenspace is 
+
+ατ + O(α2).
+
+After trace normalization, the total normalized mass assigned to the newly activated eigenvalues is 
+
+εα = ατ + O(α2)
+
+T + α tr( B) = τT α + O(α2).
+
+Let the normalized masses assigned to the newly activated eigenvalues be 
+
+qnew 1 , . . . , q new  
+
+> m
+
+,
+
+> m
+
+X
+
+> ℓ=1
+
+qnew  
+
+> ℓ
+
+= εα.
+
+Write 
+
+qnew  
+
+> ℓ
+
+= εαrℓ,
+
+> m
+
+X
+
+> ℓ=1
+
+rℓ = 1 .
+
+Then the entropy contribution of the newly activated eigenvalues is 
+
+−
+
+> m
+
+X
+
+> ℓ=1
+
+qnew  
+
+> ℓ
+
+log qnew  
+
+> ℓ
+
+= −
+
+> m
+
+X
+
+> ℓ=1
+
+εαrℓ log( εαrℓ).
+
+Expanding this expression gives 
+
+−
+
+> m
+
+X
+
+> ℓ=1
+
+qnew  
+
+> ℓ
+
+log qnew  
+
+> ℓ
+
+= −εα log εα + εα −
+
+> m
+
+X
+
+> ℓ=1
+
+rℓ log rℓ
+
+!
+
+.
+
+Since 
+
+−
+
+> m
+
+X
+
+> ℓ=1
+
+rℓ log rℓ ≥ 0,
+
+we obtain the lower bound 
+
+−
+
+> m
+
+X
+
+> ℓ=1
+
+qnew  
+
+> ℓ
+
+log qnew  
+
+> ℓ
+
+≥ − εα log εα.
+
+Using 
+
+εα = τT α + O(α2),
+
+we have 
+
+−εα log εα = τT α log(1 /α ) + O(α).
+
+Thus the newly activated zero-to-positive spectrum contributes at least a positive α log(1 /α ) term to the normalized spectral entropy. 27 The contribution from the pre-existing positive spectrum changes only by O(α). Since 
+
+α log(1 /α ) ≫ α as α ↓ 0,
+
+the positive contribution from the newly activated spectral directions dominates the O(α) change from the old positive spectrum. Hence, for all sufficiently small α > 0,
+
+H(A + αB ) > H (A).
+
+Therefore, 
+
+er( A + αB ) = exp( H(A + αB )) > exp( H(A)) = er( A).
+
+A.1.5 Proof of Lemma 5 
+
+Proof. Throughout the proof, we condition on the fixed checkpoint and fixed prediction-representation pairs {(ˆ pi, ˜zi)}ni=1 . The only randomness is over the replacement labels {˜yi}i∈N .Since QC is an orthogonal projector, 
+
+tr( QC Sglob  
+
+> N
+
+QC ) = tr QC
+
+X
+
+> i∈N
+
+(gi(˜ yi) − μ)( gi(˜ yi) − μ)⊤QC
+
+!
+
+.
+
+Using linearity of trace, 
+
+tr( QC Sglob  
+
+> N
+
+QC ) = X
+
+> i∈N
+
+tr  QC (gi(˜ yi) − μ)( gi(˜ yi) − μ)⊤QC
+
+ .
+
+For each term, 
+
+tr  QC (gi(˜ yi) − μ)( gi(˜ yi) − μ)⊤QC
+
+ = ∥QC (gi(˜ yi) − μ)∥2.
+
+Therefore, 
+
+tr( QC Sglob  
+
+> N
+
+QC ) = X
+
+> i∈N
+
+∥QC (gi(˜ yi) − μ)∥2.
+
+Taking expectation gives the claimed identity. Since each term is nonnegative, the expectation is strictly positive whenever at least one corrupted centered gradient has a nonzero QC -projection with positive probability. 
+
+A.1.6 Proof of Theorem 1 
+
+Proof. For Case 1, apply Lemma 4 with A = Sglob  
+
+> C
+
+and B = Sglob  
+
+> N
+
+. Since 
+
+tr( QC Sglob  
+
+> N
+
+QC ) > 0,
+
+the lemma implies that there exists α0 > 0 such that, for all α ∈ (0 , α 0),
+
+er( Sglob  
+
+> C
+
++ αS glob  
+
+> N
+
+) > er( Sglob  
+
+> C
+
+).
+
+Now consider Case 2. Since the positive eigenvalues of Sglob  
+
+> C
+
+are simple and Sglob  
+
+> N
+
+is supported inside range( Sglob  
+
+> C
+
+), no new positive eigenvalues are created for sufficiently small α. Standard first-order eigenvalue perturbation gives 
+
+ddα λk(Sglob  
+
+> C
+
++ αS glob  
+
+> N
+
+)
+
+> α=0
+
+= u⊤ 
+
+> k
+
+Sglob  
+
+> N
+
+uk.
+
+Using Lemma 1, 
+
+ddα er( Sglob  
+
+> C
+
++ αS glob  
+
+> N
+
+)
+
+> α=0
+
+=
+
+> r
+
+X
+
+> k=1
+
+βk(Sglob  
+
+> C
+
+)u⊤ 
+
+> k
+
+Sglob  
+
+> N
+
+uk.
+
+This derivative is positive by assumption. Hence, by continuity, effective rank increases for all sufficiently small positive α.28 A.1.7 Proof of Theorem 2 
+
+Proof. By Lemma 3, 
+
+∆i = a¯g⊤ 
+
+> i
+
+BS ¯gi + Ri,
+
+where 
+
+|Ri| ≤ C(S)∥¯gi∥4 ≤ C(S)η2.
+
+Taking conditional expectations gives 
+
+E[∆ i | A] = aE ¯g⊤ 
+
+> i
+
+BS ¯gi | A + E[Ri | A],
+
+for A ∈ { C, N }. Since 
+
+E ¯g⊤ 
+
+> i
+
+BS ¯gi | A = tr( BS ΣA),
+
+we have 
+
+E[∆ i | A] = a tr( BS ΣA) + E[Ri | A].
+
+Therefore, 
+
+E[∆ i | N ] − E[∆ i | C] = a tr ( BS (Σ N − ΣC )) + E[Ri | N ] − E[Ri | C].
+
+The remainder difference is bounded below by 
+
+E[Ri | N ] − E[Ri | C] ≥ − 2C(S)η2.
+
+Hence 
+
+E[∆ i | N ] − E[∆ i | C] ≥ a tr ( BS (Σ N − ΣC )) − 2C(S)η2.
+
+The assumed condition 
+
+tr ( BS (Σ N − ΣC )) > 2C(S)
+
+a η2
+
+makes the right-hand side positive. Therefore, 
+
+E[∆ i | i ∈ N ] > E[∆ i | i ∈ C].
+
+A.1.8 Proof of Corollary 1 
+
+Proof. The positive-sensitivity contribution satisfies 
+
+X
+
+> k∈K+(S)
+
+βk(S)  E (u⊤ 
+
+> k
+
+¯gi)2 | i ∈ N  − E (u⊤ 
+
+> k
+
+¯gi)2 | i ∈ C ≥ b+δ+.
+
+The complementary contribution is at least −B− by assumption. Therefore, 
+
+tr ( BS (Σ N − ΣC )) ≥ b+δ+ − B−.
+
+If 
+
+b+δ+ − B− > 2C(S)
+
+a η2,
+
+then 
+
+tr ( BS (Σ N − ΣC )) > 2C(S)
+
+a η2.
+
+The result follows from Theorem 2. 29 A.1.9 Proof of Proposition 1 
+
+Proof. Shannon entropy is Schur-concave. Therefore, 
+
+p( eSN ) ≺ p( eSC ) =⇒ H(p( eSN )) ≥ H(p( eSC )) .
+
+Exponentiating both sides gives 
+
+er( eSN ) ≥ er( eSC ).
+
+The claim for N IR follows immediately. Strict inequality follows from strict Schur-concavity of entropy when the spectra are not permutations of one another. 
+
+A.1.10 Proof of Theorem 3 
+
+Proof. Effective rank depends only on the eigenvalues of the normalized matrix ρ(t):
+
+log er( S(t)) = H(ρ(t)).
+
+The trace-one positive semidefinite cone is compact in finite dimension, and entropy is continuous on this cone, with the convention 0 log 0 = 0 . Therefore, entropy is uniformly continuous. Hence, 
+
+max  
+
+> i
+
+ρ(t) − ρ(t) 
+
+> −i1
+
+→ 0 =⇒ max  
+
+> i
+
+H(ρ(t)) − H(ρ(t)
+
+> −i
+
+) → 0.
+
+Exponentiation is continuous on bounded intervals, so 
+
+max  
+
+> i
+
+er( S(t)) − er( S(t) 
+
+> −i
+
+) → 0.
+
+Thus 
+
+max  
+
+> i
+
+|∆(t) 
+
+> i
+
+| → 0.
+
+It remains to prove the large sample bound. By Lemma 2, 
+
+S(t) − S(t) 
+
+> −i
+
+= nn − 1 ¯g(t) 
+
+> i
+
+¯g(t)⊤ 
+
+> i
+
+.
+
+Therefore, 
+
+S(t) − S(t) 
+
+> −i1
+
+= nn − 1 ¯g(t)
+
+> i
+> 2
+
+.
+
+Moreover, 
+
+tr( S(t)) − tr( S(t) 
+
+> −i
+
+) = nn − 1 ¯g(t)
+
+> i
+> 2
+
+.
+
+Let 
+
+δ(t) 
+
+> i
+
+= nn − 1 ¯g(t)
+
+> i
+> 2
+
+.
+
+Since S(t) 
+
+> −i
+
+⪰ 0, we have 
+
+S(t)
+
+tr( S(t)) − S(t)
+
+> −i
+
+tr( S(t) 
+
+> −i
+
+) 1
+
+≤
+
+S(t) − S(t) 
+
+> −i1
+
+tr( S(t)) + S(t) 
+
+> −i1
+
+1tr( S(t)) − 1tr( S(t) 
+
+> −i
+
+) .
+
+Because S(t) 
+
+> −i1
+
+= tr( S(t) 
+
+> −i
+
+), this becomes 
+
+S(t)
+
+tr( S(t)) − S(t)
+
+> −i
+
+tr( S(t) 
+
+> −i
+
+) 1
+
+≤ δ(t)
+
+> i
+
+tr( S(t)) +
+
+tr( S(t)) − tr( S(t) 
+
+> −i
+
+)
+
+tr( S(t)) = 2 δ(t)
+
+> i
+
+tr( S(t)) .
+
+30 Thus, 
+
+ρ(t) − ρ(t) 
+
+> −i1
+
+≤ 2 nn − 1
+
+∥¯g(t) 
+
+> i
+
+∥2
+
+tr( S(t)) .
+
+Therefore, if 
+
+max 
+
+> i
+
+∥¯g(t) 
+
+> i
+
+∥2
+
+tr( S(t)) = O(1 /n )
+
+uniformly over the epochs under consideration, then 
+
+max  
+
+> i
+
+ρ(t) − ρ(t) 
+
+> −i1
+
+= O(1 /n ).
+
+Since entropy is uniformly continuous on the finite dimensional set of trace one positive semidefinite matrices, the corresponding leave one out effective rank contributions become small as n grows. 
+
+# A.2 Training Details and Reproducibility 
+
+All experiments use controlled synthetic label corruption on CIFAR training subsets. Unless otherwise stated, we use a training subset of 20,000 examples sampled without replacement. For each run, the train-ing subset, corruption pattern, model initialization, minibatch order, and stochastic data augmentations are determined by the run seed. The clean label is retained separately for every selected training example, while the observed training label is replaced according to the label-noise protocol below. Evaluation on the test set is always performed with the original clean labels. The training dataloader uses standard CIFAR data augmentation: random cropping with padding 4 and random horizontal flipping. Fisher-rank evaluation, leave-one-out analysis, and clean test evaluation use non-augmented inputs. In particular, the evaluation transform only converts images to tensors, except for the CIFAR-100 ResNet18 experiments where the standard CIFAR-100 normalization is also applied. 
+
+Label-noise protocol. Let D = {(xi, y i)}ni=1 denote the clean training subset, where yi ∈ { 1, . . . , K }.For a target corruption rate ρ, we sample a corruption index set 
+
+Iρ ⊂ { 1, . . . , n }, |I ρ| = ⌊ρn ⌋,
+
+uniformly without replacement. We then construct the corrupted training set eD = {(xi, eyi)}ni=1 by setting 
+
+eyi =
+
+(
+
+yi, i / ∈ I ρ,
+
+Uniform  {1, . . . , K } \ { yi}, i ∈ I ρ.
+
+We retain the corruption indicator 
+
+mi = 1{i ∈ I ρ} = 1{eyi̸ = yi}
+
+for analysis only. The model is trained using the observed labels eyi, while clean-label accuracy is computed using yi.
+
+Architectures. For CIFAR-10 ResNet18, we use a ResNet18 backbone trained from scratch. The first convolution is modified to use a 3 × 3 kernel with stride 1 and padding 1, and the initial max-pooling layer is removed. The original fully connected layer is replaced by an identity map, followed by a separate linear classifier from the 512-dimensional representation to 10 classes. For CIFAR-100 ResNet18, we use the same CIFAR-adapted ResNet18 architecture, except that the classifier maps the 512-dimensional representation to 100 classes. For the SmallCNN experiments, we use a three-block convolutional network. The first block has two 
+
+3 × 3 convolutional layers with 64 channels, batch normalization, and ReLU activations, followed by max pooling. The second block has two 3 × 3 convolutional layers with 128 channels, batch normalization, 31 and ReLU activations, followed by max pooling. The third block has a 3 × 3 convolutional layer with 256 channels, batch normalization, and ReLU activation, followed by global adaptive average pooling. The resulting 256-dimensional feature vector is projected to a 128-dimensional representation and classified using a linear layer. For the ViT experiment, we use a compact Vision Transformer trained from scratch on CIFAR-10. Images of size 32 × 32 are divided into 4 × 4 patches, giving 64 patches per image. The model uses embedding dimension 384, depth 6, 6 attention heads, MLP dimension 1536, dropout 0.1, learned positional embeddings, and a learned class token. The final classifier maps the class-token representation to 10 classes. 
+
+Optimization. For SmallCNN, CIFAR-10 ResNet18, and CIFAR-100 ResNet18, we use stochastic gradient descent with momentum 0.9, learning rate 0.05, and weight decay 5 × 10 −4. The learning rate is scheduled using cosine annealing over the full training horizon. For the CIFAR-10 ViT experiment, we use AdamW with learning rate 3 × 10 −4 and weight decay 5 × 10 −2, again with cosine annealing over the full training horizon. All experiments use batch size 128. Unless otherwise stated, Fisher statistics are computed every 5 epochs. Table 5: Experiment-specific training details. All experiments use batch size 128, cosine annealing, and Fisher evaluation every 5 epochs. LOO denotes true leave-one-out rank contribution analysis at the peak-rank checkpoint.                                                           
+
+> Experiment Noise setting Seeds Epochs Fisher samples LOO samples CIFAR-10 SmallCNN {0.5}{42 ,43 ,44 ,45 ,46 }100 4096 2048 CIFAR-10 ResNet18 {0.5}{42 ,43 ,44 ,45 ,46 }100 4096 2048 CIFAR-10 ViT {0.5}{42 ,43 ,44 ,45 ,46 }200 4096 2048 CIFAR-100 ResNet18 {0.5}{42 ,43 ,44 ,45 ,46 }100 2048 2048 CIFAR-10 ResNet18 noise sweep {0.0,0.2,0.3,0.4,0.5,0.6}{42 ,43 ,44 }100 4096 –CIFAR-10N ResNet18 worse_label {42,43,44,45,46} 100 4096 2048
+
+Noise-rate sweep. To test whether Fisher Rank Inflation strengthens with corruption severity, we run a separate CIFAR-10 ResNet18 noise-rate sweep with 
+
+ρ ∈ { 0.0, 0.2, 0.3, 0.4, 0.5, 0.6}
+
+and seeds {42 , 43 , 44 }, giving 6 × 3 = 18 training runs. This experiment does not use leave-one-out analysis. For each pair (ρ, s ), we train a model for 100 epochs and log one summary row containing the noise rate, seed, peak Fisher effective rank, peak-rank epoch, peak NIR, peak-NIR epoch, final NIR, final clean test accuracy, final training accuracy on noisy labels, final training accuracy against clean labels, rank onset, overfitting onset, and lead time. The main noise-sweep figure reports summary statistics only. Specifically, we plot the mean and standard deviation over the three seeds of peak Fisher effective rank as a function of ρ, and the mean and standard deviation over the three seeds of peak NIR as a function of ρ. Since NIR requires both clean and corrupted training examples, it is reported for ρ > 0. The full training curves, including Fisher effective rank versus epoch, NIR versus epoch, test accuracy versus epoch, and training accuracy on noisy labels versus epoch, are moved to the appendix. 
+
+Fisher-rank computation. At a given checkpoint, we compute the per-example last-layer gradient matrix. Let hi ∈ Rm denote the penultimate representation of example i, and let pi ∈ RK denote the softmax probability vector. For the observed training label eyi, the last-layer gradient is 
+
+gi = vec  (pi − eeyi )h⊤
+
+> i
+
+ , p i − eeyi
+
+ ∈ RK(m+1) ,
+
+32 where eeyi is the one-hot vector for the observed label. Stacking these gradients gives 
+
+G =
+
+
+
+g⊤
+
+> 1
+
+...
+
+g⊤
+
+> M
+
+ ∈ RM ×K(m+1) .
+
+Here M denotes the number of examples used for Fisher-rank evaluation at the checkpoint. For any gradient matrix A ∈ RMA×K(m+1) , we define its row-centered version by 
+
+C(A) = A − 1MA ¯g⊤ 
+
+> A
+
+, ¯gA = 1
+
+MAMAX
+
+> i=1
+
+ai,
+
+where ai denotes the i-th row of A. All Fisher-rank quantities are computed from the centered last-layer gradient scatter spectrum. Specifically, we compute the positive eigenvalues of 
+
+S(A) = C(A)C(A)⊤.
+
+Equivalently, these are the squared nonzero singular values of C(A). The normalization of S(A) by a scalar factor does not affect the effective rank, since the eigenvalues are normalized before computing entropy. In numerical computations, eigenvalues are clamped to be nonnegative, and eigenvalues not exceed-ing 10 −12 are discarded before entropy normalization. The same tolerance is used inside the entropy computation. Although this absolute tolerance is not strictly scale invariant, we performed a sensitivity analysis at the peak rank checkpoints using relative thresholds of the form λj > τ λ max , with τ ∈ { 10 −14 , 10 −12 , 10 −10 , 10 −8}.Across the evaluated datasets and architectures, the resulting effective ranks differed from those obtained with the absolute threshold by at most approximately 3 × 10 −6 in relative terms, while essentially all scatter trace was retained. Let {λj (A)}rA 
+
+> j=1
+
+denote the positive eigenvalues of S(A). We define normalized spectral weights 
+
+qj (A) = λj (A)
+
+PrA 
+
+> ℓ=1
+
+λℓ(A) .
+
+The Fisher effective rank of A is then 
+
+erank( A) = exp 
+
+−
+
+> rA
+
+X
+
+> j=1
+
+qj (A) log qj (A)
+
+ .
+
+Noisy-to-Clean Inflation Ratio. For each checkpoint, we split the per-example last-layer gradient matrix into clean-label and corrupted-label submatrices: 
+
+Gclean = g⊤ 
+
+> i
+
+: mi = 0  , Gnoisy = g⊤ 
+
+> i
+
+: mi = 1  .
+
+The two submatrices are centered separately before computing their spectra. That is, erank( Gclean ) is computed from 
+
+C(Gclean ) = Gclean − 1Mclean ¯g⊤
+
+> clean
+
+,
+
+where ¯gclean is the mean of the clean-example gradients, and erank( Gnoisy ) is computed from 
+
+C(Gnoisy ) = Gnoisy − 1Mnoisy ¯g⊤
+
+> noisy
+
+,
+
+where ¯gnoisy is the mean of the corrupted-example gradients. The Noisy-to-Clean Inflation Ratio is defined as 
+
+NIR = erank( Gnoisy )erank( Gclean ) .
+
+Thus, NIR compares the effective ranks of the separately subset-centered clean and corrupted last-layer gradient scatter spectra. A value NIR > 1 indicates that corrupted examples have a more spectrally diffuse subset-centered last-layer gradient scatter than clean examples at that checkpoint. For the clean setting ρ = 0 , NIR is undefined and is therefore omitted from NIR-based summaries. 33 Rank onset, overfitting onset, and lead time. For each run, we define the increase in effective rank relative to initialization as 
+
+∆rt = erank( Gt) − erank( G0).
+
+The rank-onset epoch is the first evaluated epoch at which ∆rt reaches 20% of its maximum value over training. The overfitting-onset epoch is the first evaluated epoch at which clean test accuracy has dropped by at least 0.03 from the best previous clean test accuracy. The lead time is defined as lead time = toverfit − trank .
+
+A positive lead time indicates that Fisher-rank inflation begins before the clean test accuracy degradation becomes visible. 
+
+Leave-one-out rank contribution. For fixed-noise attribution experiments, we evaluate leave-one-out rank contributions at the peak-rank checkpoint. The peak-rank checkpoint is the evaluated checkpoint with the largest Fisher effective rank. Let G−i denote the matrix obtained by removing row g⊤ 
+
+> i
+
+from 
+
+G. For each example i, we recompute the row mean of the remaining M − 1 gradients, re-center the remaining matrix, and then recompute the centered scatter spectrum. Equivalently, the leave-one-out rank contribution is 
+
+∆i = erank( G) − erank( G−i),
+
+where both terms use the centering operator defined above: erank( G) is computed from C(G), while 
+
+erank( G−i) is computed from C(G−i) using the empirical mean of the remaining rows after row i is removed. Thus, leave-one-out attribution removes the example, re-centers the remaining gradients, and recomputes the effective rank from the resulting centered last-layer gradient scatter spectrum. We use these scores to rank the examples included in the leave-one-out attribution subset and evaluate whether corrupted examples are overrepresented among the highest rank-contributing samples. The noise-rate sweep does not use leave-one-out analysis. 
+
+Reproducibility. For every run, we set the Python, NumPy, and PyTorch random seeds to the specified run seed. The reported five-seed experiments use seeds {42 , 43 , 44 , 45 , 46 }, while the corruption-rate sweep uses three seeds per corruption level. Training subsets, label-corruption masks, minibatch order, model initialization, Fisher-evaluation subsets, and leave-one-out subsets are generated deterministically from the run seed. Fisher-rank evaluation, leave-one-out attribution, direct spectral diagnostics, and clean test evaluation use non-augmented inputs. All Fisher-gradient evaluations, leave-one-out computations, and test evaluations are performed with the model in evaluation mode, so that batch-normalization statistics are fixed during spectral measurement. All experiments were run locally on an Apple Silicon M4 Max machine using the PyTorch MPS backend when available, with CPU fallback enabled for operations not supported on MPS. In notebook-based Apple Silicon runs, dataloaders use num_workers=0 to avoid backend-specific multiprocessing issues. The implementation automatically selects Apple MPS when available, otherwise CUDA, and otherwise CPU. The logged quantities include epoch, model type, noise probability ρ, seed, train loss, training accuracy with respect to noisy labels, training accuracy with respect to clean labels, clean test accuracy, Fisher effective rank, clean-example Fisher effective rank, noisy-example Fisher effective rank, NIR, rank-onset epoch, overfitting-onset epoch, and lead time. Peak-rank leave-one-out attribution and direct spectral diagnostics are computed from the saved seed-specific peak-rank checkpoints and the same deterministic leave-one-out subsets. 
+
+# A.3 Additional Training Dynamics 
+
+The main paper focuses on ResNet18 trained on CIFAR-10. In this appendix, we provide additional training-dynamics plots for SmallCNN, Vision Transformers, and ResNet18 trained on CIFAR-100. Across all settings, we observe the same qualitative phenomenon: Fisher effective rank undergoes a transient expansion during memorization before subsequently collapsing later in training. 34 A.3.1 SmallCNN Dynamics 
+
+Figure 5 shows a representative training trajectory for SmallCNN under 50% symmetric label corruption. Similar to ResNet18, Fisher effective rank exhibits a pronounced inflation phase followed by a later con-traction. The noisy-to-clean inflation ratio (NIR) remains above one during much of training, indicating that corrupted gradients are more spectrally dispersed than clean gradients in the subset-centered Fisher-gradient scatter. As training progresses, the network increasingly fits the provided noisy labels, while clean test accuracy remains substantially lower than training accuracy. These observations are consistent with the Fisher Rank Inflation mechanism described in the main text. 
+
+Figure 5: Representative training dynamics for SmallCNN on CIFAR-10 under 50% symmetric label corruption. Fisher effective rank exhibits an inflation–collapse trajectory similar to that observed in ResNet18. The noisy-to-clean inflation ratio (NIR) remains above one during much of training, indicating increased spectral dispersion among corrupted gradients. 
+
+A.3.2 Vision Transformer Dynamics 
+
+Figure 6 presents a representative training trajectory for the Vision Transformer under 50% symmetric label corruption. Although the detailed trajectory differs from the convolutional architectures, the same qualitative inflation–collapse behavior is observed. Fisher effective rank expands substantially during training before contracting at later epochs. The noisy-to-clean inflation ratio (NIR) remains elevated during much of the inflation phase, suggesting that corrupted gradients are more spectrally dispersed than clean gradients even in the transformer setting. These results indicate that Fisher Rank Inflation is not restricted to convolutional architectures, although the multi-seed attribution results in Table 2 show that the corrupted-sample enrichment signal is weaker for ViT than for the convolutional models. 
+
+Figure 6: Representative training dynamics for a Vision Transformer on CIFAR-10 under 50% symmetric label corruption. Fisher effective rank expands during training and contracts later, showing that Fisher Rank Inflation persists in a transformer architecture. The dashed onset marker denotes the first detected rank-onset/overfitting-onset criterion in this representative run, while the peak-rank marker denotes the checkpoint used for representative attribution analysis. 35 A.3.3 CIFAR-100 ResNet18 Dynamics 
+
+Figure 7 shows a representative training trajectory for ResNet18 on CIFAR-100 with 50% symmetric label corruption. Despite the increased dataset complexity and larger output space, Fisher effective rank again exhibits a clear inflation–collapse trajectory. The noisy-to-clean inflation ratio (NIR) remains above one for a substantial portion of training, indicating that corrupted gradients are more spectrally dispersed than clean gradients in the subset-centered Fisher-gradient scatter. These observations suggest that Fisher Rank Inflation persists beyond CIFAR-10 and remains visible in a higher-cardinality classification setting. 
+
+Figure 7: Representative training dynamics for ResNet18 on CIFAR-100 under 50% symmetric label corruption. Fisher effective rank exhibits a clear inflation–collapse trajectory despite the increased dataset complexity and larger output dimensionality. The noisy-to-clean inflation ratio (NIR) remains above one for a substantial portion of training, indicating greater spectral dispersion among corrupted gradients. 
+
+# A.4 Additional Attribution Results 
+
+The main paper presents attribution results for ResNet18 on CIFAR-10. In this appendix, we provide analogous analyses for SmallCNN, Vision Transformers, and ResNet18 trained on CIFAR-100. Across all settings, we observe the same qualitative behavior: corrupted examples exhibit systematically larger leave-one-out rank contributions than clean examples and are strongly enriched among the highest rank-contributing samples. 
+
+A.4.1 SmallCNN Attribution Results 
+
+Figure 8 shows representative leave-one-out rank contributions at the peak-rank checkpoint for SmallCNN trained on CIFAR-10 with 50% symmetric label corruption. In this run, the peak-rank checkpoint occurs at epoch 75. Corrupted examples exhibit substantially larger positive contributions than clean examples, with mean contributions of 0.0051 and −0.0017 , respectively. A similar separation is observed in the median contributions, which are 0.0017 for corrupted examples and −0.0005 for clean examples. Although corrupted examples constitute only 49 .4% of the evaluated subset, they account for 91% of the top-100 rank-contributing samples, corresponding to an enrichment factor of approximately 1.84 ×.These representative-run results indicate that Fisher Rank Inflation in SmallCNN is driven dispropor-tionately by corrupted training examples, mirroring the behavior observed for ResNet18 in the main text. Across five seeds, the same SmallCNN setting achieves a top-100 noisy fraction of 96 .2% ± 2.0% and an enrichment factor of 1.928 ± 0.064 , as reported in Table 2. 36 Figure 8: Representative leave-one-out rank contributions at the peak-rank checkpoint for SmallCNN on CIFAR-10 with 50% symmetric label corruption. Corrupted examples exhibit larger positive rank contributions than clean examples and are enriched among the highest rank-contributing samples. In this representative run, corrupted examples constitute 49 .4% of the evaluated subset and account for 
+
+91% of the top-100 rank-contributing examples. Table 6: Representative-run corruption-detection diagnostics at the peak-rank checkpoint for SmallCNN on CIFAR-10 with 50% symmetric label noise. Multi-seed summary statistics are reported in Table 2. Score AUROC AUPRC Top-100 noisy fraction Rank contribution ∆i 0.642 0.720 0.91 Loss 0.844 0.848 0.94 Gradient norm 0.807 0.770 0.80 Negative confidence 0.844 0.848 0.94 Negative margin 0.714 0.668 0.76 
+
+A.4.2 Vision Transformer Attribution Results 
+
+Figure 9 presents representative leave-one-out rank contributions at the peak-rank checkpoint for the Vision Transformer trained on CIFAR-10 with 50% symmetric label corruption. Despite architectural differences between convolutional and transformer-based models, corrupted examples remain enriched among the highest rank-contributing samples. The effect is weaker than in the convolutional architectures, but the same qualitative pattern is still visible: corrupted examples tend to contribute more strongly to Fisher effective rank than clean examples. In this representative run, rank contribution achieves an AUROC of 0.620 , an AUPRC of 0.641 , and a top-100 noisy fraction of 0.72 . Across five seeds, the same ViT setting achieves a top-100 noisy fraction of 69 .2% ± 3.7% and an enrichment factor of 1.387 ± 0.087 , as reported in Table 2. Thus, while the ViT attribution signal is attenuated relative to the convolutional models, corrupted examples remain overrepresented among the highest rank-contributing samples. 37 Figure 9: Representative leave-one-out rank contributions at the peak-rank checkpoint for a Vision Trans-former on CIFAR-10 with 50% symmetric label corruption. The attribution signal is weaker than in the convolutional models, but corrupted examples remain enriched among the highest rank-contributing sam-ples. Table 7: Representative-run corruption-detection diagnostics at the peak-rank checkpoint for a Vision Transformer on CIFAR-10 with 50% symmetric label noise. Multi-seed summary statistics are reported in Table 2. Score AUROC AUPRC Top-100 noisy fraction Rank contribution ∆i 0.620 0.641 0.72 Loss 0.744 0.737 0.86 Gradient norm 0.742 0.736 0.88 Negative confidence 0.744 0.737 0.86 Negative margin 0.623 0.577 0.57 
+
+A.4.3 CIFAR-100 Attribution Results 
+
+Figure 10 shows representative leave-one-out rank contributions at the peak-rank checkpoint for ResNet18 trained on CIFAR-100 with 50% symmetric label corruption. Although CIFAR-100 is a more challenging classification setting than CIFAR-10, corrupted examples again exhibit larger rank contributions and remain enriched among the highest-contributing samples. In this representative run, corrupted examples account for 82% of the top-100 rank-contributing samples despite a background corruption rate of approximately 50% . Across five seeds, the same CIFAR-100 ResNet18 setting achieves a top-100 noisy fraction of 92 .2% ±1.6% and an enrichment factor of 1.848 ±
+
+0.052 , as reported in Table 2. These results indicate that the association between Fisher Rank Inflation and corrupted examples extends beyond CIFAR-10 and persists in a higher-cardinality classification setting. 38 Figure 10: Representative leave-one-out rank contributions at the peak-rank checkpoint for ResNet18 on CIFAR-100 with 50% symmetric label corruption. Corrupted examples exhibit larger rank contributions and are enriched among the highest rank-contributing samples. Table 8: Representative-run corruption-detection diagnostics at the peak-rank checkpoint for ResNet18 on CIFAR-100 with 50% symmetric label noise. Multi-seed summary statistics are reported in Table 2. Score AUROC AUPRC Top-100 noisy fraction Rank contribution ∆i 0.746 0.707 0.82 Loss 0.871 0.850 0.95 Gradient norm 0.720 0.683 0.77 Negative confidence 0.584 0.545 0.53 
+
+# A.5 Fisher Rank Inflation under Human Annotation Noise 
+
+The experiments in the main paper focus on synthetic symmetric label corruption. To evaluate whether Fisher Rank Inflation extends beyond artificially generated noise, we additionally study CIFAR-10N [40], which contains naturally occurring human annotation errors collected from multiple annotators. Unlike synthetic corruption, these label errors arise from human mistakes and ambiguity rather than random label replacement. We evaluate ResNet18 on the CIFAR-10N worse_label split using the same training protocol, Fisher-rank computation, and leave-one-out attribution procedure described in Section 4.1. Models are trained using the observed human labels while clean labels are retained for evaluation and attribution analysis. All results are reported over five random seeds. 
+
+A.5.1 Training Dynamics 
+
+Figure 11 shows representative Fisher-rank dynamics under human annotation noise. Similar to the synthetic-corruption setting, Fisher effective rank exhibits a clear inflation–collapse trajectory during training. Effective rank initially expands as training progresses, reaches a pronounced maximum, and subsequently contracts despite continued optimization. The noisy-to-clean inflation ratio (NIR) remains elevated throughout much of training, indicating greater spectral dispersion among human-noisy examples than among clean examples. The temporal relationship between Fisher-rank inflation and observable overfitting is also preserved. Across five seeds, Fisher-rank onset precedes the chosen overfitting-onset criterion by 29 .0 ± 13 .1 epochs on average. Thus, the early-warning behavior observed under synthetic corruption continues to appear under naturally occurring annotation errors. These results indicate that the Fisher-spectrum dynamics identified in the main paper are not re-stricted to synthetic label corruption. Instead, naturally occurring annotation errors produce qualitatively 39 similar inflation–collapse trajectories and lead-time behavior. 
+
+Figure 11: Representative training dynamics for ResNet18 on CIFAR-10N using the worse_label split. Fisher effective rank exhibits a pronounced inflation–collapse trajectory similar to that observed under synthetic label corruption. The noisy-to-clean inflation ratio (NIR) remains above one for much of training, indicating greater spectral dispersion among human-noisy examples than among clean examples. 
+
+A.5.2 Leave-One-Out Attribution 
+
+We next evaluate leave-one-out Fisher-rank contributions at the seed-specific peak-rank checkpoints. Figure 12 shows representative attribution distributions for clean and human-noisy examples. Human-noisy examples exhibit substantially larger positive rank contributions than clean examples. The distribution of noisy-example contributions is shifted toward larger positive values and exhibits greater variance, while clean examples remain concentrated near zero contribution. This qualitative pattern closely matches the synthetic-corruption experiments reported in the main paper. The enrichment of human-noisy examples among the highest Fisher-rank contributors is particularly strong. Across five seeds, human-noisy examples account for 94 .4% ±1.9% of the top-100 rank-contributing samples despite constituting only 39 .7% ±1.0% of the evaluated subset. This corresponds to an enrichment factor of 2.377 ± 0.093 relative to the background human-noise rate. These findings indicate that the examples most responsible for Fisher-rank expansion remain strongly concentrated among mislabeled examples even when the noise arises from naturally occurring annotation errors rather than synthetic label flips. 
+
+Figure 12: Representative leave-one-out rank contributions at the peak-rank checkpoint for ResNet18 on CIFAR-10N. Human-noisy examples exhibit substantially larger positive rank contributions than clean examples and are strongly enriched among the highest Fisher-rank contributors. 
+
+# A.6 Quantitative Results 
+
+Table 9 summarizes the five-seed CIFAR-10N results. 40 Although rank contribution is not intended as a generic noisy-label detector, it remains informative under human annotation noise. The rank-contribution score achieves an AUROC of 0.608 ± 0.010 and an AUPRC of 0.645 ± 0.014 . These values are lower than those achieved by loss-based noisy-label detection baselines, but they are consistent with the interpretation of Fisher-rank attribution as a spectral diagnostic rather than a direct label-quality estimator. More importantly, the attribution signal remains highly concentrated among the examples responsible for Fisher-spectrum expansion. The strong enrichment of human-noisy examples among the highest rank contributors indicates that Fisher Rank Inflation continues to identify the subset of mislabeled examples most strongly associated with memorization-related spectral reorganization. Table 9: Five-seed Fisher Rank Inflation results on CIFAR-10N using the worse_label split. Results are reported as mean ± standard deviation over five random seeds. Metric Value Human-noise rate 0.397 ± 0.010 
+
+Peak Fisher effective rank 59 .39 ± 2.50 
+
+Peak-rank epoch 50 .0 ± 6.1
+
+Lead time 29 .0 ± 13 .1
+
+Top-100 noisy fraction 0.944 ± 0.019 
+
+Top-100 enrichment 2.377 ± 0.093 
+
+Rank-contribution AUROC 0.608 ± 0.010 
+
+Rank-contribution AUPRC 0.645 ± 0.014 
+
+# A.7 Additional Noise-Sweep Results 
+
+The main paper summarizes the dependence of Fisher Rank Inflation on corruption severity in Figure 4. In this appendix, we provide epoch-wise mean ± standard deviation trajectories for the same corruption-severity sweep. These plots show the full temporal evolution of Fisher effective rank, the noisy-to-clean inflation ratio (NIR), clean test accuracy, and training accuracy on the provided labels across corruption rates. All curves in this section are computed over three random seeds for ResNet18 on CIFAR-10 under symmetric label corruption rates 
+
+ρ ∈ { 0.0, 0.2, 0.3, 0.4, 0.5, 0.6}.
+
+The shaded regions denote one standard deviation across seeds. 
+
+A.7.1 Fisher-Spectrum Dynamics Across Noise Levels 
+
+Figure 13 shows the epoch-wise Fisher effective-rank trajectories across corruption levels. Increasing label corruption produces a larger effective-rank expansion during training, with higher corruption rates reaching larger peak effective rank before the subsequent collapse phase. This trajectory-level behavior supports the summary result in the main text: peak Fisher effective rank increases with corruption severity. 41 Figure 13: Epoch-wise Fisher effective-rank trajectories for ResNet18 on CIFAR-10 under different sym-metric label-corruption rates. Curves show mean ± standard deviation across three random seeds. Higher corruption rates produce stronger Fisher-rank expansion during training, followed by a collapse phase after corrupted labels are increasingly fit. Figure 14 shows the corresponding epoch-wise noisy-to-clean inflation ratio (NIR). Across noisy set-tings, NIR remains above one for much of training, indicating that corrupted-gradient subsets are more spectrally dispersed than clean-gradient subsets in the subset-centered Fisher-gradient scatter. Unlike peak effective rank, NIR is not strictly monotonic in the corruption rate, but it remains elevated across noisy conditions. NIR is undefined for the clean setting because there is no corrupted subset. 
+
+Figure 14: Epoch-wise noisy-to-clean inflation ratio (NIR) trajectories for ResNet18 on CIFAR-10 under different symmetric label-corruption rates. Curves show mean ± standard deviation across three random seeds. NIR remains above one for much of training across noisy settings, indicating greater subset-centered spectral dispersion among corrupted gradients than among clean gradients. 42 A.7.2 Generalization and Memorization Across Noise Levels 
+
+Figure 15 shows the clean test-accuracy trajectories obtained during the label-noise sweep. As the corruption rate increases, clean test accuracy decreases and generalization degradation becomes more pronounced. While all models initially improve during optimization, higher corruption levels ultimately lead to lower clean test accuracy despite continued improvement on the provided training labels. 
+
+Figure 15: Clean test-accuracy trajectories for ResNet18 trained on CIFAR-10 under varying levels of symmetric label corruption. Curves show mean ± standard deviation across three random seeds. Higher corruption rates lead to progressively lower clean test accuracy and stronger generalization degradation. Figure 16 reports training accuracy measured with respect to the provided labels. Although larger corruption rates slow optimization during the early stages of training, all noisy settings eventually ap-proach near-perfect training accuracy on the provided labels. This behavior indicates that the network ultimately fits both clean and corrupted labels. Combined with the clean test-accuracy trajectories, these results illustrate the classical memorization phenomenon in which training performance continues to improve even as generalization deteriorates. 43 Figure 16: Training accuracy measured with respect to the provided labels for ResNet18 trained on CIFAR-10 under varying levels of symmetric label corruption. Curves show mean ± standard deviation across three random seeds. Despite substantial corruption, training accuracy approaches unity across noisy settings, demonstrating eventual memorization of the provided labels. Together, these epoch-wise results provide additional support for the main corruption-severity finding. Increasing label corruption produces stronger Fisher-spectrum expansion, corrupted gradients remain more spectrally dispersed than clean gradients for much of training, and heavier corruption leads to worse clean generalization even as training accuracy on the provided labels continues to improve. 
+
+A.7.3 Lead Time Analysis 
+
+We also examine the temporal relationship between Fisher-rank onset and observable overfitting. For each run, rank onset is defined as the first evaluated epoch at which Fisher effective rank reaches 20% 
+
+of its maximum increase over training. Overfitting onset is defined as the first evaluated epoch at which clean test accuracy drops by at least 0.03 from the best previous clean test accuracy. The lead time is then defined as 
+
+lead time = toverfit − trank .
+
+Across the noisy corruption settings, the mean lead time is positive, indicating that Fisher-rank onset generally precedes the chosen overfitting-onset criterion. In the three-seed corruption sweep, the mean lead times are 43 .3, 35 .0, 36 .7, 38 .3, and 28 .3 epochs for corruption rates 20% , 30% , 40% , 50% , and 60% ,respectively. The corresponding standard deviations are 2.9, 8.7, 2.9, 2.9, and 11 .5 epochs. These results show that the onset of Fisher Rank Inflation can occur before observable test accuracy degradation under label noise. The magnitude of the lead time varies across seeds and corruption levels. We therefore interpret this analysis as a retrospective comparison of temporal ordering. 
+
+# A.8 Additional Direct-Diagnostic Details 
+
+The main paper reports compact checkpoint-level diagnostics in Table 3. For completeness, the diagnos-tics were computed at the same seed-specific peak-rank checkpoints used for the leave-one-out attribution analysis. For each seed, we recomputed the per-example final-layer gradient matrix at the saved peak-rank checkpoint, formed the globally centered gradient matrix, and evaluated the corresponding spectral 44 quantities from Section 3. The new-direction fraction was computed as 
+
+tr( QC Sglob  
+
+> N
+
+QC )tr( Sglob  
+
+> N
+
+) ,
+
+where QC is the orthogonal projector onto the complement of the globally centered clean-gradient span. The first-order score 
+
+Ai(S) = ¯ g⊤ 
+
+> i
+
+BS ¯gi
+
+was compared against the exact leave-one-out contribution 
+
+∆i = er( S) − er( S−i).
+
+All reported values are mean and standard deviation over the same five seeds used in the peak-rank attribution experiments. 
+
+# A.9 Onset-Threshold Sensitivity 
+
+Table 10: Sensitivity of lead-time estimates to the choice of rank-onset and overfitting-onset thresholds. Rank onset is evaluated using threshold fractions {0.10 , 0.20 , 0.30 } of the peak effective-rank increase, and overfitting onset is evaluated using clean-test-accuracy drops {0.02 , 0.03 , 0.05 } from the best previous value, giving nine threshold pairs per setting. We report the mean lead time averaged over threshold pairs, the range of mean lead times across the grid, and the fraction of threshold pairs for which the mean lead time is positive. Dataset Model Mean lead Lead range Positive fraction CIFAR-10 SmallCNN 22 .0 [21 .0, 23 .0] 1.00 
+
+CIFAR-10 ResNet18 35 .7 [32 .0, 40 .0] 1.00 
+
+CIFAR-10 ViT 6.0 [−7.0, 22 .0] 0.60 
+
+CIFAR-100 ResNet18 30 .7 [27 .0, 35 .0] 1.00 
+
+Table 10 evaluates the robustness of the lead-time analysis to the choice of rank-onset and overfitting-onset thresholds. For the convolutional CIFAR-10 models and CIFAR-100 ResNet18, the mean lead time remains positive for every threshold pair considered. This indicates that the conclusion that Fisher-rank inflation precedes observable test degradation is not an artifact of the particular 20% rank-onset threshold or 0.03 test-drop threshold used in the main analysis. The Vision Transformer exhibits a weaker and more threshold-dependent lead-time signal: the average lead time remains positive over the grid, but some threshold choices produce non-positive lead time. This is consistent with the weaker ViT attribution and direct-diagnostic results reported in the main text. 
+
+# A.10 Centered versus uncentered Fisher-gradient spectra 
+
+Our main experiments use the centered scatter of per-example last-layer gradients, since this isolates example-to-example gradient fluctuations. To verify that Fisher Rank Inflation is not an artifact of centering, we also repeated the analysis using the uncentered empirical Fisher. The two quantities produced nearly identical results on CIFAR-10 ResNet18 under 50% symmetric label corruption. The centered scatter achieved a peak effective rank of 85 .99 ± 3.75 , peak NIR of 2.00 ± 0.06 , and top-100 noisy fraction of 0.950 ± 0.014 , while the uncentered empirical Fisher achieved a peak effective rank of 85 .34 ± 3.86 , peak NIR of 1.98 ± 0.05 , and top-100 noisy fraction of 0.952 ± 0.015 . Similarly, the rank-contribution AUROC/AUPRC were nearly unchanged: 0.681 /0.762 for the centered scatter and 
+
+0.681 /0.762 for the uncentered Fisher. These results indicate that the observed inflation and corrupted-example enrichment are not caused by the centering operation. 45 Table 11: Centered versus uncentered Fisher-gradient ablation for CIFAR-10 ResNet18 under 50% sym-metric label corruption. Results are mean ± standard deviation over five seeds. Matrix Peak ER Peak NIR Top-100 Noisy Enrichment AUROC AUPRC Centered scatter 85 .99 ± 3.75 2.00 ± 0.06 0.950 ± 0.014 1.904 ± 0.037 0.681 ± 0.024 0.762 ± 0.023 
+
+Uncentered Fisher 85 .34 ± 3.86 1.98 ± 0.05 0.952 ± 0.015 1.908 ± 0.039 0.681 ± 0.023 0.762 ± 0.022 
+
+# A.11 Additional Results for the Clean-Difficulty Control 
+
+This subsection provides additional evidence supporting the clean-difficulty control experiment presented in Section 4.4. For each random seed, we train ResNet18 on CIFAR-10 with 50% symmetric label corruption and com-pute leave-one-out Fisher-rank contributions at the seed-specific peak Fisher-rank checkpoint. Samples are partitioned into three groups: 
+
+• Normal clean : correctly labeled examples with relatively low training loss. 
+
+• High-loss clean : correctly labeled examples having the highest training losses among all clean samples. These serve as a proxy for rare, ambiguous, or intrinsically difficult yet correctly labeled examples. 
+
+• Memorized corrupted : examples whose observed labels are incorrect but whose training losses under those incorrect labels are already very small, indicating that the network has memorized the corrupted supervision. Figure 17 shows the corresponding contribution distributions. The memorized corrupted group con-sistently occupies the positive tail, while high-loss clean examples do not exhibit comparable positive contributions. Table 12 summarizes the composition of the largest leave-one-out contributors. Averaged over three seeds, memorized corrupted examples constitute approximately 96 .7% , 96 .0% , and 93 .2% of the top-50, top-100, and top-200 contributors, respectively, while high-loss clean examples remain nearly absent. Together, these results demonstrate that Fisher Rank Inflation is not explained by optimization dif-ficulty alone. Instead, corrupted examples dominate the Fisher-rank expansion once they have been memorized, even though their training losses under the observed labels are already small. Table 12: Composition of the highest leave-one-out Fisher-rank contributors, averaged across three ran-dom seeds. Entries report percentages. Top-k Memorized corrupted High-loss clean Normal clean 50 96 .7 ± 4.2 1.3 ± 1.2 2.0 ± 3.5
+
+100 96 .0 ± 2.6 0.7 ± 0.6 3.3 ± 2.1
+
+200 93 .2 ± 2.4 1.5 ± 0.5 5.3 ± 2.3
+
+46 (a) Seed 42 (b) Seed 43 (c) Seed 44 
+
+Figure 17: Distribution of leave-one-out Fisher-rank contributions for the clean-difficulty control across three random seeds. In all seeds, memorized corrupted examples occupy the positive tail, whereas both clean groups remain concentrated near zero. 
+
+# A.12 Eigenvalue Cutoff Sensitivity 
+
+The effective rank computations in the main experiments discard eigenvalues not exceeding an absolute tolerance of 10 −12 . Since an absolute tolerance is not strictly invariant to rescaling of the gradient matrix, we evaluated the sensitivity of the reported peak checkpoint effective ranks to alternative data dependent thresholds. For each of the five seeds in the CIFAR-10 SmallCNN, CIFAR-10 ResNet18, CIFAR-10 ViT, and CIFAR-100 ResNet18 settings, we reconstructed the centered last layer gradient matrix at the saved peak rank checkpoint. We compared the original absolute threshold with relative thresholds 
+
+λj > τ λ max , τ ∈ { 10 −14 , 10 −12 , 10 −10 , 10 −8},
+
+as well as a machine precision based singular value tolerance. At the native gradient scale, the maximum relative change in effective rank was on the order of 10 −6
+
+across all evaluated settings. The retained scatter trace fraction was essentially one in every case. We also rescaled each gradient matrix by factors ranging from 10 −4 to 10 4 and observed only negligible numerical variation. These results indicate that the fixed cutoff does not materially affect the effective rank values reported at the peak rank checkpoints. 47
