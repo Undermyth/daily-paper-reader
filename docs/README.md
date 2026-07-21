@@ -6,74 +6,79 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-20
-- 运行时间：2026-07-20 20:36:04 UTC
+- 最新运行日期：2026-07-21
+- 运行时间：2026-07-21 21:26:24 UTC
 - 运行状态：成功
-- 本次总论文数：18
-- 精读区：6
+- 本次总论文数：19
+- 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-今日精读6篇，速读12篇，重点关注循环变换器的跨循环KV压缩与线性自注意力求解线性回归的两项高分工作。最值得深挖的是《Looped Latent Attention》和《In-context learning of closed form solution to simple linear regression task》，前者提升循环模型效率，后者揭示transformer的解析推理能力。建议从这两篇入手，理解循环架构与注意力机制的交叉新方向。
-- 详情：[/202607/20/README](/202607/20/README)
+今日共收录19篇论文，精读7篇，速读12篇，两篇高评分研究聚焦线性注意力模型效率与容量突破。  
+最值得精读的是《SpecLA: Efficient Speculative Decoding for Linear-Attention Models》与《Kernelized Linear Attention: Breaking the Capacity Wall with Symmetric Cones》，分别解决推理加速和容量瓶颈。  
+建议优先研读上述两篇9.0分论文，同时关注速读中视频生成（DiTango、FVAttn）与长期记忆（Reflective Recall Cycle）的实用进展。
+- 详情：[/202607/21/README](/202607/21/README)
 
 ### 精读区论文标签
-1. [Looped Latent Attention: Cross-Loop KV Compression for Looped Transformers](/202607/20/2607.15456v1-looped-latent-attention-cross-loop-kv-compression-for-looped-transformers)  
+1. [SpecLA: Efficient Speculative Decoding for Linear-Attention Models](/202607/21/2607.16673v1-specla-efficient-speculative-decoding-for-linear-attention-models)  
    标签：评分：9.0/10、query:la
-   evidence：为循环变换器（现代循环架构）设计跨循环KV压缩方法
-2. [In-context learning of closed form solution to simple linear regression task using transformer with linear self-attention](/202607/20/2607.15819v1-in-context-learning-of-closed-form-solution-to-simple-linear-regression-task-using-transformer-with-linear-self-attention)  
+   evidence：专门为线性注意力模型设计的推测解码
+2. [Kernelized Linear Attention: Breaking the Capacity Wall with Symmetric Cones](/202607/21/2607.17419v1-kernelized-linear-attention-breaking-the-capacity-wall-with-symmetric-cones)  
    标签：评分：9.0/10、query:la
-   evidence：线性自注意力变换器用于上下文学习解析解
-3. [Toward a mechanistic understanding of inference in visual cortex and diffusion models](/202607/20/2607.15693v1-toward-a-mechanistic-understanding-of-inference-in-visual-cortex-and-diffusion-models)  
+   evidence：通过对称锥实现具有显式关联记忆的核化线性注意力
+3. [Positive and Negative Retinotopic Codes in the Human Hippocampus](/202607/21/biorxiv-10-1101-2024-09-27-615397-v4-positive-and-negative-retinotopic-codes-in-the-human-hippocampus)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：海马体视网膜拓扑编码用于感觉记忆整合
+4. [Coexisting but dissociable place and spatial view codes in the primate hippocampus](/202607/21/biorxiv-10-64898-2026-07-20-739519-v1-coexisting-but-dissociable-place-and-spatial-view-codes-in-the-primate-hippocampus)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：发现猕猴海马中位置细胞、视野细胞和联合细胞三种编码模式
+5. [Mechanistic Attention Guidance for Agent Memory Refinement](/202607/21/2607.17621v1-mechanistic-attention-guidance-for-agent-memory-refinement)  
+   标签：评分：8.0/10、query:la
+   evidence：检索头注意力用于记忆检索
+6. [Selective convergence and graded divergence of hippocampal and amygdala subregions using functional connectivity](/202607/21/biorxiv-10-64898-2026-07-06-736898-v2-selective-convergence-and-graded-divergence-of-hippocampal-and-amygdala-subregions-using-functional-connectivity)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：视觉皮层中的推理计算
-4. [Multisensory coding of audiovisual movies in the human hippocampus](/202607/20/biorxiv-10-64898-2026-03-01-708855-v4-multisensory-coding-of-audiovisual-movies-in-the-human-hippocampus)  
+   evidence：海马亚区连接与计算表示
+7. [Single-neuron and population contributions of hippocampal LFPs to spike prediction](/202607/21/biorxiv-10-64898-2026-07-14-738489-v1-single-neuron-and-population-contributions-of-hippocampal-lfps-to-spike-prediction)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：海马体表征计算
-5. [Generating whole-brain neural activity and behavior through unified latent dynamics](/202607/20/biorxiv-10-64898-2026-06-05-730482-v2-generating-whole-brain-neural-activity-and-behavior-through-unified-latent-dynamics)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：神经活动中的计算表征
-6. [Selective convergence and graded divergence of hippocampal and amygdala subregions using functional connectivity](/202607/20/biorxiv-10-64898-2026-07-06-736898-v2-selective-convergence-and-graded-divergence-of-hippocampal-and-amygdala-subregions-using-functional-connectivity)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：海马子区与皮层功能连接图谱，直接相关海马计算表示
+   evidence：海马LFP对单神经元峰电位预测的贡献
 
 ### 速读区论文标签
-1. [Scalable Training of Continuous-Time Spiking Neural Networks with Differentiable Spike-Time Discretization](/202607/20/2607.14672v1-scalable-training-of-continuous-time-spiking-neural-networks-with-differentiable-spike-time-discretization)  
+1. [DiTango: Cost-Effective Parallel Diffusion Generation with Selective Attention State Reuse](/202607/21/2607.15650v1-ditango-cost-effective-parallel-diffusion-generation-with-selective-attention-state-reuse)  
+   标签：评分：7.0/10、query:la
+   evidence：选择性注意力状态复用以实现高效并行生成
+2. [FVAttn: Adaptive Sparse Attention with Runtime Load Balancing for Video Generation](/202607/21/2607.16190v1-fvattn-adaptive-sparse-attention-with-runtime-load-balancing-for-video-generation)  
+   标签：评分：7.0/10、query:la
+   evidence：自适应稀疏注意力用于高效视频生成并带有负载均衡
+3. [Exploratory and Assimilating Reflection: Reflective Recall Cycle for Long-term Memory](/202607/21/2607.17879v1-exploratory-and-assimilating-reflection-reflective-recall-cycle-for-long-term-memory)  
+   标签：评分：7.0/10、query:la
+   evidence：基于反思循环的记忆检索
+4. [The Art of Not Forgetting](/202607/21/2607.17944v1-the-art-of-not-forgetting)  
+   标签：评分：7.0/10、query:la
+   evidence：稀疏关系编码和双层竞争记忆用于关联记忆
+5. [L1 Augmented Attention as an Improved Vector Similarity Metric](/202607/21/2607.18027v1-l1-augmented-attention-as-an-improved-vector-similarity-metric)  
+   标签：评分：7.0/10、query:la
+   evidence：L1增强注意力改进相似度度量，可用于高效记忆检索
+6. [Topological decoding of grid cell activity via path lifting to covering spaces](/202607/21/biorxiv-10-1101-2025-10-17-683158-v2-topological-decoding-of-grid-cell-activity-via-path-lifting-to-covering-spaces)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：脉冲神经网络的高效训练方法
-2. [Neural drift during rest drives walking direction and memory consolidation in Drosophila](/202607/20/biorxiv-10-1101-2025-03-20-644317-v2-neural-drift-during-rest-drives-walking-direction-and-memory-consolidation-in-drosophila)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：果蝇休息期间的神经漂移驱动记忆巩固
-3. [Scene perception-memory pairing extends to superior parietal cortex](/202607/20/biorxiv-10-64898-2026-05-08-723871-v2-scene-perception-memory-pairing-extends-to-superior-parietal-cortex)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：顶叶皮层的场景感知-记忆配对
-4. [A claustro-cortical loop times state transitions for flexible behavior](/202607/20/biorxiv-10-64898-2026-07-10-737800-v1-a-claustro-cortical-loop-times-state-transitions-for-flexible-behavior)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：屏状核-皮层环路由状态转换定时以支持灵活行为
-5. [From Hodgkin-Huxley to Pretrained Neural Inference AI](/202607/20/biorxiv-10-64898-2026-07-13-738120-v1-from-hodgkin-huxley-to-pretrained-neural-inference-ai)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：生物物理模拟预训练神经网络用于神经推断
-6. [Distinct Orbitofrontal Feedback Signals Shape Sensory Behavioral Strategies during Flexible Learning](/202607/20/biorxiv-10-64898-2026-07-15-737076-v1-distinct-orbitofrontal-feedback-signals-shape-sensory-behavioral-strategies-during-flexible-learning)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：灵活学习中潜在决策策略的计算模型
-7. [Fisher Rank Inflation: A Spectral Signature of Memorization under Label Noise](/202607/20/2607.12438v1-fisher-rank-inflation-a-spectral-signature-of-memorization-under-label-noise)  
+   evidence：内嗅皮层网格细胞的拓扑解码，涉及海马体表示计算
+7. [VTM-Nav: Hierarchical Visual-Topological Memory for Cross-Episode Object-Goal Navigation](/202607/21/2607.14514v1-vtm-nav-hierarchical-visual-topological-memory-for-cross-episode-object-goal-navigation)  
    标签：评分：6.0/10、query:la
-   evidence：标签噪声下记忆化的谱特征，与神经网络中的联想记忆相关
-8. [Online Neural Space Time Memory for Dynamic Novel View Synthesis](/202607/20/2607.15271v1-online-neural-space-time-memory-for-dynamic-novel-view-synthesis)  
+   evidence：层次视觉拓扑记忆增强神经网络用于跨情节导航
+8. [C$^2$KV: Compressed and Composable KV Cache Reuse for Efficient LLM Inference](/202607/21/2607.17715v1-c2kv-compressed-and-composable-kv-cache-reuse-for-efficient-llm-inference)  
    标签：评分：6.0/10、query:la
-   evidence：用于动态视角合成的在线记忆机制
-9. [Efficient Frame Selection for Long Videos at Test Time with Attention-Based MLLM Selectors](/202607/20/2607.15689v1-efficient-frame-selection-for-long-videos-at-test-time-with-attention-based-mllm-selectors)  
+   evidence：压缩且可组合的KV缓存复用实现高效推理
+9. [jina-reranker-v3.5: An Efficient Listwise Reranker with Hybrid Attention and Self-Distillation](/202607/21/2607.18152v1-jina-reranker-v35-an-efficient-listwise-reranker-with-hybrid-attention-and-self-distillation)  
    标签：评分：6.0/10、query:la
-   evidence：基于注意力的高效视频帧选择方法
-10. [Representational geometry reveals how neuronal diversity supports perceptual performance](/202607/20/biorxiv-10-1101-2025-06-26-661754-v2-representational-geometry-reveals-how-neuronal-diversity-supports-perceptual-performance)  
+   evidence：混合注意力调度（滑动窗口+全局）实现高效重排
+10. [Complementary stable and dynamic prelimbic ensembles encode learned threat value underlying generalization and discrimination](/202607/21/biorxiv-10-64898-2026-03-08-710406-v2-complementary-stable-and-dynamic-prelimbic-ensembles-encode-learned-threat-value-underlying-generalization-and-discrimination)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：表征几何连接神经元多样性与感知表现
-11. [Information-dependent eye-hand coordination emerges from active vision](/202607/20/biorxiv-10-64898-2026-05-29-726887-v2-information-dependent-eye-hand-coordination-emerges-from-active-vision)  
+   evidence：前边缘皮层神经元群编码学习威胁值
+11. [Real-Time Embodied Experience Shapes High-Level Reasoning Under Altered Gravity](/202607/21/biorxiv-10-64898-2026-03-16-712090-v2-real-time-embodied-experience-shapes-high-level-reasoning-under-altered-gravity)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：主动视觉计算原理指导眼手协调
-12. [Representational geometry as a fidelity metric for connectome-constrained networks: evidence from the Drosophila visual system](/202607/20/biorxiv-10-64898-2026-06-10-731214-v11-representational-geometry-as-a-fidelity-metric-for-connectome-constrained-networks-evidence-from-the-drosophila-visual-system)  
+   evidence：具身体验改变改变重力下的高层物理推理
+12. [Normalization accounts for temporal dynamics in human somatosensory cortex](/202607/21/biorxiv-10-64898-2026-05-10-724117-v2-normalization-accounts-for-temporal-dynamics-in-human-somatosensory-cortex)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：果蝇连接组约束网络的表征几何分析
+   evidence：躯体感觉皮层中分裂归一化的计算原理
 
 
 <div class="dpr-home-promo-card">

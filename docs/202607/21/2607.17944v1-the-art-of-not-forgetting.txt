@@ -1,0 +1,399 @@
+Title: The Art of Not Forgetting
+
+URL Source: https://arxiv.org/pdf/2607.17944v1
+
+Published Time: Tue, 21 Jul 2026 01:55:32 GMT
+
+Number of Pages: 23
+
+Markdown Content:
+# The Art of Not Forgetting 
+
+## Ashmith Atmuri ∗ Akshay Kumar Yashaswini Rao Bhogarajula 
+
+## Arkadhi Labs 
+
+> ∗
+
+Corresponding author: founder@arkadhi.com 
+
+## ak@arkadhi.com yashaswini.rao@arkadhi.com 
+
+Abstract 
+
+We introduce CMP (Cognitive Memory Primitive), an architecture that represents inputs as sparse relational codes, stores them in a two-tier competitive memory, and learns entirely through local, gradient-free updates, with no backpropagation anywhere in the network. We use this architecture to test a specific hypothesis: that catastrophic forgetting, usually treated as a training-time defect to be patched with replay or regularization, is instead a structural consequence of how backpropagation assigns credit, and that a learning rule which is local and sparse by construction should resist it without a patch. On a controlled domain-incremental protocol across 15 text domains, three-seed replicated, CMP’s backward transfer is 15–19 ×
+
+better than a matched-size Transformer trained with online EWC, and the result survives a domain-order control (reported as a range, +0 .24 to +0 .44 , rather than a single figure). We report this alongside a real, substantial accuracy gap versus the Transformer baseline, a null result on a recognized vision benchmark, and a diagnosed, unresolved failure attempting to combine this architecture with a separate mechanism that improves raw accuracy, disclosed because an honest negative result is more useful than an omitted one. The central claim is narrow and falsifiable: local, sparse, non-backpropagation learning measurably resists catastrophic forgetting better than backpropagation with its standard fix, under conditions we state precisely. 
+
+Keywords: continual learning, catastrophic forgetting, sparse distributed representations, local learning rules, predictive coding, associative memory, gradient-free plasticity. 
+
+# 1 Introduction 
+
+Catastrophic forgetting, the tendency of a network trained sequentially on new data to overwrite what it learned on old data, is typically treated as a training-time problem to be patched: replay buffers, regularization terms like EWC [ 3], or architectural additions like Progressive Networks [ 13 ]. Each of these treats forgetting as incidental to backpropagation, something to be corrected after the fact. We investigate a different premise: that forgetting may instead be a structural consequence of how backpropagation itself assigns credit, globally, densely, touching every weight in proportion to a single scalar loss, and that a learning rule which is local, sparse, and gradient-free by construction may resist it for architectural reasons, not because of an added correction term. We test this premise directly. CMP (Cognitive Memory Primitive) combines an established binding mechanism [ 8, 9 ] with a sparse, competitive, content-addressed memory in the tradition of Kanerva [ 2 ] and modern Hopfield networks [ 10 ], a predictive-coding cascade [ 11 , 16 ], and a local delta-rule readout; no component of which is individually novel (Section 3). What we add is a 1arXiv:2607.17944v1 [cs.LG] 20 Jul 2026 specific combination, including a gradient-free, movement-based plasticity throttle (Section 3.7) in place of Fisher-information-based importance, and an empirical test of whether that combination measurably resists forgetting relative to backpropagation with its standard fix. 
+
+We state plainly, here, what this paper does not claim. 
+
+It does not claim CMP is more accurate than a Transformer; it is not, by a substantial margin (Section 6). It does not claim general superiority over attention-based architectures. It claims a single, narrower, falsifiable result: on a controlled domain-incremental protocol, with matched architecture size and matched data budget, CMP’s backward transfer is substantially better than a Transformer trained with online EWC, and the effect survives a domain-order control and three-seed replication. 
+
+## 1.1 Contributions 
+
+• A domain-incremental continual-learning result across 15 real-world text domains, three-seed replicated, showing CMP forgets 15–19 × less than a matched Transformer under naive fine-tuning and online EWC (Section 4). 
+
+• A gradient-free importance signal for plasticity throttling, substituting raw weight-movement magnitude for EWC’s Fisher information, motivated by the absence of a backpropagated gradient to square in a local-learning system. 
+
+• A domain-order control showing the effect is real but sequence-dependent, reported as a range rather than a single figure. 
+
+• An honest accounting of what does not yet work: a real accuracy gap, a null result on Split-MNIST, and a diagnosed, unresolved failure attempting to combine this architecture with a separate, higher-accuracy local-learning mechanism (Appendix D). 
+
+# 2 Related Work 
+
+Sparse coding. Olshausen and Field [ 6 ] showed that a sparse coding objective applied to natural images recovers receptive fields resembling primary visual cortex, establishing sparsity as a biologically-grounded representational choice. CMP’s k-winners-take-all sparsification throughout (Section 3.1) inherits this motivation directly. 
+
+Binding and compositional representation. The multiplicative binding operation (Section 3.1) belongs to the Vector Symbolic Architecture family: Pollack’s Recursive Distributed Rep-resentations [ 9 ] and Plate’s Holographic Reduced Representations [ 8 ] both address representing compositional structure in fixed-width distributed vectors via binding operations. Neither the binding operation nor its use of superposition is new; what is combined with it (Section 3.2–3.7) is specific to this work. 
+
+Associative memory. Kanerva’s Sparse Distributed Memory [ 2] is the direct ancestor of CMP’s competitive, content-addressed memory (Section 3.2). Ramsauer et al. [ 10 ] establish that modern 2Hopfield retrieval is mathematically continuous with self-attention; we position CMP’s memory as a sibling within that same associative-memory family, distinguished by sparsity and recurrent, one-cue-at-a-time retrieval rather than dense, simultaneous all-pairs lookup, not as a departure from it. 
+
+Predictive coding. Rao and Ballard [ 11 ] propose predictive coding as a functional account of cortical feedback; Whittington and Bogacz [ 16 ] show a predictive-coding network can approximate error backpropagation using only local Hebbian updates. CMP’s predictive-coding cascade (Section 3.4) uses the mechanism for its stated purpose, local, self-supervised top-down prediction, rather than as an approximation to backpropagation. 
+
+Complementary learning systems. McClelland, McNaughton, and O’Reilly [ 5] argue the hippocampus and neocortex form complementary systems precisely to avoid the interference that a single fast-learning system would suffer: the direct theoretical motivation for pairing a sparse, fast-writing memory with a slower, distributed readout in CMP, and for expecting that pairing to resist forgetting for structural reasons. 
+
+Continual learning. EWC [ 3 ] regularises parameter movement by Fisher-information-weighted importance; Synaptic Intelligence [ 17 ] computes importance online from the training trajectory; Progress & Compress [ 14 ] introduces the online-EWC variant used as our baseline (Section 4.3). Progressive Networks [ 13 ], instead, avoid architectural forgetting by freezing old columns and adding new ones per task. iCaRL [ 12 ] represents the replay-based family, noted but not compared directly. Lopez-Paz and Ranzato [ 4 ] define the BWT/FWT metrics used throughout Section 4, adapted here to a bits-per-byte formulation with an explicitly stated sign convention. 
+
+Non-attention sequence architectures. Mamba [ 1] and related state-space models achieve strong long-context efficiency without attention, but, to our knowledge, and consistent with our own accuracy results (Section 6), no non-attention architecture has cleanly matched Transformer accuracy at matched parameters and compute on short-context tasks. We note this as precedent for reporting a real accuracy gap alongside a different, real contribution. 
+
+Byte-level language modelling. The Byte Latent Transformer [ 7] allocates compute dynamically based on next-byte entropy, operating, like CMP, directly on bytes rather than a learned subword vocabulary. We note the shared byte-level premise as context for Section 4’s bits-per-byte metric. 
+
+# 3 Architecture 
+
+Before the equations, the shape of the whole thing: a byte pair is bound into one sparse code (3.1); that code is written into a two-tier memory it can later be retrieved from (3.2); a second, coarser code is formed above it and used to predict the fine code, with the prediction error kept as a signal (3.3–3.4); every term produced so far, the code itself, the memory retrieval, the coarse code, and the error, is summed at a single readout layer to produce a next-byte prediction (3.5); that readout is updated with a local rule that needs no backpropagation through any of the preceding steps 3(3.6); and a separate, gradient-free importance signal throttles how fast each weight is allowed to change, which is the one piece of this pipeline that is not an established technique on its own (3.7). Section 3.8 then compares this whole design against self-attention directly, on the specific axes that motivate building it this way instead. Figure 1 provides a high-level view of the complete CMP pipeline. The following subsections explain each component in order.            
+
+> Figure 1: CMP architecture: binding →memory →hierarchy/predictive coding →readout →local learning →weight-protect.
+
+We describe the architecture in the same order Vaswani et al. [ 15 ] describe self-attention: the core 4binding operation first, then how it composes into memory, hierarchy, and a learning rule. A small version of this figure, with the relevant piece highlighted, appears at the start of each subsection below so it is always clear which part of the pipeline is being discussed. 
+
+## 3.1 Sparse relational binding 
+
+The problem this step solves: turn two consecutive raw bytes into a single fixed-size object that later steps can store, compare, and combine, without a per-pair lookup table that would grow with vocabulary size, and without keeping the raw sequence around the way self-attention does. Input: the previous byte xt−1 and the current byte xt. Output: a single sparse vector zt. Two frozen random embedding matrices EL, ER map each byte to a left- and right-role vector; the core operation binds them via elementwise product, followed by k-winners-take-all sparsification and renormalization: 
+
+zt = normalize (k-WTA k
+
+> (
+
+EL[xt−1] ⊙ ER[xt])) (1) 
+
+zt is an r-dimensional vector, the relational code at position t: CMP’s basic unit of representation, analogous to the query/key/value vectors in self-attention but produced by a single multiplicative binding rather than a learned linear projection followed by a dot-product similarity search over the full sequence. EL and ER are fixed at initialization, not trained, a deliberate design choice revisited as a limitation in Section 6. Everything from here on operates on zt: the next two subsections are two different things done with it, storage and coarsening, not two alternatives to it. 53.2 Two-tier competitive memory showing write decision, promotion, and re-trieval. 
+
+The problem this step solves: binding alone only encodes local, byte-pair context, and a system with no persistent store has no way to reference something it saw many steps ago without a dense weight matrix that global backpropagation can overwrite wholesale. Input: the current relational code zt, used as a query. Output: a retrieved memory vector, a weighted combination of whatever stored codes resemble zt. A buffer B (fast, short-term) and a register R (slow, long-term) store relational codes via competitive, content-addressed writes. Retrieval for a query zt is a similarity-weighted read over slots: 
+
+retrieve( M, z t) =  
+
+> |M|
+> ∑
+> i=1
+
+softmax i
+
+> (
+
+τ ˆzt · ˆmi 
+
+> )
+
+mi (2) Writes are competitive: a slot updates only if its similarity to zt exceeds a calibrated match threshold (Eq. 3), so a slot only fires on a genuine match, not baseline overlap. nbuffer , nregister , k
+
+are all derived from r by a fixed ratio (Appendix A), not set independently, a limitation discussed in Section 6. 
+
+θmatch (r, k, s ) = 0 .86 · E
+
+> [
+
+max  
+
+> i̸=j
+
+ˆvi · ˆvj
+
+> ]
+
+(3) 6Figure 2: Two-tier competitive memory: the write-side match decision, buffer-to-register promotion, and the retrieval-side merge. 
+
+The takeaway: writes are gated by the same match threshold that governs retrieval, so nothing enters memory on a weak or coincidental overlap, and only codes that survive repeated matching earn promotion from the fast buffer to the slow, long-term register. Binding and memory both operate at the single-byte-pair scale; the next two subsections ask whether coarser structure, something closer to words than bytes, adds a useful signal on top. 73.3 Hierarchy 
+
+The problem this step solves: byte-pair binding is too fine-grained to represent word- or phrase-level structure on its own, and adding that would normally mean a second, separately-trained encoder. Input: two consecutive relational codes, zt−1 and zt. Output: ht, a second, coarser code, formed by binding consecutive relational codes through their own (frozen) mixing matrices WL2,
+
+WR2:
+
+ht = normalize (k-WTA k
+
+> (
+
+(zt−1 WL2) ⊙ (zt WR2))) (4) 
+
+ht operates at a coarser temporal granularity than zt (empirically, word-scale rather than byte-scale): a second, independent zoom level, the CMP analogue of running multiple attention heads at different receptive-field scales, not more of the same binding. Once this coarser code exists, it can be used for more than storage, it can try to predict the fine code, which is exactly what the next step does. 83.4 Predictive coding 
+
+The problem this step solves: not every byte is equally predictable from its coarse context, and how surprising a byte is, given what the coarser code expected, is itself a useful signal, one that would otherwise require a separate, trained error head. Input: the coarse code ht and the fine code 
+
+zt. Output: et, a sparse residual term. The coarse code ht predicts the fine code zt through a locally-trained matrix F , and the residual becomes an additional sparse context term: 
+
+ˆzt = ht F, et = normalize (k-WTA k(zt − ˆzt)) (5) 
+
+F is trained by its own local reconstruction rule and never receives gradient signal from the downstream classification error: the top-down prediction is self-supervised, structurally isolated from the task loss. At this point four terms exist, zt, the memory retrieval, ht, and et; readout is where all four get combined into an actual prediction. 93.5 Readout 
+
+The problem this step solves: every term produced above needs to become one thing, next-byte logits, without a nonlinear MLP standing between them and the loss, since a local learning rule cannot easily credit-assign through one. Input: zt, the retrieved memory term, ht, et, and a set of leaky-integrator context terms (Appendix A). Output: logits over 256 byte values. All terms above are linearly combined and added to a bigram table Wh:
+
+logits t = W ⊤ 
+
+> h
+
+[xt] + b + zt W ⊤ 
+
+> 0
+
++ ret B W ⊤ 
+
+> B
+
++ ret R W ⊤ 
+
+> R
+
++ ht W ⊤ 
+
+> h2
+
++ et W ⊤ 
+
+> pc
+
++ ∑
+
+> α
+
+c(α) 
+
+> t
+
+W ⊤ 
+
+> sα
+
+(6) The readout is nothing more than a set of weights, Wh, W0, WB , WR, Wh2 , Wpc , Wsα , summed. The next question is how those weights get updated without backpropagation. 10 3.6 Local learning rule 
+
+The problem this step solves: with no backpropagation, there is no chain rule connecting the readout error back through binding, memory, and hierarchy, so every readout weight must be updated using only information available locally, at the readout, on this step. Input: the softmax error at the readout. Output: an updated readout weight, one hop away from the error, no further. Every readout weight is updated by a one-step delta rule using the softmax error, with no backpropagation through Eq. 6’s upstream terms: 
+
+err t = onehot( yt) − softmax(logits t) (7) 
+
+∆W• = ηN
+
+> ∑
+> t
+
+err ⊤ 
+
+> t
+
+ϕ•(t) (8) A plain delta rule, on its own, updates every weight equally hard regardless of which domain is currently training, which is itself a route back to forgetting: weight-protect, next, is the fix for that specific failure mode. 11 3.7 Weight-protect: the paper’s one concrete contribution 
+
+The problem this step solves: every mechanism described so far (3.1–3.6) treats every domain identically, so a plain delta rule will happily overwrite weights that were important for a domain trained many steps ago. Input: the readout weights’ movement, tracked across training. Output: a per-tensor importance score that throttles future updates. After training on domain i, the mean absolute movement of each readout tensor is accumulated as an importance score, and future updates are scaled inversely to it: 
+
+I• ← I• + E[ ∣ ∣ W (i) 
+
+> •
+
+− W (i−1)  
+
+> •
+> ∣∣ ]
+
+(9) 
+
+∆W• ← 11 + λ I •
+
+∆W• (10) 
+
+This is the mechanism the paper’s central claim rests on. It is deliberately not Fisher-information-based: 
+
+EWC’s importance signal is the expected squared gradient of the log-likelihood, which presumes a backpropagated gradient to square. CMP has no such gradient by construction, so Eq. 9substitutes raw weight-movement magnitude, a cheaper, gradient-free importance heuristic, and, to our knowledge, not previously used as the basis for an EWC-style throttling rule. We state this as the paper’s one concrete, own mechanism-level formalization, not a claim of new mathematics: the binding operation, memory, and delta rule are each established techniques (Section 2); Eq. 9–10 is the specific combination novel to this work. 12 3.8 Why sparse relational binding, not self-attention 
+
+With all seven pieces now on the table (Figure 1), one question remains before turning to results: why build the core operation this way instead of with self-attention.          
+
+> Table 1: Complexity and locality comparison, in the spirit of Vaswani et al. [15], Table 1.
+> Axis Self-attention Sparse relational binding
+> Compute / step O(n2), all-pairs O(1) , fixed-size memory Learning signal Backprop, global Local delta rule, one-hop Memory None, recomputed each pass Explicit, persistent, sparse
+
+The takeaway: sparse relational binding trades self-attention’s global, quadratic lookup for a fixed-size, local operation that a gradient-free rule can actually credit-assign through. 
+
+Ramsauer et al. [ 10 ] show modern Hopfield retrieval is mathematically continuous with self-attention; CMP’s memory is a sibling in that same associative-memory family, not a departure from it. What distinguishes it structurally is sparsity and one-cue-at-a-time recurrent retrieval rather than dense, simultaneous all-pairs lookup: the property this paper’s central experiment, described next, tests for a downstream consequence. 
+
+# 4 Continual Learning Protocol and Results 
+
+The experiments below build on each other in a fixed order, each one closing a specific hole the previous one leaves open: first confirm the model is learning anything at all (4.2), since a forgetting metric on a model with nothing to forget is meaningless; then confirm the central mechanism’s effect replicates rather than being a single lucky run (4.3); then confirm it beats the standard fix at matched capacity and budget, not just a weak baseline (4.4); then confirm the effect is not an artifact of one convenient domain ordering (4.5); then check whether any of it survives outside text at all (4.6). 
+
+## 4.1 Protocol 
+
+We adopt a domain-incremental continual-learning protocol: a single model is trained sequentially on a fixed ordering of T domains, with no replay of earlier domains’ data and no task identifier available at any point. For each domain i, the model trains for a fixed number of steps, is evaluated on domain i immediately after training, and is evaluated on every domain seen so far, building a 
+
+T × T matrix of bits-per-byte (BPB) scores (Figure 5). 13 Figure 3: Domain-incremental training protocol: sequential single-pass training with no replay and no task ID, evaluated against every prior domain after each step to build the BPB matrix. 
+
+The takeaway: no replay and no task ID are both real constraints, not conveniences, so anything the model retains has to come from the architecture itself, not from being told which domain it is in or getting to see old data again. We report Backward Transfer (BWT) and Forward Transfer (FWT), adapted from Lopez-Paz and Ranzato [ 4] to BPB (lower is better, so the sign convention is inverted from the original accuracy-based formulation): BWT = 1
+
+T − 1 
+
+> T−1∑
+> i=1
+> (
+
+BPB (i, T ) − BPB (i, i )) (11) FWT = 1
+
+T − 1
+
+> T∑
+> i=2
+> (
+
+BPB 0shot (i) − bigram( i)) (12) 
+
+Sign convention, stated explicitly to avoid the inversion error we made ourselves mid-project: 
+
+Positive BWT indicates net forgetting (BPB got worse); negative BWT indicates genuine backward transfer (BPB improved after learning unrelated domains). Negative FWT indicates the model outperforms the bigram floor on a domain it has not yet been trained on. The 15 domains (Wikipedia, CPython source, Shakespeare, KJV Bible, Reuters news, Moby Dick, the Federalist Papers, Darwin, Whitman, Lodash source, Marcus Aurelius, Flatland, Alice in Wonderland, Python technical documentation, and a Hindi corpus) form a self-assembled domain-shift corpus, not a recognized benchmark. We use the established BWT/FWT formulation on data we compiled ourselves; this is stated plainly as a limitation (Section 6), not implied to be a standard evaluation. 14 4.2 Accuracy audit 
+
+Question: is there anything real for a forgetting metric to measure here? 
+
+Before reporting forgetting, we verify the model has learned something meaningful to forget: a model that fails to beat a trivial bigram frequency table has no real signal for a forgetting metric to measure. Across all 15 domains and all three seeds (42, 43, 44), CMP’s post-training BPB beats the bigram floor with no exceptions, with margins ranging from +0 .41 to +1 .22 BPB. We apply the identical audit to every baseline reported below. With that established, the next question is whether the central result replicates or was a single favourable run. 
+
+## 4.3 Main result: three-seed replication 
+
+Question: does the weight-protect effect hold up across seeds, or was the first number we saw a fluke?                  
+
+> Table 2: Three-seed replication, weight-protect configuration, 15-domain sequence.
+> Seed BWT FWT
+> 42 +0 .2353 +0 .5956
+> 43 +0 .2352 +0 .2978
+> 44 +0 .2512 +0 .3175
+> Mean ±std +0 .2406 ±0.0092 +0 .4036 ±0.1665
+
+BWT is tight across seeds (std 0.0092 , under 4% of the mean); FWT is not (std 0.1665 , over 40% of the mean), driven by seed 42’s outlier +0 .5956 against 43 and 44’s closer +0 .30 range. We report this rather than smoothing it: the backward-transfer result this paper’s claim rests on is stable across seeds, but the forward-transfer number should be read as noisy and not over-interpreted. A stable low BWT is not yet evidence of anything relative to prior work; the next step is the actual head-to-head. 
+
+## 4.4 Baseline comparison: naive fine-tuning and EWC 
+
+Question: does CMP actually beat the standard fix for forgetting, at matched capacity and budget, or is this a weak-baseline artifact? 
+
+We compare against a parameter-matched ( ∼6.5M) byte-level Transformer, under two conditions on the identical protocol: naive sequential fine-tuning (no mitigation) and online EWC [ 14 ], a running-Fisher variant of Kirkpatrick et al. [ 3 ], chosen for tractability across many sequential domains rather than per-task Fisher accumulation, stated explicitly, this is not vanilla EWC. 
+
+A methodological note was included deliberately: 
+
+An initial Transformer baseline run, at the original 150 ,000 -byte data budget, failed the accuracy audit outright: post-training BPB was worse than the bigram floor on every domain, the result of severe overfitting under 728 × data repetition at that budget. The resulting BWT ( +5 .93 naive) 15 reflected training instability, not forgetting, and is not reported as a result. Raising the data budget to 3.8M bytes resolved this; all Transformer results below pass the accuracy audit cleanly.           
+
+> Table 3: Forgetting comparison, matched architecture size ( ∼6.5M params) and matched data budget, identical protocol.
+> Method BWT Notes
+> Naive fine-tune (Transformer) +2 .7897 No mitigation Online EWC (Transformer) +2 .2457 ∼20% reduction vs. naive CMP (weight-protect) +0 .1482 Same 3.8M-byte budget
+> Figure 4: Forgetting comparison, matched 3.8M-byte data budget, 5 domains.
+
+Reconciling this table with Table 2, explicitly: 
+
+CMP’s figure here ( +0 .1482 ) is not the Table 2 replication mean ( +0 .2406 ); it is CMP re-run at the 3.8M-byte budget specifically to match what the Transformer baseline required to pass its own accuracy audit (Section 4.2), rather than reusing the Table 2 number, which was measured at the original 150 ,000 -byte budget. This is the same CMP configuration and protocol in both tables; only the data budget differs, and we report the number from the budget that makes the three-way comparison genuinely matched rather than defaulting to whichever figure was more favorable. CMP forgets approximately 15–19 × less than EWC and naive fine-tuning respectively, on an identical, matched-capacity, matched-budget comparison. This is the paper’s central quantitative claim. A single domain ordering, however, is not enough to trust that claim; the next question is whether it survives a different one. 16 4.5 Domain-order control 
+
+Question: is the forgetting-resistance result specific to the one domain order we happened to test first? 
+
+This control uses a 5-domain subset (wiki, cpython, shakespeare, kjv, reuters) of the 15-domain main protocol, not the full sequence: reordering all 15 domains across 3 conditions was not computationally tractable within this study, so we test order-sensitivity on a smaller, fully-crossed subset instead and report it as a bound on the effect, not a claim about the full 15-domain ordering.                                   
+
+> Table 4: Domain-order sensitivity, matched 150 ,000 -byte budget.
+> Order Sequence BWT
+> Canonical wiki →cpython →shakespeare →kjv →reuters +0 .2353
+> Reverse reuters →kjv →shakespeare →cpython →wiki +0 .4442
+> Shuffled shakespeare →wiki →reuters →cpython →kjv +0 .3343
+
+We report this honestly rather than omit it: order matters. 
+
+The canonical ordering is the best case among the three tested, not representative. We therefore report CMP’s BWT as a range, +0 .24 to +0 .44 , rather than the single canonical figure. Even the worst tested ordering still outperforms EWC ( +2 .2457 ) by roughly 5×. We note explicitly that three orderings are a sample, not an exhaustive sweep: five domains admit 5! = 120 possible orderings, and the true worst case could fall outside the range reported here; we have not searched for it. 17 Figure 5: BPB matrix, seed 44, 15 domains; lower/greener is better retained. Note the persistently high (red) cpython column: this domain is retained worse than others across the sequence. 
+
+Every result to this point is text. The last open question is whether any of this is specific to text, or whether it is a property of the mechanism that shows up outside it too. 
+
+## 4.6 Vision anchor: Split-MNIST 
+
+Question: does the forgetting-resistance mechanism generalize outside text at all? 
+
+To test generalization beyond text on a recognized benchmark, we serialize MNIST digits via a Hilbert curve into the literature-standard 5-task split ( 0/1 → 2/3 → 4/5 → 6/7 → 8/9).                  
+
+> Table 5: Split-MNIST (5-task), Hilbert-serialized, dense vs. sparse (weight-protect), mean ±std across 3 seeds (42, 43, 44).
+> Condition BWT FWT
+> Dense (base) −0.0211 ±0.0004 −0.0669 ±0.0013
+> Sparse (weight-protect) −0.0207 ±0.0003 −0.0666 ±0.0013
+
+We report this as a null result, not a success. 
+
+Sparse and dense conditions are nearly identical, and now that we have replicated across three seeds (42, 43, 44) the two conditions’ BWT confidence intervals overlap: the difference is within noise, not a real effect. We deliberately do not claim these are “statistically indistinguishable” in the formal 18 sense: we have not run a significance test, only a 3-seed mean and standard deviation. We do not use this result to support the forgetting-resistance claim; we include it because disclosing a negative result on a recognized benchmark is more informative than omitting it. This table reports BPB, not classification accuracy, and is therefore not directly comparable to published Split-MNIST accuracy figures for EWC ( ∼20%), SI ( ∼33%), or replay-based methods ( ∼90%+). 
+
+# 5 Discussion and Limitations 
+
+Accuracy gap. 
+
+CMP’s raw single-domain BPB (3.1–3.27) trails a properly-trained Transformer of matched size by a wide margin. This paper’s claim is about the forgetting axis, not raw predictive competitiveness. No non-attention architecture (Mamba, RWKV, RetNet, xLSTM) has cleanly beaten Transformers on short-context accuracy at matched parameters either; a real accuracy gap alongside a real, different contribution is not without precedent. 
+
+Order sensitivity. 
+
+BWT ranges +0 .24 to +0 .44 across three domain orderings, with canonical being the best case, not the average. We report the range throughout. Three orderings are a sample of 5! = 120 possible sequences, not an exhaustive sweep; the true worst case may fall outside this range. 
+
+Online EWC, not vanilla EWC. 
+
+Our baseline uses a single running Fisher estimate and anchor [ 14 ] rather than per-task Fisher accumulation [3], chosen for tractability, disclosed explicitly. 
+
+Custom corpus. 
+
+The 15-domain sequence is self-assembled, not a standardized benchmark. The BWT/FWT formulation is established and published; the underlying data is not. 
+
+Vision anchor is a null result. 
+
+No measurable advantage of weight-protect over the base configuration on Split-MNIST, replicated across 3 seeds (42, 43, 44); the dense and sparse BWT means sit within one standard deviation of each other. We do not claim vision generality from this experiment. 
+
+Binding math is not novel. 
+
+The binding operation and memory mechanism are established VSA/associative-memory techniques, not new mathematics. The contribution is the specific combination and the gradient-free plasticity throttle (Eq. 9–10), and the empirical demonstration of a forgetting-resistance property, not a novel mathematical result. 19 Depth is a promising, unresolved direction. 
+
+A separate architecture line reaches substantially lower single-domain BPB (Appendix C). An attempted merge underperformed the flagship configuration (Appendix D); reported as a negative result with a diagnosed, plausible cause, not a closed question. 
+
+# 6 Conclusion 
+
+We tested a narrow, falsifiable claim: that local, sparse, gradient-free learning resists catastrophic forgetting for structural reasons, not merely when patched with a mechanism like EWC. Across three seeds, a matched-size Transformer baseline, and a domain-order control, CMP shows 15–19 ×
+
+less backward transfer than online EWC on a controlled domain-incremental protocol. We reported this alongside what does not yet work: a substantial accuracy gap, a null result on Split-MNIST, and a diagnosed failure attempting to combine this architecture with a separate mechanism that improves raw accuracy but has never been tested for forgetting resistance. Closing that gap and a proper scaling-law derivation are the two most direct next steps, both left explicitly open rather than claimed here. 
+
+# Appendix 
+
+## A Hyperparameters                       
+
+> Table 6: Full hyperparameters for the flagship configuration.
+> Parameter Value
+> Representation dimension r1024 (main result) Batch size / Sequence length 64 / 256 Steps per domain 6000 Data budget per domain 150 ,000 B (Section 4.5) / 3,800 ,000 B (Section 4.4) Learning rate η0.12 Weight-protect strength λ5.0 Sparsity k/ buffer / register Derived from rat fixed ratio ( 64 /64 /256 at r= 1024 )
+
+## B Per-domain accuracy audit 
+
+Full per-domain, per-seed BPB vs. bigram floor for the 15-domain flagship runs (seeds 42, 43, 44) is available in the released result files; every domain, every seed, beats the bigram floor with margins 
+
++0 .41 to +1 .22 BPB. 
+
+## C Historical depth-line result 
+
+A separate architecture line (stacked, learned multiplicative binding blocks, no memory system, no continual-learning apparatus, pure local one-hop credit) reaches 2.49–2.51 BPB on single-domain byte prediction at 4 blocks, 3-seed replicated, with a shuffled-deepest-block control confirming the 20 gain is causal rather than incidental capacity. This result predates the present architecture and was never integrated with it prior to the attempt described below. 
+
+## D Depth+hierarchy merge attempt (negative result) 
+
+We attempted to combine the depth-line mechanism (Appendix C) with the present flagship architecture, replacing the single byte-level bind with a 4-block stack feeding into hierarchy and memory unchanged. The result underperformed the flagship baseline (3.48 vs. 3.27 BPB at matched steps). Our diagnosis: the depth-line’s blocks use plain normalization (no kWTA sparsification), while the memory system and every downstream term assume a sparse code; feeding memory retrieval a dense vector likely degraded slot-matching quality. A secondary contributing factor is signal dilution: seven or more readout terms competing for the same global error signal. We report this as a diagnosed negative result and a concrete direction for future work, not a dead end. 
+
+## E Preliminary scale probe 
+
+At the original 150 ,000 -byte data budget, a 5× parameter increase ( 1024 → 2600 representation dimension, 6.4M → 29.8M parameters) produced negligible improvement, traced to 728 × data repetition starving the larger model of new information. At a corrected, matched 3.8M-byte budget, the same comparison (BWT +0 .1482 at 6.4M vs. +0 .1397 at 29.8M parameters) shows a real but modest improvement from scale once the data bottleneck is removed, substantially smaller than the improvement from fixing the data budget alone. This is explicitly a preliminary probe, not a scaling-law derivation; a proper grid sweep is left to future work. 
+
+## Code and Data Availability. 
+
+The domain-incremental text corpus is self-assembled from public-domain and open-source sources (Section 4.1); the Split-MNIST serialization uses the standard MNIST dataset. The training and evaluation code is not publicly released at this time; it is available to researchers on reasonable request to the authors. 
+
+## Acknowledgments. 
+
+We thank the Google for Startups Cloud Program for compute credits that supported the experiments in this paper, run on NVIDIA A100, T4, and L4 GPUs. We thank Arjit Saxena, founder of Resolute Labs, for mentorship and guidance. 
+
+# References 
+
+[1] Albert Gu and Tri Dao. Mamba: Linear-time sequence modeling with selective state spaces. 
+
+arXiv preprint arXiv:2312.00752 , 2023. [2] Pentti Kanerva. Sparse Distributed Memory . MIT Press, 1988. [3] James Kirkpatrick, Razvan Pascanu, Neil Rabinowitz, Joel Veness, Guillaume Desjardins, Andrei A. Rusu, Kieran Milan, John Quan, Tiago Ramalho, Agnieszka Grabska-Barwinska, 21 Demis Hassabis, Claudia Clopath, Dharshan Kumaran, and Raia Hadsell. Overcoming catas-trophic forgetting in neural networks. Proceedings of the National Academy of Sciences , 114 (13):3521–3526, 2017. [4] David Lopez-Paz and Marc’Aurelio Ranzato. Gradient episodic memory for continual learning. In Advances in Neural Information Processing Systems (NeurIPS) , 2017. [5] James L. McClelland, Bruce L. McNaughton, and Randall C. O’Reilly. Why there are complementary learning systems in the hippocampus and neocortex: Insights from the successes and failures of connectionist models of learning and memory. Psychological Review , 102(3): 419–457, 1995. [6] Bruno A. Olshausen and David J. Field. Emergence of simple-cell receptive field properties by learning a sparse code for natural images. Nature , 381:607–609, 1996. [7] Artidoro Pagnoni, Ram Pasunuru, Pedro Rodriguez, John Nguyen, Benjamin Muller, Margaret Li, Chunting Zhou, Lili Yu, Jason Weston, Luke Zettlemoyer, Gargi Ghosh, Mike Lewis, Ari Holtzman, and Srinivasan Iyer. Byte latent transformer: Patches scale better than tokens. In Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (ACL), Volume 1: Long Papers , pages 9238–9258, 2025. [8] Tony A. Plate. Holographic reduced representations. IEEE Transactions on Neural Networks ,6(3):623–641, 1995. [9] Jordan B. Pollack. Recursive distributed representations. Artificial Intelligence , 46:77–105, 1990. [10] Hubert Ramsauer, Bernhard Schäfl, Johannes Lehner, Philipp Seidl, Michael Widrich, Thomas Adler, Lukas Gruber, Markus Holzleitner, Milena Pavlović, Geir Kjetil Sandve, Victor Greiff, David Kreil, Michael Kopp, Günter Klambauer, Johannes Brandstetter, and Sepp Hochreiter. Hopfield networks is all you need. In International Conference on Learning Representations (ICLR) , 2021. arXiv:2008.02217. [11] Rajesh P. N. Rao and Dana H. Ballard. Predictive coding in the visual cortex: A functional interpretation of some extra-classical receptive-field effects. Nature Neuroscience , 2:79–87, 1999. [12] Sylvestre-Alvise Rebuffi, Alexander Kolesnikov, Georg Sperl, and Christoph H. Lampert. icarl: Incremental classifier and representation learning. In IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , pages 5533–5542, 2017. [13] Andrei A. Rusu, Neil C. Rabinowitz, Guillaume Desjardins, Hubert Soyer, James Kirkpatrick, Koray Kavukcuoglu, Razvan Pascanu, and Raia Hadsell. Progressive neural networks. arXiv preprint arXiv:1606.04671 , 2016. [14] Jonathan Schwarz, Wojciech Czarnecki, Jelena Luketina, Agnieszka Grabska-Barwinska, Yee Whye Teh, Razvan Pascanu, and Raia Hadsell. Progress & compress: A scalable framework for continual learning. In Proceedings of the 35th International Conference on Machine Learning (ICML) , pages 4528–4537, 2018. 22 [15] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in Neural Information Processing Systems (NeurIPS) , 2017. [16] James C. R. Whittington and Rafal Bogacz. An approximation of the error backpropagation algorithm in a predictive coding network with local hebbian synaptic plasticity. Neural Computation , 29(5):1229–1262, 2017. [17] Friedemann Zenke, Ben Poole, and Surya Ganguli. Continual learning through synaptic intelligence. In Proceedings of the 34th International Conference on Machine Learning (ICML) ,pages 3987–3995, 2017. 23
