@@ -1,0 +1,736 @@
+Title: Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention
+
+URL Source: https://arxiv.org/pdf/2607.18759v1
+
+Published Time: Wed, 22 Jul 2026 00:33:33 GMT
+
+Number of Pages: 16
+
+Markdown Content:
+# RELATIVE POSITIONS GENERALIZE , A BSOLUTE POSITIONS 
+
+# MEMORIZE :AN IMPLICIT -B IAS ACCOUNT OF LENGTH GENERALIZATION IN 
+
+# ATTENTION 
+
+A P REPRINT 
+
+Subham Singh 1, Ashutosh Mishra 2, Subha Raut 11Department of Mathematics and Statistics, Mississippi State University 
+
+> 2
+
+Independent Researcher ss4707@msstate.edu, ashutoshm1771@gmail.com, sr2120@msstate.edu 
+
+# ABSTRACT 
+
+Transformers with relative positional encodings often extrapolate to sequences longer than those seen during training, whereas transformers with learned absolute encodings typically do not. This is a robust empirical regularity, and the explanations offered for it so far are chiefly about expressivity ,that is, about whether a length-generalizing solution exists. We give an optimization explanation. On a minimal fixed-offset retrieval task that isolates positional selection, the gap is governed by the implicit bias of the trained attention head: among the many solutions that fit short sequences, which one gradient descent actually selects. We prove that rotary encodings make the attention logit a function of relative offset alone, an exact equivariance, so whatever selection rule is learned at training lengths is reproduced verbatim at every longer length. Learned absolute encodings instead leave out-of-range positions unconstrained, and the trained head pins to a fixed absolute position inside the training range. We characterize the learned rotary rule as a low-rank “carrier” kernel aligned with the target offset, and we derive the resulting graceful accuracy decay as an attention-dilution law; both predictions are confirmed across seeds and offsets. A linear-attention control shows the mechanism is specific to softmax: without normalization, training selects a min-norm interpolant that does not extrapolate. The phenomenon, the equivariance, and the carrier all transfer to a multi-layer, multi-head transformer trained on a full-sequence length-generalization task. The account connects the implicit bias of attention, implicit bias for extrapolation in recurrent models, and the learning side of the RASP-L conjecture. 
+
+# 1 Introduction 
+
+Length generalization, the ability to train on short sequences and succeed on longer ones, is a basic requirement for sequence models and a longstanding puzzle [Anil et al., 2022, Delétang et al., 2023]. One finding recurs across tasks and architectures: the positional encoding matters, and relative schemes extrapolate far better than learned absolute encodings [Press et al., 2022, Kazemnejad et al., 2023, Jelassi et al., 2023]. The prevailing explanations are about 
+
+expressivity . The RASP-L conjecture [Zhou et al., 2024a] and the formal-language framework of Huang et al. [2025] characterize whether a length-generalizing solution exists , or whether it is identifiable from the training distribution. Existence, however, is not selection. Among the many parameter settings that fit the training lengths, gradient descent picks one, and whether that one generalizes is an optimization question this literature leaves open. Indeed, the RASP-L conjecture is itself implicitly a claim about what training learns , supported empirically rather than explained. We address this optimization question on a task small enough to analyze exactly and run exhaustively, studying the implicit bias of a single trained attention head: which solution training selects, and how the positional encoding shapes that selection. arXiv:2607.18759v1 [cs.LG] 21 Jul 2026 Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Table 1: Accuracy by length ( K=1 , mean over 8 seeds). Lengths L ≤ 16 are in distribution. Chance is 0.05 .                     
+
+> L12 16 20 24 32 40 48 RoPE 1.00 1.00 1.00 1.00 0.96 0.91 0.83
+> APE 1.00 1.00 0.09 0.07 0.08 0.07 0.07
+
+The phenomenon (Section 3). Consider a fixed-offset retrieval task: attend to the token a fixed number of positions before the query and copy it. A one-layer head with rotary encoding (RoPE) keeps near-perfect accuracy well beyond the training-length range. The same head with a learned absolute encoding (APE) collapses to near-chance accuracy the moment it encounters an unseen length. 
+
+Contributions. 
+
+1. The phenomenon at minimal scale. We isolate the relative-versus-absolute gap in a one-layer, single-head model on a task with a single optimal token, the regime in which the attention-SVM characterization of implicit bias [Tarzanagh et al., 2023] applies (Sections 2–3). 2. Transfer is exact equivariance (Lemma 1). The RoPE logit depends on positions only through their relative offset, so the selected offset is length-invariant. Empirically the selected offset equals the target in 100% of seed ×length cells. 3. The selected rule is a target-aligned carrier (Lemma 2), and accuracy decays by dilution (Corollary 2). 
+
+Trained query and key representations share a dominant direction, pre-rotated to the target offset, which yields a relative kernel peaked at the target; softmax over a growing context then forces an inverse-linear decay of the target’s attention weight. Both effects are confirmed across seeds and offsets K ∈ { 2, 3}. Removing softmax normalization removes the mechanism: trained linear attention solves the task in distribution by min-norm interpolation and does not extrapolate (Section 7). 4. Absolute encodings are position-pinned (Proposition 2). As a negative control, we show the trained APE head selects a fixed absolute position inside the training range, so it misses the target outside that range. 5. The mechanism is not a one-layer artifact (Section 5.2). In a two-layer, four-head transformer with MLP and LayerNorm trained on a full-sequence shift task, all three findings transfer: RoPE generalizes while APE degrades out of range, the RoPE head remains offset-equivariant out of distribution while the APE head pins, and it carries a strong target carrier ( 0.98 versus a 0.02 baseline). 
+
+# 2 Setup 
+
+Task. The vocabulary is V = {1, . . . , m }, and a length-L sequence s0, . . . , s L−1 consists of i.i.d. uniform tokens. The query is the last position, and the target is the token a fixed offset K earlier: y = sL−1−K . Training lengths are drawn from [Lmin , L max ]; evaluation uses lengths L′ > L max . The task therefore isolates a purely positional selection problem with a single optimal token. 
+
+Model. We use one layer and a single head, with the query taken from the last position and no MLP. With token embeddings xt = E(st) ∈ Rd and projections WQ, W K , W V , the logit between the query position n = L − 1 and key position t is ℓt = q⊤kt/√d. We compare APE , which adds learned position vectors ( zt = xt + pt, q = WQzn,
+
+kt = WK zt), with RoPE , which applies block-diagonal rotations Rt built from 2 × 2 blocks Rot( tθ i) on each coordinate pair i (q = RnWQxn, kt = RtWK xt). The output is o = P 
+
+> t
+
+softmax( ℓ)tvt with prediction ˆy = U o .
+
+Background. Tarzanagh et al. [2023] show that, under strictly decreasing losses with vanishing regularization, the key–query product converges in direction to a max-margin solution that separates the optimal token from the rest. We study the positional structure of that selected solution. 
+
+# 3 The Phenomenon: Relative Generalizes, Absolute Collapses 
+
+Figure 1 and Table 1 report the separation. RoPE accuracy moves from 1.00 to 0.83 as L grows from 12 to 48 , whereas APE is at 1.00 in range and near 0.07 (chance is 0.05 ) out of range. The same separation holds at K = 2 and K = 3 
+
+(Section 5). The rest of the paper explains the success, its graceful erosion, and the failure. 2Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Figure 1: Multi-seed ( n=8 ) results at K=1 . Left: accuracy versus length; RoPE stays high past the training range (dotted line) while APE drops to near chance (dashed line). Middle: the RoPE peak attention height decays gracefully. 
+
+Right: the selected peak offset is flat at −K for RoPE and diverges for APE. 
+
+# 4 An Implicit-Bias Analysis 
+
+4.1 Rotary Attention Is Offset-Equivariant Lemma 1 (Equivariance) . For any WQ, W K , the RoPE logit between a query at position n and a key at position t
+
+depends on (n, t ) only through the relative offset δ = t − n: √d ℓ t = x⊤ 
+
+> n
+
+W ⊤ 
+
+> Q
+
+Rδ WK xt =: Φ( δ; xn, x t).
+
+Proof. Rt is block-diagonal with blocks Rot( tθ i). Since Rot( α)⊤Rot( β) = Rot( β−α) blockwise, we have R⊤ 
+
+> n
+
+Rt =
+
+Rt−n, and therefore √d ℓ t = ( RnWQxn)⊤(RtWK xt) = x⊤ 
+
+> n
+
+W ⊤ 
+
+> Q
+
+R⊤ 
+
+> n
+
+RtWK xt = x⊤ 
+
+> n
+
+W ⊤ 
+
+> Q
+
+Rt−nWK xt.The relative dependence in Lemma 1 is the design property of rotary encodings [Su et al., 2024]; we state it because the length-invariance it yields (Corollary 1) grounds the account. 
+
+Corollary 1 (Rule transfer) . The score profile Φ carries no dependence on sequence length, so the offset that max-imizes it is the same at every length at which that offset is available, provided no newly available offset attains a larger value. Under Assumption 1 below, the expected profile is globally maximized at δ = −K (Lemma 2), so for the fixed-offset task the selected offset is −K independent of L.
+
+Empirically (Fig. 1, right; Section 5) the selected offset equals −K in 100% of seed ×length cells with zero variance, as expected for a structural identity. The invariance requires no assumption about the data or training and is what makes length generalization possible at all. 
+
+4.2 The Selected Solution Is a Target-Aligned Carrier Assumption 1 (Shared carrier) . There exist a unit vector u and a scalar ρ > 0 such that WK xt = ρu + ξt and 
+
+WQxn = ρR −K u + ξ′
+
+> n
+
+, where the content residuals satisfy E[ξt] = E[ξ′
+
+> n
+
+] = 0 and ξt ⊥ u.
+
+Lemma 2 (Target-aligned selection) . Under Assumption 1, the content-averaged score profile over keys t̸ = n (offsets 
+
+δ ≤ − 1) is 
+
+ϕ(δ) := E
+
+h√d ℓ t | δ
+
+i
+
+= m⊤
+
+> Q
+
+Rδ mK = ρ2 g(δ + K),g(s) = 
+
+> d/ 2
+
+X
+
+> i=1
+
+pi cos( sθ i),
+
+with mK = ρu , mQ = ρR −K u, and pair energies pi = u22i−1 + u22i ≥ 0, P 
+
+> i
+
+pi = 1 . Then g(s) ≤ g(0) = 1 , so ϕ
+
+is maximized at δ = −K. If, moreover, no nonzero integer s in the evaluated offset range satisfies sθ i ∈ 2πZ for all i
+
+with pi > 0, the maximizer is unique. Proof. For t̸ = n the tokens xn and xt are independent, so E[√d ℓ t] = E[WQxn]⊤Rδ E[WK xt] = m⊤
+
+> Q
+
+Rδ mK ,using that the residuals are mean-zero. Hence ϕ(δ) = ρ2(R−K u)⊤Rδ u = ρ2u⊤RK Rδ u = ρ2u⊤Rδ+K u, where 3Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+R⊤−K = RK and RK Rδ = Rδ+K . By the block structure, u⊤Rsu = P
+
+> i
+
+(u2i−1, u 2i)Rot( sθ i)( u2i−1, u 2i)⊤ =
+
+P
+
+> i
+
+(u22i−1 + u22i) cos( sθ i) = g(s). Since P 
+
+> i
+
+pi = ∥u∥2 = 1 and cos ≤ 1, we get g(s) ≤ 1 with equality iff 
+
+cos( sθ i) = 1 for every i with pi > 0, that is, iff sθ i ∈ 2πZ for all such i. Setting s = δ + K completes the proof. Lemma 2 shows the carrier is sufficient to select the target. A converse holds: only the carrier geometry places the profile’s largest attainable value on the target, which turns Assumption 1 from a convenience into a structural fact. 
+
+Proposition 1 (Necessity of the carrier) . For any WQ, W K , the content-averaged logit equals the carrier profile, 
+
+E[√d ℓ t | δ] = m⊤
+
+> Q
+
+Rδ mK = P 
+
+> i
+
+ri cos( δθ i − ψi),
+
+with mQ = E[WQxn], mK = E[WK xt], and ri ≥ 0, ψ i the energy and phase gap of the ith rotary pair of (mQ, m K );the content-dependent remainder is mean-zero. This profile attains its global maximum P 
+
+> i
+
+ri at the target offset 
+
+δ = −K if and only if ψi = −Kθ i for every pair with ri > 0, that is, iff mQ and R−K mK are pairwise phase-aligned. Any misalignment leaves the target strictly below P 
+
+> i
+
+ri and forfeits Lemma 2’s length-uniform guarantee that no competing offset overtakes it; in this sense the geometry of Assumption 1 is forced, not a modeling convenience (proof in the supplement). Remark 1. The residual ξ has zero mean, so it does not shift the argmax of the expected profile; under E[ξξ ⊤] = 
+
+σ2(I − uu ⊤) it contributes only an offset-independent variance term. The excluded diagonal offset δ = 0 compares the query token with itself, and its logit carries an additional content-covariance term E[ξ′⊤  
+
+> n
+
+ξn]; this term is what suppresses self-attention in the K=1 case discussed in Section 7. The empirical carrier fractions reported below show that the carrier term dominates in practice. 
+
+Empirical support. The carrier energy ∥mean ∥2/E∥proj ∥2 is 0.69 /0.68 at K=1 , 0.82 /0.86 at K=2 , and 0.80 /0.86 
+
+at K=3 (keys/queries), against a no-shared-direction baseline of 1/d = 0 .016 , and the carrier-only profile peaks at exactly −K for K ∈ { 2, 3} (Fig. 3). The carriers are pre-rotated to the target by exactly the amount Lemma 2 predicts: cos( mQ, R −K mK ) = 0 .62 , 0.83 , 0.87 for K = 1 , 2, 3, while the unrotated alignment cos( mQ, m K ) = 0.71 , 0.07 , −0.40 falls off as K grows. At K=1 the target adjoins the query’s own position and the carriers are near-parallel ( cos( mQ, m K ) = 0 .71 , profile peak at 0), a special case we characterize separately (Section 7). 
+
+4.3 Attention Dilution Explains the Accuracy Decay Corollary 2 (Decay law) . Let ∆L = {− (L−1) , . . . , 0} and let μ := min δ∈∆L, δ ̸ =−K
+
+ ϕ(−K) − ϕ(δ) > 0 be the profile margin. The target attention weight a⋆(L) = eϕ(−K)/ P 
+
+> δ∈∆L
+
+eϕ(δ) satisfies 
+
+a⋆(L) = 11 + ( L − 1) ¯ rL
+
+≥ 11 + ( L − 1) e−μ ,
+
+where ¯rL is the average of eϕ(δ)−ϕ(−K) over the L − 1 non-target offsets, and a⋆(L) is strictly decreasing in L.Proof. Dividing numerator and denominator by eϕ(−K) gives a⋆(L) = 1 /(1 + P  
+
+> δ̸=−K
+
+eϕ(δ)−ϕ(−K)), which is the stated exact form; each of the L − 1 non-target terms is at most e−μ, which gives the bound. Increasing L by one adds a positive term to the denominator, so a⋆ strictly decreases. Because the kernel tail flattens at far offsets, the average suppression factor ¯rL is nearly length-independent in practice, so a⋆(L) is well described by the two-parameter form 1/(α + c(L − 1)) with fitted constants. Least-squares fits of 
+
+1/a ⋆ against L − 1 give R2 = 0 .914 , 0.926 , 0.943 for K = 1 , 2, 3, with α near 1 for K ≥ 2 (Table 2). The peak 
+
+location is fixed by Lemma 1 while the peak height erodes by Corollary 2; this is the two-part structure of Fig. 1. The analysis treats per-sequence logits through their mean profile ϕ, which the high carrier fraction justifies. 
+
+4.4 Negative Control: Absolute Encodings Are Position-Pinned Proposition 2 (Position pinning) . Under APE the logit is proportional to (xn + pn)⊤W (xt + pt) with W = W ⊤ 
+
+> Q
+
+WK
+
+and n = L − 1. Suppose training lengths never exceed Lmax , so only {p0, . . . , p Lmax −1} enter the training loss, and suppose the position embeddings are optimized with weight decay λ ≥ 0. Then: (i) the loss is independent of 
+
+{pj : j ≥ Lmax }, so each such pj receives zero gradient at every step; it remains at its random initialization if λ = 0 
+
+and decays geometrically toward 0 if λ > 0. (ii) In either case, pj for j ≥ Lmax is statistically independent of the task and encodes nothing about the target offset. (iii) At any test length L′ > L max + K, both the query embedding pL′−1
+
+and the target-key embedding pL′−1−K are untrained. The target’s logit therefore contains no learned positional term 
+
+4Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Figure 2: Double dissociation. RoPE attention collapses onto a single profile in relative coordinates (left column); APE attention collapses in absolute coordinates (right column) and misses the target offset out of distribution. 
+
+that selects it, and any position the head does prefer is fixed by training and does not track the target as L′ varies, so the two can coincide only by chance. Proof. Training sequences occupy positions in {0, . . . , L max − 1}, so pj with j ≥ Lmax never enters a forward pass and ∂L/∂p j = 0 identically. Under (stochastic) gradient descent with weight decay, the update for such pj is 
+
+pj ← (1 − ηλ )pj , which proves (i), and (ii) is immediate. For (iii), note L′ − 1 > L ′ − 1 − K ≥ Lmax , so the target logit (xn′ + pL′−1)⊤W (xL′−1−K + pL′−1−K ), with n′ = L′ − 1 the test query position, involves positional vectors that are either zero or independent of the task. Conditional on training, the logits at untrained key positions are therefore exchangeable in distribution, over the i.i.d. tokens and, when λ = 0 , the task-independent initialization draws, so no untrained position, the target included, is systematically favored. 
+
+Remark 2. The failure depends on the out-of-range coordinates being untrained , not on their magnitude. Empirically (Section 5), out-of-range ∥pj ∥ stay at initialization for λ = 0 and vanish for λ > 0, and the near-chance OOD accuracy is unchanged across λ ∈ { 0, 10 −4, 10 −2}. The pin location does depend on the regularization: it concentrates near 
+
+Lmax − 1 − K under ridge and is lower and more variable without it, but the failure itself persists. Interpolating or rescaling the trained position table also fails to recover accuracy. Consistent with this reading, randomizing position indices during training so that indices beyond Lmax are also trained is known to restore length generalization [Ruoss et al., 2023]; it removes precisely the untrained-coordinate failure formalized here. For the same reason, Kazemne-jad et al. [2023] adopt sinusoidal rather than learned absolute encodings, since the learnable variant cannot produce embeddings for unseen positions; the learned-APE collapse we study is that failure made precise, whereas their fixed encodings are defined at every position and degrade more gently instead of dropping to chance. Empirically, APE accuracy out of range is near chance, and all evaluated OOD lengths satisfy L′ > L max + K. We claim position pinning, not a specific index: without weight decay the pin lies inside the trained range and varies across seeds, while under ridge it tightens toward Lmax − 1 − K (Section 5). 
+
+# 5 Experiments 
+
+Architecture and task. One layer, one head, d = 64 , vocabulary size m = 20 , no MLP or layer normalization; the query is taken from the last position; softmax attention; linear readout U ∈ Rm×d. RoPE uses base 10 4; APE 5Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Figure 3: Validation of Lemma 2 and Corollary 2 (RoPE, K=3 , 5 seeds). Left: the carrier-only profile peaks at −K.
+
+Right: fit of 1/(α + c(L−1)) to the peak-height decay. Table 2: Validation across offsets ( 5 seeds): key/query carrier fractions versus the 1/d = 0 .016 baseline, carrier-only profile peak, and decay-law fit. At K=1 the carrier peak sits at the adjacent offset 0 (Section 7). Equivariance: selected offset = −K in 100% of cells for all K.                         
+
+> Kkey frac query frac carrier peak αcR2
+> 10.69 0.68 0(adj.) 0.82 0.0220 0.914
+> 20.82 0.86 −21.06 0.0067 0.926
+> 30.80 0.86 −31.00 0.0096 0.943
+
+uses a learned position embedding. We train on fixed-offset retrieval with K ∈ { 1, 2, 3} and lengths uniform in 
+
+[Lmin , L max ] = [8 , 16] .
+
+Training and evaluation. Adam with learning rate 10 −3, batch size 256 , 4000 steps, cross-entropy loss. We use 
+
+8 seeds for the phenomenon (Fig. 1, Table 1) and 5 seeds for the validation study (Table 2, Figs. 2–3). Evaluation lengths are {12 , 16 , 20 , 24 , 32 , 40 , 48 }, with accuracy computed over 4096 sequences and attention probes averaged over 4096 sequences; peak height is the maximum over positions of the mean attention. 
+
+Metrics. (i) accuracy; (ii) selected peak offset (argmax of mean attention relative to the query); (iii) carrier energy 
+
+∥mean ∥2/E∥proj ∥2 of projected keys and queries; (iv) the carrier-only profile ϕc(δ) = m⊤
+
+> Q
+
+Rδ mK ; (v) the decay fit, linear least squares of 1/a ⋆ on L − 1.
+
+Compute. All experiments run on CPU; no GPU is required. Seeds are fixed to 0, . . . , n − 1, and our code, a single script with one subcommand per experiment, will be released. 
+
+Robustness and mechanism checks. Figure 4 summarizes additional controls, with the full sweeps in the supple-ment. The carrier and the rank concentration of W co-emerge within a few hundred steps and then plateau, matching the low-rank attention-as-SVM prediction, and the measured margin μ gives a valid but loose bound 1/(1+( L−1) e−μ)
+
+on the target weight. The carrier fraction holds in 0.72 –0.86 across widths d ∈ { 32 , 64 , 128 }, vocabulary sizes 
+
+{10 , 20 , 40 }, length ranges, and softmax temperatures, while the dilution rate c falls with width as wider models sharpen the kernel. On the APE side the failure survives weight decay λ ∈ { 0, 10 −4, 10 −2}, and inference-time fixes (table interpolation, clamp-to-last, index rescaling) all leave accuracy at chance. The mechanism is likewise robust to the rotary base (OOD accuracy 1.00 /1.00 /0.97 for base ∈ { 10 3, 10 4, 10 5}, selecting −K throughout), and the kernel 
+
+g(s) = P 
+
+> j
+
+cos( sθ j ) has a unique integer maximum at s = 0 (max s≥4 g(s)/g (0) ≈ 0.67 –0.79 ), so the uniqueness condition of Lemma 2 holds in practice. 6Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Figure 4: Mechanism and robustness controls. Left: the measured-margin lower bound versus observed target atten-tion (valid but loose). Middle: the carrier fraction and top-1 singular-value energy of W emerge together early and plateau. Right: APE pin location versus weight decay; OOD accuracy stays near chance throughout. 
+
+Figure 5: Left: OOD accuracy ( L=48 ) by relative-PE scheme and offset. ALiBi solves K=1 but fails at K=2 ; T5 and RoPE select both offsets, T5 with faster decay. Right: content-conditioned retrieval; a single head ( H=1 ) already solves it in distribution. 
+
+5.1 Other Relative Schemes and Content-Conditioned Selection The account generalizes across relative schemes. We repeat the fixed-offset experiment with ALiBi [Press et al., 2022], a monotonic distance bias, and a T5-style learned per-offset bias (Fig. 5). All three are offset-equivariant (Lemma 1 holds for any logit depending only on t − n), so all three transfer their rule, and they differ on the two axes the account predicts. Capacity : ALiBi solves K=1 (accuracy ≈ 0.97 ) but fails at K=2 (0.11 –0.13 , chance 0.05 ), selecting −1 because a fixed locality bias cannot isolate a non-adjacent offset; the learnable T5 and RoPE select any 
+
+K. Dilution : T5 decays faster ( 1.00 to 0.44 ) as far positions share its clamped bucket bias, whereas RoPE stays at 
+
+1.00 . Offset selection plus dilution is the shared mechanism, capacity and dilution rate the scheme-dependent factors. 
+
+Larger offsets and content-conditioned selection. The carrier persists at larger offsets: the carrier-only profile peaks at exactly −K for K ∈ { 2, 3, 4, 5}. We also test a content-conditioned task in which a mode token at the query chooses which of two offsets ( K0=1 or K1=3 ) to retrieve. A single head solves it in distribution ( 1.00 ), and its mode-conditioned carrier splits as predicted, peaking at −3 for mode 1 and at 0 for mode 0 (the K=1 adjacency of Section 7). The mechanism thus extends to data-dependent selection: the query content picks the rotation alignment, and the residual term is signal, not noise around a fixed offset. 
+
+5.2 Bridging to a Realistic Architecture 
+
+To test whether the mechanism is an artifact of the one-layer setting, we train a decoder-only transformer with two layers, four heads, an MLP, and LayerNorm on a full-sequence fixed-shift task, out [i] = in [i−K] at every position, with content tokens drawn from a small vocabulary so that the map is purely positional. All three findings transfer (Fig. 6). The phenomenon reproduces: RoPE keeps 1.00 accuracy out to L=48 after training on lengths at most 16 ,while APE falls to 0.37 . The APE decline is position pinning read per token: it stays accurate at trained positions and 7Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Figure 6: The mechanism in a 2-layer, 4-head transformer with MLP and LayerNorm on a full-sequence shift task (out [i] = in [i−K], K=3 ), trained on lengths ≤ 16 . Left: RoPE generalizes to L=48 (1.00 ) while learned APE degrades out of range ( 0.66 /0.51 /0.37 ). Middle: the RoPE shift head’s offset profile coincides at L=16 and L=48 
+
+and peaks at −K, preserving equivariance. Right: the APE head peaks at −K in range but smears toward chance at 
+
+L=48 .drops to chance beyond Lmax , so per-token accuracy tracks the in-range fraction ≈ Lmax /L rather than collapsing outright, exactly as Proposition 2 predicts. Equivariance holds in a real head: the shift head’s attention-versus-offset profiles at L=16 and L=48 coincide and peak at −K for RoPE, whereas the APE head’s profile smears toward chance out of range. The carrier survives depth, heads, and the MLP: the RoPE shift head’s key-input carrier fraction is 0.976 
+
+(baseline 1/d h = 0 .021 ), against 0.038 for the failing APE head. The selection mechanism is therefore not a one-layer artifact. 
+
+# 6 Related Work 
+
+Implicit bias of attention. Tarzanagh et al. [2023] characterize the direction of the key–query product as a max-margin token selector. We inherit that reduction but ask a question their analysis leaves open: what positional structure the selected solution has, and how it behaves at unseen lengths. Their result says a token is selected; we show which relative offset is selected, and that the offset transfers across lengths. 
+
+Implicit bias for extrapolation in recurrent models. Cohen-Karlik et al. [2022] show that although recurrent networks admit many interpolating solutions that fail on longer sequences, gradient descent from suitable initialization converges to solutions that extrapolate. Their analysis is tied to the recurrent parameterization and does not transfer to attention, where there is no recurrent operator and selection runs through a softmax over positional logits. Our mechanism, offset equivariance of a rotary kernel, is specific to attention with positional encoding. 
+
+Training dynamics of relative versus absolute encodings. Closest to our question, Sabbaghi et al. [2024] prove for a one-layer linear transformer trained by gradient descent with vanishing weight decay, on a translation-symmetric regression task, that a relative parameterization length-generalizes while a learned absolute one drives its out-of-range position vectors to zero and fails, the linear analogue of our Proposition 2. Their setting is softmax-free and non-rotary, whereas the mechanism we isolate, offset equivariance of the rotary kernel and the target-aligned carrier, is a property of softmax attention. Their linear relative model succeeds , whereas our linear-attention control (Section 7) shows that removing softmax destroys extrapolation once the rotary frequencies outnumber the training offsets. 
+
+Length generalization: expressivity versus selection. The RASP-L conjecture [Zhou et al., 2024a] and the formal framework of Huang et al. [2025] establish whether a length-generalizing solution exists or is identifiable, the latter specifically for learnable absolute positional encodings. We address the complementary optimization question of whether training selects such a solution, and we exhibit a task where existence holds for both encodings yet only the relative encoding’s implicit bias selects the generalizing one. 
+
+Positional encodings and in-context selection. A large empirical literature designs positional encodings for better extrapolation: rotary embeddings [Su et al., 2024], additive linear biases [Press et al., 2022], randomized position indices [Ruoss et al., 2023], task-structured position identifiers [Cho et al., 2024], and the removal of explicit encodings so that causal masking supplies position implicitly [Kazemnejad et al., 2023]. That line of work asks which scheme 8Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+extrapolates. We ask why , at the level of the solution gradient descent selects, and our account predicts the relative-over-absolute ordering rather than measuring it. Closest in spirit, Barbero et al. [2025] dissect how a trained language model uses rotary frequencies, finding positional attention patterns built from the highest frequencies; our kernel analysis characterizes how those frequencies determine selection and dilution on a task where the link can be verified exactly. The existence-versus-selection distinction also surfaces beyond length generalization: in in-context linear regression a model acts as a restricted Bayesian estimator until pretraining task diversity crosses a threshold, then implements the broader ridge solution [Raventós et al., 2023], again a capable solution representable throughout, with training deciding whether it is selected. Our ALiBi/T5/rotary comparison (Section 5.1) shows the account is not RoPE-specific. 
+
+# 7 Discussion and Limitations 
+
+The K=1 special case. For the immediate neighbor the carriers are near-parallel (kernel centered at 0) and suppress-ing the self-logit suffices, via the content covariance of Remark 1; the explicit pre-rotation appears only for K ≥ 2, so we state the mechanism claim for K ≥ 2 and treat K=1 separately. 
+
+Asymptotic selection. The attention-SVM characterization is a regularization-path or normalized-GD limit that finite-time training may not reach; our experiments bridge that gap, and we characterize the selected solution , not the trajectory. 
+
+Scope. Our analysis covers one layer, a single head, and synthetic retrieval. Natural next steps are depth with NoPE, where causal masking induces relative structure [Kazemnejad et al., 2023]; a true two-layer induction circuit [Olsson et al., 2022], where a content match rather than a query token sets the offset; and copying and arithmetic benchmarks. 
+
+Multi-head behavior and capacity. On the content-conditioned task a single head implements both offsets by query-conditioned rotation; with two heads the mode-K1 selection becomes distributed , solved at 1.00 but no longer attributable to either head’s mean carrier. Each head’s W is dominated by but not equal to one direction (top singular-value energy 0.39 –0.57 ), tempering a strict rank-one reading, and splitting width across heads raises dilution (peak attention at L=48 falls from 0.69 at H=1 to 0.30 at H=4 ) as each head carries fewer frequencies. The operative resource is the per-head frequency count; how the carrier composes across heads remains open. 
+
+Reconciling with RoPE at scale. Large rotary models degrade beyond their training window, motivating remedies such as position interpolation [Chen et al., 2023] and frequency-aware rescaling [Peng et al., 2024]. Our account separates two failure channels: equivariance transfers the selection rule but does not preserve attention mass, and the dilution law erodes the target weight at a rate set by kernel width. So the account predicts not outright success at scale but degradation by dilution, while absolute encodings fail structurally at the first unseen position, matching the fragile, seed-sensitive length generalization seen in practice [Zhou et al., 2024b]. 
+
+Softmax normalization is essential. Recasting selection as an exactly solvable linear-attention least-squares prob-lem removes the asymptotic-SVM and shared-carrier assumptions, and does not reproduce the mechanism. Trained linear attention fits the in-distribution task by a min-norm interpolation across rotary frequencies rather than a target-aligned carrier: at d=64 the carrier inner product cos( mQ, R −K mK ) stays near 0.1 and the key carrier fraction drops to 0.07 (baseline 0.016 ), against 0.83 and 0.80 under softmax. It does not extrapolate ( 0.96 in distribution, 0.07 at 
+
+L=48 , chance 0.05 , softmax 1.00 ). The reason is identifiability: the linear score profile f (δ) = P 
+
+> j
+
+Aj cos( δθ j + ψj )
+
+is constrained only at the |∆| training offsets, so for d > |∆| it is underdetermined off-support, where the min-norm interpolant is generically Θ(1) . Softmax removes this freedom: normalization couples all positions, so the target’s weight is set by the length-invariant margin μ (Corollary 2) at every L. The carrier thus appears specific to softmax; Assumption 1 (confirmed in Section 5) and the asymptotic-SVM limit remain assumptions of Lemma 2. 
+
+Why the carrier forms. Two questions separate: whether the carrier must appear, and whether gradient descent 
+
+produces it. The first is settled by Proposition 1: since the zero-mean residuals cannot move the expected argmax, content-independent selection forces the carrier geometry, so it is structural rather than incidental. The second, whether Adam on the cross-entropy loss lands on that geometry, we leave open, though the early co-emergence of the carrier and the rank concentration of W (Section 5) indicates that it does. Extending analyses of global max-margin conver-gence for the key–query product [Vasudeva et al., 2025] to positional logits and the cross-entropy readout is a natural route. 9Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+# 8 Conclusion 
+
+On a task isolating positional selection, length generalization in attention is governed by implicit bias: rotary encodings make selection offset-equivariant, so the rule transfers exactly, while absolute encodings pin to the training range. The selected rule is a target-aligned carrier whose accuracy erodes by dilution, long reported and now explained at the level of the selected solution. 
+
+# References 
+
+Cem Anil, Yuhuai Wu, Anders Andreassen, Aitor Lewkowycz, Vedant Misra, Vinay Ramasesh, Ambrose Slone, Guy Gur-Ari, Ethan Dyer, and Behnam Neyshabur. Exploring length generalization in large language models. In 
+
+Advances in Neural Information Processing Systems 35 (NeurIPS) , 2022. Federico Barbero, Alex Vitvitskyi, Christos Perivolaropoulos, Razvan Pascanu, and Petar Veliˇ ckovi´ c. Round and round we go! what makes rotary positional encodings useful? In Proceedings of the 13th International Conference on Learning Representations (ICLR) , 2025. Shouyuan Chen, Sherman Wong, Liangjian Chen, and Yuandong Tian. Extending context window of large language models via positional interpolation, 2023. arXiv:2306.15595. Hanseul Cho, Jaeyoung Cha, Pranjal Awasthi, Srinadh Bhojanapalli, Anupam Gupta, and Chulhee Yun. Position coupling: Improving length generalization of arithmetic transformers using task structure. In Advances in Neural Information Processing Systems 37 (NeurIPS) , 2024. Edo Cohen-Karlik, Avichai Ben David, Nadav Cohen, and Amir Globerson. On the implicit bias of gradient descent for temporal extrapolation. In Proceedings of the 25th International Conference on Artificial Intelligence and Statistics (AISTATS) , volume 151 of Proceedings of Machine Learning Research , pages 10966–10981. PMLR, 2022. Grégoire Delétang, Anian Ruoss, Jordi Grau-Moya, Tim Genewein, Li Kevin Wenliang, Elliot Catt, Chris Cundy, Marcus Hutter, Shane Legg, Joel Veness, and Pedro A. Ortega. Neural networks and the chomsky hierarchy. In 
+
+Proceedings of the 11th International Conference on Learning Representations (ICLR) , 2023. Xinting Huang, Andy Yang, Satwik Bhattamishra, Yash Sarrof, Andreas Krebs, Hattie Zhou, Preetum Nakkiran, and Michael Hahn. A formal framework for understanding length generalization in transformers. In Proceedings of the 13th International Conference on Learning Representations (ICLR) , 2025. Samy Jelassi, Stéphane d’Ascoli, Carles Domingo-Enrich, Yuhuai Wu, Yuanzhi Li, and François Charton. Length generalization in arithmetic transformers, 2023. arXiv:2306.15400. Amirhossein Kazemnejad, Inkit Padhi, Karthikeyan Natesan Ramamurthy, Payel Das, and Siva Reddy. The impact of positional encoding on length generalization in transformers. In Advances in Neural Information Processing Systems 36 (NeurIPS) , 2023. Catherine Olsson, Nelson Elhage, Neel Nanda, Nicholas Joseph, Nova DasSarma, Tom Henighan, Ben Mann, Amanda Askell, Yuntao Bai, Anna Chen, et al. In-context learning and induction heads. Transformer Circuits Thread , 2022. Bowen Peng, Jeffrey Quesnelle, Honglu Fan, and Enrico Shippole. YaRN: Efficient context window extension of large language models. In Proceedings of the 12th International Conference on Learning Representations (ICLR) , 2024. Ofir Press, Noah A. Smith, and Mike Lewis. Train short, test long: Attention with linear biases enables input length extrapolation. In Proceedings of the 10th International Conference on Learning Representations (ICLR) , 2022. Allan Raventós, Mansheej Paul, Feng Chen, and Surya Ganguli. Pretraining task diversity and the emergence of non-bayesian in-context learning for regression. In Advances in Neural Information Processing Systems 36 (NeurIPS) ,2023. Anian Ruoss, Grégoire Delétang, Tim Genewein, Jordi Grau-Moya, Róbert Csordás, Mehdi Bennani, Shane Legg, and Joel Veness. Randomized positional encodings boost length generalization of transformers. In Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 2: Short Papers) , 2023. Mahdi Sabbaghi, George Pappas, Hamed Hassani, and Surbhi Goel. Explicitly encoding structural symmetry is key to length generalization in arithmetic tasks, 2024. arXiv:2406.01895. Jianlin Su, Murtadha Ahmed, Yu Lu, Shengfeng Pan, Wen Bo, and Yunfeng Liu. Roformer: Enhanced transformer with rotary position embedding. Neurocomputing , 568:127063, 2024. Davoud Ataee Tarzanagh, Yingcong Li, Christos Thrampoulidis, and Samet Oymak. Transformers as support vector machines, 2023. arXiv:2308.16898. 10 Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Bhavya Vasudeva, Puneesh Deora, and Christos Thrampoulidis. Implicit bias and fast convergence rates for self-attention. Transactions on Machine Learning Research (TMLR) , 2025. Hattie Zhou, Arwen Bradley, Etai Littwin, Noam Razin, Omid Saremi, Joshua Susskind, Samy Bengio, and Preetum Nakkiran. What algorithms can transformers learn? a study in length generalization. In Proceedings of the 12th International Conference on Learning Representations (ICLR) , 2024a. Yongchao Zhou, Uri Alon, Xinyun Chen, Xuezhi Wang, Rishabh Agarwal, and Denny Zhou. Transformers can achieve length generalization but not robustly, 2024b. arXiv:2402.09371. 11 Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+# Appendix 
+
+This appendix collects the complete proofs (Appendix A), the linear-attention control that isolates the role of softmax (Appendix B), the full robustness and mechanism sweeps summarized in the main paper (Appendix C), the multi-head and content-conditioned measurements (Appendix D), and the experimental and reproducibility details (Appendix E). Numbered results (Lemma 1, Lemma 2, Proposition 1, etc.) refer to the main paper. Unless noted, tables report values from the released script on the reference setup ( d=64 , vocabulary 20 , [Lmin , L max ]=[8 , 16] , Adam at 10 −3, batch 256 ,
+
+4000 steps), which match the values reported in the main text. 
+
+# A Complete Proofs 
+
+Throughout, Rt is the block-diagonal rotary matrix whose ith 2 × 2 block is Rot( tθ i), with inverse frequencies 
+
+θi = b−2( i−1) /d for base b. We use two elementary facts about planar rotations: Rot( α)⊤Rot( β) = Rot( β − α), and for any w ∈ R2 and angle γ, w⊤Rot( γ)w = ∥w∥2 cos γ (the antisymmetric part of Rot( γ) contributes nothing to the quadratic form). Block-diagonality lifts both facts to Rt.
+
+A.1 Lemma 1 (Equivariance) Lemma 1. For any WQ, W K , the RoPE logit between a query at position n and a key at position t depends on (n, t )
+
+only through δ = t − n: √d ℓ t = x⊤ 
+
+> n
+
+W ⊤ 
+
+> Q
+
+Rδ WK xt.Proof. The head forms q = RnWQxn and kt = RtWK xt, so √d ℓ t = q⊤kt = ( RnWQxn)⊤(RtWK xt) = 
+
+x⊤ 
+
+> n
+
+W ⊤ 
+
+> Q
+
+R⊤ 
+
+> n
+
+RtWK xt. Blockwise, R⊤ 
+
+> n
+
+Rt has ith block Rot( nθ i)⊤Rot( tθ i) = Rot(( t − n)θi), i.e. R⊤ 
+
+> n
+
+Rt = Rt−n =
+
+Rδ . Substituting gives the claim; no term depends on n or t except through δ.
+
+A.2 Lemma 2 (Target-aligned selection) Assumption 1 (Shared carrier) . There exist a unit vector u and a scalar ρ > 0 with WK xt = ρu + ξt and WQxn =
+
+ρR −K u + ξ′
+
+> n
+
+, where E[ξt] = E[ξ′
+
+> n
+
+] = 0 and ξt ⊥ u.
+
+Lemma 2. Under the shared-carrier assumption, the content-averaged score profile over keys t̸ = n (offsets δ ≤ − 1)is ϕ(δ) = E[√d ℓ t | δ] = m⊤
+
+> Q
+
+Rδ mK = ρ2g(δ + K), where mK = ρu , mQ = ρR −K u, g(s) = Pd/ 2 
+
+> i=1
+
+pi cos( sθ i),and pi = u22i−1 + u22i ≥ 0 with P 
+
+> i
+
+pi = 1 . Then g(s) ≤ g(0) = 1 , so ϕ is maximized at δ = −K; if no nonzero integer s in the evaluated range satisfies sθ i ∈ 2πZ for all i with pi > 0, the maximizer is unique. Proof. For t̸ = n the tokens xn, x t are independent, and by Lemma 1 √d ℓ t = ( WQxn)⊤Rδ (WK xt). Taking expectations and using E[a⊤M b ] = E[a]⊤M E[b] for independent a, b , ϕ(δ) = m⊤
+
+> Q
+
+Rδ mK with mQ = E[WQxn] = 
+
+ρR −K u, mK = E[WK xt] = ρu (the residuals are mean-zero). Hence ϕ(δ) = ρ2(R−K u)⊤Rδ u = ρ2u⊤RK Rδ u =
+
+ρ2u⊤Rδ+K u, using R⊤−K = RK and RK Rδ = Rδ+K . Blockwise, u⊤Rsu = P
+
+> i
+
+(u22i−1 + u22i) cos( sθ i) = g(s).Since P 
+
+> i
+
+pi = ∥u∥2 = 1 and cos ≤ 1, g(s) ≤ 1 with equality iff sθ i ∈ 2πZ for every i with pi > 0. Setting 
+
+s = δ + K gives the maximizer δ = −K and the stated uniqueness condition. 
+
+A.3 Proposition 1 (Necessity of the carrier) 
+
+This is the converse of Lemma 2: the target-aligned carrier geometry is the only one whose content-averaged profile attains its largest possible value at the target, and the only one that keeps Lemma 2’s length-uniform guarantee that no competing offset overtakes it. In that sense Assumption 1 is forced, not a modeling convenience. 
+
+Proposition 1. For any WQ, W K , set mQ = E[WQxn] and mK = E[WK xt]. The content-averaged logit equals the carrier profile, 
+
+E[√d ℓ t | δ] = m⊤
+
+> Q
+
+Rδ mK =
+
+> d/ 2
+
+X
+
+> i=1
+
+ri cos( δθ i − ψi),
+
+where ri = ∥ai∥ ∥ bi∥ ≥ 0 and ψi = ∠ai − ∠bi are the energy and phase gap of the ith rotary pair (ai, b i) of 
+
+(mQ, m K ), and the content-dependent remainder is mean-zero. The profile attains its global maximum P 
+
+> i
+
+ri at the target offset δ = −K if and only if ψi = −Kθ i for every i with ri > 0, i.e. iff mQ and R−K mK are pairwise phase-aligned. Under the same incommensurability condition as Lemma 2, −K is then the unique maximizer. 
+
+12 Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Proof. (Content-averaged logit.) Write WK xt = mK + ξt and WQxn = mQ + ξ′ 
+
+> n
+
+with E[ξt] = E[ξ′
+
+> n
+
+] = 0 . By Lemma 1, √d ℓ t = ( mQ + ξ′
+
+> n
+
+)⊤Rδ (mK + ξt). For δ ≤ − 1 the tokens are independent, so taking expectations kills the three terms carrying a lone mean-zero factor and leaves E[√d ℓ t | δ] = m⊤
+
+> Q
+
+Rδ mK . The remainder √d ℓ t − m⊤
+
+> Q
+
+Rδ mK
+
+has zero mean, hence cannot shift the argmax of the expected profile. 
+
+(Polar form.) Let ai, b i ∈ R2 be the ith rotary pairs of mQ, m K . Since Rδ acts on pair i by Rot( δθ i) and 
+
+a⊤ 
+
+> i
+
+Rot( γ)bi = ∥ai∥∥ bi∥ cos( ∠ai − ∠bi − γ),
+
+m⊤
+
+> Q
+
+Rδ mK = X
+
+> i
+
+a⊤ 
+
+> i
+
+Rot( δθ i)bi = X
+
+> i
+
+ri cos( δθ i − ψi),
+
+with ri = ∥ai∥∥ bi∥ and ψi = ∠ai − ∠bi (using that cos is even). 
+
+(Maximizer.) Each cosine is at most 1, so ϕ(δ) := m⊤
+
+> Q
+
+Rδ mK ≤ P 
+
+> i
+
+ri for all δ, with equality at a given δ iff 
+
+δθ i − ψi ∈ 2πZ for every active pair ( ri > 0). At δ = −K this reads ψi = −Kθ i, i.e. ∠ai = ∠bi − Kθ i =
+
+∠(Rot( −Kθ i)bi), which is exactly mQ and R−K mK pairwise phase-aligned: the geometry of Assumption 1 (there 
+
+ai = ρ Rot( −Kθ i)ui and bi = ρu i, giving ψi = −Kθ i and ri = ρ2pi, so ϕ(δ) = ρ2g(δ + K) as in Lemma 2). Under the incommensurability condition, every δ̸ = −K in range leaves some active cosine below 1, so ϕ(δ) < P 
+
+> i
+
+ri and 
+
+−K is unique. Because ϕ is content-independent, this maximizer is the same at every length (Corollary 1), which is what lets content-independent selection transfer. The residual can be quantified. Under E[ξξ ⊤] = σ2(I − uu ⊤) the fluctuation term contributes an offset-independent variance σ2ρ2 to each logit, so content-independent selection additionally requires the profile margin 
+
+μ = min δ̸ =−K (ϕ(−K) − ϕ(δ)) to dominate the fluctuation scale; the measured carrier fractions (Table 4) and margin (Table 7) confirm this holds in practice. 
+
+A.4 Corollary 2 (Decay law) Corollary 2. Let ∆L = {− (L − 1) , . . . , 0} and μ = min δ∈∆L,δ ̸ =−K (ϕ(−K) − ϕ(δ)) > 0. The target attention weight a⋆(L) = eϕ(−K)/ P 
+
+> δ∈∆L
+
+eϕ(δ) satisfies a⋆(L) = 1 /(1 + ( L − 1)¯ rL) ≥ 1/(1 + ( L − 1) e−μ), where ¯rL
+
+averages eϕ(δ)−ϕ(−K) over the L − 1 non-target offsets, and a⋆ is strictly decreasing in L.Proof. Divide numerator and denominator by eϕ(−K): a⋆(L) = 1 /(1 + P  
+
+> δ̸=−K
+
+eϕ(δ)−ϕ(−K)), the exact form with 
+
+¯rL = 1
+
+> L−1
+
+P  
+
+> δ̸=−K
+
+eϕ(δ)−ϕ(−K). Each of the L − 1 terms is at most e−μ, giving the bound. Increasing L by one appends a positive term to the denominator, so a⋆ strictly decreases. When the kernel tail flattens, ¯rL is nearly constant in L, and a⋆(L) ≈ 1/(α + c(L − 1)) with α ≈ 1; the fits across the sweep of Table 4 give R2 ∈ [0 .72 , 0.94] , with 
+
+R2 = 0 .914 , 0.926 , 0.943 at the reference setup for K = 1 , 2, 3 (main paper). 
+
+A.5 Proposition 2 (Position pinning) Proposition 2. Under APE the logit is proportional to (xn + pn)⊤W (xt + pt) with W = W ⊤ 
+
+> Q
+
+WK and n = L − 1.If training lengths never exceed Lmax and the position table is optimized with weight decay λ ≥ 0, then: (i) the loss is independent of {pj : j ≥ Lmax }, so each such pj has zero gradient and stays at initialization ( λ = 0 ) or decays geometrically to 0 (λ > 0); (ii) such pj is independent of the task; (iii) at any test length L′ > L max + K, both pL′−1
+
+and pL′−1−K are untrained, so no learned positional term selects the target, which can be selected only by chance. Proof. Training sequences occupy positions {0, . . . , L max − 1}, so for j ≥ Lmax the vector pj never enters a forward pass and ∂L/∂p j ≡ 0. The (stochastic) gradient step with weight decay is pj ← (1 − ηλ )pj , which gives (i); (ii) is immediate since pj is then a function only of its initialization. For (iii), L′ > L max +K implies L′ −1 > L ′ −1−K ≥
+
+Lmax , so the target logit (xn′ + pL′−1)⊤W (xL′−1−K + pL′−1−K ) involves only untrained (zero or task-independent) position vectors. Conditioned on training, the logits at untrained key positions are exchangeable over the i.i.d. tokens and, when λ = 0 , the i.i.d. initialization draws; no untrained position, the target included, is systematically favored, so out-of-range accuracy is at chance. On the full-sequence shift task this is visible per token: APE predicts correctly at positions whose query and key both lie below Lmax and at chance elsewhere, so per-token accuracy tracks the in-range fraction ≈ Lmax /L (Section E), which is why the two-layer model falls to 0.37 rather than to chance. 13 Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Table 3: Softmax vs. linear attention on fixed-offset retrieval ( K=2 ). ID = in-distribution accuracy ( L=16 ); OOD at 
+
+L=32 , 48 . Softmax builds the target-aligned carrier and extrapolates; linear attention solves ID by min-norm interpo-lation, has no carrier ( cos ≈ 0), and collapses to near chance (chance 0.05 ) out of distribution. With few frequencies (d=16 ) linear attention cannot even fit ID. “frac” is the key carrier fraction and “align.” is cos( mQ, R −K mK ).                                          
+
+> attn dID OOD 32 OOD 48 frac align. softmax 16 1.00 0.64 0.41 0.79 0.83
+> softmax 64 1.00 1.00 1.00 0.80 0.83
+> softmax 128 1.00 1.00 1.00 0.81 0.92
+> linear 16 0.56 0.30 0.24 0.04 −0.76
+> linear 64 0.96 0.09 0.07 0.07 0.11
+> linear 128 0.96 0.11 0.08 0.01 −0.04
+
+Table 4: Carrier fraction and decay-law fit across configurations (RoPE, K=2 , one seed per row). Baseline carrier fraction 1/d .                                                               
+
+> knob value carr. frac αcR2
+> width d32 0.84 0.80 0.0171 0.82 64 0.80 1.09 0.0070 0.93 128 0.81 1.27 0.0004 0.91
+> vocab m10 0.81 1.14 0.0060 0.93 20 0.80 1.09 0.0070 0.93 40 0.82 1.06 0.0072 0.94
+> range [8 ,16] 0.80 1.09 0.0070 0.93 [4 ,12] 0.78 1.01 0.0135 0.94 [8 ,32] 0.82 1.15 0.0021 0.72
+> temp τ0.50.86 1.15 0.0085 0.93 1.00.80 1.09 0.0070 0.93 2.00.73 1.01 0.0075 0.94
+
+# B The Linear-Attention Control 
+
+To test whether softmax normalization is essential, we replace softmax( ℓ)t with the raw score ℓt/L (un-normalized linear attention) and train the otherwise identical one-head RoPE model on fixed-offset retrieval ( K=2 ). Table 3 re-ports accuracy, the key carrier fraction ∥mean ∥2/E∥proj ∥2, and the carrier alignment cos( mQ, R −K mK ), for softmax and linear attention at three widths. The failure has a clean identifiability reading. With RoPE the score is a function of offset alone, f (δ) =P 
+
+> j
+
+Aj cos( δθ j + ψj ), and the training loss constrains f only at the |∆| in-distribution offsets. For d > |∆| the profile is underdetermined off the training support, and the min-norm interpolant selected by training is generically 
+
+Θ(1) there; hence linear attention interpolates the training offsets but diverges at unseen ones ( d=64 , 128 in Table 3), while with too few frequencies it cannot localize the target at all ( d=16 ). Softmax removes this freedom: normaliza-tion couples all positions, so the target’s weight is governed by the length-invariant margin μ (Corollary 2) at every 
+
+L, and the carrier emerges. The carrier alignment separates the two regimes sharply: 0.83 –0.92 under softmax versus 
+
+|cos | ≤ 0.11 under linear attention at d ≥ 64 .
+
+# C Robustness and Mechanism Sweeps 
+
+Carrier fraction and decay law. Table 4 varies width, vocabulary, training-length range, and softmax temperature about the reference setup. The key carrier fraction stays in 0.72 –0.86 throughout, and the inverse-linear decay fit 
+
+1/a ⋆(L) = α + c(L − 1) holds with intercept α ≈ 1. The dilution rate c falls with width, because wider models carry more rotary frequencies and a sharper kernel; the one low R2 (0.72 ) is the wide training range [8 , 32] , where in-distribution lengths already sample much of the evaluation range and the fit has little dynamic range. 
+
+Rotary base and kernel incommensurability. Table 5 sweeps the rotary base. The kernel g(s) = P 
+
+> j
+
+cos( sθ j ) has a unique integer maximum at s=0 ; the largest competing value at s ≥ 4 stays at 0.67 –0.79 of g(0) , so the uniqueness condition of Lemma 2 holds empirically. OOD accuracy is 1.00 /1.00 /0.97 for base ∈ { 10 3, 10 4, 10 5} with selection at −K throughout; larger bases add low frequencies that broaden the kernel, explaining the mild degradation at 10 5.14 Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Table 5: Rotary base sweep ( K=2 ). g(1) /g (0) measures local kernel breadth; max s≥4 g(s)/g (0) measures far re-alignment. OOD accuracy at L=48 ; selected offset at L=32 .                 
+
+> base g(1) /g (0) max s≥4g(s)/g (0) OOD 48 sel.
+> 10 30.96 0.67 1.00 −K
+> 10 40.97 0.75 1.00 −K
+> 10 50.97 0.79 0.97 −K
+
+Table 6: APE weight decay, pinning, and out-of-range norms ( K=2 , 3 seeds; Lmax =16 , so Lmax −1−K = 13 ). Chance 0.05 .                          
+
+> λOOD acc pin ∥pin ∥∥pout ∥interp. acc
+> 00.08 7.3±1.78.18 8.08 0.05 10 −40.10 11 .7±1.23.83 0.20 0.05 10 −20.09 12 .7±0.50.66 0.20 0.06
+
+APE regularization, pinning, and inference-time fixes. Table 6 confirms Proposition 2. Out-of-range embeddings stay at initialization for λ = 0 (∥pout ∥ ≈ ∥ pin ∥) and vanish for λ > 0; OOD accuracy stays near chance throughout; the pin tightens toward Lmax − 1 − K = 13 under ridge and is lower and more variable without it. Table-interpolation, clamp-to-last, and index-rescaling all leave OOD accuracy at chance ( 0.05 –0.06 ), because rescaling distorts the very offset structure the task requires. 
+
+Measured-margin bound. Table 7 evaluates the lower bound of Corollary 2 with the empirically measured margin 
+
+μ = 2 .30 . The bound is valid at every length (observed ≥ bound) but loose, since it retains only the single nearest competitor. 
+
+Training dynamics. Logged over training, the key carrier fraction rises from 0.04 at initialization to 0.74 by step 
+
+200 and plateaus near 0.80 ; the top-1 singular-value energy of W = W ⊤ 
+
+> Q
+
+WK rises from 0.10 to 0.50 over the same window and holds. The carrier and the rank concentration therefore co-emerge within a few hundred steps, consistent with the low-rank attention-as-SVM prediction. 
+
+# D Multi-Head and Content-Conditioned Selection 
+
+Multi-head capacity. Splitting a fixed width across more heads gives each head fewer rotary frequencies and a broader kernel, so dilution increases with head count. Table 8 reports per-head top-1 singular-value energy of W and peak attention by length for H=1 , 4; peak attention at L=48 falls from 0.69 to 0.30 . Each head’s W is dominated by, but not equal to, a single direction (top-1 energy 0.39 –0.57 ), tempering a strict rank-one reading. 
+
+Content-conditioned retrieval. A mode token at the query position selects offset K0=1 or K1=3 . A single head (H=1 ) solves the task in distribution ( 1.00 accuracy); its mode-conditioned carrier splits as predicted, peaking at 0 for mode 0 (the K=1 adjacency) and at −3 for mode 1. With H=2 the model still reaches 1.00 in distribution, but the mode-K1 selection becomes distributed and is no longer attributable to either head’s mean carrier. 
+
+Larger offsets and other relative schemes. The carrier-only profile peaks at exactly −K for K ∈ { 2, 3, 4, 5}.On the fixed-offset task, ALiBi holds accuracy ≈ 0.97 across lengths at K=1 but fails at K=2 (accuracy 0.11 –0.13 
+
+against chance 0.05 , selecting −1); a T5-style learned bias selects any K but decays faster ( 1.00 → 0.44 ); RoPE selects any K and decays slowly ( K=2 stays at 1.00 ). 
+
+# E Experimental Details and Reproducibility 
+
+Model and task. One layer, one head, d=64 , vocabulary m=20 , no MLP or layer normalization; the query is the last position; softmax attention; linear readout U ∈ Rm×d. RoPE uses base 10 4; APE uses a learned position table of size max L′+1 . The fixed-offset task draws length-L sequences of i.i.d. uniform tokens and labels each with the token 
+
+K positions before the query. The two-layer model (Section 5.2, main) is a decoder-only transformer with two layers, four heads, d=192 , an MLP of width 4d with GELU, LayerNorm, and a causal mask, trained on the full-sequence shift out[ i] = in[ i−K] with K=3 .15 Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention A P REPRINT 
+
+Table 7: Measured-margin lower bound 1/(1 + ( L − 1) e−μ), μ = 2 .30 , vs. observed peak attention (RoPE, K=2 ).                      
+
+> L12 16 20 24 32 40 48 bound .48 .40 .35 .30 .24 .20 .18
+> observed .83 .83 .83 .82 .76 .74 .69
+
+Table 8: Per-head rank and dilution ( K=2 ). Peak attention is averaged over batch and heads.                      
+
+> top-1 energy peak attention at L=
+> H(per head) 12 16 24 32 48
+> 10.50 0.83 0.83 0.82 0.76 0.69 40.39 –0.57 0.67 0.63 0.44 0.42 0.30
+
+Training. Adam at learning rate 10 −3, batch 256 , 4000 steps, cross-entropy loss (one-layer); 3 × 10 −4, batch 
+
+256 , 8000 steps (two-layer). Training lengths are uniform in [8 , 16] . The one-layer experiments evaluate lengths {12 , 16 , 20 , 24 , 32 , 40 , 48 }, with accuracy over 4096 sequences and attention probes averaged over 4096 se-quences; peak height is the maximum over positions of the mean attention. The two-layer model is evaluated at 
+
+{12 , 16 , 24 , 32 , 48 }, with accuracy over 512 sequences and per-head attention profiles over 256 . We use 8 seeds for the phenomenon and 5 for the validation study; sweep rows use one seed. 
+
+Metrics. (i) accuracy; (ii) selected peak offset (argmax of mean attention relative to the query); (iii) carrier fraction 
+
+∥mean ∥2/E∥proj ∥2 of projected keys and queries; (iv) carrier-only profile ϕc(δ) = m⊤
+
+> Q
+
+Rδ mK ; (v) decay fit, the linear least squares of 1/a ⋆ on L − 1.
+
+Compute and code. All experiments run on CPU; no GPU is required. Determinism is controlled by a single seed read immediately before each model is built. The released code is one script with one subcommand per exper-iment. The main-paper figures are produced by multiseed (Fig. 1), shift (Fig. 2), prop1 (Fig. 3), mechanics 
+
+(Fig. 4), variants (Fig. 5), and transformer (Fig. 6); linear produces Table 3 of this appendix, and mechanics ,
+
+frequency , and variants print the remaining sweep tables. 16

@@ -6,79 +6,77 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-21
-- 运行时间：2026-07-21 21:26:24 UTC
+- 最新运行日期：2026-07-22
+- 运行时间：2026-07-22 21:45:02 UTC
 - 运行状态：成功
 - 本次总论文数：19
 - 精读区：7
 - 速读区：12
 
 ### 今日简报（AI）
-今日共收录19篇论文，精读7篇，速读12篇，两篇高评分研究聚焦线性注意力模型效率与容量突破。  
-最值得精读的是《SpecLA: Efficient Speculative Decoding for Linear-Attention Models》与《Kernelized Linear Attention: Breaking the Capacity Wall with Symmetric Cones》，分别解决推理加速和容量瓶颈。  
-建议优先研读上述两篇9.0分论文，同时关注速读中视频生成（DiTango、FVAttn）与长期记忆（Reflective Recall Cycle）的实用进展。
-- 详情：[/202607/21/README](/202607/21/README)
+今日共推荐19篇论文，精读7篇，其中两篇9.0高分论文聚焦统计力学三体Hopfield模型和耦合振荡器网络的可学习序列记忆。最值得关注的方向是统计力学中的三体相互作用及振荡器网络的序列记忆机制。建议优先阅读这两篇高分论文，分别适合计算神经科学和统计物理交叉领域爱好者。
+- 详情：[/202607/22/README](/202607/22/README)
 
 ### 精读区论文标签
-1. [SpecLA: Efficient Speculative Decoding for Linear-Attention Models](/202607/21/2607.16673v1-specla-efficient-speculative-decoding-for-linear-attention-models)  
+1. [Statistical-mechanics of a three-body Hopfield model with finite connectivity](/202607/22/2607.17234v1-statistical-mechanics-of-a-three-body-hopfield-model-with-finite-connectivity)  
    标签：评分：9.0/10、query:la
-   evidence：专门为线性注意力模型设计的推测解码
-2. [Kernelized Linear Attention: Breaking the Capacity Wall with Symmetric Cones](/202607/21/2607.17419v1-kernelized-linear-attention-breaking-the-capacity-wall-with-symmetric-cones)  
+   evidence：三体Hopfield模型用于联想记忆
+2. [Learnable Sequential Memory in Coupled Oscillator Networks](/202607/22/2607.18439v1-learnable-sequential-memory-in-coupled-oscillator-networks)  
    标签：评分：9.0/10、query:la
-   evidence：通过对称锥实现具有显式关联记忆的核化线性注意力
-3. [Positive and Negative Retinotopic Codes in the Human Hippocampus](/202607/21/biorxiv-10-1101-2024-09-27-615397-v4-positive-and-negative-retinotopic-codes-in-the-human-hippocampus)  
+   evidence：耦合振荡器网络中的序列记忆与指数容量
+3. [Norm or Direction? Decoding Vision Mambas for High-Resolution Vision](/202607/22/2607.18625v1-norm-or-direction-decoding-vision-mambas-for-high-resolution-vision)  
+   标签：评分：9.0/10、query:la
+   evidence：用线性复杂度状态空间模型替代二次自注意力以实现高效序列处理
+4. [Beyond Transformers: Linear Attention Policy for Open-Vocabulary Object Goal Navigation](/202607/22/2607.18794v1-beyond-transformers-linear-attention-policy-for-open-vocabulary-object-goal-navigation)  
+   标签：评分：9.0/10、query:la
+   evidence：用于导航任务的线性注意力策略
+5. [Free energy landscape of Dense Associative Memory](/202607/22/2607.19195v1-free-energy-landscape-of-dense-associative-memory)  
+   标签：评分：9.0/10、query:la
+   evidence：求解密集关联记忆模型的自由能景观
+6. [Transitive reasoning as linear classification](/202607/22/biorxiv-10-64898-2026-06-24-734346-v2-transitive-reasoning-as-linear-classification)  
    标签：评分：9.0/10、query:comp-neuro
-   evidence：海马体视网膜拓扑编码用于感觉记忆整合
-4. [Coexisting but dissociable place and spatial view codes in the primate hippocampus](/202607/21/biorxiv-10-64898-2026-07-20-739519-v1-coexisting-but-dissociable-place-and-spatial-view-codes-in-the-primate-hippocampus)  
-   标签：评分：9.0/10、query:comp-neuro
-   evidence：发现猕猴海马中位置细胞、视野细胞和联合细胞三种编码模式
-5. [Mechanistic Attention Guidance for Agent Memory Refinement](/202607/21/2607.17621v1-mechanistic-attention-guidance-for-agent-memory-refinement)  
-   标签：评分：8.0/10、query:la
-   evidence：检索头注意力用于记忆检索
-6. [Selective convergence and graded divergence of hippocampal and amygdala subregions using functional connectivity](/202607/21/biorxiv-10-64898-2026-07-06-736898-v2-selective-convergence-and-graded-divergence-of-hippocampal-and-amygdala-subregions-using-functional-connectivity)  
+   evidence：传递推理作为线性分类
+7. [Geometry-based dynamics of the postsynaptic density explain protein capture by an actin-spine-geometry-dependent synaptic tag](/202607/22/biorxiv-10-64898-2026-07-16-738887-v1-geometry-based-dynamics-of-the-postsynaptic-density-explain-protein-capture-by-an-actin-spine-geometry-dependent-synaptic-tag)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：海马亚区连接与计算表示
-7. [Single-neuron and population contributions of hippocampal LFPs to spike prediction](/202607/21/biorxiv-10-64898-2026-07-14-738489-v1-single-neuron-and-population-contributions-of-hippocampal-lfps-to-spike-prediction)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：海马LFP对单神经元峰电位预测的贡献
+   evidence：突触标记与捕获机制建模
 
 ### 速读区论文标签
-1. [DiTango: Cost-Effective Parallel Diffusion Generation with Selective Attention State Reuse](/202607/21/2607.15650v1-ditango-cost-effective-parallel-diffusion-generation-with-selective-attention-state-reuse)  
+1. [Dual Attention Residuals](/202607/22/2607.18730v1-dual-attention-residuals)  
+   标签：评分：8.0/10、query:la
+   evidence：提出双注意力残差用于Transformer中的高效历史检索
+2. [Think Sparse, Predict Dense: Continuous Thought Machines for Image Super-Resolution](/202607/22/2607.18856v1-think-sparse-predict-dense-continuous-thought-machines-for-image-super-resolution)  
    标签：评分：7.0/10、query:la
-   evidence：选择性注意力状态复用以实现高效并行生成
-2. [FVAttn: Adaptive Sparse Attention with Runtime Load Balancing for Video Generation](/202607/21/2607.16190v1-fvattn-adaptive-sparse-attention-with-runtime-load-balancing-for-video-generation)  
-   标签：评分：7.0/10、query:la
-   evidence：自适应稀疏注意力用于高效视频生成并带有负载均衡
-3. [Exploratory and Assimilating Reflection: Reflective Recall Cycle for Long-term Memory](/202607/21/2607.17879v1-exploratory-and-assimilating-reflection-reflective-recall-cycle-for-long-term-memory)  
-   标签：评分：7.0/10、query:la
-   evidence：基于反思循环的记忆检索
-4. [The Art of Not Forgetting](/202607/21/2607.17944v1-the-art-of-not-forgetting)  
-   标签：评分：7.0/10、query:la
-   evidence：稀疏关系编码和双层竞争记忆用于关联记忆
-5. [L1 Augmented Attention as an Improved Vector Similarity Metric](/202607/21/2607.18027v1-l1-augmented-attention-as-an-improved-vector-similarity-metric)  
-   标签：评分：7.0/10、query:la
-   evidence：L1增强注意力改进相似度度量，可用于高效记忆检索
-6. [Topological decoding of grid cell activity via path lifting to covering spaces](/202607/21/biorxiv-10-1101-2025-10-17-683158-v2-topological-decoding-of-grid-cell-activity-via-path-lifting-to-covering-spaces)  
+   evidence：具有时间维度和查询机制的连续思想机器
+3. [From Hodgkin-Huxley to Pretrained Neural Inference AI](/202607/22/biorxiv-10-64898-2026-07-13-738120-v1-from-hodgkin-huxley-to-pretrained-neural-inference-ai)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：内嗅皮层网格细胞的拓扑解码，涉及海马体表示计算
-7. [VTM-Nav: Hierarchical Visual-Topological Memory for Cross-Episode Object-Goal Navigation](/202607/21/2607.14514v1-vtm-nav-hierarchical-visual-topological-memory-for-cross-episode-object-goal-navigation)  
+   evidence：利用生物物理仿真预训练神经推断网络
+4. [Decoding and Characterizing the Intracranial Representation of Semantic Information](/202607/22/biorxiv-10-64898-2026-07-13-738249-v1-decoding-and-characterizing-the-intracranial-representation-of-semantic-information)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：从颅内记录解码语义表征以支持推理
+5. [Evidence of predictive information compression in latent space in humans during speech listening](/202607/22/biorxiv-10-64898-2026-07-14-738305-v1-evidence-of-predictive-information-compression-in-latent-space-in-humans-during-speech-listening)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：语音感知中的预测压缩模型
+6. [Chemogenetic Inhibition of the Ventrolateral Orbitofrontal Cortex Disrupts Prediction Error and Salience-Guided Memory-Updating at the Hippocampal Engram Level](/202607/22/biorxiv-10-64898-2026-07-16-738971-v1-chemogenetic-inhibition-of-the-ventrolateral-orbitofrontal-cortex-disrupts-prediction-error-and-salience-guided-memory-updating-at-the-hippocampal-engram-level)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：海马依赖的记忆更新与印记
+7. [Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention](/202607/22/2607.18759v1-relative-positions-generalize-absolute-positions-memorize-an-implicit-bias-account-of-length-generalization-in-attention)  
    标签：评分：6.0/10、query:la
-   evidence：层次视觉拓扑记忆增强神经网络用于跨情节导航
-8. [C$^2$KV: Compressed and Composable KV Cache Reuse for Efficient LLM Inference](/202607/21/2607.17715v1-c2kv-compressed-and-composable-kv-cache-reuse-for-efficient-llm-inference)  
+   evidence：位置编码注意力长度泛化的隐偏解释
+8. [Supra Cognitive Modes: A Routed Architecture for Agent Memory](/202607/22/2607.19096v1-supra-cognitive-modes-a-routed-architecture-for-agent-memory)  
    标签：评分：6.0/10、query:la
-   evidence：压缩且可组合的KV缓存复用实现高效推理
-9. [jina-reranker-v3.5: An Efficient Listwise Reranker with Hybrid Attention and Self-Distillation](/202607/21/2607.18152v1-jina-reranker-v35-an-efficient-listwise-reranker-with-hybrid-attention-and-self-distillation)  
-   标签：评分：6.0/10、query:la
-   evidence：混合注意力调度（滑动窗口+全局）实现高效重排
-10. [Complementary stable and dynamic prelimbic ensembles encode learned threat value underlying generalization and discrimination](/202607/21/biorxiv-10-64898-2026-03-08-710406-v2-complementary-stable-and-dynamic-prelimbic-ensembles-encode-learned-threat-value-underlying-generalization-and-discrimination)  
+   evidence：记忆增强神经网络架构用于智能体记忆
+9. [Excitatory and Inhibitory Networks Diverge Following Early Blindness](/202607/22/biorxiv-10-64898-2026-02-06-704389-v2-excitatory-and-inhibitory-networks-diverge-following-early-blindness)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：前边缘皮层神经元群编码学习威胁值
-11. [Real-Time Embodied Experience Shapes High-Level Reasoning Under Altered Gravity](/202607/21/biorxiv-10-64898-2026-03-16-712090-v2-real-time-embodied-experience-shapes-high-level-reasoning-under-altered-gravity)  
+   evidence：早期失明后皮层网络可塑性
+10. [Deep anatomical and ultrastructural classification of neurons in the zebrafish olfactory bulb](/202607/22/biorxiv-10-64898-2026-07-13-738197-v1-deep-anatomical-and-ultrastructural-classification-of-neurons-in-the-zebrafish-olfactory-bulb)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：具身体验改变改变重力下的高层物理推理
-12. [Normalization accounts for temporal dynamics in human somatosensory cortex](/202607/21/biorxiv-10-64898-2026-05-10-724117-v2-normalization-accounts-for-temporal-dynamics-in-human-somatosensory-cortex)  
+   evidence：嗅球神经元分类与去相关计算，与模式分离相关
+11. [Structural Composition Enables Very Fast Learning](/202607/22/biorxiv-10-64898-2026-07-14-738142-v1-structural-composition-enables-very-fast-learning)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：躯体感觉皮层中分裂归一化的计算原理
+   evidence：提出利用组合性的神经模型实现快速学习，与突触可塑性机制相关
+12. [Factorization and spatial encodings: a hypothesis about the foundations of the genomic code](/202607/22/biorxiv-10-64898-2026-07-14-738413-v1-factorization-and-spatial-encodings-a-hypothesis-about-the-foundations-of-the-genomic-code)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：神经回路初始化的计算神经科学假说
 
 
 <div class="dpr-home-promo-card">
