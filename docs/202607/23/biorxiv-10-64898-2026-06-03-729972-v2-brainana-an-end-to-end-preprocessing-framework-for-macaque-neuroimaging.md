@@ -1,0 +1,25 @@
+---
+title: "Brainana: an end-to-end preprocessing framework for macaque neuroimaging"
+title_zh: Brainana：一个用于猕猴神经影像的端到端预处理框架
+authors: "Liu, X., Zhang, Y., Yin, Z., Zhen, Z., Arcaro, M. J."
+date: 2026-07-21
+pdf: "https://www.biorxiv.org/content/10.64898/2026.06.03.729972v2.full.pdf"
+tags: ["query:comp-neuro"]
+score: 7.0
+evidence: 猕猴神经影像端到端预处理框架
+tldr: 猕猴MRI是连接系统神经科学和细胞/环路机制的重要桥梁，但其预处理工具难以集成和复现。Brainana是一个自动化的BIDS兼容预处理框架，集成了结构/功能预处理、皮层表面重建、质量控制和图谱投影，利用深度学习模型进行脑提取和分割。在23个成像站点、130只猴子的异构数据上，实现了可靠的解剖对应、表面重建和可重复的脑功能映射。Brainana使得猕猴MRI分析可重复、可扩展且易于访问，促进了跨研究比较和多模态整合。
+source: biorxiv
+selection_source: fresh_fetch
+figures_json: "[{\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1419, \"height\": 460, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-002.webp\", \"caption\": \"\", \"page\": 0, \"index\": 2, \"width\": 1535, \"height\": 1018, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-003.webp\", \"caption\": \"\", \"page\": 0, \"index\": 3, \"width\": 1492, \"height\": 1655, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-004.webp\", \"caption\": \"\", \"page\": 0, \"index\": 4, \"width\": 1466, \"height\": 261, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-005.webp\", \"caption\": \"\", \"page\": 0, \"index\": 5, \"width\": 1480, \"height\": 739, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-006.webp\", \"caption\": \"\", \"page\": 0, \"index\": 6, \"width\": 1444, \"height\": 427, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-007.webp\", \"caption\": \"\", \"page\": 0, \"index\": 7, \"width\": 1512, \"height\": 514, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-008.webp\", \"caption\": \"\", \"page\": 0, \"index\": 8, \"width\": 1510, \"height\": 815, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-009.webp\", \"caption\": \"\", \"page\": 0, \"index\": 9, \"width\": 1478, \"height\": 982, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-010.webp\", \"caption\": \"\", \"page\": 0, \"index\": 10, \"width\": 1432, \"height\": 569, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/fig-011.webp\", \"caption\": \"\", \"page\": 0, \"index\": 11, \"width\": 1266, \"height\": 600, \"label\": \"Figure\"}]"
+tables_json: "[{\"url\": \"assets/tables/biorxiv/biorxiv-10-64898-2026-06-03-729972-v2/table-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1586, \"height\": 795, \"label\": \"Table\"}]"
+motivation: 现有猕猴MRI预处理工具集成困难、复现性差，缺乏自动化和标准化流程，阻碍了大规模跨研究分析。
+method: 开发了Brainana框架，集成结构/功能预处理、皮层表面重建、质量控制和图谱投影，采用猕猴专用深度学习模型进行脑提取和组织分割，并支持容器化部署和云访问。
+result: 在23个站点130只猴子的异构数据上，Brainana成功处理所有数据，获得解剖对应、可靠皮层表面、局部任务激活和可重复的静息态相关性。
+conclusion: Brainana提供了可重复、可扩展、易访问的猕猴MRI分析方案，支持跨研究比较和多模态整合，降低了专业知识门槛。
+---
+
+## 摘要
+猕猴MRI桥接了非侵入性系统神经科学和细胞及回路机制，但预处理工具仍然难以整合和可重复部署。我们提出了Brainana，一个自动化的、兼容BIDS的猕猴神经影像预处理和可视化框架。Brainana在容器化包中集成了结构和功能预处理、皮层表面重建、质量控制、变换追踪和图谱投影，并为没有本地计算资源的用户提供了云访问。基于猕猴训练的深度学习模型支持脑提取和组织分割，而图像定向标准化和猕猴特异性表面重建优化则解决了采集间的变异性。一个查看器自动整理衍生数据并链接体积和表面数据，使用户无需神经影像专业知识即可检查解剖结构、皮层测量、图谱划分和活动图。在23个成像站点中，Brainana处理了来自130只猕猴的异质数据，产生了解剖对应、可靠的本地空间表面、局部任务诱发激活以及可重复的全脑静息态相关性。Brainana实现了可重复、可扩展和易访问的猕猴MRI分析、跨研究比较和多模态整合。
+
+## Abstract
+Macaque MRI bridges non-invasive systems neuroscience with cellular and circuit-level mechanisms, but preprocessing tools remain difficult to integrate and deploy reproducibly. We present Brainana, an automated, BIDS-compatible preprocessing and visualization framework for macaque neuroimaging. Brainana integrates structural and functional preprocessing, cortical surface reconstruction, quality control, transform tracking, and atlas projection within a containerized package, with cloud access for users without local compute. Macaque-trained deep learning models support brain extraction and tissue segmentation, while image orientation standardization and macaque-specific surface reconstruction optimizations address variability across acquisitions. A viewer automatically organizes derivatives and links volumetric and surface data, enabling users to inspect anatomy, cortical measures, atlas delineations, and activity maps without neuroimaging expertise. Across 23 imaging sites, Brainana processed heterogeneous data from 130 monkeys, yielding anatomical correspondence, reliable native-space surfaces, localized task-evoked activations, and reproducible brain-wide resting-state correlations. Brainana enables reproducible, scalable, and accessible macaque MRI analysis, cross-study comparison, and multimodal integration.
