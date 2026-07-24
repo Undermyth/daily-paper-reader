@@ -6,68 +6,74 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-23
-- 运行时间：2026-07-23 21:48:33 UTC
+- 最新运行日期：2026-07-24
+- 运行时间：2026-07-24 21:12:32 UTC
 - 运行状态：成功
-- 本次总论文数：16
-- 精读区：4
+- 本次总论文数：18
+- 精读区：6
 - 速读区：12
 
 ### 今日简报（AI）
-今日阅读16篇论文，精读4篇，重点关注《Solar Open 2 Technical Report》与《ELSAA》两项9分工作。最值得看的方向：大模型技术报告（Solar Open 2）与高效注意力近似方法（ELSAA），后者对训练Transformer有实用价值。下一步建议优先精读两篇9分论文，速读可补充序列决策和神经影像预处理方向。
-- 详情：[/202607/23/README](/202607/23/README)
+今日共处理18篇论文，精读6篇，其中《SANA-Video 2.0》与《Naju》以10分和9分领跑。最值得关注的是高效视频生成中的混合线性注意力残差方法，以及面向长序列记忆的离散状态空间模型。建议读者优先精读这两篇，它们分别代表了视频生成和序列建模领域的高价值突破。
+- 详情：[/202607/24/README](/202607/24/README)
 
 ### 精读区论文标签
-1. [Solar Open 2 Technical Report](/202607/23/2607.20062v1-solar-open-2-technical-report)  
+1. [SANA-Video 2.0: Hybrid Linear Attention with Attention Residuals for Efficient Video Generation](/202607/24/2607.21553v1-sana-video-20-hybrid-linear-attention-with-attention-residuals-for-efficient-video-generation)  
+   标签：评分：10.0/10、query:la
+   evidence：混合线性注意力用于高效视频生成
+2. [Naju: A Native Discrete State-Space Model with Independent Retention and Writing for Long-Sequence Memory](/202607/24/2607.21000v1-naju-a-native-discrete-state-space-model-with-independent-retention-and-writing-for-long-sequence-memory)  
    标签：评分：9.0/10、query:la
-   evidence：混合线性-softmax注意力用于长上下文语言模型
-2. [ELSAA: Efficient Low-Rank and Sparse Attention Approximation for Training Transformers](/202607/23/2607.20214v1-elsaa-efficient-low-rank-and-sparse-attention-approximation-for-training-transformers)  
-   标签：评分：9.0/10、query:la
-   evidence：Transformer的高效低秩稀疏注意力近似
-3. [ChronoStitch: Training-Free Composition of Visual KV Memories for Long-Horizon Temporal Reasoning](/202607/23/2607.19547v1-chronostitch-training-free-composition-of-visual-kv-memories-for-long-horizon-temporal-reasoning)  
-   标签：评分：8.0/10、query:la
-   evidence：无训练组合视觉KV记忆用于时间推理
-4. [Modeling framework disentangles cerebellar mechanisms in speech feedback control, revealing trade-offs reshaped by degeneration](/202607/23/biorxiv-10-64898-2026-07-14-738521-v1-modeling-framework-disentangles-cerebellar-mechanisms-in-speech-feedback-control-revealing-trade-offs-reshaped-by-degeneration)  
+   evidence：新颖的离散状态空间模型，具有显式保留和写入机制以处理长序列
+3. [Hippocampal theta distinguishes between memory-guided and exploratory saccades in humans](/202607/24/biorxiv-10-64898-2026-07-20-739696-v1-hippocampal-theta-distinguishes-between-memory-guided-and-exploratory-saccades-in-humans)  
+   标签：评分：9.0/10、query:comp-neuro
+   evidence：海马体theta活动与记忆引导的眼动相关
+4. [Improved inference of latent neural states from calcium imaging data](/202607/24/biorxiv-10-1101-2025-10-17-682993-v2-improved-inference-of-latent-neural-states-from-calcium-imaging-data)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：小脑语音反馈控制的计算模型
+   evidence：改进钙成像数据潜在神经状态推断
+5. [From Hodgkin-Huxley to Pretrained Neural Inference AI](/202607/24/biorxiv-10-64898-2026-07-13-738120-v1-from-hodgkin-huxley-to-pretrained-neural-inference-ai)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：利用生物物理模拟预训练神经网络进行单神经元推断，连接理论与实验
+6. [Synaptic Development of Fine Spatial Scale Organization of Neuronal Orientation Tuning in Mouse Primary Visual Cortex](/202607/24/biorxiv-10-64898-2026-07-16-738755-v1-synaptic-development-of-fine-spatial-scale-organization-of-neuronal-orientation-tuning-in-mouse-primary-visual-cortex)  
+   标签：评分：8.0/10、query:comp-neuro
+   evidence：基于活动依赖的突触可塑性模型研究方向调谐发育
 
 ### 速读区论文标签
-1. [Breaking Feedback-Blindness: Utility-Augmented Transformer for Sequential Decision Making](/202607/23/2607.18910v1-breaking-feedback-blindness-utility-augmented-transformer-for-sequential-decision-making)  
+1. [Beyond Episodic Evaluation: Memory Architectural Bottlenecks in Sequential Embodied Question Answering](/202607/24/2607.21571v1-beyond-episodic-evaluation-memory-architectural-bottlenecks-in-sequential-embodied-question-answering)  
    标签：评分：7.0/10、query:la
-   evidence：用于序列决策的效用增强Transformer，带有反馈检索
-2. [Brainana: an end-to-end preprocessing framework for macaque neuroimaging](/202607/23/biorxiv-10-64898-2026-06-03-729972-v2-brainana-an-end-to-end-preprocessing-framework-for-macaque-neuroimaging)  
+   evidence：用于顺序具身问答的记忆架构
+2. [A claustro-cortical loop times state transitions for flexible behavior](/202607/24/biorxiv-10-64898-2026-07-10-737800-v1-a-claustro-cortical-loop-times-state-transitions-for-flexible-behavior)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：猕猴神经影像端到端预处理框架
-3. [From Hodgkin-Huxley to Pretrained Neural Inference AI](/202607/23/biorxiv-10-64898-2026-07-13-738120-v1-from-hodgkin-huxley-to-pretrained-neural-inference-ai)  
+   evidence：用于灵活行为的亚稳态神经动力学
+3. [Distinct Orbitofrontal Feedback Signals Shape Sensory Behavioral Strategies during Flexible Learning](/202607/24/biorxiv-10-64898-2026-07-15-737076-v1-distinct-orbitofrontal-feedback-signals-shape-sensory-behavioral-strategies-during-flexible-learning)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：利用生物物理模拟预训练人工神经网络进行神经推断
-4. [Deep anatomical and ultrastructural classification of neurons in the zebrafish olfactory bulb](/202607/23/biorxiv-10-64898-2026-07-13-738197-v1-deep-anatomical-and-ultrastructural-classification-of-neurons-in-the-zebrafish-olfactory-bulb)  
+   evidence：利用计算模型推断眶额皮层在反转学习中的潜在决策策略
+4. [Cortex-wide representational drift of different layers](/202607/24/biorxiv-10-64898-2026-07-15-738614-v1-cortex-wide-representational-drift-of-different-layers)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：斑马鱼嗅球神经元的解剖分类与模式分离相关
-5. [Closed-loop control of in vitro neuronal activity using reinforcement learning after in silico pre-training](/202607/23/biorxiv-10-64898-2026-07-13-738298-v1-closed-loop-control-of-in-vitro-neuronal-activity-using-reinforcement-learning-after-in-silico-pre-training)  
+   evidence：使用钙成像研究全脑表征漂移动力学
+5. [Intrinsic ignition-based propagation networks reveal hierarchical propagation pathways of spontaneous activity in the human brain](/202607/24/biorxiv-10-64898-2026-07-16-738814-v1-intrinsic-ignition-based-propagation-networks-reveal-hierarchical-propagation-pathways-of-spontaneous-activity-in-the-human-brain)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：强化学习用于体外神经元闭环控制
-6. [Distinct Orbitofrontal Feedback Signals Shape Sensory Behavioral Strategies during Flexible Learning](/202607/23/biorxiv-10-64898-2026-07-15-737076-v1-distinct-orbitofrontal-feedback-signals-shape-sensory-behavioral-strategies-during-flexible-learning)  
+   evidence：人脑自发活动传播网络
+6. [When meaning becomes decodable: Linking the N400 evoked response to semantic representations](/202607/24/biorxiv-10-64898-2026-07-16-738961-v1-when-meaning-becomes-decodable-linking-the-n400-evoked-response-to-semantic-representations)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：眶额反馈信号、灵活学习、计算模型
-7. [GAttNHP: Group Attention Neural Hawkes Process for Extrapolation Reasoning in Temporal Knowledge Graphs](/202607/23/2607.14733v1-gattnhp-group-attention-neural-hawkes-process-for-extrapolation-reasoning-in-temporal-knowledge-graphs)  
-   标签：评分：6.0/10、query:la
-   evidence：自注意力编码器用于时间点过程
-8. [LaCache: Exact Caching and Precision-Adaptive Inference for Diffusion Large Language Models](/202607/23/2607.16339v2-lacache-exact-caching-and-precision-adaptive-inference-for-diffusion-large-language-models)  
-   标签：评分：6.0/10、query:la
-   evidence：精确缓存注意力状态实现高效推理
-9. [Persistent Sparse Autoencoders: Learning Feature Timescales in Language Models](/202607/23/2607.17117v1-persistent-sparse-autoencoders-learning-feature-timescales-in-language-models)  
-   标签：评分：6.0/10、query:la
-   evidence：持久稀疏自编码器学习特征时间尺度实现类似记忆的持久性
-10. [Evidence of predictive information compression in latent space in humans during speech listening](/202607/23/biorxiv-10-64898-2026-07-14-738305-v1-evidence-of-predictive-information-compression-in-latent-space-in-humans-during-speech-listening)  
+   evidence：利用脑磁图将N400与语义解码联系起来
+7. [Representational geometry reveals how neuronal diversity supports perceptual performance](/202607/24/biorxiv-10-1101-2025-06-26-661754-v2-representational-geometry-reveals-how-neuronal-diversity-supports-perceptual-performance)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：语音感知中的预测信息压缩，计算神经科学
-11. [Neural Representations of Ensemble Mean and Variance Across Visual Features](/202607/23/biorxiv-10-64898-2026-07-14-738506-v1-neural-representations-of-ensemble-mean-and-variance-across-visual-features)  
+   evidence：表征几何、神经元多样性支持知觉，计算神经科学
+8. [Symmetry and nonlinear-readout criteria for orientation-tuning dynamics in a cortical neural field](/202607/24/biorxiv-10-64898-2025-12-29-696812-v3-symmetry-and-nonlinear-readout-criteria-for-orientation-tuning-dynamics-in-a-cortical-neural-field)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：视觉统计摘要的神经表征
-12. [Cortex-wide representational drift of different layers](/202607/23/biorxiv-10-64898-2026-07-15-738614-v1-cortex-wide-representational-drift-of-different-layers)  
+   evidence：皮层神经场模型用于方向调谐动力学
+9. [Neural subspace reorganization reflects value-based decision making](/202607/24/biorxiv-10-64898-2026-02-02-703171-v2-neural-subspace-reorganization-reflects-value-based-decision-making)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：皮层范围跨层表征漂移
+   evidence：价值决策中的神经子空间重组
+10. [Condition-Dependent Noise Correlations without Condition-Dependent Spike Counts](/202607/24/biorxiv-10-64898-2026-05-08-723078-v4-condition-dependent-noise-correlations-without-condition-dependent-spike-counts)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：计算神经科学中神经元群体噪声相关性的研究
+11. [Quantifying the information about uncertainty in neural population codes](/202607/24/biorxiv-10-64898-2026-07-13-738167-v1-quantifying-the-information-about-uncertainty-in-neural-population-codes)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：量化神经群体编码中的不确定性信息，属于计算神经科学方法
+12. [Fixation-evoked potentials reveal neural signatures of hierarchical belief-updating during decision-making](/202607/24/biorxiv-10-64898-2026-07-15-738682-v1-fixation-evoked-potentials-reveal-neural-signatures-of-hierarchical-belief-updating-during-decision-making)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：决策中层次信念更新的神经特征，EEG
 
 
 <div class="dpr-home-promo-card">
