@@ -1,0 +1,24 @@
+---
+title: Excitatory and Inhibitory Networks Diverge Following Early Blindness
+title_zh: 早期失明后兴奋性与抑制性网络出现分化
+authors: "Laliberte, G., Boire, D."
+date: 2026-07-20
+pdf: "https://www.biorxiv.org/content/10.64898/2026.02.06.704389v2.full.pdf"
+tags: ["query:comp-neuro"]
+score: 7.0
+evidence: 感觉剥夺后皮层网络的突触可塑性机制
+tldr: 早期视觉剥夺导致皮层网络重塑，但不同神经元群体的贡献未知。本研究结合宽场钙成像与遗传标记，发现泛神经元、兴奋性和抑制性网络均呈现内侧高级视觉区与体感运动区连接增强、初级视觉区影响力下降的共享重组模式。然而，兴奋性网络全局拓扑显著改变，抑制性网络保留全局效率仅局部枢纽重组，泛神经元网络连接广泛重分布但全局组织相对保留。揭示了神经元身份依赖的介观网络可塑性，为跨模态重组提供新见解。
+source: biorxiv
+selection_source: fresh_fetch
+figures_json: "[{\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-001.webp\", \"caption\": \"\", \"page\": 14, \"index\": 1, \"width\": 1119, \"height\": 425}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-002.webp\", \"caption\": \"\", \"page\": 14, \"index\": 2, \"width\": 1124, \"height\": 993}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-003.webp\", \"caption\": \"\", \"page\": 21, \"index\": 3, \"width\": 1396, \"height\": 1347}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-004.webp\", \"caption\": \"\", \"page\": 29, \"index\": 4, \"width\": 1300, \"height\": 1154}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-005.webp\", \"caption\": \"\", \"page\": 33, \"index\": 5, \"width\": 1299, \"height\": 1158}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-006.webp\", \"caption\": \"\", \"page\": 36, \"index\": 6, \"width\": 1300, \"height\": 1161}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-007.webp\", \"caption\": \"\", \"page\": 41, \"index\": 7, \"width\": 1300, \"height\": 1232}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-008.webp\", \"caption\": \"\", \"page\": 41, \"index\": 8, \"width\": 1300, \"height\": 614}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-009.webp\", \"caption\": \"\", \"page\": 45, \"index\": 9, \"width\": 1298, \"height\": 1859}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-010.webp\", \"caption\": \"\", \"page\": 48, \"index\": 10, \"width\": 1298, \"height\": 1214}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-06-704389-v2/fig-011.webp\", \"caption\": \"\", \"page\": 48, \"index\": 11, \"width\": 1298, \"height\": 607}]"
+motivation: 探究早期失明对不同神经元群体（泛神经元、兴奋性、抑制性）皮层网络可塑性的差异化影响。
+method: 结合清醒宽场介观钙成像与启动子定义神经元（hSyn、Thy1、mDLX），对正常和新生期摘除眼球小鼠进行静息态功能连接分析。
+result: 发现共享重组模式（内侧高级视觉/联合皮层与体感运动区连接增强，初级视觉影响力下降），但兴奋性网络全局拓扑显著改变，抑制性网络保留全局效率，泛神经元网络连接广泛重分布。
+conclusion: 早期失明诱导协调但神经元身份依赖的介观网络可塑性，连接小鼠皮层动力学与人类盲人跨模态重组证据。
+---
+
+## 摘要
+早期视觉剥夺深刻重塑了皮层功能组织，但不同神经元群体对大尺度网络可塑性的贡献仍不清楚。我们结合清醒状态下的宽场介观钙成像与启动子定义的神经元群体，表征了正常视力与新生期眼球摘除小鼠的全神经元(hSyn)、兴奋性(Thy1)和抑制性(mDLX)皮层网络中的静息态功能连接。图论分析揭示了一个跨群体的趋同重组模式：内侧高级视觉和联合皮层加强与体感和运动区域的连接，而初级视觉皮层和外侧高级视觉区域失去网络影响力。尽管存在这一共享特征，网络重塑因神经元身份不同而异。兴奋性网络表现出节点影响力和模块组织的显著重新分布，伴有全局网络拓扑的选择性改变，表明其对感觉剥夺具有选择性易感性。抑制性网络在保持全局效率的同时，连接枢纽和桥接枢纽出现局部重组。全神经元网络则尽管全局网络组织相对保持，但连接性和枢纽架构出现广泛重新分布。这些发现表明，早期失明诱导了协调但依赖于神经元身份的介观网络可塑性，将小鼠皮层动态与盲人跨模态重组的系统级证据联系起来。
+
+## Abstract
+Early visual deprivation profoundly reshapes cortical functional organization, yet the contribution of distinct neuronal populations to large-scale network plasticity remains unclear. We combined awake wide-field mesoscale calcium imaging withing promoter-defined neuronal populations to characterize resting-state functional connectivity in pan-neuronal (hSyn), excitatory (Thy1), and inhibitory (mDLX) cortical networks in sighted and neonatal enucleated mice. Graph-theoretical analyses revealed a convergent reorganization pattern across populations in which medial higher visual and associative cortices strengthened their connectivity with somatosensory and motor regions, whereas primary visual cortex and lateral higher visual areas lost network influence. Despite this shared motif, network remodeling differed according to neuronal identity. Excitatory networks exhibited pronounced redistribution of nodal influence and modular organization with selective alterations of global network topology, indicating selective susceptibility to sensory deprivation. Inhibitory networks preserved global efficiency while showing localized reorganization of connector and bridging hubs. Pan-neuronal networks displayed extensive redistribution of connectivity and hub architecture despite relatively preserved global network organization. These findings demonstrate that early blindness induces coordinated yet neuronal identity-dependent mesoscale network plasticity, linking mouse cortical dynamics with systems-level evidence of cross-modal reorganization in blind individuals.
