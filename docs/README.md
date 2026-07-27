@@ -6,73 +6,65 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-26
-- 运行时间：2026-07-26 21:22:24 UTC
+- 最新运行日期：2026-07-27
+- 运行时间：2026-07-27 21:35:13 UTC
 - 运行状态：成功
-- 本次总论文数：17
-- 精读区：5
+- 本次总论文数：15
+- 精读区：3
 - 速读区：12
 
 ### 今日简报（AI）
-今日精读5篇、速读12篇，重点聚焦MoA结构化注意力（9.0/10）与条件依赖噪声相关性（8.0/10）两个方向。
-最值得关注的是新型解码注意力机制在KV-Cache累积与GQA/MQA优化上的突破，以及神经噪声非依赖条件计数的新发现。
-建议读者深入注意力架构的工程细节，并联系小脑模型与皮层漂移论文，反思计算神经科学与AI inference的交叉视角。
-- 详情：[/202607/26/README](/202607/26/README)
+今日共处理15篇论文，精读3篇（《Indexing: the Beginning and the End》9.0分、《TF-MossFormer》8.0分），速读12篇。最值得关注方向：索引技术的基础理论、时频域语音分离的高效注意力机制，以及注意力机制在长程泛化中的位置编码特性。建议优先精读索引综述与稀疏注意力相关论文，以理解长上下文推理优化核心。
+- 详情：[/202607/27/README](/202607/27/README)
 
 ### 精读区论文标签
-1. [MoA-Structured Decode Attention DNF Derivation, KV-Cache Accumulation, GQA/MQA, and OpenACC Kernel](/202607/26/2607.19456v1-moa-structured-decode-attention-dnf-derivation-kv-cache-accumulation-gqamqa-and-openacc-kernel)  
+1. [Indexing: the Beginning and the End](/202607/27/2607.22361v1-indexing-the-beginning-and-the-end)  
    标签：评分：9.0/10、query:la
-   evidence：内存最优的解码注意力及KV缓存减少
-2. [Condition-Dependent Noise Correlations without Condition-Dependent Spike Counts](/202607/26/biorxiv-10-64898-2026-05-08-723078-v4-condition-dependent-noise-correlations-without-condition-dependent-spike-counts)  
+   evidence：研究线性注意力变换器的局限性
+2. [TF-MossFormer: Integrating Convolution Gated Local-Global Attentions for Enhanced Time-Frequency Domain Monaural Speech Separation](/202607/27/2607.21128v1-tf-mossformer-integrating-convolution-gated-local-global-attentions-for-enhanced-time-frequency-domain-monaural-speech-separation)  
+   标签：评分：8.0/10、query:la
+   evidence：内容感知滑动窗口注意力实现高效局部-全局建模
+3. [Closed-loop control of in vitro neuronal activity using reinforcement learning after in silico pre-training](/202607/27/biorxiv-10-64898-2026-07-13-738298-v1-closed-loop-control-of-in-vitro-neuronal-activity-using-reinforcement-learning-after-in-silico-pre-training)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：检查前额叶神经元群体中噪声相关性作为条件依赖信息的潜在来源，与突触可塑性机制相关
-3. [Co-option of CENP-A for activity-induced neuronal plasticity](/202607/26/biorxiv-10-64898-2026-07-16-738894-v1-co-option-of-cenp-a-for-activity-induced-neuronal-plasticity)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：CENP-A受突触活动动态调控，参与海马学习和记忆
-4. [The Physics Network is Distinct from the Multiple Demand System in the Human Brain](/202607/26/biorxiv-10-64898-2026-07-19-739417-v1-the-physics-network-is-distinct-from-the-multiple-demand-system-in-the-human-brain)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：神经科学中的推理计算机制
-5. [Spectral organization of individualized connectome harmonics across brain structure, function and cognition](/202607/26/biorxiv-10-64898-2026-07-19-739422-v1-spectral-organization-of-individualized-connectome-harmonics-across-brain-structure-function-and-cognition)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：连接组谐波研究脑结构-功能关系，直接与计算神经科学中的计算表征相关
+   evidence：基于强化学习的体外神经元活动闭环控制
 
 ### 速读区论文标签
-1. [From Hodgkin-Huxley to Pretrained Neural Inference AI](/202607/26/biorxiv-10-64898-2026-07-13-738120-v1-from-hodgkin-huxley-to-pretrained-neural-inference-ai)  
+1. [Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention](/202607/27/2607.18759v1-relative-positions-generalize-absolute-positions-memorize-an-implicit-bias-account-of-length-generalization-in-attention)  
+   标签：评分：7.0/10、query:la
+   evidence：注意力中的长度泛化与位置编码
+2. [Parameter-free Adaptive Sparse Attention via Compression-Based Content Selection](/202607/27/2607.21752v1-parameter-free-adaptive-sparse-attention-via-compression-based-content-selection)  
+   标签：评分：7.0/10、query:la
+   evidence：基于压缩内容选择的自适应稀疏注意力
+3. [RIS-Kernel: A Model-Agnostic Architecture for Long-Context LLM Inference via Sparse Attention](/202607/27/2607.21927v1-ris-kernel-a-model-agnostic-architecture-for-long-context-llm-inference-via-sparse-attention)  
+   标签：评分：7.0/10、query:la
+   evidence：稀疏注意力实现高效长上下文推理
+4. [Improved inference of latent neural states from calcium imaging data](/202607/27/biorxiv-10-1101-2025-10-17-682993-v2-improved-inference-of-latent-neural-states-from-calcium-imaging-data)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：使用生物物理模拟预训练神经网络的计算神经科学方法
-2. [Modeling framework disentangles cerebellar mechanisms in speech feedback control, revealing trade-offs reshaped by degeneration](/202607/26/biorxiv-10-64898-2026-07-14-738521-v1-modeling-framework-disentangles-cerebellar-mechanisms-in-speech-feedback-control-revealing-trade-offs-reshaped-by-degeneration)  
+   evidence：神经群体数据的潜在变量分析
+5. [From Hodgkin-Huxley to Pretrained Neural Inference AI](/202607/27/biorxiv-10-64898-2026-07-13-738120-v1-from-hodgkin-huxley-to-pretrained-neural-inference-ai)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：小脑在言语运动控制中的计算机制
-3. [Cortex-wide representational drift of different layers](/202607/26/biorxiv-10-64898-2026-07-15-738614-v1-cortex-wide-representational-drift-of-different-layers)  
+   evidence：计算神经科学中的预训练神经推断
+6. [Quantifying the information about uncertainty in neural population codes](/202607/27/biorxiv-10-64898-2026-07-13-738167-v1-quantifying-the-information-about-uncertainty-in-neural-population-codes)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：皮层层次间记忆突触可塑性的计算机制
-4. [Estimating trial-wise modulation of functional connectivity using event-related fMRI](/202607/26/biorxiv-10-64898-2026-07-15-738746-v1-estimating-trial-wise-modulation-of-functional-connectivity-using-event-related-fmri)  
+   evidence：量化神经群体编码中的不确定性，计算神经科学
+7. [Functional connectivity gradients depend on cortical sampling position and brain state](/202607/27/biorxiv-10-64898-2026-07-14-738484-v1-functional-connectivity-gradients-depend-on-cortical-sampling-position-and-brain-state)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：开发beta-PPI方法用于试验级功能连接调制；直接支持计算神经科学
-5. [Intrinsic ignition-based propagation networks reveal hierarchical propagation pathways of spontaneous activity in the human brain](/202607/26/biorxiv-10-64898-2026-07-16-738814-v1-intrinsic-ignition-based-propagation-networks-reveal-hierarchical-propagation-pathways-of-spontaneous-activity-in-the-human-brain)  
+   evidence：功能连接梯度依赖于皮层采样位置和脑状态
+8. [Intrinsic ignition-based propagation networks reveal hierarchical propagation pathways of spontaneous activity in the human brain](/202607/27/biorxiv-10-64898-2026-07-16-738814-v1-intrinsic-ignition-based-propagation-networks-reveal-hierarchical-propagation-pathways-of-spontaneous-activity-in-the-human-brain)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：使用内在点火框架研究人脑自发活动传播网络
-6. [Large-scale population neuroimaging reveals latent subgroup structure in functional brain organisation](/202607/26/biorxiv-10-64898-2026-07-17-739129-v1-large-scale-population-neuroimaging-reveals-latent-subgroup-structure-in-functional-brain-organisation)  
+   evidence：计算神经科学中的大脑传播网络
+9. [Large-scale population neuroimaging reveals latent subgroup structure in functional brain organisation](/202607/27/biorxiv-10-64898-2026-07-17-739129-v1-large-scale-population-neuroimaging-reveals-latent-subgroup-structure-in-functional-brain-organisation)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：在大规模功能磁共振成像中无监督发现亚组，揭示功能脑组织，与计算神经科学相关
-7. [The Matryoshka Hypencoder](/202607/26/2607.17457v1-the-matryoshka-hypencoder)  
-   标签：评分：6.0/10、query:la
-   evidence：将查询编码为Q-Net实现高效检索，结合记忆增强
-8. [A Controlled Study of Attention-Only Transformers](/202607/26/2607.18363v1-a-controlled-study-of-attention-only-transformers)  
-   标签：评分：6.0/10、query:la
-   evidence：对纯注意力Transformer的控制实验，将计算重新分配到注意力深度
-9. [Convolution for Large Language Models](/202607/26/2607.18413v1-convolution-for-large-language-models)  
-   标签：评分：6.0/10、query:la
-   evidence：轻量卷积增强Transformer注意力效率
-10. [Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention](/202607/26/2607.18759v1-relative-positions-generalize-absolute-positions-memorize-an-implicit-bias-account-of-length-generalization-in-attention)  
-   标签：评分：6.0/10、query:la
-   evidence：分析注意力头在长度泛化中的隐偏，与高效注意力机制相关
-11. [TF-MossFormer: Integrating Convolution Gated Local-Global Attentions for Enhanced Time-Frequency Domain Monaural Speech Separation](/202607/26/2607.21128v1-tf-mossformer-integrating-convolution-gated-local-global-attentions-for-enhanced-time-frequency-domain-monaural-speech-separation)  
-   标签：评分：6.0/10、query:la
-   evidence：内容感知滑动窗口的局部-全局注意力用于语音分离
-12. [Improved inference of latent neural states from calcium imaging data](/202607/26/biorxiv-10-1101-2025-10-17-682993-v2-improved-inference-of-latent-neural-states-from-calcium-imaging-data)  
+   evidence：大规模神经影像揭示功能脑组织的亚组结构
+10. [End-to-End Markov State Sequence Learning for Auditory Attention Decoding](/202607/27/2607.18614v1-end-to-end-markov-state-sequence-learning-for-auditory-attention-decoding)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：钙成像数据的潜在神经状态推断
+   evidence：用于听觉注意力解码的马尔可夫模型
+11. [Normalization accounts for temporal dynamics in human somatosensory cortex](/202607/27/biorxiv-10-64898-2026-05-10-724117-v2-normalization-accounts-for-temporal-dynamics-in-human-somatosensory-cortex)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：体感皮层时间动力学的归一化模型，计算神经科学
+12. [Factorization and spatial encodings: a hypothesis about the foundations of the genomic code](/202607/27/biorxiv-10-64898-2026-07-14-738413-v1-factorization-and-spatial-encodings-a-hypothesis-about-the-foundations-of-the-genomic-code)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：神经回路架构的基因组编码，与计算神经科学主题相关
 
 
 <div class="dpr-home-promo-card">
