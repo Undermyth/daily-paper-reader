@@ -6,65 +6,76 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-27
-- 运行时间：2026-07-27 21:35:13 UTC
+- 最新运行日期：2026-07-28
+- 运行时间：2026-07-28 20:53:52 UTC
 - 运行状态：成功
-- 本次总论文数：15
-- 精读区：3
+- 本次总论文数：18
+- 精读区：6
 - 速读区：12
 
 ### 今日简报（AI）
-今日共处理15篇论文，精读3篇（《Indexing: the Beginning and the End》9.0分、《TF-MossFormer》8.0分），速读12篇。最值得关注方向：索引技术的基础理论、时频域语音分离的高效注意力机制，以及注意力机制在长程泛化中的位置编码特性。建议优先精读索引综述与稀疏注意力相关论文，以理解长上下文推理优化核心。
-- 详情：[/202607/27/README](/202607/27/README)
+今日推荐18篇论文，精读6篇，其中两篇关于Transformer注意力机制的理论创新获9分高分。
+最值得关注的是《The Entropic Bound for Transformers》揭示静态秩失效与注意力原生秩恢复的熵界，以及《A Coulomb Particle Model》用库仑粒子模型学习核注意力。
+建议优先精读这两篇高分论文，深入理解注意力机制的底层理论，再结合速读中的《What Softmax Throws Away》进一步优化实际应用。
+- 详情：[/202607/28/README](/202607/28/README)
 
 ### 精读区论文标签
-1. [Indexing: the Beginning and the End](/202607/27/2607.22361v1-indexing-the-beginning-and-the-end)  
+1. [The Entropic Bound for Transformers: Why Static Rank Fails and Attention-Native Rank Recovers](/202607/28/2607.23050v1-the-entropic-bound-for-transformers-why-static-rank-fails-and-attention-native-rank-recovers)  
    标签：评分：9.0/10、query:la
-   evidence：研究线性注意力变换器的局限性
-2. [TF-MossFormer: Integrating Convolution Gated Local-Global Attentions for Enhanced Time-Frequency Domain Monaural Speech Separation](/202607/27/2607.21128v1-tf-mossformer-integrating-convolution-gated-local-global-attentions-for-enhanced-time-frequency-domain-monaural-speech-separation)  
+   evidence：通过线性注意力代理证明Transformer的固有秩下界
+2. [A Coulomb Particle Model for Learning Kernel Attention in Transformers](/202607/28/2607.23869v1-a-coulomb-particle-model-for-learning-kernel-attention-in-transformers)  
+   标签：评分：9.0/10、query:la
+   evidence：通过学习的核特征实现线性注意力
+3. [Through the Bottleneck: How Multi-head Latent Attention Separates Content from Position in Language Models](/202607/28/2607.23054v1-through-the-bottleneck-how-multi-head-latent-attention-separates-content-from-position-in-language-models)  
    标签：评分：8.0/10、query:la
-   evidence：内容感知滑动窗口注意力实现高效局部-全局建模
-3. [Closed-loop control of in vitro neuronal activity using reinforcement learning after in silico pre-training](/202607/27/biorxiv-10-64898-2026-07-13-738298-v1-closed-loop-control-of-in-vitro-neuronal-activity-using-reinforcement-learning-after-in-silico-pre-training)  
+   evidence：多头潜在注意力通过KV缓存压缩实现高效
+4. [MemChain: Learning Interpretable Memory Traces for Memory-Augmented LLM Agents](/202607/28/2607.24097v1-memchain-learning-interpretable-memory-traces-for-memory-augmented-llm-agents)  
+   标签：评分：8.0/10、query:la
+   evidence：用于记忆增强LLM代理的可训练后检索记忆策略
+5. [MXAttention: Data-Free Optimal Scaling and Pre-Normalization Quantization for MXFP4 Attention](/202607/28/2607.24377v1-mxattention-data-free-optimal-scaling-and-pre-normalization-quantization-for-mxfp4-attention)  
+   标签：评分：8.0/10、query:la
+   evidence：无数据最优缩放量化实现高效MXFP4注意力
+6. [Testing the Spatiotemporal Predictions of Global Neuronal Workspace Theory and Integrated Information Theory](/202607/28/biorxiv-10-64898-2026-07-16-738188-v1-testing-the-spatiotemporal-predictions-of-global-neuronal-workspace-theory-and-integrated-information-theory)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：基于强化学习的体外神经元活动闭环控制
+   evidence：使用动态因果模型测试意识理论的计算神经科学研究
 
 ### 速读区论文标签
-1. [Relative Positions Generalize, Absolute Positions Memorize: An Implicit-Bias Account of Length Generalization in Attention](/202607/27/2607.18759v1-relative-positions-generalize-absolute-positions-memorize-an-implicit-bias-account-of-length-generalization-in-attention)  
+1. [What Softmax Throws Away: Mass-Aware Attention for Evidence Accumulation](/202607/28/2607.22781v1-what-softmax-throws-away-mass-aware-attention-for-evidence-accumulation)  
    标签：评分：7.0/10、query:la
-   evidence：注意力中的长度泛化与位置编码
-2. [Parameter-free Adaptive Sparse Attention via Compression-Based Content Selection](/202607/27/2607.21752v1-parameter-free-adaptive-sparse-attention-via-compression-based-content-selection)  
+   evidence：质量感知注意力提升证据积累效率
+2. [MemVLN: Episodic and Procedural Memory for Vision-and-Language Navigation](/202607/28/2607.23504v1-memvln-episodic-and-procedural-memory-for-vision-and-language-navigation)  
    标签：评分：7.0/10、query:la
-   evidence：基于压缩内容选择的自适应稀疏注意力
-3. [RIS-Kernel: A Model-Agnostic Architecture for Long-Context LLM Inference via Sparse Attention](/202607/27/2607.21927v1-ris-kernel-a-model-agnostic-architecture-for-long-context-llm-inference-via-sparse-attention)  
+   evidence：使用情景记忆进行导航的记忆增强神经网络
+3. [DynaCalKV: Key-Value Cache Compression via Head Grouping and Adaptive Rank Allocation](/202607/28/2607.24331v1-dynacalkv-key-value-cache-compression-via-head-grouping-and-adaptive-rank-allocation)  
    标签：评分：7.0/10、query:la
-   evidence：稀疏注意力实现高效长上下文推理
-4. [Improved inference of latent neural states from calcium imaging data](/202607/27/biorxiv-10-1101-2025-10-17-682993-v2-improved-inference-of-latent-neural-states-from-calcium-imaging-data)  
+   evidence：通过头分组和自适应秩分配的高效KV缓存压缩
+4. [PIVOT: Efficient Query-Group Indexing for Token-Level Sparse Attention](/202607/28/2607.24593v1-pivot-efficient-query-group-indexing-for-token-level-sparse-attention)  
+   标签：评分：7.0/10、query:la
+   evidence：高效查询组索引用于令牌级稀疏注意力
+5. [Eviction as Estimation: A Fixed-Lag Smoothing View of Test-Time Memory, and When Measuring Beats Accumulating](/202607/28/2607.24667v1-eviction-as-estimation-a-fixed-lag-smoothing-view-of-test-time-memory-and-when-measuring-beats-accumulating)  
+   标签：评分：7.0/10、query:la
+   evidence：语言模型工作记忆的高效驱逐策略
+6. [From Hodgkin-Huxley to Pretrained Neural Inference AI](/202607/28/biorxiv-10-64898-2026-07-13-738120-v1-from-hodgkin-huxley-to-pretrained-neural-inference-ai)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：神经群体数据的潜在变量分析
-5. [From Hodgkin-Huxley to Pretrained Neural Inference AI](/202607/27/biorxiv-10-64898-2026-07-13-738120-v1-from-hodgkin-huxley-to-pretrained-neural-inference-ai)  
+   evidence：计算神经科学，基于生物物理模拟的神经推断
+7. [Segregation and integration between visuo-spatial attention and semantic memory across large-scale brain networks](/202607/28/biorxiv-10-64898-2026-07-21-739848-v1-segregation-and-integration-between-visuo-spatial-attention-and-semantic-memory-across-large-scale-brain-networks)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：计算神经科学中的预训练神经推断
-6. [Quantifying the information about uncertainty in neural population codes](/202607/27/biorxiv-10-64898-2026-07-13-738167-v1-quantifying-the-information-about-uncertainty-in-neural-population-codes)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：量化神经群体编码中的不确定性，计算神经科学
-7. [Functional connectivity gradients depend on cortical sampling position and brain state](/202607/27/biorxiv-10-64898-2026-07-14-738484-v1-functional-connectivity-gradients-depend-on-cortical-sampling-position-and-brain-state)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：功能连接梯度依赖于皮层采样位置和脑状态
-8. [Intrinsic ignition-based propagation networks reveal hierarchical propagation pathways of spontaneous activity in the human brain](/202607/27/biorxiv-10-64898-2026-07-16-738814-v1-intrinsic-ignition-based-propagation-networks-reveal-hierarchical-propagation-pathways-of-spontaneous-activity-in-the-human-brain)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：计算神经科学中的大脑传播网络
-9. [Large-scale population neuroimaging reveals latent subgroup structure in functional brain organisation](/202607/27/biorxiv-10-64898-2026-07-17-739129-v1-large-scale-population-neuroimaging-reveals-latent-subgroup-structure-in-functional-brain-organisation)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：大规模神经影像揭示功能脑组织的亚组结构
-10. [End-to-End Markov State Sequence Learning for Auditory Attention Decoding](/202607/27/2607.18614v1-end-to-end-markov-state-sequence-learning-for-auditory-attention-decoding)  
+   evidence：视觉空间注意与语义记忆整合中的海马体作用
+8. [A Controlled Study of Attention-Only Transformers](/202607/28/2607.18363v1-a-controlled-study-of-attention-only-transformers)  
+   标签：评分：6.0/10、query:la
+   evidence：仅注意力Transformer研究前馈层移除
+9. [Co-Evolving Graph and Text Memory for Training-Free Multi-Hop Question Answering](/202607/28/2607.23278v1-co-evolving-graph-and-text-memory-for-training-free-multi-hop-question-answering)  
+   标签：评分：6.0/10、query:la
+   evidence：协同演化图文本记忆用于多跳问答
+10. [Sol-Attn: Accelerating Video Generation Inference via On-the-Fly Attention Sparsification](/202607/28/2607.24027v1-sol-attn-accelerating-video-generation-inference-via-on-the-fly-attention-sparsification)  
+   标签：评分：6.0/10、query:la
+   evidence：用于高效视频生成推理的即时注意力稀疏化
+11. [Locomotion optimizes sensory representations through a computational principle shared by rodents and primates](/202607/28/biorxiv-10-1101-2025-06-29-662230-v5-locomotion-optimizes-sensory-representations-through-a-computational-principle-shared-by-rodents-and-primates)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：用于听觉注意力解码的马尔可夫模型
-11. [Normalization accounts for temporal dynamics in human somatosensory cortex](/202607/27/biorxiv-10-64898-2026-05-10-724117-v2-normalization-accounts-for-temporal-dynamics-in-human-somatosensory-cortex)  
+   evidence：运动通过跨物种共享的计算原则优化感觉表征
+12. [Improved inference of latent neural states from calcium imaging data](/202607/28/biorxiv-10-1101-2025-10-17-682993-v2-improved-inference-of-latent-neural-states-from-calcium-imaging-data)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：体感皮层时间动力学的归一化模型，计算神经科学
-12. [Factorization and spatial encodings: a hypothesis about the foundations of the genomic code](/202607/27/biorxiv-10-64898-2026-07-14-738413-v1-factorization-and-spatial-encodings-a-hypothesis-about-the-foundations-of-the-genomic-code)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：神经回路架构的基因组编码，与计算神经科学主题相关
+   evidence：从钙成像推断潜在神经状态
 
 
 <div class="dpr-home-promo-card">
