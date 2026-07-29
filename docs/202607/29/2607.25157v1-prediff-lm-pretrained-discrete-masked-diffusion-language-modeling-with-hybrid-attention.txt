@@ -1,0 +1,523 @@
+Title: PreDiff-LM: Pretrained Discrete Masked Diffusion Language Modeling with Hybrid Attention
+
+URL Source: https://arxiv.org/pdf/2607.25157v1
+
+Published Time: Wed, 29 Jul 2026 00:26:28 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+# PreDiff-LM : Pretrained Discrete Masked Diffusion Language Modeling with Hybrid Attention ∗
+
+Zhengtao Yao 1, † Runhao Li 1, † Xupeng Chen 2 Jiayi Cheng 2 Chenqian Le 2
+
+Michael Yue 3 Jesson Wang 1 Siheng Wang 4 Guang Yang 5 Haoyan Xu 1
+
+Chenhao Wei 5 Zhengqing Yuan 6 Youran Shen 4 Yanfang Ye 6 Junhao Dong 7
+
+> 1
+
+University of Southern California 2New York University 3Columbia University 
+
+> 4
+
+University of California, Berkeley 5Stevens Institute of Technology 
+
+> 6
+
+University of Notre Dame 7Nanyang Technological University 
+
+## Abstract 
+
+Discrete masked diffusion language models support bidirectional generation and infilling, but adapting pretrained autoregressive (AR) transformers requires reconciling causal pretraining with bidirectional denoising. We study this problem at the level of attention rather than claiming AR-weight reuse itself as novel. PreDiff-LM preserves causal attention within the observed prompt while allowing full bidirectional attention within the masked target. Under a matched GPT-2 Medium, WikiText-103, 90K-step setup, this hybrid mask improves unconditional perplexity from 34 .1 to 28 .7 and MAUVE from 0.71 to 0.78 over uniform bidirectional attention with the same AR initialization. Attention adaptation also composes with a DiffuGPT-style objective adaptation, reaching 26 .9 perplexity. Pretrained initialization reduces the steps required to reach perplexity below 50 from about 350K to 8K, although a compute-matched fine-tuned AR model remains stronger at equal scale ( 18 .9 versus 28 .7). Beyond perplexity, PreDiff-LM improves repetition, distributional quality, four zero-shot downstream tasks, and human preference over prior diffusion baselines. The results position hybrid attention as a complementary mechanism for adapting pretrained causal backbones, while making explicit the remaining quality and inference-efficiency gaps to optimized AR models. 
+
+## 1 Introduction 
+
+Autoregressive (AR) language models generate high-quality text by predicting one token at a time (Radford et al., 2019; Brown et al., 2020). Their causal factorization is effective for left-to-right generation, but does not natively support arbitrary-order refinement or infilling. Discrete diffusion language models instead corrupt and denoise whole sequences (Austin et al., 2021; Sahoo et al., 2024; Lou et al., 2023). This gives them bidirectional generation capabilities, but many early systems were trained from scratch and remained substantially behind comparably sized AR models. Recent work has shown that this gap is not solely a property of the diffusion objective. DiffuGPT and DiffuLLaMA adapt pretrained AR models through continual diffusion training (Gong et al., 2024); Dream initializes a discrete diffusion LM from an AR-pretrained model and introduces context-adaptive noise rescheduling (Ye et al., 2025). These results make AR initialization an established strategy. The unresolved question we study is narrower: how should information flow change when causal weights are reused for masked denoising? 
+
+The difficulty is an attention-pattern mismatch. AR weights are learned under strictly causal attention, whereas masked target tokens benefit from both left and right context. Replacing the causal mask everywhere 
+
+> ∗Language-model tools were used for editorial assistance. The authors reviewed and take responsibility for all claims, analyses, and text.
+> †Equal contribution.
+
+1arXiv:2607.25157v1 [cs.AI] 28 Jul 2026 with a bidirectional mask changes the representations seen by every layer, including the observed conditioning prompt. PreDiff-LM instead uses an asymmetric hybrid mask: prompt tokens retain their pretrained causal computation, while target tokens attend to the prompt and to one another bidirectionally. Acontrolled experiment with identical AR initialization isolates a 5.4-point perplexity improvement over uniform bidirectional attention. Our contributions are: 1. We formulate attention adaptation as a distinct component of AR-to-diffusion transfer and introduce a hybrid causal-bidirectional mask that preserves prompt-side causal structure while enabling target-side denoising. 2. We isolate this mechanism against a Dream-style uniform-attention control and show that attention adaptation composes with a DiffuGPT-style objective adaptation (26.9 perplexity when combined). 3. We add compute-matched fine-tuned AR controls, repetition-sensitive metrics, four downstream tasks, and a three-human audit of the preference evaluation. These checks support the non-AR improvements without claiming parity with a matched AR model. 4. We distinguish the strong training-efficiency result from inference latency: optimized AR decoding is faster in some regimes, while diffusion remains useful for low-step parallel refinement, infilling, and constrained generation. 
+
+Figure 1: Problem, mechanism, and controlled evidence. Left: Pretrained initialization reaches PPL below 50 in 8K steps, compared with about 350K for MDLM, and improves generated-text quality. Middle: 
+
+The hybrid mask preserves causal prompt computation while opening bidirectional target attention during iterative denoising. Right: PreDiff-LM has the lowest PPL among the evaluated diffusion baselines, although external results differ in model size and training budget. The matched fine-tuned AR control remains stronger at 18.9 PPL, while the matched AR gap narrows through the Large scale. 
+
+## 2 Related Work 
+
+Masked diffusion trained from scratch. D3PM introduced discrete transition kernels (Austin et al., 2021), while SEDD and MDLM improved score-entropy and masked-diffusion objectives (Lou et al., 2023; Sahoo et al., 2024). ARDM and MAC combine ordering or autoregressive structure with diffusion-style generation (Hoogeboom et al., 2021; Shi et al., 2024). LLaDA demonstrates that a masked diffusion LM trained from scratch can scale to billions of parameters and perform downstream language tasks (Nie et al., 2025). Its confidence-based remasking is closely related to our inference rule; we therefore treat confidence-aware unmasking as a supporting component rather than a primary novelty. 2Adapting pretrained AR models. Diffusion-LM and CDCD study continuous diffusion in embedding space (Li et al., 2022; Dieleman et al., 2022). DiffuGPT and DiffuLLaMA connect AR and diffusion objectives and continually adapt pretrained models, including a gradual change in attention structure (Gong et al., 2024). Dream reuses AR-pretrained weights in a large discrete diffusion LM and combines them with context-adaptive token-level noise rescheduling (Ye et al., 2025). These works precede ours in AR-weight reuse. Our contribution is an attention-level controlled study: we preserve causal computation for the conditioning prompt, open bidirectional attention only for the denoised target, and test this change against uniform bidirectional attention under otherwise matched conditions. The objective-level and attention-level views are complementary rather than competing explanations; their combination performs better than either alone. 
+
+Continuous-state and path-unified generation. Discrete Stochastic Localization (DSL) fine-tunes a pre-trained masked-diffusion checkpoint into a continuous-state, time-invariant denoiser that can support masked refinement, hybrid continuous–discrete sampling, and random-order AR generation with one model (Wu et al., 2026). DSL changes the corruption representation and unifies sampling paths, whereas we study how attention should change when the starting checkpoint is a causal AR transformer; the two directions are therefore complementary. 
+
+Generation quality and decoding. BERT uses bidirectional masked prediction but is not an iterative generative model (Devlin et al., 2019). Recent work documents repetition and long-window failure modes in diffusion decoding and proposes convolutional decoding and rejective fine-tuning (Seo et al., 2025). We therefore evaluate MAUVE, Distinct-n, repetition, Self-BLEU, a dispersion-based perplexity diagnostic, downstream tasks, and blinded preferences in addition to mean perplexity. 
+
+## 3 Method 
+
+Design rationale. Each component addresses a different failure mode in AR-to-diffusion transfer. Hybrid attention preserves the information-flow pattern under which prompt representations were pretrained while exposing masked targets to bidirectional context. A mask-rate embedding identifies the denoising noise level to a single shared network. Self-conditioning feeds the model’s previous soft prediction back into the next pass to reduce inconsistencies among simultaneously masked tokens. Confidence-aware unmasking limits error propagation when the decoding budget is small. The first mechanism is our central contribution; the remaining components form the training and inference recipe used to evaluate it. 
+
+3.1 Background: Discrete Masked Diffusion 
+
+Let x = ( x1, . . . , x L) ∈ V L be a sequence of L tokens from vocabulary V. Discrete masked diffusion defines a forward process that stochastically replaces tokens with a [MASK] token at rate t ∈ [0 , 1] :
+
+q(xt|x0, t ) = 
+
+> L
+
+∏
+
+> i=1
+
+[(1 −t) · δxti =x0 
+
+> i
+
++ t · δxti =[MASK] 
+
+] (1) where t=0 is clean data and t= 1 is fully masked. The reverse process learns to predict original tokens from the corrupted sequence: pθ (x0|xt, t ) = ∏  
+
+> i:xti=[MASK]
+
+pθ (x0 
+
+> i
+
+|xt, t ). Training minimizes the expected cross-entropy over masked positions: 
+
+Ldiff = Et∼p(t), xt∼q(·| x0,t )
+
+[
+
+− 1
+
+|M t|
+
+∑
+
+> i∈M t
+
+log pθ (x0 
+
+> i
+
+|xt, t )
+
+]
+
+(2) where Mt = {i : xti = [MASK] } is the set of masked positions and t is drawn from a noise schedule p(t).
+
+3.2 Hybrid Causal-Bidirectional Attention 
+
+The central adaptation problem is asymmetric. Prompt tokens are observed conditioning variables, so preserving their causal computation retains the internal representation regime in which the AR weights were 3learned. Target tokens are latent reconstruction variables, so each benefits from evidence on both sides and from the model’s current beliefs about other targets. Treating both regions identically either removes useful target context (fully causal attention) or perturbs the pretrained prompt computation (uniform bidirectional attention). We encode this asymmetry with a hybrid 4D attention mask M ∈ { 0, 1}(Lp+Lx)×(Lp+Lx). It partitions the input into a prompt prefix p of length Lp and a target region xt of length Lx:
+
+Mij =
+
+
+
+1[j ≤ i] i, j ∈ prompt 
+
+1 i ∈ target , j ∈ prompt 
+
+1 i, j ∈ target 
+
+0 i ∈ prompt , j ∈ target (3) The first case preserves the prompt-side causal pattern. The second and third cases allow every target token to use the complete prompt and the current target state. The fourth case prevents information from the corrupted target from changing prompt representations. This design is not an upper-bound claim about causal prompts in general: it is a transfer hypothesis for reusing causal weights. Section 4.3 tests it against uniform bidirectional attention under matched initialization and training. Whether the same mask helps a model trained entirely from scratch remains open. 
+
+3.3 Self-Conditioning 
+
+The masked diffusion posterior is factorized across masked positions. At high mask rates, this marginal prediction can produce mutually inconsistent token choices because co-masked tokens do not observe one another’s clean values. Self-conditioning supplies a soft approximation to that missing joint context. With probability ρ = 0 .5 during training, we first compute preliminary predictions ˆx0 = fθ (xt, t ), then condition a refined pass on them: 
+
+pθ (x0|xt, t, ˆx0) = fθ (xt + proj (ˆ x0), t ) (4) where proj : R|V| → Rd maps the previous softmax distribution to an embedding residual. This gives each position access to the model’s current beliefs about its neighbors without committing to hard tokens. The effect is largest when many tokens are masked: removing self-conditioning raises PPL@50% from 69 .0 to 
+
+214 .0 and unconditional perplexity by 32 .1 points (Table 7). 
+
+3.4 Mask-Rate Time Embedding and Noise Schedule 
+
+The mask rate t is injected via sinusoidal encoding (Vaswani et al., 2017) followed by an MLP: et =
+
+MLP (SinEmbed (t)) ∈ Rd, added to all token positions. We sample t from a cosine schedule that concentrates training on informative moderate mask rates: 
+
+t = 1 − cos ( π 
+
+> 2
+
+u) , u ∼ Uniform (0 , 1) (5) 
+
+3.5 Confidence-Aware Unmasking (CAU) 
+
+At inference, we iteratively unmask tokens over T steps following an easy-first strategy closely related to confidence-based remasking in LLaDA (Nie et al., 2025). We include it as a decoding component and do not claim the general confidence-ordering principle as novel. At step s, we compute predictions ˆx0 = fθ (xts , t s),rank masked positions by confidence ci = max v pθ (xi=v|xts , t s), and unmask the top-ks positions where: 
+
+ks = ⌈|M ts | · (1 − cos ( πs 
+
+> 2T
+
+))⌉ (6) The cosine schedule unmasks few tokens initially (when uncertainty is high) and accelerates as context accumulates. Algorithm 1 gives the complete procedure. 4Algorithm 1 CAU Sampling 
+
+Require: Prompt p, target length Lx, steps T , model fθ 
+
+> 1:
+
+xt0 ← [[MASK] ]Lx {fully masked}  
+
+> 2:
+
+for s = 1 to T do  
+
+> 3:
+
+ts ← 1 − s/T {noise level}  
+
+> 4:
+
+ˆx0 ← fθ ([ p; xts−1 ], t s) {predict clean tokens}  
+
+> 5:
+
+ci ← max v pθ (xi=v|· ) for all i ∈ M ts−1 
+
+> 6:
+
+ks ← ⌈|M ts−1 | · (1 − cos( πs/ 2T )) ⌉ 
+
+> 7:
+
+Unmask top-ks positions by confidence; set xi ← arg max v pθ (xi=v|· ) 
+
+> 8:
+
+end for  
+
+> 9:
+
+return xtT
+
+## 4 Experiments 
+
+4.1 Setup 
+
+Models. We evaluate four sizes based on GPT-2 (Radford et al., 2019): PreDiff-LM -S (133M), -M (364M), -L (783M), -XL (1.56B). The parameter increase ( ∼9M for -M) comes from mask/time embeddings and a self-conditioning projection. We additionally apply PreDiff-LM to Llama-3.2 (Grattafiori et al., 2024) 1B and 3B backbones. 
+
+Baselines. We report the original GPT-2 checkpoints and new AR controls fine-tuned on WikiText-103 with the same data, optimizer, and per-scale adaptation budget as PreDiff-LM . Diffusion baselines include D3PM, ARDM, SEDD, MDLM, MAC, RADD, Diffusion-LM, CDCD, and DiffuGPT (Austin et al., 2021; Hoogeboom et al., 2021; Lou et al., 2023; Sahoo et al., 2024; Shi et al., 2024; Ou et al., 2024; Li et al., 2022; Dieleman et al., 2022; Gong et al., 2024). We also implement a Dream-style control that uses the same GPT-2 Medium initialization and training setup as PreDiff-LM but replaces hybrid attention with uniform bidirectional attention. This isolates the attention mechanism; it is not a direct evaluation of the released 7B Dream model (Ye et al., 2025). 
+
+Training. WikiText-103 (Merity et al., 2018), AdamW ( lr = 5×10 −5, weight decay 0.01), effective batch size 256, sequence length 256, bfloat16, 8 × NVIDIA RTX PRO 6000 GPUs with DDP. PreDiff-LM -M trains for 90K steps in ∼24 GPU-hours. 
+
+Evaluation. We evaluate unconditional modeling and transfer on WikiText-103, OpenWebText, LM1B, PG-19, CodeParrot, LAMBADA, PTB, and C4. Metrics include PPL u, BLEU-4, MAUVE (Pillutla et al., 2021), Distinct-n (Li et al., 2016), Self-BLEU, repetition, BERTScore (Zhang et al., 2019), and next-sentence coherence from a fine-tuned RoBERTa-large classifier. We additionally report zero-shot LAMBADA, HellaSwag, PIQA, and WinoGrande accuracy under a matched harness and decoding budget. Generation uses 32 denoising steps unless stated otherwise. Appendix A gives the preference rubric and audit protocol. 
+
+4.2 Main Results 
+
+Table 1 presents unconditional language modeling on WikiText-103. PreDiff-LM -M reaches 28 .7±0.3 PPL, compared with 34 .1±0.4 for the matched uniform-attention control, 42 .8±0.5 for DiffuGPT, and 51 .2±0.6
+
+for MDLM. The matched fine-tuned GPT-2 Medium control is stronger at 18 .9 PPL. We therefore claim a substantial improvement among the evaluated diffusion models, not equal-scale AR superiority. The same pattern holds across scale (Table 8): the gap to the matched AR control shrinks from 14.1 points at Small to 2.0 at Large, while no fine-tuned XL control is available. Pretrained initialization provides a clearer efficiency gain during training. PreDiff-LM -M reaches PPL below 50 in 8K steps, compared with about 350K for MDLM, and uses 24 reported GPU-hours versus 480 (Table 16). This comparison concerns adaptation efficiency; Section 4.10 treats decoding latency separately. 5Table 1: WikiText-103 unconditional generation at medium scale. The fine-tuned AR control uses the same data and matched adaptation compute as PreDiff-LM -M. Dream-style denotes our controlled implementation with GPT-2 Medium initialization and uniform bidirectional attention; it is not the released Dream 7B checkpoint. External diffusion baselines differ in parameter count and training budget. Mean ±std over four seeds where available.                                      
+
+> Method Generation Initialization / attention Params PPL u↓MAUVE ↑
+> Autoregressive controls
+> GPT-2 Medium (zero-shot) AR Original checkpoint 355M 28.9 0.92 GPT-2 Medium (fine-tuned) AR Matched WikiText-103 adaptation 355M 18.9 —
+> Diffusion language models
+> MDLM (Sahoo et al., 2024) Masked Random / bidirectional 110M 51.2 ±0.6 0.58 ±0.02 DiffuGPT (Gong et al., 2024) Continuous AR / objective adaptation 355M 42.8 ±0.5 0.64 ±0.01 Dream-style control Masked AR / uniform bidirectional 364M 34.1 ±0.4 0.71 ±0.02
+> PreDiff-LM-M Masked AR / hybrid attention 364M 28.7 ±0.3 0.78 ±0.01
+
+Table 2: Attention adaptation and composability. Panel A holds the GPT-2 Medium initialization, WikiText-103 data, 90K-step budget, and all other components fixed while changing the attention pattern. Panel B tests whether attention-level and DiffuGPT-style objective adaptation provide distinct gains. Dashes indicate metrics not collected in that experiment. 
+
+Configuration PPL u ↓ MAUVE ↑
+
+A. Matched attention-pattern control 
+
+AR init. + uniform bidirectional attention 34.1 ±0.4 0.71 ±0.02 
+
+AR init. + hybrid attention (PreDiff-LM) 28.7 ±0.3 0.78 ±0.01 
+
+B. Complementary adaptation mechanisms 
+
+Objective adaptation only (DiffuGPT-style) 42.8 —Attention adaptation only (PreDiff-LM) 28.7 —
+
+Objective + attention adaptation 26.9 —
+
+4.3 Isolating attention adaptation 
+
+Table 2 separates attention adaptation from the more general benefit of AR initialization. With the same GPT-2 Medium weights, data, 90K-step budget, and training recipe, replacing uniform bidirectional attention with the hybrid mask improves PPL by 5.4 points (16% relative) and MAUVE by 0.07. The objective-only, attention-only, and combined configurations reach 42.8, 28.7, and 26.9 PPL, respectively. The combined gain shows that changing the learning objective and changing information flow are complementary mechanisms rather than two descriptions of the same intervention. 
+
+4.4 Ablation Study 
+
+Table 7 isolates each component’s contribution at 10K steps. Freezing the pretrained backbone produces the largest degradation ( ∆PPL u= + 149 .2), indicating that reusing the LM head without adapting the transformer layers is insufficient. Removing mask-rate conditioning and self-conditioning increases PPL by 36.0 and 32.1 points, respectively. The cosine schedule, hybrid attention, and time embedding account for smaller increases of 18.8, 8.4, and 4.8 points. 
+
+4.5 Downstream and repetition-sensitive evaluation 
+
+Perplexity alone can obscure repetitive or otherwise low-quality samples. Table 4 therefore adds Rep-4, Self-BLEU, and the mean squared deviation of per-sample perplexity from the corpus mean. PreDiff-LM -M reduces this dispersion from 38.4 for MDLM and 29.1 for DiffuGPT to 11.2, close to the AR reference at 9.8. 6Table 3: Zero-shot downstream evaluation. All methods use the same evaluation harness and decoding budget. The matched fine-tuned AR control remains strongest; PreDiff-LM improves consistently over the diffusion baselines. 
+
+Method LAMBADA HellaSwag PIQA WinoGrande 
+
+MDLM 35.8 28.4 58.2 50.1 DiffuGPT 38.6 30.1 60.4 51.3 
+
+PreDiff-LM-M 49.5 34.7 64.1 53.8 
+
+GPT-2 Medium (AR) 55.4 39.2 67.0 55.9 Table 4: Repetition-sensitive quality audit on WikiText-103 generations. Lower is better for all columns. The dispersion diagnostic is the mean squared deviation of per-sample perplexity from the corpus mean. 
+
+Method PPL u Rep-4 Self-BLEU PPL dispersion 
+
+MDLM 51.2 0.028 0.412 38.4 DiffuGPT 42.8 0.022 0.358 29.1 
+
+PreDiff-LM-M 28.7 0.012 0.196 11.2 GPT-2 Medium (AR) 28.9 0.008 0.171 9.8 
+
+Its Rep-4 of 0.012 and Self-BLEU of 0.196 likewise argue against repetition as the explanation for the lower mean PPL. The same ranking appears on four zero-shot tasks (Table 3). PreDiff-LM -M improves over MDLM and DiffuGPT on LAMBADA, HellaSwag, PIQA, and WinoGrande, while the AR control remains stronger on all four. These results broaden the evidence beyond generation perplexity without erasing the remaining AR gap. 
+
+4.6 Scaling Behavior 
+
+Perplexity improves from 38.2 at 133M parameters to 18.4 at 783M and 12.1 at 1.56B (Table 8 and Figure 2). The new fine-tuned controls change the interpretation of this trend: PreDiff-LM does not beat matched AR training at Small, Medium, or Large, but its absolute gap decreases across those three scales. Because the XL control is unavailable and four points are insufficient for a robust scaling-law fit, we report the observed trend without extrapolating a crossover. 
+
+4.7 Human Preference Evaluation 
+
+Automatic metrics may not reflect perceived fluency or coherence. A blinded mixed panel (GPT-4o, DeepSeek-V3.2, and one human expert) compares 120 unconditional samples per method using fixed fluency, coherence, and informativeness rubrics (Zheng et al., 2023). PreDiff-LM is preferred over MDLM in 64.2% of comparisons and over SEDD in 72.5%, but wins only 34.2% against GPT-2 Medium, with 24.2% ties (Table 9). We audit whether shared automatic-judge bias explains the diffusion-baseline result. Pairwise Cohen’s κ is 0.76 between the two LLMs, 0.71 between GPT-4o and the human, and 0.73 between DeepSeek and the human (Table 5). On a random 40-sample subset, three independent humans prefer PreDiff-LM over MDLM in 66.7% of cases, with human-only Fleiss’ κ = 0 .68 . The audit is encouraging but small; we therefore report the mixed-panel result as supporting evidence rather than a substitute for a larger human study. 7Table 5: Independent audit of preference judgments. Pairwise Cohen’s κ is measured on the shared comparison set. The three-human audit uses a random 40-sample subset; its majority preference is for PreDiff-LM over MDLM. 
+
+Audit statistic Value 
+
+GPT-4o vs. DeepSeek-V3.2 Cohen’s κ 0.76 GPT-4o vs. human Cohen’s κ 0.71 DeepSeek-V3.2 vs. human Cohen’s κ 0.73 Three-human Fleiss’ κ (40 samples) 0.68 Human-majority preference for PreDiff-LM 66.7% Table 6: Inference speed–quality trade-off. Throughput is reported for 256-token generation under the same hardware configuration. Optimized AR decoding is faster than high-quality 32-step diffusion; 8-step diffusion is competitive with speculative decoding at lower quality. 
+
+Method Passes Tok/s ↑ PPL ↓
+
+GPT-2 Medium + KV cache 256 AR steps 1,120 28.9 GPT-2 Medium + speculative decoding draft + verify 1,850 28.9 PreDiff-LM-M 8 denoising steps 1,800 35.4 PreDiff-LM-M 16 denoising steps 900 31.2 PreDiff-LM-M 32 denoising steps 450 28.7 PreDiff-LM-M 64 denoising steps 225 27.5 0.13 0.36 0.78 1.56     
+
+> Parameters (billions)
+> 10
+> 20
+> 30
+> 40
+> Unconditional PPL (lower is better)  Matched AR controls change the scaling picture
+> PreDiff-LM
+> GPT-2 zero-shot
+> GPT-2 fine-tuned 0100 200 300 400
+> Training steps to PPL < 50 (thousands)
+> PreDiff-LM
+> DiffuGPT
+> MAC
+> MDLM
+> SEDD
+> 8K
+> 180K
+> 320K
+> 350K
+> 380K
+> Pretrained initialization accelerates convergence
+
+Figure 2: Left: Perplexity across model scale, including the fair fine-tuned AR controls where available. 
+
+Right: Pretrained initialization sharply reduces the training steps required to reach PPL 50. 
+
+4.8 Backbone Generalization 
+
+We also apply the same adaptation recipe to Llama-3.2 (Grattafiori et al., 2024), changing only the mask-rate injection needed for RoPE compatibility. Llama-3.2 1B and 3B reach 16 .2±0.2 and 9.8±0.1 PPL, respectively (Table 10). These results show that the implementation is not tied to GPT-2 and that a stronger pretrained backbone can improve the resulting diffusion model. They do not establish parity with a matched Llama AR model, which we did not train. 8Table 7: Ablation study (10K steps, WikiText-103). Each row removes one component from the full model. 
+
+∆PPL shows the increase in unconditional PPL relative to the full model. Mean ±std over 4 seeds. 
+
+Variant PPL@10% PPL@50% PPL u Acc@50% ∆PPL u
+
+Full model 18.2 ±0.3 69.0 ±0.8 36.4 ±0.4 28.4 ±0.4% —
+
+− Self-cond. 92.9 ±1.4 214.0 ±3.1 68.5 ±0.9 14.9 ±0.3% +32.1 
+
+− Cosine sched. 56.4 ±0.8 158.1 ±2.2 55.2 ±0.7 18.2 ±0.4% +18.8 
+
+− Mask-rate cond. 109.1 ±1.6 214.8 ±3.2 72.4 ±1.0 14.8 ±0.3% +36.0 
+
+− Backbone tuning 105.2 ±1.8 298.4 ±4.5 185.6 ±2.8 7.0 ±0.2% +149.2 
+
+− Hybrid attn. 25.4 ±0.4 85.2 ±1.1 44.8 ±0.6 25.1 ±0.4% +8.4 
+
+− Time embed. 22.6 ±0.4 78.4 ±1.0 41.2 ±0.5 26.8 ±0.4% +4.8 Table 8: Matched AR comparison across GPT-2 scales. Fine-tuned AR controls use the same WikiText-103 data, optimizer, and per-scale adaptation budget as PreDiff-LM . The XL row lacks a matched fine-tuned control and is not used to claim AR parity. Mean ±std over four PreDiff-LM seeds. 
+
+Scale AR params Diff. params AR zero-shot AR fine-tuned PreDiff-LM 
+
+Small 124M 133M 44.4 24.1 38.2 ±0.4 Medium 355M 364M 28.9 18.9 28.7 ±0.3 Large 774M 783M 25.8 16.4 18.4 ±0.2 XL 1.56B 1.56B 23.6 — 12.1 ±0.1 
+
+4.9 Generation Quality Analysis 
+
+Table 11 compares generation quality beyond mean perplexity. With confidence-aware unmasking, PreDiff-LM reaches MAUVE = 0.78 , compared with 0.58 for MDLM, 0.64 for DiffuGPT, and 0.92 for the AR reference. Its Dist-3 is 0.951, and its Rep-4 of 0.012 is 45% lower than DiffuGPT’s 0.022. The RoBERTa next-sentence coherence score is 0.82, between MDLM at 0.64 and the AR reference at 0.88. Random unmasking is slightly stronger than CAU at 32 steps on MAUVE, Dist-1, and coherence (Table 11). CAU provides an explicit ordering rule and exposes a broad speed–quality range as the denoising budget varies (Table 15). We therefore report the CAU setting as the main controlled configuration and include random unmasking to show that the result is not tied to one decoding order. The controlled comparisons above are the basis of our central claims. Results against externally reported diffusion systems should be read as contextual because model size, data, and training budget differ. The matched objective-plus-attention result in Table 2 provides more direct evidence that hybrid attention can complement objective-level adaptation. 
+
+4.10 Inference Efficiency 
+
+Parallel denoising does not by itself guarantee lower wall-clock latency. Table 6 compares 256-token generation on the same hardware. At eight denoising steps, PreDiff-LM reaches 1,800 tokens/s, close to speculative AR decoding at 1,850 tokens/s, but its PPL is worse (35.4 versus 28.9). At the 32-step setting used for the main quality results, PreDiff-LM reaches 450 tokens/s and is slower than both KV-cached and speculative AR decoding. The 64-step setting improves PPL to 27.5 at a further throughput cost. Thus, PreDiff-LM offers a tunable speed–quality trade-off and parallel refinement, not an unconditional inference-speed advantage over optimized AR decoding. 9Table 9: Blinded pairwise preference evaluation. A mixed panel (GPT-4o, DeepSeek-V3.2, and one human expert) compares 120 unconditional generations per method. Win rate is the fraction preferring PreDiff-LM ; Fleiss’ κ measures panel agreement. A separate three-human audit appears in Table 5. Mean ±std over the three panel members. 
+
+Baseline Fluency Win% ↑ Coherence Win% ↑ Info. Win% ↑ Overall Win% ↑ Tie% Fleiss’ κ
+
+MDLM 68.3 ±2.1 71.7 ±1.8 62.5 ±2.4 64.2 ±2.0 19.2 ±1.5 0.74 ±0.03 SEDD 73.3 ±1.9 76.7 ±1.6 68.3 ±2.2 72.5 ±1.8 14.2 ±1.3 0.77 ±0.04 AR GPT-2 Medium 35.0 ±2.6 33.3 ±2.9 38.3 ±2.5 34.2 ±2.8 24.2 ±1.8 0.69 ±0.04 DiffuGPT 62.5 ±2.3 65.0 ±2.0 58.3 ±2.5 60.8 ±2.2 20.8 ±1.6 0.72 ±0.03 
+
+Remaining percentage equals baseline wins. Sample order and method identities are randomized and hidden from all judges. 
+
+Table 10: Applying the adaptation recipe to GPT-2 and Llama-3.2. Llama results show that the implementation transfers beyond GPT-2; they are not compared with matched fine-tuned Llama AR controls. Mean ±std over four seeds. 
+
+Backbone Params PPL u ↓ MAUVE ↑ BLEU-4 ↑ Conv. Steps 
+
+GPT-2 Small (124M) 133M 38.2 ±0.4 0.68 ±0.02 14.2 ±0.3 200K GPT-2 Medium (355M) 364M 28.7 ±0.3 0.78 ±0.01 18.4 ±0.3 90K GPT-2 Large (774M) 783M 18.4 ±0.2 0.84 ±0.01 19.2 ±0.3 200K Llama-3.2 1B 1.02B 16.2 ±0.2 0.86 ±0.01 21.2 ±0.3 55K Llama-3.2 3B 3.04B 9.8 ±0.1 0.93 ±0.01 25.4 ±0.2 35K 
+
+Llama-3.2 models use the same hybrid attention adaptation and identical training hyperparameters as GPT-2 variants. Conv. Steps = steps to reach final reported PPL. (a) Factual continuation   
+
+> Prompt: "The discovery of gravitational waves in 2015"
+> PreDiff-LM
+> "...by the LIGO collaboration confirmed a century-old
+> prediction of Einstein's general theory of relativity.
+> The detection of ripples in spacetime opened a new era..."
+> MDLM
+> "...was the the important waves of the detection physics
+> physics important the the waves..."
+> (b) Text infilling
+> Context: "The cat sat on the ____ and watched."
+> PreDiff-LM
+> "warm windowsill" (natural and contextually appropriate)
+> MDLM
+> "the the sat" (degenerate and repetitive)
+
+Figure 3: Qualitative comparison. Left: factual continuation. Right: text infilling. Additional samples and failure cases appear in Appendix C. 
+
+4.11 Additional Results 
+
+Text infilling. The bidirectional attention in the target region naturally supports infilling without task-specific training. On WikiText-103 with a 50% contiguous gap, PreDiff-LM achieves 14.8 BLEU-4 and 81.2 BERTScore, outperforming both dedicated infilling models (ILM: 11.5 BLEU-4) and diffusion baselines (MDLM: 9.8; Table 14). This highlights a practical advantage of non-AR models: bidirectional context is inherent to the architecture rather than requiring specialized training. 
+
+Controllable generation. Because PreDiff-LM generates all tokens simultaneously over multiple denoising steps, it supports gradient-based guidance at each step. This enables fine-grained control over sentiment (89.2% accuracy), topic (84.6%), length ( ∆=2 .1 tokens), and keyword inclusion (92.5%), outperforming the AR+PPLM control (Dathathri et al., 2019) in Table 18. 10 Table 11: Generation quality on WikiText-103 (32 denoising steps, 500 samples). Coherence is the average next-sentence probability from a fine-tuned RoBERTa-large classifier (range [0 , 1] ; higher is better). Mean ±std over four seeds.                                                                             
+
+> Method Type BLEU-4 ↑MAUVE ↑Dist-1 ↑Dist-3 ↑Rep-4 ↓Coherence ↑
+> GPT-2 Medium AR 24.8 ±0.3 0.92 ±0.01 0.215 ±0.004 0.965 ±0.003 0.008 ±0.001 0.88 ±0.01 D3PM Absorbing 6.2 ±0.3 0.41 ±0.02 0.142 ±0.005 0.845 ±0.006 0.042 ±0.003 0.52 ±0.02 ARDM Any-order 8.5 ±0.3 0.48 ±0.02 0.155 ±0.005 0.862 ±0.005 0.035 ±0.003 0.56 ±0.02 SEDD Score Ent. 10.8 ±0.3 0.52 ±0.02 0.162 ±0.005 0.878 ±0.005 0.032 ±0.002 0.59 ±0.02 MDLM Masked 12.4 ±0.3 0.58 ±0.02 0.168 ±0.004 0.892 ±0.004 0.028 ±0.002 0.64 ±0.02 MAC Masked AR 13.8 ±0.3 0.62 ±0.02 0.175 ±0.004 0.898 ±0.004 0.024 ±0.002 0.66 ±0.01 DiffuGPT Hybrid 14.6 ±0.3 0.64 ±0.01 0.178 ±0.004 0.905 ±0.004 0.022 ±0.002 0.68 ±0.01 PreDiff-LM-M (conf.) Masked 18.4 ±0.3 0.78 ±0.01 0.204 ±0.003 0.951 ±0.003 0.012 ±0.001 0.82 ±0.01
+> PreDiff-LM-M (rand.) Masked 19.8 ±0.3 0.81 ±0.01 0.211 ±0.003 0.948 ±0.003 0.010 ±0.001 0.83 ±0.01
+
+Long sequences. PPL increases from 28.7 at 256 tokens to 42.8 at 1024 tokens (MAUVE: 0.81 → 0.58 ), yet PreDiff-LM still substantially outperforms MDLM at 512 tokens (33.4 vs. 62.5 PPL; Table 19). 
+
+Multi-domain training. Single-domain training causes significant cross-domain degradation (78.2 PPL on OpenWebText). A WikiText-103 + OpenWebText mixture (1:1) reduces average cross-domain PPL from 81.6 to 48.2 (41% improvement) while preserving in-domain performance (27.2 vs. 28.7; Table 20), still outperforming MDLM (67.7) and SEDD (73.2) on the same mixture. 
+
+## 5 Limitations 
+
+The controlled evidence has several boundaries. First, our Dream-style control matches initialization, data, attention pattern, and training budget at GPT-2 Medium scale, but it is not the released Dream 7B model. We measured PPL and MAUVE for that control, not the downstream and repetition diagnostics, and did not retrain every external baseline under identical conditions. Second, the matched fine-tuned AR control remains stronger at Small, Medium, and Large scales; no matched XL or Llama AR control is available. Third, throughput depends on hardware, batch size, sequence length, kernel implementation, and decoding budget. Our measurements therefore characterize one controlled regime rather than a universal speed ordering. Fourth, the hybrid mask is motivated by transfer from causal pretraining; its value for models trained from scratch is untested. Finally, the independent human audit contains only 40 sample pairs, and quality degrades on sequences longer than 512 tokens and under distant-domain transfer. Larger human studies, matched large-model comparisons, and long-context training are important next steps. 
+
+## 6 Conclusion 
+
+This work isolates attention adaptation as a component of converting pretrained causal transformers into masked diffusion language models. Keeping prompt-side causal computation while opening bidirectional target attention improves PPL from 34.1 to 28.7 under a matched control and composes with objective-level adaptation. Pretraining also greatly reduces optimization cost: PreDiff-LM -M reaches PPL below 50 in 8K steps, whereas the from-scratch MDLM reference requires about 350K. Repetition diagnostics, downstream tasks, and blinded preferences support the improvement over evaluated diffusion baselines. At the same time, matched AR fine-tuning remains stronger in quality, and optimized AR decoding is faster at the 32-step operating point. The resulting picture is therefore specific: hybrid attention makes AR-to-diffusion transfer more effective, while leaving clear room for progress in matched quality, decoding efficiency, and long-context robustness. 11 References 
+
+Jacob Austin, Daniel D Johnson, Jonathan Ho, Daniel Tarlow, and Rianne Van Den Berg. Structured denoising diffusion models in discrete state-spaces. Advances in neural information processing systems , 34: 17981–17993, 2021. Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, et al. Language models are few-shot learners. 
+
+Advances in neural information processing systems , 33:1877–1901, 2020. Sumanth Dathathri, Andrea Madotto, Janice Lan, Jane Hung, Eric Frank, Piero Molino, Jason Yosinski, and Rosanne Liu. Plug and play language models: A simple approach to controlled text generation. arXiv preprint arXiv:1912.02164 , 2019. Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. Bert: Pre-training of deep bidirectional transformers for language understanding. In Proceedings of the 2019 conference of the North American chapter of the association for computational linguistics: human language technologies, volume 1 (long and short papers) , pp. 4171–4186, 2019. Sander Dieleman, Laurent Sartran, Arman Roshannai, Nikolay Savinov, Yaroslav Ganin, Pierre H Richemond, Arnaud Doucet, Robin Strudel, Chris Dyer, Conor Durkan, et al. Continuous diffusion for categorical data. 
+
+arXiv preprint arXiv:2211.15089 , 2022. Chris Donahue, Mina Lee, and Percy Liang. Enabling language models to fill in the blanks. In Proceedings of the 58th annual meeting of the association for computational linguistics , pp. 2492–2501, 2020. Shansan Gong, Shivam Agarwal, Yizhe Zhang, Jiacheng Ye, Lin Zheng, Mukai Li, Chenxin An, Peilin Zhao, Wei Bi, Jiawei Han, et al. Scaling diffusion language models via adaptation from autoregressive models. 
+
+arXiv preprint arXiv:2410.17891 , 2024. Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey, Abhishek Kadian, Ahmad Al-Dahle, Aiesha Letman, Akhil Mathur, Alan Schelten, Alex Vaughan, et al. The llama 3 herd of models. arXiv preprint arXiv:2407.21783 , 2024. Emiel Hoogeboom, Alexey A Gritsenko, Jasmijn Bastings, Ben Poole, Rianne van den Berg, and Tim Salimans. Autoregressive diffusion models. arXiv preprint arXiv:2110.02037 , 2021. Jiwei Li, Michel Galley, Chris Brockett, Jianfeng Gao, and William B Dolan. A diversity-promoting objective function for neural conversation models. In Proceedings of the 2016 conference of the North American chapter of the association for computational linguistics: human language technologies , pp. 110–119, 2016. Xiang Li, John Thickstun, Ishaan Gulrajani, Percy S Liang, and Tatsunori B Hashimoto. Diffusion-lm improves controllable text generation. Advances in neural information processing systems , 35:4328–4343, 2022. Aaron Lou, Chenlin Meng, and Stefano Ermon. Discrete diffusion modeling by estimating the ratios of the data distribution. arXiv preprint arXiv:2310.16834 , 2023. Stephen Merity, Nitish Shirish Keskar, James Bradbury, and Richard Socher. Scalable language modeling: Wikitext-103 on a single gpu in 12 hours. Proceedings of the SYSML , 18, 2018. Shen Nie, Fengqi Zhu, Zebin You, Xiaolu Zhang, Jingyang Ou, Jun Hu, Jun Zhou, Yankai Lin, Ji-Rong Wen, and Chongxuan Li. Large language diffusion models. arXiv preprint arXiv:2502.09992 , 2025. Jingyang Ou, Shen Nie, Kaiwen Xue, Fengqi Zhu, Jiacheng Sun, Zhenguo Li, and Chongxuan Li. Your absorbing discrete diffusion secretly models the conditional distributions of clean data. arXiv preprint arXiv:2406.03736 , 2024. Krishna Pillutla, Swabha Swayamdipta, Rowan Zellers, John Thickstun, Sean Welleck, Yejin Choi, and Zaid Harchaoui. Mauve: Measuring the gap between neural text and human text using divergence frontiers. 
+
+Advances in Neural Information Processing Systems , 34:4816–4828, 2021. 12 Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, Ilya Sutskever, et al. Language models are unsupervised multitask learners. OpenAI blog , 1(8):9, 2019. Subham S Sahoo, Marianne Arriola, Yair Schiff, Aaron Gokaslan, Edgar Marroquin, Justin T Chiu, Alexander Rush, and Volodymyr Kuleshov. Simple and effective masked diffusion language models. Advances in Neural Information Processing Systems , 37:130136–130184, 2024. Yeongbin Seo, Dongha Lee, Jaehyung Kim, and Jinyoung Yeo. Fast and fluent diffusion language models via convolutional decoding and rejective fine-tuning. arXiv preprint arXiv:2509.15188 , 2025. Jiaxin Shi, Kehang Han, Zhe Wang, Arnaud Doucet, and Michalis Titsias. Simplified and generalized masked diffusion for discrete data. Advances in neural information processing systems , 37:103131–103167, 2024. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. Advances in neural information processing systems , 30, 2017. Yunshu Wu, Jiayi Cheng, Longxuan Yu, Partha Thakuria, Rob Brekelmans, Evangelos E. Papalexakis, and Greg Ver Steeg. Discrete stochastic localization for non-autoregressive generation, 2026. URL 
+
+https://arxiv.org/abs/2602.16169 .Jiacheng Ye, Zhihui Xie, Lin Zheng, Jiahui Gao, Zirui Wu, Xin Jiang, Zhenguo Li, and Lingpeng Kong. Dream 7b: Diffusion large language models. arXiv preprint arXiv:2508.15487 , 2025. Tianyi Zhang, Varsha Kishore, Felix Wu, Kilian Q Weinberger, and Yoav Artzi. Bertscore: Evaluating text generation with bert. arXiv preprint arXiv:1904.09675 , 2019. Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan Zhuang, Zhanghao Wu, Yonghao Zhuang, Zi Lin, Zhuohan Li, Dacheng Li, Eric Xing, et al. Judging llm-as-a-judge with mt-bench and chatbot arena. 
+
+Advances in neural information processing systems , 36:46595–46623, 2023. 13 A Evaluation Protocol and Human Audit 
+
+Preference rubric. Judges assess three dimensions on five-point scales: fluency measures grammaticality and readability; coherence measures logical consistency, contradiction, and repetition; and informativeness 
+
+measures the amount of specific, nonredundant content. For each pair, sample order is randomized and method identities are hidden. The mixed panel contains GPT-4o, DeepSeek-V3.2, and one human expert and evaluates 120 unconditional sample pairs per comparison. 
+
+Independent human audit. Three human annotators independently evaluate a random 40-pair subset of the PreDiff-LM –MDLM comparison using the same rubric and blinding procedure. Human majority preference is 66.7% for PreDiff-LM , and human-only Fleiss’ κ = 0 .68 . On the shared comparison set, pairwise Cohen’s κ is 0.76 between GPT-4o and DeepSeek, 0.71 between GPT-4o and the human expert, and 0.73 between DeepSeek and the human expert. These agreement statistics test for, but cannot eliminate, correlated evaluator bias. 
+
+Scope of the matched control. The Dream-style control starts from GPT-2 Medium, uses WikiText-103 and the same 90K-step training budget as PreDiff-LM , and differs in using uniform bidirectional attention. We report PPL and MAUVE for this control. We do not claim that it reproduces the released Dream 7B model, and we have not yet run its downstream, repetition, or human-preference evaluation. 
+
+## B Training Details 
+
+Architecture modifications. Starting from a pretrained GPT-2, we add: (1) a mask embedding e[MASK] ∈
+
+Rd; (2) sinusoidal time embedding ( R128 → Rd via 2-layer MLP with GELU); (3) self-conditioning projection (R|V| → Rd); (4) tied LM head (shared with token embeddings). Total added parameters: ∼9M for GPT-2 Medium (364M total). 
+
+Hyperparameters. 
+
+Hyperparameter Value Learning rate 5 × 10 −5 (cosine decay) Optimizer AdamW ( β1=0 .9, β 2=0 .999 , wd =0.01) Effective batch size 16 × 2 × 8 = 256 
+
+Sequence length 256 Training steps 90K (stopped early from 200K budget) Warmup 1000 steps Self-cond probability 0.5 Precision bfloat16 
+
+## C Generated Samples 
+
+Success case.    
+
+> Prompt: “The discovery of gravitational waves in 2015”
+> PreDiff-LM -M (32 steps): “The discovery of gravitational waves in 2015 by the LIGO collabora-tion confirmed a century-old prediction of Einstein’s general theory of relativity. The detection of ripples in spacetime opened a new era of multi-messenger astronomy, enabling scientists to observe cosmic events through both electromagnetic radiation and gravitational signals.”
+> MDLM: “The discovery of gravitational waves in 2015 was the the important waves of the detection physics physics important the the waves...”
+
+14 Failure cases. Long-range repetition ( >512 tokens): the model occasionally enters loops (“the city of the city of”), occurring in <5% of long generations. Code generation: single-domain (WikiText-103) training produces invalid code, as expected. 
+
+## D Additional Tables 
+
+Table 12: Conditional denoising perplexity at varying mask rates on WikiText-103 validation. PreDiff-LM-M (90K steps) has lower perplexity than the listed diffusion baselines at every mask rate. Mean ±std over four seeds. 
+
+Mask % PreDiff-LM-M MDLM SEDD D3PM 
+
+5% 4.9 ±0.1 8.2 ±0.2 9.5 ±0.2 15.2 ±0.4 10% 5.7 ±0.1 12.4 ±0.3 14.1 ±0.3 22.8 ±0.5 20% 7.5 ±0.1 19.6 ±0.4 22.3 ±0.4 35.1 ±0.6 30% 10.4 ±0.2 28.2 ±0.5 31.5 ±0.5 48.8 ±0.8 50% 23.1 ±0.3 58.4 ±0.8 65.2 ±0.9 82.6 ±1.2 70% 67.9 ±0.8 105.3 ±1.4 118.7 ±1.6 145.2 ±1.9 90% 292.5 ±3.1 380.1 ±4.2 412.5 ±4.8 528.6 ±5.6 Table 13: Multi-benchmark evaluation (unconditional PPL ↓, 32 denoising steps). PreDiff-LM-M, MDLM, and SEDD use WikiText-103 + OpenWebText training (1:1; Table 20). PreDiff-LM has the lowest PPL among these matched-data diffusion models on each benchmark. WikiText-103-only transfer results appear in Table 17. Mean ±std over four seeds. 
+
+Method Wiki-103 OWT LM1B PG-19 Code LAMBADA † PTB C4 
+
+GPT-2 Medium (AR) 28.9 16.2 ±0.1 23.5 ±0.2 19.8 ±0.2 45.2 ±0.5 55.4 ±0.6% 22.8 ±0.2 15.8 ±0.1 
+
+Multi-domain training (WikiText-103 + OpenWebText, 1:1): 
+
+SEDD 52.8 ±0.7 46.2 ±0.6 61.4 ±0.8 85.2 ±1.1 135.2 ±1.9 28.4 ±0.5% 59.5 ±0.8 58.4 ±0.8 MDLM 48.5 ±0.6 42.8 ±0.5 55.2 ±0.7 78.4 ±1.0 128.4 ±1.8 35.8 ±0.6% 62.1 ±0.8 52.6 ±0.7 
+
+WikiText-103 only: ‡
+
+D3PM 79.2 ±1.2 92.4 ±1.5 98.5 ±1.6 105.2 ±1.7 142.8 ±2.3 18.4 ±0.5% 88.6 ±1.4 95.4 ±1.5 DiffuGPT ‡ 42.8 ±0.5 48.2 ±0.6 55.6 ±0.7 62.4 ±0.8 78.5 ±1.0 38.6 ±0.6% 52.4 ±0.7 49.8 ±0.6 MAC ‡ 48.6 ±0.5 52.4 ±0.7 58.2 ±0.8 68.8 ±0.9 85.2 ±1.1 35.8 ±0.6% 58.2 ±0.8 54.6 ±0.7 
+
+Multi-domain training (WikiText-103 + OpenWebText, 1:1): 
+
+PreDiff-LM-M (Ours) 27.2 ±0.3 26.8 ±0.3 38.5 ±0.4 52.6 ±0.6 108.2 ±1.4 49.5 ±0.6% 36.2 ±0.4 35.6 ±0.4    
+
+> †LAMBADA reports last-word prediction accuracy ( ↑). All others report perplexity ( ↓). ‡These methods use WikiText-103-only training; their multi-domain variants were not available. Among methods with matched multi-domain training, PreDiff-LM achieves the best result on all 8 benchmarks.
+
+15 Table 14: Text infilling evaluation (WikiText-103, 50% contiguous gap, 200 samples). PreDiff-LM’s bidirectional denoising naturally enables high-quality infilling without task-specific training. Mean ±std over 4 seeds. 
+
+Method BLEU-4 ↑ Tok Acc ↑ ROUGE-L ↑ BERTScore ↑
+
+AR + Reranking 8.4 ±0.3 12.2 ±0.4% 28.5 ±0.5 72.1 ±0.4 BERT-Infill 10.2 ±0.3 15.8 ±0.4% 32.8 ±0.4 76.4 ±0.4 ILM (Donahue et al., 2020) 11.5 ±0.3 16.4 ±0.4% 34.2 ±0.4 78.2 ±0.3 MDLM 9.8 ±0.3 14.1 ±0.4% 30.4 ±0.5 74.8 ±0.4 SEDD 8.9 ±0.3 13.5 ±0.4% 29.1 ±0.5 73.2 ±0.5 
+
+PreDiff-LM-M 14.8 ±0.3 18.6 ±0.3% 38.4 ±0.4 81.2 ±0.3 
+
+Table 15: Speed–quality trade-off for PreDiff-LM-M with confidence-aware unmasking. The last column reports throughput relative to the 128-step setting; it is not a comparison with AR decoding. Mean ±std over four seeds. 
+
+Steps PPL u BLEU-4 Dist-1 Dist-3 Tok/s Rel. throughput 
+
+4 42.8 ±0.5 8.2 ±0.3 0.172 ±0.004 0.912 ±0.005 3,600 32 ×
+
+8 35.4 ±0.4 11.5 ±0.3 0.186 ±0.004 0.928 ±0.004 1,800 16 ×
+
+16 31.2 ±0.4 15.8 ±0.3 0.195 ±0.004 0.942 ±0.003 900 8×
+
+32 28.7 ±0.3 18.4 ±0.3 0.204 ±0.003 0.951 ±0.003 450 4×
+
+64 27.5 ±0.3 19.2 ±0.2 0.208 ±0.003 0.955 ±0.002 225 2×
+
+128 27.1 ±0.3 19.6 ±0.2 0.210 ±0.003 0.958 ±0.002 112 1×
+
+256 27.0 ±0.2 19.8 ±0.2 0.211 ±0.003 0.959 ±0.002 56 0.5 ×
+
+Table 16: Training efficiency. Steps required to reach PPL thresholds. PreDiff-LM uses approximately 44 × fewer optimization steps than the MDLM reference to reach PPL below 50. Mean ±std over four seeds. 
+
+Method Init PPL <50 PPL <30 Final PPL GPU-hrs 
+
+D3PM Scratch — — 79.2 ±1.2 400 ±12 SEDD Scratch 380K ±8K — 56.4 ±0.7 520 ±15 MDLM Scratch 350K ±7K — 51.2 ±0.6 480 ±14 DiffuGPT Partial 180K ±5K — 42.8 ±0.5 360 ±11 MAC Scratch 320K ±6K — 48.6 ±0.5 440 ±13 
+
+PreDiff-LM-M Pretrained 8K ±0.3K 45K ±1.2K 28.7 ±0.3 24 ±1
+
+Table 17: Zero-shot cross-dataset transfer for PreDiff-LM-M trained on WikiText-103 only (32 steps). Perplexity rises with domain distance, especially on books and code. Mean ±std over four seeds. 
+
+Dataset PPL@10% PPL@50% PPL u Domain 
+
+WikiText-103 5.7 ±0.1 23.1 ±0.3 28.7 ±0.3 In-domain LM1B 18.5 ±0.3 55.2 ±0.7 62.8 ±0.8 News OpenWebText 22.4 ±0.4 68.5 ±0.9 78.2 ±1.0 Web PG-19 28.6 ±0.5 82.4 ±1.1 95.1 ±1.2 Books C4 24.8 ±0.4 72.1 ±0.9 82.4 ±1.0 Web crawl CodeParrot 48.2 ±0.7 125.8 ±1.8 142.5 ±2.0 Code 16 Table 18: Controllable generation via guided denoising. PreDiff-LM’s non-autoregressive nature enables flexible token-level control through gradient guidance at each denoising step. Mean ±std over 4 seeds. 
+
+Task PreDiff-LM-M MDLM SEDD AR+PPLM 
+
+Sentiment ( ↑) 89.2 ±0.8% 72.4 ±1.2% 68.5 ±1.4% 82.1 ±0.9% Topic ( ↑) 84.6 ±0.9% 65.2 ±1.3% 61.8 ±1.4% 75.4 ±1.0% Length ( ∆ ↓) 2.1 ±0.2 5.8 ±0.4 6.4 ±0.5 3.2 ±0.3 Keywords ( ↑) 92.5 ±0.6% 78.1 ±1.1% 74.6 ±1.2% 85.2 ±0.8% Table 19: Long-sequence evaluation on WikiText-103 (32 denoising steps, 200 samples per length). The upper panel traces PreDiff-LM-M from 128 to 1,024 tokens; the lower panel compares methods at 512 tokens. Mean ±std over four seeds. 
+
+Method Length PPL u ↓ Rep-4 ↓ Dist-1 ↑ MAUVE ↑ Coherence ↑
+
+PreDiff-LM-M 128 26.2 ±0.3 0.006 ±0.001 0.218 ±0.004 0.84 ±0.01 0.85 ±0.01 256 28.7 ±0.3 0.012 ±0.001 0.204 ±0.004 0.81 ±0.01 0.83 ±0.01 512 33.4 ±0.5 0.028 ±0.003 0.188 ±0.005 0.72 ±0.02 0.76 ±0.02 768 38.1 ±0.6 0.045 ±0.004 0.175 ±0.005 0.65 ±0.02 0.70 ±0.02 1024 42.8 ±0.8 0.068 ±0.005 0.162 ±0.006 0.58 ±0.03 0.64 ±0.03 
+
+Comparison at 512 tokens: 
+
+MDLM 512 62.5 ±0.9 0.052 ±0.004 0.148 ±0.005 0.42 ±0.03 0.51 ±0.03 SEDD 512 71.8 ±1.1 0.061 ±0.005 0.138 ±0.006 0.38 ±0.03 0.47 ±0.03 DiffuGPT 512 48.2 ±0.7 0.038 ±0.003 0.168 ±0.005 0.56 ±0.02 0.62 ±0.02 AR GPT-2 Medium 512 14.8 ±0.1 0.005 ±0.001 0.222 ±0.003 0.90 ±0.01 0.87 ±0.01 Table 20: Multi-domain training. Unconditional PPL ( ↓) for different training mixtures. A 1:1 WikiText-103 + OpenWebText mixture reduces average PPL from 81.6 to 48.2 relative to WikiText-103-only training while slightly improving WikiText-103 PPL. Mean ±std over four seeds. 
+
+Training Data Wiki-103 OWT LM1B PG-19 C4 CodeParrot Avg ↓
+
+WikiText-103 only 28.7 ±0.3 78.2 ±1.0 62.8 ±0.8 95.1 ±1.2 82.4 ±1.0 142.5 ±2.0 81.6 OpenWebText only 58.4 ±0.7 24.6 ±0.3 42.1 ±0.5 68.5 ±0.8 38.2 ±0.4 118.4 ±1.6 58.4 Wiki + OWT (1:1) 27.2 ±0.3 26.8 ±0.3 38.5 ±0.4 52.6 ±0.6 35.6 ±0.4 108.2 ±1.4 48.2 
+
+Wiki + OWT (1:3) 29.8 ±0.3 25.2 ±0.3 39.8 ±0.5 64.8 ±0.8 34.2 ±0.4 105.6 ±1.3 49.9 
+
+Baselines (WikiText-103 + OpenWebText, 1:1): 
+
+MDLM 48.5 ±0.6 42.8 ±0.5 55.2 ±0.7 78.4 ±1.0 52.6 ±0.7 128.4 ±1.8 67.7 SEDD 52.8 ±0.7 46.2 ±0.6 61.4 ±0.8 85.2 ±1.1 58.4 ±0.8 135.2 ±1.9 73.2 17

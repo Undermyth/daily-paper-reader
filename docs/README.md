@@ -6,76 +6,61 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-28
-- 运行时间：2026-07-28 20:53:52 UTC
+- 最新运行日期：2026-07-29
+- 运行时间：2026-07-29 21:49:19 UTC
 - 运行状态：成功
-- 本次总论文数：18
-- 精读区：6
-- 速读区：12
+- 本次总论文数：13
+- 精读区：4
+- 速读区：9
 
 ### 今日简报（AI）
-今日推荐18篇论文，精读6篇，其中两篇关于Transformer注意力机制的理论创新获9分高分。
-最值得关注的是《The Entropic Bound for Transformers》揭示静态秩失效与注意力原生秩恢复的熵界，以及《A Coulomb Particle Model》用库仑粒子模型学习核注意力。
-建议优先精读这两篇高分论文，深入理解注意力机制的底层理论，再结合速读中的《What Softmax Throws Away》进一步优化实际应用。
-- 详情：[/202607/28/README](/202607/28/README)
+今日推荐13篇论文，精读聚焦于稀疏记忆路由的高召回序列模型及LLM外部记忆机制。
+最值得关注Raven（9.0分）和MemSFT（7.0分），分别解决序列建模中的长程依赖和对齐税问题。
+建议优先精读Raven和MemSFT，理解如何通过稀疏记忆增强LLM的长文本处理与对齐能力。
+- 详情：[/202607/29/README](/202607/29/README)
 
 ### 精读区论文标签
-1. [The Entropic Bound for Transformers: Why Static Rank Fails and Attention-Native Rank Recovers](/202607/28/2607.23050v1-the-entropic-bound-for-transformers-why-static-rank-fails-and-attention-native-rank-recovers)  
+1. [Raven: High-Recall Sequence Modeling with Sparse Memory Routing](/202607/29/2607.25357v1-raven-high-recall-sequence-modeling-with-sparse-memory-routing)  
    标签：评分：9.0/10、query:la
-   evidence：通过线性注意力代理证明Transformer的固有秩下界
-2. [A Coulomb Particle Model for Learning Kernel Attention in Transformers](/202607/28/2607.23869v1-a-coulomb-particle-model-for-learning-kernel-attention-in-transformers)  
-   标签：评分：9.0/10、query:la
-   evidence：通过学习的核特征实现线性注意力
-3. [Through the Bottleneck: How Multi-head Latent Attention Separates Content from Position in Language Models](/202607/28/2607.23054v1-through-the-bottleneck-how-multi-head-latent-attention-separates-content-from-position-in-language-models)  
+   evidence：具有稀疏记忆路由的线性时间序列模型
+2. [Memory for Large Language Models](/202607/29/2607.25380v1-memory-for-large-language-models)  
    标签：评分：8.0/10、query:la
-   evidence：多头潜在注意力通过KV缓存压缩实现高效
-4. [MemChain: Learning Interpretable Memory Traces for Memory-Augmented LLM Agents](/202607/28/2607.24097v1-memchain-learning-interpretable-memory-traces-for-memory-augmented-llm-agents)  
+   evidence：LLM中内存的全面分类，涵盖注意力与循环状态
+3. [Seen, Said, or Forgotten? A Causal Audit of Visual KV Memory Across Dialog Turns](/202607/29/2607.25467v1-seen-said-or-forgotten-a-causal-audit-of-visual-kv-memory-across-dialog-turns)  
    标签：评分：8.0/10、query:la
-   evidence：用于记忆增强LLM代理的可训练后检索记忆策略
-5. [MXAttention: Data-Free Optimal Scaling and Pre-Normalization Quantization for MXFP4 Attention](/202607/28/2607.24377v1-mxattention-data-free-optimal-scaling-and-pre-normalization-quantization-for-mxfp4-attention)  
+   evidence：审计对话轮次中的视觉KV记忆，揭示注意力在记忆检索中的失败
+4. [UniMem: Complementary Episodic-to-Parametric Memory for Boundary-Agnostic Task Streams](/202607/29/2607.26017v1-unimem-complementary-episodic-to-parametric-memory-for-boundary-agnostic-task-streams)  
    标签：评分：8.0/10、query:la
-   evidence：无数据最优缩放量化实现高效MXFP4注意力
-6. [Testing the Spatiotemporal Predictions of Global Neuronal Workspace Theory and Integrated Information Theory](/202607/28/biorxiv-10-64898-2026-07-16-738188-v1-testing-the-spatiotemporal-predictions-of-global-neuronal-workspace-theory-and-integrated-information-theory)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：使用动态因果模型测试意识理论的计算神经科学研究
+   evidence：补充性情景与参数化记忆用于智能体
 
 ### 速读区论文标签
-1. [What Softmax Throws Away: Mass-Aware Attention for Evidence Accumulation](/202607/28/2607.22781v1-what-softmax-throws-away-mass-aware-attention-for-evidence-accumulation)  
+1. [Variational-Ising-Attention (VIA):TailoredAttentionMattersfor Science](/202607/29/2607.23634v1-variational-ising-attention-viatailoredattentionmattersfor-science)  
    标签：评分：7.0/10、query:la
-   evidence：质量感知注意力提升证据积累效率
-2. [MemVLN: Episodic and Procedural Memory for Vision-and-Language Navigation](/202607/28/2607.23504v1-memvln-episodic-and-procedural-memory-for-vision-and-language-navigation)  
+   evidence：变分伊辛注意力用于科学任务
+2. [Unifying Generative Recall and Multi-Objective Ranking in a Single Decoder-Only Sequence](/202607/29/2607.24439v1-unifying-generative-recall-and-multi-objective-ranking-in-a-single-decoder-only-sequence)  
    标签：评分：7.0/10、query:la
-   evidence：使用情景记忆进行导航的记忆增强神经网络
-3. [DynaCalKV: Key-Value Cache Compression via Head Grouping and Adaptive Rank Allocation](/202607/28/2607.24331v1-dynacalkv-key-value-cache-compression-via-head-grouping-and-adaptive-rank-allocation)  
+   evidence：统一解码器Transformer结合注意力用于召回和排序
+3. [MemSFT: Mitigating Alignment Tax with an External Parametric Memory](/202607/29/2607.25614v1-memsft-mitigating-alignment-tax-with-an-external-parametric-memory)  
    标签：评分：7.0/10、query:la
-   evidence：通过头分组和自适应秩分配的高效KV缓存压缩
-4. [PIVOT: Efficient Query-Group Indexing for Token-Level Sparse Attention](/202607/28/2607.24593v1-pivot-efficient-query-group-indexing-for-token-level-sparse-attention)  
-   标签：评分：7.0/10、query:la
-   evidence：高效查询组索引用于令牌级稀疏注意力
-5. [Eviction as Estimation: A Fixed-Lag Smoothing View of Test-Time Memory, and When Measuring Beats Accumulating](/202607/28/2607.24667v1-eviction-as-estimation-a-fixed-lag-smoothing-view-of-test-time-memory-and-when-measuring-beats-accumulating)  
-   标签：评分：7.0/10、query:la
-   evidence：语言模型工作记忆的高效驱逐策略
-6. [From Hodgkin-Huxley to Pretrained Neural Inference AI](/202607/28/biorxiv-10-64898-2026-07-13-738120-v1-from-hodgkin-huxley-to-pretrained-neural-inference-ai)  
+   evidence：外部参数化记忆实现领域特化
+4. [Improved inference of latent neural states from calcium imaging data](/202607/29/biorxiv-10-1101-2025-10-17-682993-v2-improved-inference-of-latent-neural-states-from-calcium-imaging-data)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：计算神经科学，基于生物物理模拟的神经推断
-7. [Segregation and integration between visuo-spatial attention and semantic memory across large-scale brain networks](/202607/28/biorxiv-10-64898-2026-07-21-739848-v1-segregation-and-integration-between-visuo-spatial-attention-and-semantic-memory-across-large-scale-brain-networks)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：视觉空间注意与语义记忆整合中的海马体作用
-8. [A Controlled Study of Attention-Only Transformers](/202607/28/2607.18363v1-a-controlled-study-of-attention-only-transformers)  
+   evidence：改进钙成像数据的潜在神经状态推断
+5. [Structure over Depth: A Single-Block Spatio-Temporal Transformer for Multi-Entity Reasoning](/202607/29/2607.23077v1-structure-over-depth-a-single-block-spatio-temporal-transformer-for-multi-entity-reasoning)  
    标签：评分：6.0/10、query:la
-   evidence：仅注意力Transformer研究前馈层移除
-9. [Co-Evolving Graph and Text Memory for Training-Free Multi-Hop Question Answering](/202607/28/2607.23278v1-co-evolving-graph-and-text-memory-for-training-free-multi-hop-question-answering)  
+   evidence：提出一种结构化时空Transformer，使用并行注意力实现高效多实体推理
+6. [PreDiff-LM: Pretrained Discrete Masked Diffusion Language Modeling with Hybrid Attention](/202607/29/2607.25157v1-prediff-lm-pretrained-discrete-masked-diffusion-language-modeling-with-hybrid-attention)  
    标签：评分：6.0/10、query:la
-   evidence：协同演化图文本记忆用于多跳问答
-10. [Sol-Attn: Accelerating Video Generation Inference via On-the-Fly Attention Sparsification](/202607/28/2607.24027v1-sol-attn-accelerating-video-generation-inference-via-on-the-fly-attention-sparsification)  
-   标签：评分：6.0/10、query:la
-   evidence：用于高效视频生成推理的即时注意力稀疏化
-11. [Locomotion optimizes sensory representations through a computational principle shared by rodents and primates](/202607/28/biorxiv-10-1101-2025-06-29-662230-v5-locomotion-optimizes-sensory-representations-through-a-computational-principle-shared-by-rodents-and-primates)  
+   evidence：混合注意力设计结合因果与双向
+7. [Locomotion optimizes sensory representations through a computational principle shared by rodents and primates](/202607/29/biorxiv-10-1101-2025-06-29-662230-v5-locomotion-optimizes-sensory-representations-through-a-computational-principle-shared-by-rodents-and-primates)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：运动通过跨物种共享的计算原则优化感觉表征
-12. [Improved inference of latent neural states from calcium imaging data](/202607/28/biorxiv-10-1101-2025-10-17-682993-v2-improved-inference-of-latent-neural-states-from-calcium-imaging-data)  
+   evidence：提出了运动期间感觉表征优化的计算原则
+8. [Exploring the role of prior exposure and image quality in neural and behavioural prediction effects](/202607/29/biorxiv-10-64898-2026-07-15-738617-v1-exploring-the-role-of-prior-exposure-and-image-quality-in-neural-and-behavioural-prediction-effects)  
    标签：评分：6.0/10、query:comp-neuro
-   evidence：从钙成像推断潜在神经状态
+   evidence：预测处理理论在神经与行为实验中的应用
+9. [Intrinsic ignition-based propagation networks reveal hierarchical propagation pathways of spontaneous activity in the human brain](/202607/29/biorxiv-10-64898-2026-07-16-738814-v1-intrinsic-ignition-based-propagation-networks-reveal-hierarchical-propagation-pathways-of-spontaneous-activity-in-the-human-brain)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：基于固有点火框架的fMRI大脑传播网络
 
 
 <div class="dpr-home-promo-card">
