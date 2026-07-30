@@ -1,0 +1,908 @@
+Title: A Compositional Theory of Causally Masked Transformers
+
+URL Source: https://arxiv.org/pdf/2607.26988v1
+
+Published Time: Thu, 30 Jul 2026 01:01:58 GMT
+
+Number of Pages: 12
+
+Markdown Content:
+# A Compositional Theory of Causally Masked Transformers 
+
+# Franz Nowak 1, Ryan Cotterell 1, Reda Boumasmoud 1
+
+# {franz.nowak, ryan.cotterell}@inf.ethz.ch, reda.boumasmoud@math.ethz.ch 
+
+> 1
+
+ETH Zürich 
+
+Abstract 
+
+What types of decision problems can a causally masked, finite-precision transformer solve for inputs of arbitrary length? Ex-isting answers often rely on idealized arithmetic, but under fi-nite precision, rounding and evaluation order can change what information attention retains and therefore what the model can compute. We develop an algebraic formalization that derives expressivity directly from the model’s implemented dynam-ics. Its central object is its memory; the finite internal state computed by attention that summarizes the information from the prefix available to all future queries. Each attention head updates its own state independently within a layer, while layers compose hierarchically, providing a uniform route from model assumptions to expressivity bounds. Applying this method to transformers without positional embeddings, we obtain an expressivity hierarchy governed by the attention type under specific numerical semantics. Width-one sliding-window attention supports bounded-suffix memory, while a modified form of soft attention supports irreversible, checklist-like state, and combining the two mechanisms provides an interplay of both. Ordinary left-to-right floating-point soft attention can realize more expressive memory operations than any of the above. Algebraically, the four cases correspond to definite, 
+
+R-trivial, locally R-trivial, and aperiodic semigroups. Under an explicit free-wiring assumption, all four bounds are tight. 
+
+# 1 Introduction 
+
+We study the computational power of masked transformer language models whose precision and parameters are fixed independently of the input length. Can they implement a reusable procedure, such as tracking latent state, enforcing a logical constraint, or counting, uniformly over arbitrarily long strings with fixed parameters? Formal language theory makes this question precise by asking which classes of lan-guages a model family can recognize. Existing transformer expressivity analyses typically answer it through an external formalism, such as linear temporal logic (Li and Cotterell 2025), circuit complexity (Merrill, Sabharwal, and Smith 2022), or restricted programming languages such as RASP (Weiss, Goldberg, and Yahav 2021); see Strobl et al. (2024) for a survey. Such characterizations are informative, but their analytical interface often changes with the modeling assumptions. Our approach differs in two related respects. First, we derive expressivity directly from the transition dynamics re-alized by the architecture, rather than through an external formalism. Second, we specify these dynamics at the level of the implemented arithmetic. Existing fixed-precision analy-ses model attention accumulation as associative and hence invariant to evaluation order. However, ordinary floating-point addition is not associative and can absorb small incre-ments, so evaluation order can change both the induced state transitions and the information attention retains. Under finite precision, causal masking, and a fixed left-to-right evaluation order, each head has a finite, implementation-sensitive state: a query-indexed collection of accumulators updated recursively as the prefix is read. This finite state is a sufficient statistic of the prefix for the head’s entire future behavior (Proposition 9); it is its op-erational memory. Unlike the growing key–value cache, it captures only information accessible through attention; un-like the current residual activation, it covers every possible future query rather than only the current one, placing it at the right level of abstraction when analyzing transformers as transition systems. Attention is the mechanism that transforms this memory: each new key–value pair induces a transition of the head state. The architecture composes these transformations, with heads acting independently in parallel and successive layers acting hierarchically. These memory operations form transformation semigroups, making a causal transformer under our assumptions an algebraic RNN in the sense of Nowak, Cotterell, and Boumasmoud (2026), so expressivity follows from the operations available to each attention mechanism and their composition across layers. We illustrate this analytic framework on finite-precision causal transformers without positional embeddings. At the level of individual heads, width-one sliding-window atten-tion has a definite transition semigroup, sharp soft atten-tion has an R-trivial transition semigroup, and full floating-point soft attention has an aperiodic transition semigroup. Our composition results lift these head-level properties to upper bounds on complete transformers: architectures us-ing width-one sliding-window heads recognize only definite languages, those using sharp soft-attention heads recognize only R-trivial languages, suitable cascades combining the two recognize only locally R-trivial languages, and those using full soft attention recognize only star-free languages. The last bound excludes parity and all modular counting, arXiv:2607.26988v1 [cs.FL] 29 Jul 2026 irrespective of depth, width, or number of heads. Under an explicit free-wiring assumption, all four bounds are tight. The separation between sharp and full soft attention il-lustrates why arithmetic is part of the computational model. Under floating-point evaluation, a contribution can be lost in the normalizer while still changing the accumulated value, creating memory behavior that the sharp variant excludes. Algebraically, this is precisely the distinction between R-trivial and aperiodic behavior. 
+
+# 2 Algebraic Preliminaries 
+
+Here we introduce the basic notions from semigroup theory, algebraic automata, and formal languages underlying this paper. Further preliminaries are found in Appendix A. For an accessible introduction, we refer the reader to Pin (2021). 
+
+Definition 1. An alphabet is a finite, nonempty set Σ, whose elements are called symbols . A word over Σ is a finite se-quence of symbols from Σ.
+
+We write Σ+ for the set of all non-empty finite words over 
+
+Σ, and Σ∗ if this set additionally includes the empty word ε.
+
+Definition 2. A language over Σ is a subset L ⊆ Σ∗. Its 
+
+characteristic function is the map 
+
+χL : Σ ∗ → { 0, 1}, χL(w) = 
+
+1, w ∈ L ,
+
+0, w / ∈ L . (1) We treat transformer language models as language rec-ognizers . That is, the task is to compute χL rather than a distribution over the next token. 
+
+Definition 3. A semigroup is a nonempty set S equipped with an associative binary operation ·: (s1 · s2) · s3 = s1 · (s2 · s3)
+
+for all s1, s 2, s 3 ∈ S.
+
+When the operation is clear from context, we denote the semigroup simply by S. For a given alphabet Σ, the set Σ+ of nonempty words over Σ is a semigroup under concatenation. It is the free semigroup on Σ.
+
+Definition 4. Let S and T be semigroups. A semigroup morphism is a map ϕ : S → T such that ϕ(s1 · s2) = 
+
+ϕ(s1) · ϕ(s2) for all s1, s 2 ∈ S.
+
+In particular, a map from the alphabet Σ into a semigroup 
+
+T determines a unique semigroup morphism from Σ+ to T
+
+by extending the map through concatenation. 
+
+Definition 5. A transformation semigroup (S, Z ) consists of a state set Z and a subsemigroup S ≤ ZZ . More generally, a right action of a semigroup S on Z is a semigroup morphism 
+
+ρ : S → ZZ . We write z · s def 
+
+= ρ(s)( z). It follows that z ·
+
+(st ) = ( z · s) · t. Replacing S by its image ρ(S) yields the corresponding transformation semigroup. 
+
+We use two compositions of transformation semigroups. Parallel composition describes components whose state updates are independent, whereas cascade composition permits the transition of one component to depend on the state of another. 
+
+Definition 6. Let (S1, Z 1), . . . , (Sn, Z n) be transformation semigroups. Their parallel composition is the transformation semigroup (S1×· · ·× Sn, Z 1×· · ·× Zn) with componentwise action (z1, . . . , z n) · (s1, . . . , s n) def 
+
+= ( z1 · s1, . . . , z n · sn).
+
+Definition 7. Let (S1, Z 1) and (S2, Z 2) be transformation semigroups. Their left wreath product , denoted (S1, Z 1) ≀
+
+(S2, Z 2), has state set Z1 × Z2 and underlying set S1 × SZ1 
+
+> 2
+
+,where SZ1 
+
+> 2
+
+is the set of maps Z1 → S2. Its multiplication and action are given by 
+
+(s1, ϕ 1)( s2, ϕ 2) def 
+
+=  s1s2, z 1 7 → ϕ1(z1)ϕ2(z1 · s1), (2) 
+
+(z1, z 2) · (s, ϕ ) def 
+
+=  z1 · s, z 2 · ϕ(z1). (3) The left-wreath convention evaluates ϕ at the first compo-nent’s state before that component is updated. Iterated wreath products are associative up to canonical isomorphism, so we omit parentheses when no ambiguity arises. 
+
+Definition 8. Let S1 and S2 be semigroups. We say that S1
+
+divides S2, written S1 ≺ S2, if there exist a subsemigroup 
+
+T ≤ S2 and a surjective semigroup morphism ψ : T ↠ S1.
+
+Division is a preorder on semigroups: every semigroup divides itself, and if S1 ≺ S2 and S2 ≺ S3, then S1 ≺ S3.
+
+# 3 Algebraic Transformers 
+
+We algebraically describe a specific class of transformer lan-guage models that satisfy the following assumptions: 
+
+• F: Finite-precision. All operations are carried out in constant-precision floating-point arithmetic. 
+
+• M: Causally masked attention. The attention score at po-sition t depends only on inputs ≤ t.
+
+• P: Positional embeddings are absent (NoPE). 
+
+• E: Fixed evaluation order. Attention is computed sequen-tially from left to right. 
+
+Attention Heads 
+
+Attention Heads as Transition Systems We define the state of an attention head by expressing attention as a fold over finite accumulators. 
+
+Attention as a left-to-right fold. We first recall causal soft attention in its usual form. At position t, a head forms a query 
+
+qt ∈ Q, keys ki ∈ K, and values vi ∈ V , where 1 ≤ i ≤ t,and Q, K, and V are the finite sets of possible queries, keys, and values (often in vector form), and returns 
+
+Att( qt; k<t , v <t ) = X
+
+> i<t
+
+exp α(qt, k i) vi
+
+P 
+
+> j<t
+
+exp α(qt, k j ) , (4) where α(·, ·) is usually a scaled dot product when keys and queries are vectors. Under assumption E, the sums are eval-uated from left to right. For a fixed query q, define the soft-attention accumulator aq = ( nq , d q ), representing the accu-mulated numerator and denominator, respectively. Let A de-note the finite set of possible accumulator values. To process a sequence of key-value pairs from left to right, we initialize the accumulator at the additive identity aq, 0 = (0 , 0) ∈ A.Reading a new key-value pair (ki, v i) at step i ≤ t updates the running accumulator state aq,i ∈ A via the transition function 
+
+δq : A × K × V → A (5) H    
+
+> MLP
+> EMB
+> xx … x
+> HH
+> H
+> MLP
+> HH
+> H
+> MLP
+> HH
+> CLS
+
+# ≀ 
+
+> xx … x
+
+# ≀    
+
+> xx … x
+> S( )
+> ΣΣ
+> {0,1}
+> U
+> {0,1}
+> **
+> *Σ*
+> {0,1}
+> V*
+
+Figure 1: Abstraction of a transformer to an algebraic object to a syntactic semigroup. given by the recurrence 
+
+aq,i = δq (( nq,i −1, d q,i −1), (ki, v i)) (6) 
+
+=  nq,i −1 + exp α(q, k i)vi, d q,i −1 + exp α(q, k i),
+
+with all operations evaluated under finite-precision semantics following assumption F. The final attention output at step t
+
+is obtained only after completing the fold over all i ≤ t,applying the readout 
+
+ρq : A → Y, ρq (n, d ) = n/d (7) to the final accumulator state for query q. Other attention mechanisms can be formalized similarly by changing the accumulator and its update rule (see Section 5). 1
+
+The head state. We now pass from the attention imple-mentation to the abstract state-transition system it induces. Because the arithmetic domain is finite, the set A of possible accumulator values is finite. The relevant state is therefore not the unbounded list of past keys and values, but the finite summary produced by the prescribed scan. The preceding accumulator was for a fixed query q, but a head must be reusable for any query that may be produced later. Since 
+
+Q is finite, we take the attention-head state set to be the query-indexed family of accumulators ZH
+
+> def
+
+= AQ.
+
+The head transitions. An element z ∈ ZH assigns to every possible query q ∈ Q the current prefix accumulator 
+
+z(q) ∈ A. Writing a new key-value pair (k, v ) acts on this state by updating every query accumulator: 
+
+∆(k,v )(z)( q) = δq (z(q), (k, v )) , q ∈ Q. (8) The current query does not determine the state transition, only which component of the state is read via ρq (z(q)) .
+
+The head transition system. Let the initial head state be 
+
+z◦ 
+
+> H
+
+∈ ZH . If the current input of the head is x ∈ X and the head computes query, key, and value maps q = qry( x),
+
+k = key( x), and v = val( x), then the transition map is 
+
+f Hx : ZH → ZH , f Hx (z) = ∆ (key( x),val( x)) (z), (9) 
+
+> 1
+
+Computing attention as a single query-dependent input pass is standard in online-attention algorithms like FlashAttention (Dao et al. 2022), cf. online softmax (Milakov and Gimelshein 2018). 
+
+and the readout map is 
+
+gH : ZH × X → Y, gH (z, x ) = ρqry( x)
+
+ z(qry( x)) .
+
+(10) Thus, the attention head induces a finite transition system 
+
+(ZH , z ◦ 
+
+> H
+
+, X, f H ), fH (z, x ) = f Hx (z), (11) with transition semigroup 
+
+TH
+
+> def
+
+= fx | x ∈ X sem ≤ ZZH 
+
+> H
+
+. (12) The map gH then specifies how this finite state is observed via the current query. Note it does not itself affect the transition semigroup of the head. 
+
+Proposition 9 (Sufficiency of the head state) . Let w1, w 2 ∈
+
+X+ be prefixes reaching a common head state: 
+
+z def 
+
+= bδ(z◦ 
+
+> H
+
+, w 1) = bδ(z◦ 
+
+> H
+
+, w 2).
+
+Then for every w′ ∈ X∗ and every x ∈ X, the head produces the same output on the inputs w1w′x and w2w′x.
+
+The proposition says that the state bδ(z◦ 
+
+> H
+
+, w ) is therefore a sufficient statistic of the prefix w for the entire future behavior of the head. 
+
+Proof. The extended transition satisfies the identity 
+
+bδ(z′, uv ) = bδ bδ(z′, u ), v , z′ ∈ ZH , u, v ∈ X∗. (13) The verification is by induction on |v|. By Definition 38, the output of the head on the input wiw′x is gH
+
+ bδ(z◦ 
+
+> H
+
+, w iw′), x .By Eq. (13), 
+
+bδ(z◦ 
+
+> H
+
+, w iw′) = bδ bδ(z◦ 
+
+> H
+
+, w i), w ′ = bδ(z, w ′), i ∈ { 1, 2},
+
+an expression in which wi no longer occurs. Both outputs therefore equal gH
+
+ bδ(z, w ′), x .By the defining equation of ∆(k,v ), coordinate q of the new state depends on coordinate q of the old state alone: every generator is a coordinatewise transformation of AQ.Coordinatewise transformations form a subsemigroup of 
+
+ZZH 
+
+> H
+
+, canonically isomorphic to Q 
+
+> q∈Q
+
+AA. The following proposition records this passage; it reduces every pseudova-riety question about the head to |Q| questions about one-accumulator semigroups. Proposition 10 (Subdirect decomposition over queries) . For 
+
+q ∈ Q, let Tq
+
+> def
+
+= δq (−, (key( x), val( x))) | x ∈ X sem ≤
+
+AA. The coordinatewise transformations of ZH form a sub-semigroup of ZZH 
+
+> H
+
+, canonically isomorphic to Q 
+
+> q∈Q
+
+AA via 
+
+ z · (fq )q
+
+(q) def 
+
+= z(q) · fq . Under this identification, 
+
+TH ≤ Y
+
+> q∈Q
+
+Tq ,
+
+with every projection surjective. In particular, if V is a pseu-dovariety of finite semigroups and Tq ∈ V for every q, then 
+
+TH ∈ V.Proof. The displayed map is an injective semigroup mor-phism onto the coordinatewise transformations: coordinate-wise maps compose componentwise, and such a map deter-mines its components by evaluation. By definition of ∆(k,v ),each generator f Hx is coordinatewise, with q-th component the generator δq (−, (key( x), val( x))) of Tq . Hence TH lies in the image of Q 
+
+> q
+
+Tq , projections carry generators onto generators, and V is closed under finite products and sub-semigroups. 
+
+# 4 From Heads to Language Acceptors 
+
+Definition 11 (Transformer core) . A transformer core with heads H1, . . . , H m over a common input set X is the tuple 
+
+c = ( Z, X, Y, f, g ) with 
+
+Z def 
+
+= ZH1 × · · · × ZHm , (14) 
+
+fx(z1, . . . , z m) def 
+
+=  f H1 
+
+> x
+
+(z1), . . . , f Hm 
+
+> x
+
+(zm), (15) 
+
+g (z1, . . . , z m), x  def 
+
+= μ gH1 (z1, x ), . . . , g Hm (zm, x ),
+
+(16) 
+
+where μ : Y1 × · · · × Ym → Y is a mixing map , abstracting the output projection, normalization, and feedforward block. 
+
+By Definition 6, the transition semigroup of a core is a subsemigroup of the parallel composition of its head semi-groups, Sc
+
+> def
+
+= fx | x ∈ X sem ≤ TH1 × · · · × THm ,with every projection carrying generators onto generators; the mixing map contributes quotients of readouts and no transitions. A transformer core is an algebraic core in the sense of Nowak, Cotterell, and Boumasmoud (2026, Def. 3.1): the sets are finite and both maps are total. An algebraic trans-former T of depth N is an algebraic RNN in the sense of Nowak, Cotterell, and Boumasmoud (2026, §3) all of whose cores are transformer cores. We keep the nomenclature of that paper unchanged: wiring maps, input and output types 
+
+In and Out , and cascade juxtaposition ▷τ are used here with-out restatement. An accepting core c• is a transformer core with output set {0, 1} whose readout depends on the state alone, g•(z, x ) = χF (z) for an accepting region F ⊆ Z•,intermediate readouts are Mealy, acceptance is Moore. A 
+
+transformer acceptor is a tuple A = (Σ , T +, z ◦, e ) with 
+
+T + = T ▷τN c•, where T is an algebraic transformer, c• is an accepting core, and with an initial global state z◦, and an encoder e : Σ → In( T ). It recognizes the language 
+
+L(A) def 
+
+= {w ∈ Σ∗ | π•( bFT + (z◦, w )) ∈ F }, (17) where π• : ZT + → Z• projects to the accepting-core state and the empty word is acting as id ZT + . Here, for a given word 
+
+w = w0 · · · w|w| ∈ Σ∗, bFT + (z◦, w ) denotes the global state obtained by iterating T + on the encoding e(w0) · · · e(w|w|)
+
+starting from state z◦.Write WT + for the ambient wreath product of the core transformation semigroups of T +, and W T  
+
+> T+
+
+, ST  
+
+> T+
+
+for the realized wreath semigroup and the realized transition semi-group relative to a set T ⊆ In( T ) of admissible inputs, defined through the layer-input dependency maps exactly as in Nowak, Cotterell, and Boumasmoud (2026, §3). 
+
+Proposition 12 (Factorization) . For every algebraic trans-former T and every T ⊆ In( T ),
+
+ST 
+
+> T
+
+≤ W T 
+
+> T
+
+≤ WT . (18) 
+
+Proof. This is the factorization lemma of Nowak, Cotterell, and Boumasmoud (2026, Lem. 3.12), specialized to trans-former cores; the proofs transfer to semigroups by Re-mark 14. The first relation is an inclusion, not merely a division: the wreath product of faithful transformation semi-groups is faithful. 
+
+Proposition 13 (Divisibility) . For every transformer accep-tor A = (Σ , T +, z ◦, e ),
+
+S(L(A)) ≺ Se(Σ)   
+
+> T+
+
+≤ W e(Σ)   
+
+> T+
+
+≤ WT + . (19) 
+
+Proof. By Lemma 41, w 7 → bFT + (−, w ) restricts to a semi-group morphism Σ+ → Se(Σ)   
+
+> T+
+
+recognizing L(A) ∩ Σ+
+
+through the accepting region, Theorem 37 gives the division, and Proposition 12 the two inclusions. This is the accep-tor divisibility chain of Nowak, Cotterell, and Boumasmoud (2026), at semigroup level. 
+
+Remark 14 (Transfer of the proofs) . The results of Nowak, Cotterell, and Boumasmoud (2026, §3) are stated for monoids and are used here for semigroups. Their proofs transfer verbatim, for a structural reason: every object of loc. cit. section is defined by generators and closure, the gener-ating sets are indexed by X and never by X ∪ { ε}, and the identity occurs throughout as an inhabitant of a generated object, never as a hypothesis of an argument. 
+
+A Note on Positional Embeddings With position embed-dings, the encoder reads the position index alongside the symbol, e : Σ × N → In( T ), and the set of realizable inputs remains finite under F. What is lost is not finiteness but the morphism: the position-tagging map 
+
+Σ+ −→ (Σ × N)+, w 7 →  (w1, 1) , . . . , (w|w|, |w|), (20) does not commute with concatenation, since the same sym-bol at different positions has different images. No morphism 
+
+η : Σ + → T is induced, Definition 35 does not apply, and Theorem 37 has nothing to act on; in particular, the divisi-bility chain of Proposition 13 is not available. Expressivity Consequences 
+
+The divisibility chain of Proposition 13 reduces transformer expressivity to a question of finite algebra. We first fix a class of algebraic transformer acceptors by specifying the admissible attention mechanisms, finite-precision arithmetic, cores, wirings, encoders, and accepting cores. Proposition 13 then shows that every recognized language has a syntactic semigroup dividing a realized wreath semigroup obtainable from the layer transition semigroups of the architecture. This gives the following two-sided recipe, directly paral-lel to the algebraic RNN analysis of Nowak, Cotterell, and Boumasmoud (2026): 
+
+Impossibility. For an impossibility result, it suffices to show that S(L) cannot divide any realized wreath semigroup generated by the permitted cores and wirings. Equivalently, if a group, reset behavior, or other finite-semigroup compo-nent required by the syntactic semigroup of L cannot occur in the wreath closure of the available core semigroups, then no acceptor in the class recognizes L. Krohn–Rhodes theory (Krohn and Rhodes 1965), and its extensions (Stiffler 1973), supply one standard way to make this obstruction explicit, by decomposing finite transformation semigroups into simple interpretable basic components. 
+
+Construction witness. Conversely, to prove that a lan-guage is recognizable, one constructs transformer cores whose realized transition semigroups provide the necessary algebraic components, wires them so that the resulting re-alized wreath semigroup contains S(L) as a divisor, and chooses the accepting region F to separate the accepting syntactic classes. The accepting core matters in this last step: the syntactic semigroup of L(A) need only divide the aug-mented semigroup Se(Σ)   
+
+> T+
+
+, not the transition semigroup of the base transformer alone. For NoPE transformer acceptors, this yields a simple method to establish expressivity bounds: attention semantics determine the possible head semigroups, parallel heads deter-mine core semigroups, and core cascades determine the real-ized wreath semigroups against which S(L) must be tested. 2
+
+# 5 Expressivity of NoPE Transformers 
+
+In this section, we derive concrete expressivity results for transformers without position embeddings (full specification in Appendix B). 
+
+Attention types 
+
+We start by formally defining different types of attention similar to those used in practice. The following attention mechanisms differ only in the accumulator update and read-out in Eq. (33); hence, each of them is a streaming attention mechanism in the sense fixed above. 
+
+Definition 15 (Soft attention) . A head uses soft attention if 
+
+an,i ∈ A consists of numerator–denominator pairs (nq , d q ),the initial accumulator is an, 0 = (0 , 0) , and its update and 
+
+> 2Position embeddings require separate treatment, because hav-ing access to unbounded position information allows a transformer to recognize non-regular languages just via its encoder.
+
+readout are given by Eq. (6) and Eq. (7) , respectively. with α
+
+a (scaled) dot product, computed with fixed evaluation order under floating-point semantics. The readout at the empty prefix is fixed to be 0. 
+
+Definition 16 (Sharp soft attention) . A soft-attention head is sharp if, on every reachable accumulator update, either the denominator changes, or both the numerator and the denominator stay the same. I.e., if an attention score is small enough to not affect the normalizer, it is treated as zero. Writing w = exp( α(q, k )) , en = fl( nq + wv ), and ed =fl( dq + w), its update is 
+
+δn,i,q (( nq , d q ), (k, v )) = 
+
+(
+
+(en, ed), if ed > d q ,
+
+(nq , d q ), otherwise . (21) 
+
+Definition 17 (Sliding-window attention of width one) . Fix an initial accumulator a◦ 
+
+> n,i,q
+
+= ( k◦
+
+> n,i
+
+, v ◦
+
+> n,i
+
+) ∈ Kn,i × Vn,i . A head uses sliding-window attention of width one if An,i =
+
+Kn,i × Vn,i and 
+
+δn,i,q (a, (k, v )) = ( k, v ), ρn,i,q (k, v ) = v. (22) 
+
+Thus, at position t, the head reads only the value stored at position t − 1, with v◦ 
+
+> n,i
+
+read at the first position. 
+
+Available Semigroups by Attention Type 
+
+Definition 18. A semigroup S is definite , S ∈ Def , if there exists n ≥ 1 such that st = t for all s ∈ S and t ∈ Sn.
+
+Definition 19. A semigroup S is R-trivial , S ∈ R, if sS 1 =
+
+tS 1 implies s = t for all s, t ∈ S.
+
+Definition 20. A semigroup S is locally R-trivial , S ∈ LR ,if eSe is R-trivial for every idempotent e ∈ S.
+
+Definition 21. A semigroup S is aperiodic , S ∈ Ap , if for every s ∈ S there exists n ≥ 1 such that sn = sn+1 .a b c d 1 2 3 4 c d e f _           
+
+> a b c d 1 2 3 4c d e f _
+> abcd 1 2 3 4 cd e f _
+> a b c d 1 2 3 4 c d e f _
+> Last number: 4
+> Letters seen: acx
+> ✓
+> ✓
+> Pairs seen: aa d1 4x
+> ✓
+> Aperiodic:
+> R-trivial:
+> Definite:
+> Locally R-trivial:
+> 3 4 c d e f
+
+Figure 2: Illustration of the types of tasks that attention can perform depending on the variety of its transition semigroup. For intuition about the kinds of memory supported by these semigroup varieties, see Fig. 2. Aperiodic transi-tion semigroups may retain finite-state information from arbitrarily far back, including ordering information; for example, they can record the last number seen. In an R-trivial transition semigroup, state transformations progress without nontrivial reversible cycles, giving memory that behaves like a checklist rather than a rewritable register. Definite semigroups capture bounded-suffix memory, such as retaining a fixed-size window of the input. Combining definite and R-trivial behavior yields locally R-trivial computations, which can retain checklist information about patterns detected within bounded windows. 
+
+Remark 22 . Any semigroup from the classes described above can be decomposed into a wreath product whose factors come from just three prime semigroups, called U1, U 2, U 3 (see Ap-pendix C for their definitions). The relevant decomposition results due to Stiffler (1973) are outlined in Appendix D. We use the following lemmas (full proofs in Appendix C). 
+
+Lemma 23. Every width-one sliding-window attention head has a definite transition semigroup, i.e., TH ∈ Def .proof sketch. Every nonempty input word acts as the con-stant map determined by its final key–value pair; hence, 
+
+st = t, implying Definition 18. For every i ∈ { 1, 2, 3}, we define the transformation semi-group U i
+
+> def
+
+= ( Ui, U 1 
+
+> i
+
+) where Ui (see Definition 44) acts on 
+
+U 1 
+
+> i
+
+from the right. 
+
+Lemma 24. There exists a width-one sliding-window atten-tion head H such that U 1 ≺ (TH , Z H ).proof sketch. On the invariant set consisting of the initial accumulator and two distinct key–value states, the corre-sponding inputs act as the two constant maps of U 1.
+
+Lemma 25. Every sharp soft-attention head has an R-trivial transition semigroup, i.e., TH ∈ R.proof sketch. Denominators weakly increase, and sharpness makes any transition that leaves all denominators fixed a self-loop. Thus reachability is a partial order, so the transition semigroup is R-trivial. 
+
+Lemma 26. There exists a sharp soft-attention head H such that U 2 ≺ (TH , Z H ).proof sketch. On an invariant two-state set straddling an ab-sorption threshold, an underflowing input acts as the identity and a unit-weight input as the constant map to the saturated state, realizing U 2.
+
+Lemma 27. Every finite-precision soft-attention head has an aperiodic transition semigroup. proof sketch. Under repetition of any input word, each denominator weakly increases and eventually stabilizes; thereafter each numerator coordinate evolves by an order-preserving map of a finite chain and also stabilizes. Hence every transition has an idempotent power. 
+
+Lemma 28. There exists a soft-attention head H such that U 3 ≺ (TH , Z H ), i.e., its transition semigroup is not 
+
+R-trivial. proof sketch. On a saturated-denominator invariant slice, left-to-right rounded numerator updates realize the identity and two distinct constant maps, and hence U 3.Throughout this section, the decoder of Definition 43 is memoryless. Equivalently, it may be represented by an ac-cepting core with trivial transition semigroup, so appending it does not change any of the semigroup classes below. 
+
+Theorem 29. Any language accepted by a NoPE transformer with width-one sliding-window attention is definite. Proof. Every head transition semigroup is definite by Lemma 23. Finite direct products and subsemigroups pre-serve definiteness, so every core transition semigroup is def-inite. By Proposition 12, the realized transformer semigroup divides their cascade and is definite by Theorem 48. Its rec-ognized language has a syntactic semigroup dividing this realized semigroup by Proposition 13; closure under divi-sion therefore makes the language definite. 
+
+Theorem 30. Any language accepted by a NoPE transformer with sharp soft attention is R-trivial. Proof. By Lemma 25, every head transition semigroup is R-trivial. Finite direct products and subsemigroups of R-trivial semigroups are R-trivial, so every core transition semigroup is R-trivial. The realized transformer semigroup divides the cascade of these core semigroups by Proposition 12; hence it is R-trivial by Theorem 49. Finally, Proposition 13 and closure under division imply that the syntactic semigroup of the accepted language is R-trivial. The above theorem recovers by an independent algebraic route a similar result obtained through linear temporal logic by Li and Cotterell (2025). 
+
+Theorem 31. Any language accepted by a transformer whose lower cores have sliding-window attention and whose higher cores have sharp attention heads, is locally R-trivial. Proof. Take a transformer each of whose lower cores have width-one sliding-window attention heads and whose higher cores sharp soft-attention heads. For the lower heads, their transition semigroups are definite by Lemma 23; for the higher ones, they are R-trivial by Lemma 25. The factor-ization of Proposition 12 places the realized transformer semigroup below a cascade of these core semigroups. By Theorem 50, it is locally R-trivial. The syntactic semigroup of the accepted language divides the realized semigroup by Proposition 13, so it is also locally R-trivial. 
+
+Theorem 32. Any language accepted by a NoPE transformer with soft attention is star-free. Proof. By Lemma 27, the transition semigroup of every at-tention head is aperiodic. The transition semigroup of each transformer core is a subsemigroup of the finite direct prod-uct of its head semigroups, and is therefore aperiodic. By Proposition 12, the realized transition semigroup of the trans-former divides the cascade of its core semigroups. Aperiodic semigroups are closed under finite direct products, wreath products, and division; equivalently, by Corollary 47, they are precisely the semigroups dividing finite cascades of copies of 
+
+U3. Consequently, the realized transformer semigroup is ape-riodic. The encoder restricts the admissible inputs but cannot enlarge this semigroup, and the memoryless decoder adds no transitions. By Proposition 13, the syntactic semigroup of the accepted language divides the realized transformer semi-group and is therefore aperiodic. The algebraic characteriza-tion of star-free languages as those with an aperiodic syntac-tic semigroup (Schützenberger 1955) yields the claim. 
+
+Definition 33 (Free-wiring assumption) . Say a class of NoPE transformers satisfies the free-wiring assumption if the encoders, the per-head key, query, and value maps, the mixing maps, the wiring maps, and the accepting regions may be arbitrary total maps between the corresponding fi-nite sets, and the cascade may place cores with the required attention types in the order prescribed by Theorems 48 to 50 and Corollary 47. 
+
+Corollary 34. Under the free-wiring assumption, the above bounds are tight. Proof. All the lower-bound components required by the de-composition theorems are available within the corresponding attention mechanisms: width-one sliding-window attention realizes U 1 by Lemma 24, sharp soft attention realizes U 2
+
+by Lemma 26, and floating-point soft attention realizes U 3
+
+by Lemma 28. The decomposition theorems, Theorems 48 to 50 and Corollary 47, express every semigroup in the respective upper-bound class as a divisor of a finite cascade of these components. If the transformer wirings realize the required cascade controls and the decoder realizes the required accepting subset, the resulting transformer recognizes every language in the corresponding class. Together with the preceding upper bounds, this proves the tightness under the stated implementability condition. Attention Primes Variety Languages sliding U1 Def definite sharp U2 R R-trivial sliding + sharp U1, U 2 LR loc. R-trivial soft U1, U 2, U 3 Ap star-free Table 1: Result overview. We map the attention types to the realizable prime semigroups, the resulting semigroup varieties closed under direct product, wreath product, and division, and the corresponding languages that NoPE trans-formers with these attention types can recognize. Note that 
+
+U1 and U2 are subsemigroups of U3.
+
+The Importance of Evaluation Order 
+
+Assumption E aligns temporal order with the right action of the transformation semigroup. Reversing the evaluation order would exchange right zeros with left zeros and replace the R-trivial and locally R-trivial conclusions by their dual 
+
+L-trivial and locally L-trivial conclusions. 
+
+# 6 Related Work 
+
+Our framework extends Nowak, Cotterell, and Boumas-moud’s (2026) algebraic analysis of RNN language models. We identify assumptions under which NoPE transformers become algebraic RNNs, then use refinements of Krohn– Rhodes theory to classify different attention mechanisms and derive compositional expressivity bounds. Closest are formal-language characterizations of masked transformers. Using Krohn–Rhodes theory, Yang, Chiang, and Angluin (2024) show that fixed-precision transformers with unique hard attention recognize exactly the star-free languages. Using LTL, Li and Cotterell (2025) obtain an R-trivial characterization for fixed-precision soft attention. We recover their bound for sharp soft attention but show that it depends on the numerical semantics: left-to-right floating-point soft attention yields the broader aperiodic bound. Con-currently, Li and Cotterell (2026) use LTL to show that local attention yields definite languages and that combining it with idealized soft attention yields locally R-trivial languages, matching our results at the level of language classes. Using Krohn–Rhodes theory, Liu et al. (2023) obtain solvable-language expressivity under growing precision and length-dependent wiring; we instead assume fixed precision and fixed parameters. 
+
+# 7 Discussion 
+
+This work establishes an algebraic framework for the underly-ing dynamics of masked finite-precision transformers under explicit numerical semantics, by showing that they can be formalized as RNNs. This allows placing lower and upper bounds on the languages such architectures can recognize. The analysis is restricted to transformers without po-sitional embeddings, because mapping from strings to position-indexed strings is not a morphism. This restriction is substantive: an encoder with access to unbounded position information need not induce the fixed finite input alphabet used by the semigroup analysis, and may support nonregular behavior independently of the attention mechanism. While unbounded position information cannot be assessed using this algebraic framework, certain finite or repeating position embeddings could be incorporated in future work. The query-indexed accumulator state can be extremely large. By Proposition 10, however, every pseudovariety question about a head reduces to the one-accumulator semi-groups Tq , so the size of AQ is harmless for the bounds. The algebraic description is therefore primarily a structural tool for proving expressivity bounds, rather than a prescription for explicitly enumerating the transition semigroup of a trained model. The dependence of the results on numerical semantics is nevertheless practically relevant for heavily quantized ar-chitectures, where the sets of queries and accumulator values are substantially reduced (Duan et al. 2023). More broadly, the decomposition into head, core, and cascade semigroups suggests a route to architecture design: attention mechanisms can be chosen to supply particular algebraic components, while wiring maps determine how these components interact across layers. This perspective may enable attention variants whose expressivity is controlled by construction. References 
+
+Dao, T.; Fu, D.; Ermon, S.; Rudra, A.; and Ré, C. 2022. FlashAttention: Fast and memory-efficient exact attention with IO-awareness. Advances in neural information pro-cessing systems , 35: 16344–16359. Duan, G.; Zhang, J.; Zheng, X.; and Zhu, Y. 2023. Bitformer: An efficient Transformer with bitwise operation-based atten-tion for Big Data Analytics at low-cost low-precision devices. 
+
+ArXiv , abs/2311.13502. Eilenberg, S. 1976. Automata, Languages, and Machines .(with two chapters by Bret Tilson.) Pure and Applied Math-ematics. Academic Press. ISBN 9780080873756. Krohn, K.; and Rhodes, J. 1965. Algebraic Theory of Ma-chines. I. Prime Decomposition Theorem for Finite Semi-groups and Machines. Transactions of the American Mathe-matical Society , 116: 450–464. Li, J.; and Cotterell, R. 2025. Characterizing the Expres-sivity of Fixed-Precision Transformer Language Models. In 
+
+39th Annual Conference on Neural Information Processing Systems (NeurIPS 2025) .Li, J.; and Cotterell, R. 2026. Characterizing the Expres-sivity of Local Attention in Transformers. In Liakata, M.; Moreira, V. P.; Zhang, J.; and Jurgens, D., eds., Proceedings of the 64th Annual Meeting of the Association for Computa-tional Linguistics (Volume 1: Long Papers) , 37485–37507. San Diego, California, United States: Association for Com-putational Linguistics. ISBN 979-8-89176-390-6. Liu, B.; Ash, J. T.; Goel, S.; Krishnamurthy, A.; and Zhang, C. 2023. Transformers Learn Shortcuts to Automata. In The Eleventh International Conference on Learning Representa-tions .Mealy, G. H. 1955. A Method for Synthesizing Sequential Circuits. Bell System Technical Journal , 34(5): 1045–1079. Merrill, W.; Sabharwal, A.; and Smith, N. A. 2022. Saturated Transformers are Constant-Depth Threshold Circuits. Trans-actions of the Association for Computational Linguistics , 10: 843–856. Milakov, M.; and Gimelshein, N. 2018. Online normalizer calculation for softmax. ArXiv , abs/1805.02867. Moore, E. F. 1956. Gedanken-Experiments on Sequential Machines. Annals of Mathematics Studies , 34: 129–153. Nowak, F.; Cotterell, R.; and Boumasmoud, R. 2026. An Algebraic View of the Expressivity of Recurrent Language Models. In Forty-third International Conference on Machine Learning .Pin, J.-É. 2021. Handbook of Automata Theory . European Mathematical Society Publishing House. Schützenberger, M.-P. 1955. Une théorie algébrique du codage. Séminaire Dubreil. Algebre et théorie des nombres ,9: 1–24. Stiffler, P. 1973. Chapter 1. Extension of the fundamental theorem of finite semigroups. Advances in Mathematics ,11(2): 159–209. Strobl, L.; Merrill, W.; Weiss, G.; Chiang, D.; and Angluin, D. 2024. What Formal Languages Can Transformers Ex-press? A Survey. Transactions of the Association for Com-putational Linguistics , 12: 543–561. Weiss, G.; Goldberg, Y.; and Yahav, E. 2021. Thinking Like Transformers. In Meila, M.; and Zhang, T., eds., Proceedings of the 38th International Conference on Machine Learning ,volume 139 of Proceedings of Machine Learning Research ,11080–11090. PMLR. Yang, A.; Chiang, D.; and Angluin, D. 2024. Masked Hard-Attention Transformers Recognize Exactly the Star-Free Lan-guages. In Globerson, A.; Mackey, L.; Belgrave, D.; Fan, A.; Paquet, U.; Tomczak, J.; and Zhang, C., eds., Advances in Neural Information Processing Systems , volume 37, 10202– 10235. Curran Associates, Inc. A Further Preliminaries 
+
+Recognition of Languages by Semigroups 
+
+Definition 35. A semigroup S recognizes a language L ⊆ 
+
+Σ+ if there exist a semigroup morphism η : Σ + → S and a subset P ⊆ S such that L = η−1(P ).
+
+For languages L ⊆ Σ∗, the empty word is handled sep-arately by whether ε ∈ L ; the semigroup recognizes the nonempty part L ∩ Σ+. This is analogous to recognition by the syntactic monoid, except that the semigroup presenta-tion does not require the empty word to be part of the input semigroup. This choice loses no information for language recognition: any semigroup S can be made into a monoid by adjoining an identity element, and the free monoid over Σ is 
+
+Σ∗ = Σ + ∪ { ε}.
+
+Definition 36. For a language L ⊆ Σ∗, the syntactic con-gruence ∼L on Σ+ is defined by 
+
+u ∼L v ⇐⇒ for all x, y ∈ Σ∗, xuy ∈ L ⇐⇒ xvy ∈ L .
+
+(23) 
+
+The quotient semigroup S(L) def 
+
+= Σ +/∼L is the syntactic semigroup of L.
+
+Theorem 37. If a semigroup S recognizes L ∩ Σ+, then 
+
+S(L) ≺ S. Moreover, L is regular if and only if S(L) is finite. 
+
+Thus, the syntactic semigroup is minimal up to division among the semigroups recognizing the nontrivial part of a language. It provides the algebraic interface between lan-guage recognition and the transition semigroups of concrete state machines. 
+
+Transducers and Acceptors 
+
+Definition 38. A transducer is a tuple 
+
+M = ( Z, z ◦, X, Y, δ, γ ), (24) 
+
+where Z is a state set with initial state z◦ ∈ Z, X and Y are input and output sets, δ : Z × X → Z is a transition map, and γ : Z × X → Y is an output map (Mealy form (Mealy 1955); the Moore form is the special case in which γ does not depend on its second argument (Moore 1956)). 
+
+The transition map extends recursively to words as bδ : Z ×
+
+X∗ → Z, where 
+
+bδ(z, ε ) = z, bδ(z, wx ) = δ(bδ(z, w ), x ). (25) Thus, on input w ∈ X∗, the transducer produces the output 
+
+γ(bδ(z◦, w )) .
+
+Definition 39. An acceptor over Σ is a tuple 
+
+A = ( Z, z ◦, Σ, δ, F ), (26) 
+
+where Z, z◦, and δ are as in Definition 38, and F ⊆ Z is the set of accepting states. The language recognized by A is 
+
+L(A) def 
+
+= {w ∈ Σ∗ | bδ(z◦, w ) ∈ F }. (27) 
+
+Equivalently, an acceptor is a transducer with output set 
+
+{0, 1} and output map χF .
+
+Transition Semigroups of Transducers 
+
+Definition 40. Let M be a transducer. Each input x ∈ X
+
+induces a state transformation 
+
+δx : Z → Z, δx(z) def 
+
+= δ(z, x ). (28) 
+
+The transition semigroup of M is the transformation semi-group 
+
+TM
+
+> def
+
+= δx | x ∈ X sem ≤ ZZ . (29) The elements of TM are precisely the state transformations induced by nonempty input words. The empty word acts as the identity transformation on Z.
+
+Lemma 41. The map η : X+ → TM defined by z · η(w) def 
+
+=
+
+bδ(z, w ) is a semigroup morphism. Proof. Follows readily by induction on |w|.
+
+Remark 42 (Why semigroups) . The subregular classes of the case study are invisible at monoid level, so the passage to semigroups is necessary, not stylistic. A definite monoid is trivial: if 1 ∈ Sn, then s · 1 = 1 for every s. Likewise 
+
+1S1 = S, so on monoids LR collapses onto R. Two of the four classes below therefore have no monoid-level content; the semigroup of a width-one window head is definite and ceases to be so the moment an identity is adjoined. 
+
+# B NoPE Transformer Architecture 
+
+We now instantiate the algebraic transformer of the preceding section as a finite-precision transformer with no position embeddings (NoPE transformer). Following the streaming formulation of attention above, a head reads the strict prefix state stored in its current state and then incorporates the key– value pair at the current position. Fix a finite arithmetic domain D, a depth N ∈ Z+, a model dimension d ∈ Z+, and numbers of heads m1, . . . , m N . For every core n ∈ { 1, . . . , N }, set 
+
+Xn = Yn = Dd. (30) Head i of layer n has finite query, key, value, and head-output sets Qn,i , Kn,i , Vn,i , and Yn,i , together with learned maps 
+
+qry n,i : Xn → Qn,i , key n,i : Xn → Kn,i , (31) 
+
+val n,i : Xn → Vn,i . (32) Its attention mechanism is specified by a finite accumulator set An,i , initial accumulators a◦ 
+
+> n,i,q
+
+∈ An,i , and maps 
+
+δn,i,q : An,i ×Kn,i ×Vn,i → An,i , ρn,i,q : An,i → Yn,i ,
+
+(33) for every q ∈ Qn,i . Thus, 
+
+Zn,i = AQn,i  
+
+> n,i
+
+, z◦
+
+> n,i
+
+(q) = a◦ 
+
+> n,i,q
+
+. (34) The transformer core cn = ( Zn, X n, Y n, f n, g n) has the product state 
+
+Zn =
+
+> mn
+
+Y
+
+> i=1
+
+Zn,i . (35) For z = ( z1, . . . , z mn ) and x ∈ Xn, its recurrence is defined componentwise by 
+
+fn(z, x )i(q) = δn,i,q 
+
+ zi(q), key n,i (x), val n,i (x) . (36) The head outputs and core readout are 
+
+hn,i (zi, x ) = ρn,i, qry n,i (x)
+
+ zi(qry n,i (x))  , (37) 
+
+gn(z, x ) = W On (hn, 1(z1, x ), . . . , h n,m n (zmn , x )) ,
+
+(38) where W On is the finite-precision output projection. Conse-quently, at position t, the core computes 
+
+zn,t = fn(zn,t −1, x n,t ), yn,t = gn(zn,t −1, x n,t ).
+
+(39) In particular, the readout uses precisely the strict prefix ac-cumulated before position t.Let LN n : Dd → D d be layer normalization with learned scale and bias, and let MLP n : Dd → Dd be a finite-precision feedforward network. The wiring from layer n to layer n + 1 is 
+
+rn(x, y ) = LN att  
+
+> n
+
+(x + y), (40) 
+
+τn(x, y ) = LN mlp  
+
+> n
+
+(rn(x, y ) + MLP n(rn(x, y ))) , (41) with every operation evaluated in the fixed finite-precision semantics. This wiring includes the attention residual con-nection, layer normalization, the MLP, and the MLP residual connection. The encoder and decoder are set maps 
+
+e : Σ → D d, d : Dd → { 0, 1}. (42) The encoder factors through the one-hot embedding Σ ,→D|Σ| followed by a learned linear map to Dd, and the decoder is a learned linear map followed by a binary decision rule. Since neither map receives a position index, the resulting architecture has no positional embeddings. 
+
+Definition 43 (NoPE transformer) . A NoPE transformer is the algebraic transformer whose cores, recurrence and read-out maps, wiring maps, encoder, and decoder are specified in Eqs. (33) , (36) , (38) and (41) .
+
+# C Available Semigroups by Attention Type 
+
+Definition 44. U1 = ( {a, b }, ·) with multiplication table 
+
+· a ba a bb a b
+
+U2 = ( {0, 1}, ·) with multiplication table 
+
+· 0 10 0 01 0 1
+
+U3 = ( {a, b, 1}, ·) with multiplication table 
+
+· a b 1a a b ab a b b1 a b 1For each multiplication table of Ui, the entry in row x and column y is the product xy : first x, then y.
+
+Lemma 23. Every width-one sliding-window attention head has a definite transition semigroup, i.e., TH ∈ Def .Proof. By Definition 17, reading an input x replaces every query-indexed accumulator by (key( x), val( x)) , indepen-dently of the previous state. Hence, every generator f Hx ∈ TH
+
+is a constant transformation. More generally, the transfor-mation induced by a nonempty input word is the constant transformation determined by its final symbol. Therefore, for all s, t ∈ TH , st = t. In particular, this holds for every 
+
+t ∈ T 2 
+
+> H
+
+. Taking n = 2 in the definition of definiteness gives 
+
+TH ∈ Def .
+
+Lemma 24. There exists a width-one sliding-window atten-tion head H such that U 1 ≺ (TH , Z H ).Proof. Take a singleton key set K = {k} and choose three distinct values V = {v1, v a, v b}, so that A =
+
+{(k, v 1), (k, v a), (k, v b)}; write z1, z a, z b for these three ac-cumulator states. Let the admissible inputs be xa and xb,with values va and vb. By Definition 17, the induced trans-formations are the constant maps 
+
+z · Fa = za, z · Fb = zb, z ∈ A. (43) A product of constant maps is its last factor, so FxFy = Fy for 
+
+x, y ∈ { a, b }: four identities, each verified by evaluating both sides at any state. The set A is invariant, and the surjections 
+
+θ(z1) = 1 , θ (za) = a, θ (zb) = b, φ (Fa) = a, φ (Fb) = b, 
+
+(44) satisfy θ(z · F ) = θ(z) · φ(F ) in all six cases, both sides being the label of the last-written pair. This shows the division 
+
+U 1 ≺ (TH , Z H ).
+
+Lemma 25. Every sharp soft-attention head has an R-trivial transition semigroup, i.e., TH ∈ R.Proof. Consider the deterministic semiautomaton induced by the head on ZH , and equip its states with the reachability preorder 
+
+z ⪯ z′ ⇐⇒ z′ = z · w for some w ∈ X∗. (45) This relation is reflexive and transitive. We show that it is also antisymmetric. Let dq (z) be the denominator of the accumulator for query 
+
+q in state z. Every sharp soft-attention transition satisfies 
+
+dq (z) ≤ dq (z · x) for all q ∈ Q. (46) Suppose z ⪯ z′ and z′ ⪯ z. Applying Eq. (46) along the two witnessing paths yields 
+
+dq (z) ≤ dq (z′) ≤ dq (z) (47) for every query. Hence no denominator advances anywhere along the path from z to z′. By the definition of sharp soft attention, whenever a denominator does not advance, its nu-merator also remains unchanged. Every transition on this path is therefore a self-loop on the full head state, and z = z′.The reachability preorder is thus a partial order, so the head induces a partially ordered semiautomaton. By the standard characterization of finite partially ordered semiau-tomata, their transition semigroups are R-trivial. Therefore 
+
+TH ∈ R.
+
+Lemma 26. There exists a sharp soft-attention head H such that U 2 ≺ (TH , Z H ).Proof. Use a scalar-valued head with one query and value zero. Let p be the significand precision, set D = 2 p, and let 
+
+D− = D − 1 be its immediate floating-point predecessor. Choose an input x0 whose exponential attention weight un-derflows to zero and an input x1 with score zero, and hence exponential attention weight 1. Consider 
+
+z0 = (0 , D −), z1 = (0 , D ). (48) The input x0 leaves both states unchanged and hence induces the identity on {z0, z 1}. Moreover, 
+
+fl( D− + 1) = D, fl( D + 1) = D. (49) Thus, the sharp update induced by x1 sends z0 to z1 and fixes z1: at z0 the denominator advances, whereas at z1 the increment is absorbed and the entire update is suppressed. Its restriction to {z0, z 1} is therefore the constant map E with image z1, while x0 restricts to the identity I on the same pair of states. The products are computed by evaluation: EE = E and 
+
+IE = EI = E, checked at z0 and at z1; this is the multipli-cation of Definition 44. The set {z0, z 1} is invariant, and the surjections 
+
+θ(z0) = 1 , θ (z1) = 0 , φ(I) = 1 , φ (E) = 0 , (50) satisfy θ(z · F ) = θ(z) · φ(F ) in all four cases; for instance 
+
+θ(z0 · E) = θ(z1) = 0 = 1 · 0 = θ(z0) · φ(E). This is the division U 2 ≺ (TH , Z H ).
+
+Lemma 27. Every finite-precision soft-attention head has an aperiodic transition semigroup. Proof. Fix a query q. Upon reading a key–value pair (k, v ),the denominator is updated by 
+
+dq 7 −→ fl( dq + exp( α(q, k ))) . (51) The exponential is nonnegative, including when it under-flows to zero. Since floating-point addition and rounding are order-preserving under the fixed semantics, the updated de-nominator is at least dq . Thus every transition either strictly advances the denominator or leaves it unchanged through un-derflow or absorption. The same is true of every composition of transitions. Consequently, under repeated application of any transformation s ∈ TH , each denominator follows a non-decreasing sequence in a finite chain and therefore eventually stabilizes. It remains to rule out a cycle in the numerator after the denominator has stabilized. For a fixed input and query, every scalar coordinate of the numerator is updated by addition of the fixed floating-point value 
+
+fl(exp( α(q, k )) v) . (52) Addition by a fixed value and floating-point rounding are order-preserving. Hence, on each scalar numerator coordi-nate, every s ∈ TH acts as an order-preserving self-map of a finite chain. An order-preserving self-map of a finite chain has no nontrivial cycle: depending on whether x ≤ s(x) or 
+
+s(x) ≤ x, its orbit is respectively nondecreasing or nonin-creasing and must stabilize. The head state has finitely many queries and finitely many scalar accumulator coordinates. For each s, taking the maxi-mum stabilization index over all coordinates and states gives 
+
+Ns ∈ N such that sNs = sNs+1 . Since TH is finite, the max-imum of the Ns gives a common N satisfying sN = sN +1 
+
+for every s ∈ TH . Therefore TH ∈ Ap .
+
+Lemma 28. There exists a soft-attention head H such that U 3 ≺ (TH , Z H ), i.e., its transition semigroup is not 
+
+R-trivial. Proof. It suffices to use one scalar-valued head with a single-ton as the query set. Let p be the significand precision of the floating-point format and choose the exactly representable values 
+
+C = 2 p+1 , D = 2 p+2 . (53) These values lie in the normal range of every standard IEEE binary format. Their spacing implies 
+
+fl( C + x) = C for x ∈ {− 1, 0, 1}, fl( D + 1) = D. 
+
+(54) Take four inputs x0, x C , x −C , x 1 whose keys all have score zero against the unique query and whose respective values are 
+
+0, C, −C, 1. Since exp(0) = 1 , their numerator increments are precisely these four values, whereas each denominator increment is 1. Consider the three head states 
+
+z1 = ( −1, D ), za = (0 , D ), zb = (1 , D ), (55) and set Z′ = {z1, z a, z b}. By Eq. (54), the transformation induced by x0 fixes every element of Z′ and therefore restricts to id Z′ .Let Fa be the transformation induced by the word xC x−C .For every (n, D ) ∈ Z′,
+
+(n, D ) xC
+
+7−−→ (C, D ) x−C
+
+7−−−→ (0 , D ) = za. (56) Thus, Fa restricts to the constant transformation with image 
+
+za. Similarly, the word xC x−C x1 induces a transformation 
+
+Fb such that 
+
+(n, D ) xC x−C
+
+7−−−−−→ (0 , D ) x1
+
+7−→ (1 , D ) = zb (57) for every (n, D ) ∈ Z′. Hence, Fb restricts to the constant transformation with image zb. The set Z′ is invariant under 
+
+id Z′ , Fa, and Fb, and a product of constant maps is its last factor, so on Z′
+
+FxFy = Fy , id Z′ Fx = Fxid Z′ = Fx, x, y ∈ { a, b },
+
+(58) each identity verified by evaluating at any state. This is the multiplication in Definition 44. The surjections 
+
+θ(z1) = 1 , θ(za) = a, θ(zb) = b, (59) 
+
+φ(id Z′ ) = 1 , φ(Fa) = a, φ(Fb) = b, (60) satisfy θ(z · F ) = θ(z) · φ(F ) in all nine cases, both sides being the label of the last reset, or the old label if none. This is the division U 3 ≺ (TH , Z H ).Remark 45 (Equality against division) . Here, they hold only on Z′: before saturation, the denominator counts letters, one per input, and a length counter separates words of different lengths. For instance (0 , 0) ·Fb = (1 , 3) while (0 , 0) ·FaFb =(1 , 5) , so FaFb̸ = Fb in TH , and FaFa̸ = Fa although a
+
+is idempotent in U3. The subsemigroup id , F a, F b sem is therefore strictly larger than U3, of which it sees the relations only after restriction to the saturated slice: a quotient of a subobject, which is precisely a division, and the reason Lemmas 26 and 28 assert ≺ where Lemma 24 could assert an isomorphism onto a subobject. 
+
+# D Semigroup Decomposition Beyond Krohn–Rhodes 
+
+Krohn–Rhodes theory (Krohn and Rhodes 1965) describes the decomposition of any aperiodic transformation semi-group into a wreath product of transformation semigroups whose semigroup is U3. However, transformers may not be able to instantiate U3, meaning none of the basic constituents of such a decomposition is attainable. Therefore, we utilize a refinement of Krohn–Rhodes due to Stiffler (1973) that further decomposes aperiodic semigroups into smaller semi-groups U1, U 2 ≤ U3, which we will show can be realized by different types of attention heads. 
+
+Theorem 46 (Krohn and Rhodes (1965), semigroup version) .
+
+Every finite transformation semigroup (S, Z ) divides a finite wreath product with factors alternating between copies of 
+
+U 3 and simple group factors. 
+
+Corollary 47. Let (S, Z ) be a finite transformation semi-group. Then the semigroup S is aperiodic, S ∈ Ap , if and only if (S, Z ) divides a finite wreath product of copies of U 3:
+
+S ∈ Ap ⇐⇒ ∃ Z : ( S, Z ) ≺ U 3 ≀ · · · ≀ U 3. (61) 
+
+Theorem 48 (Stiffler (1973), Thm 3.4 (a) and Fact 1.9) . For every finite semigroup S,
+
+S ∈ Def ⇐⇒ ∃ Z : ( S, Z ) ≺ U 1 ≀ · · · ≀ U 1. (62) 
+
+Moreover, Def is closed under finite wreath products and division. Consequently, if a finite transformation semigroup 
+
+(S, Z ) divides a finite cascade whose component semigroups are definite, then S ∈ Def .
+
+Theorem 49 (Stiffler (1973), Thm. 3.4(b) and Fact 1.9) . For every finite semigroup S,
+
+S ∈ R ⇐⇒ ∃ Z : ( S, Z ) ≺ U 2 ≀ · · · ≀ U 2. (63) 
+
+Moreover, R is closed under finite wreath products and di-vision. Consequently, if a finite transformation semigroup 
+
+(S, Z ) divides a finite cascade whose component semigroups are R-trivial, then S ∈ R.
+
+Theorem 50 (Stiffler (1973), Thm 3.4 (c), Fact 1.9, Cor. 12 (c) and Rem. 2.13) . For every finite semigroup S,
+
+S ∈ LR ⇐⇒ ∃ Z : ( S, Z ) ≺ U 1 ≀· · ·≀ U 1 ≀U 2 ≀· · ·≀ U 2.
+
+(64) 
+
+Furthermore, Def and R are closed under finite wreath products and division. Therefore, if a finite transformation semigroup (S, Z ) divides a finite cascade whose component semigroups are R-trivial and definite, then S ∈ LR .Remark 51 . Note the different notational conventions: 1. Whereas Stiffler (1973) uses right wreath products, we define wreath factors to act from the left to better match the common indexing of layers in neural networks. Hence, our restatement of Theorem 50 has U 1s on the left (think: closer to the transformer input) and U 2s on the right (higher up in the layers), the reverse of Stiffler (1973). 2. We adopt the notation of Stiffler (1973) for the prime semigroups U1, U 2, U 3. Note that these have different names elsewhere; for instance, our U3 is called U2 in Eilenberg (1976), etc.
