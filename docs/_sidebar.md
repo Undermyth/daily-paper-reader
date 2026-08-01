@@ -1,6 +1,9 @@
 * <a class="dpr-sidebar-root-link" href="#/">首页</a>
 * <a class="dpr-sidebar-root-link dpr-sidebar-noactive-link" href="javascript:void(0)" data-dpr-hash="#/tutorial/README">使用教程</a>
 * Daily Papers
+  * 2026-08-01 <!--dpr-date:20260801-->
+    * 精读区
+      * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202608/01/2607.27735v1-a-sparse-glimpse-of-the-whole-train-free-self-speculative-decoding" data-sidebar-item="{&quot;title&quot;: &quot;A Sparse Glimpse of the Whole: Train-Free Self-Speculative Decoding&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2607.27735v1-a-sparse-glimpse-of-the-whole-train-free-self-speculative-decoding&quot;, &quot;score&quot;: &quot;8.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;稀疏化KV缓存用于长上下文推理，高效记忆检索&quot;}">A Sparse Glimpse of the Whole: Train-Free Self-Speculative Decoding</a>
   * 2026-07-31 <!--dpr-date:20260731-->
     * 精读区
       * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202607/31/2607.28611v1-chimera-designing-and-chinchilla-scaling-hybrid-visual-diffusion-transformers" data-sidebar-item="{&quot;title&quot;: &quot;Chimera: Designing and Chinchilla-Scaling Hybrid Visual Diffusion Transformers&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2607.28611v1-chimera-designing-and-chinchilla-scaling-hybrid-visual-diffusion-transformers&quot;, &quot;score&quot;: &quot;9.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;结合线性注意力与交错MLA的混合视觉扩散Transformer，实现O(N)长上下文状态追踪&quot;}">Chimera: Designing and Chinchilla-Scaling Hybrid Visual Diffusion Transformers</a>
