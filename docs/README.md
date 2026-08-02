@@ -6,24 +6,34 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-01
-- 运行时间：2026-08-01 21:13:13 UTC
+- 最新运行日期：2026-08-02
+- 运行时间：2026-08-02 20:53:12 UTC
 - 运行状态：成功
-- 本次总论文数：1
-- 精读区：1
-- 速读区：0
+- 本次总论文数：4
+- 精读区：2
+- 速读区：2
 
 ### 今日简报（AI）
-今日精读1篇论文，聚焦无需训练的自我推测解码新方法；最值得关注的是该工作以8.0分入选，核心方向是用稀疏视角加速生成并保持质量；建议普通读者优先了解其“免训练”与“自推测”的实用价值。
-- 详情：[/202608/01/README](/202608/01/README)
+今日推荐4篇论文，精读《TaoMate》与《CoSA》两大8分高价值工作。  
+最值得关注：实时音视频数字人生成的状态桥接方法，以及长上下文推理的稀疏注意力加速技术。  
+建议优先细读这两篇，并留意速读中关于智能体记忆盲区与多轮RAG的补充视角。
+- 详情：[/202608/02/README](/202608/02/README)
 
 ### 精读区论文标签
-1. [A Sparse Glimpse of the Whole: Train-Free Self-Speculative Decoding](/202608/01/2607.27735v1-a-sparse-glimpse-of-the-whole-train-free-self-speculative-decoding)  
+1. [TaoMate: Anchor-Guided Memory Bridging Evolving and Reference States for Real-Time Audio-Video Digital Human Generation](/202608/02/2607.24359v1-taomate-anchor-guided-memory-bridging-evolving-and-reference-states-for-real-time-audio-video-digital-human-generation)  
    标签：评分：8.0/10、query:la
-   evidence：稀疏化KV缓存用于长上下文推理，高效记忆检索
+   evidence：锚定引导的持久记忆与注意力检索
+2. [CoSA: Accelerating Long-Context Inference via Proxy-Kernel Co-Designed Sparse Attention](/202608/02/2607.25291v1-cosa-accelerating-long-context-inference-via-proxy-kernel-co-designed-sparse-attention)  
+   标签：评分：8.0/10、query:la
+   evidence：稀疏注意力从KV记忆中选取显著块，加速长上下文推理
 
 ### 速读区论文标签
-- 本次无速读推荐。
+1. [Keep It InMind: Benchmarking the Implicit-Association Blind Spot in Agent Memory](/202608/02/2607.24368v1-keep-it-inmind-benchmarking-the-implicit-association-blind-spot-in-agent-memory)  
+   标签：评分：7.0/10、query:la
+   evidence：针对智能体记忆系统中基于相似性的联想记忆检索失败进行基准评测
+2. [CMT-RAG: Complementary Memory Traces for Multi-turn Multi-hop RAG](/202608/02/2607.26470v1-cmt-rag-complementary-memory-traces-for-multi-turn-multi-hop-rag)  
+   标签：评分：6.0/10、query:la
+   evidence：用互补记忆痕迹对齐多轮多跳检索增强生成中的对话记忆与检索
 
 
 <div class="dpr-home-promo-card">
