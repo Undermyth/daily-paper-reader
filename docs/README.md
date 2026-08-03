@@ -6,34 +6,26 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-02
-- 运行时间：2026-08-02 20:53:12 UTC
+- 最新运行日期：2026-08-03
+- 运行时间：2026-08-03 21:46:31 UTC
 - 运行状态：成功
-- 本次总论文数：4
-- 精读区：2
-- 速读区：2
+- 本次总论文数：2
+- 精读区：1
+- 速读区：1
 
 ### 今日简报（AI）
-今日推荐4篇论文，精读《TaoMate》与《CoSA》两大8分高价值工作。  
-最值得关注：实时音视频数字人生成的状态桥接方法，以及长上下文推理的稀疏注意力加速技术。  
-建议优先细读这两篇，并留意速读中关于智能体记忆盲区与多轮RAG的补充视角。
-- 详情：[/202608/02/README](/202608/02/README)
+今日精读1篇、速读1篇，共2篇论文，重点覆盖KV缓存压缩与多模态嵌入两大方向。最值得关注的是《ResKV》提出固定预算下重建遗漏注意力贡献的缓存压缩方法（8.0/10），适合关注大模型推理效率的读者；另一篇多模态嵌入研究得分为6.0，可作扩展了解。下一步建议优先精读ResKV的压缩机制与实验对比，并顺带浏览ReLoop-UME的方法框架即可。
+- 详情：[/202608/03/README](/202608/03/README)
 
 ### 精读区论文标签
-1. [TaoMate: Anchor-Guided Memory Bridging Evolving and Reference States for Real-Time Audio-Video Digital Human Generation](/202608/02/2607.24359v1-taomate-anchor-guided-memory-bridging-evolving-and-reference-states-for-real-time-audio-video-digital-human-generation)  
+1. [ResKV: Reconstructing Omitted Attention Contributions for Fixed-Budget KV Cache Compression](/202608/03/2607.29591v1-reskv-reconstructing-omitted-attention-contributions-for-fixed-budget-kv-cache-compression)  
    标签：评分：8.0/10、query:la
-   evidence：锚定引导的持久记忆与注意力检索
-2. [CoSA: Accelerating Long-Context Inference via Proxy-Kernel Co-Designed Sparse Attention](/202608/02/2607.25291v1-cosa-accelerating-long-context-inference-via-proxy-kernel-co-designed-sparse-attention)  
-   标签：评分：8.0/10、query:la
-   evidence：稀疏注意力从KV记忆中选取显著块，加速长上下文推理
+   evidence：通过重建被省略注意力贡献实现KV缓存压缩，直接面向高效注意力机制
 
 ### 速读区论文标签
-1. [Keep It InMind: Benchmarking the Implicit-Association Blind Spot in Agent Memory](/202608/02/2607.24368v1-keep-it-inmind-benchmarking-the-implicit-association-blind-spot-in-agent-memory)  
-   标签：评分：7.0/10、query:la
-   evidence：针对智能体记忆系统中基于相似性的联想记忆检索失败进行基准评测
-2. [CMT-RAG: Complementary Memory Traces for Multi-turn Multi-hop RAG](/202608/02/2607.26470v1-cmt-rag-complementary-memory-traces-for-multi-turn-multi-hop-rag)  
+1. [ReLoop-UME: Recurrent Depth with Learnable Retrieval Registers for Universal Multimodal Embedding](/202608/03/2607.28751v1-reloop-ume-recurrent-depth-with-learnable-retrieval-registers-for-universal-multimodal-embedding)  
    标签：评分：6.0/10、query:la
-   evidence：用互补记忆痕迹对齐多轮多跳检索增强生成中的对话记忆与检索
+   evidence：嵌入中的循环深度与可学习检索寄存器
 
 
 <div class="dpr-home-promo-card">
