@@ -1,0 +1,1111 @@
+Title: AttnLink: Turning Attention into Schema Links for Text-to-SQL
+
+URL Source: https://arxiv.org/pdf/2608.00693v1
+
+Published Time: Tue, 04 Aug 2026 00:43:23 GMT
+
+Number of Pages: 18
+
+Markdown Content:
+# AttnLink: Turning Attention into Schema Links for Text-to-SQL 
+
+Jinwang Song ∗, Tao Liu ∗, Haowen Zheng ∗, Xiangheng Li, Yifan Li, Hongying Zan 
+
+Abstract 
+
+Schema linking is a critical component of Text-to-SQL sys-tems, but existing approaches often trade off contextual mod-eling capacity, score-based controllability, and inference effi-ciency. We introduce AttnLink , an attention-based frame-work that converts LLMs’ internal attention into continu-ous relevance scores for schema items. AttnLink extracts the attention from the generation-start position to candidate schema spans, enabling all candidates to be ranked in a single prefill pass without autoregressive decoding. We de-velop two variants: AttnLink-U , which directly probes pre-trained attention without parameter updates, and AttnLink-S, which aligns the attention distribution with gold schema items through direct supervision. To improve coverage of multiple relevant schema items, AttnLink-S combines a set-mass objective with an adaptive probability-floor regularizer. The resulting scores support post-hoc precision–recall con-trol through temperature scaling and cumulative-mass selec-tion. Experiments on Spider, BIRD, and Spider2-SQLite show that AttnLink-S achieves mAP scores of 99.22%, 95.95%, and 83.29%, respectively, with millisecond-scale schema-linking latency. It also yields the best or tied-best execution accuracy for downstream SQL generation in seven of nine generator–dataset settings. Code will be made available at https://github.com/Songjw133/AttnLink. 
+
+Introduction 
+
+Text-to-SQL translates natural-language questions into ex-ecutable SQL queries, enabling users to access relational databases without writing SQL (Hong et al. 2025; Shi et al. 2025; Liu et al. 2025). Despite rapid progress with LLMs, re-liable generation remains challenging because models must jointly interpret user intent, database structure, and schema-specific terminology. A central component is schema linking ,which identifies the tables and columns needed to answer a question. Accurate schema linking reduces irrelevant con-text and strengthens question–schema grounding, thereby mitigating column-selection and join-path errors (Li et al. 2023a; Cao et al. 2024). An effective schema linker should satisfy three require-ments: semantic capacity to model complex and composi-tional question–schema relationships, continuous control-lability through ranked relevance scores that adapt to dif-
+
+> ∗
+
+These authors contributed equally. 
+
+ferent schema budgets, and serving efficiency without auxil-iary models or autoregressive decoding. Existing LLM-based approaches typically trade off these properties. Generative methods prompt or fine-tune LLMs to output relevant schema items as text (Pourreza and Rafiei 2023; Gao et al. 2024; Talaei et al. 2024). Although semantically expressive, they produce discrete sets with limited post-hoc control over re-call, precision, and schema budget. Retrieval-based methods rank schema items using embeddings or cross-encoders (Li et al. 2023a). They provide continuous scores, but separate embedding or cross-encoder models may offer weaker con-textual and compositional modeling than LLMs. We propose AttnLink , an attention-based schema-linking framework that addresses all three requirements by con-verting an LLM’s internal attention into continuous rel-evance scores for schema items. Our key observation is that, before any schema item or SQL token is decoded, the generation-start position—which we term the generation an-chor —already exhibits a contextual attention pattern over the prompt, including candidate schema spans. AttnLink uses this signal to rank all candidates simultaneously, combining LLM semantic modeling with controllable continuous rank-ing. The resulting scores support post-hoc precision–recall adjustment through temperature scaling and top-p selection. Requiring only a single standard prefill pass, AttnLink avoids both auxiliary embedding/reranking models and autoregres-sive decoding, enabling efficient schema pruning within ex-isting LLM serving infrastructure. We instantiate AttnLink in two complementary vari-ants. AttnLink-U extracts schema-relevance scores from a selected attention layer and head without parameter up-dates, providing a lightweight, high-recall pruning solution. 
+
+AttnLink-S directly supervises the candidate attention dis-tribution with a set-mass objective and an adaptive floor regularizer. The set-mass objective shifts probability toward relevant schema items, while the floor regularizer prevents less salient but necessary items from being overlooked in multi-positive examples. Both variants share the same scor-ing and inference procedure. Experiments on Spider, BIRD, and Spider2-SQLite demonstrate that AttnLink provides strong schema-ranking quality, supports flexible precision–recall trade-offs, and im-proves downstream SQL generation through schema filter-ing. Our contributions are summarized as follows: arXiv:2608.00693v1 [cs.CL] 1 Aug 2026 ... 1
+
+> T2
+> Ti
+
+TCandidate 
+
+> Position
+
+... 1
+
+P2
+
+Plast PPrompt 
+
+> Embedding
+> ...
+> ... 1
+> Si
+
+S2         
+
+> S
+> Map token
+> Score
+> Top -pTop -k
+> Temperature Scaling
+> Schema Item Score
+> concert.concert_ID 0.093
+> singer.Age 0.087
+> singer.Country 0.075
+> concert.Theme 0.021
+> concert.concert_Name 0.006
+> ……
+> Precision
+> Recall
+> Selection Policies 
+> 
+> 1=
+
+# ...                        
+
+> employee_ id:{
+> "type": "INTEGER",
+> "primary_key": TRUE ,
+> "comment": "Unique Identifier of the Employee ",
+> "examples": [ "0010 1"," 0010 2"," 0010 3" ... "xxx "]}
+> employee _name:{
+> "type": "VARCHAR(50)",
+> "primary_key": FALSE ,
+> "comment": "Name or Type of Employee ",
+> "examples": [ "Robinson","Mil Mi",..."xxx" ]}
+> [fewer tables and columns]
+> Pruned Schema
+> Schema
+> Context
+> SQL
+> Generation
+> Execution
+> Accuracy
+> Downstream Use
+> Text -to -SQL Input
+> Question Database
+> Schema
+> ### Prompt Construction
+> Your task is schema linking …
+> …randomly copy one relevant
+> identifier from the following
+> candidate column s, using the exact
+> column@table format.
+> Candidate Columns:
+> concert_ID@concert
+> concert_ Name @concert
+> Theme@concert
+> Country@singer
+> Age@singer
+> ...
+> LLM Prefill and Post Selection
+> AttnLink -U
+> Zero -Training
+> AttnLink -S
+> Supervised Alignment
+> Base LLM
+> (No parameter update) Attention Extraction Schema Scores Post Selection High -recall
+> Schema Pruning
+> Tuned LLM
+> (Lightweight update) Attention Extraction Schema Scores Post Selection
+> Direct Attention Supervision
+> Set -Mass
+> Loss
+> Floor
+> Regularizer
+> High -coverage
+> Schema Linking
+> Transformer
+> decoder layer
+> Transformer
+> decoder layer
+> Decoder -only LLM
+> ... 1
+
+k2
+
+> k
+> Attention(Q,K) last
+
+q3
+
+kFigure 1: Overview of AttnLink. 1. We propose AttnLink , a unified schema linking frame-work that converts LLMs’ internal attention into contin-uous table and column relevance scores. This formula-tion supports both zero-training probing and supervised alignment, and enables post-hoc precision–recall control through temperature scaling and top-p cumulative-mass selection. 2. We show that LLM attention provides a strong and train-able schema grounding signal. AttnLink-U extracts use-ful schema links from base models without parameter updates, while AttnLink-S introduces a direct attention-alignment objective with set-mass loss and floor regular-ization to improve multi-positive coverage. 3. We validate AttnLink on BIRD, Spider, and Spider2-SQLite, demonstrating strong ranking quality, efficient single-prefill-pass inference without decoding, and com-patibility across LLM architectures. AttnLink-S achieves the best or tied-best execution accuracy in seven of nine generator–dataset settings. 
+
+Problem Formulation 
+
+Given a natural-language question x and its associated database schema S, schema linking aims to identify the ta-bles and columns required to generate the correct SQL query. Depending on the linking granularity, we construct either a table-level or column-level candidate set from S:
+
+C = {c1, c 2, . . . , c n}, (1) where each ci denotes a candidate schema item. A schema-linking method models the semantic relationship between x
+
+and S and predicts a relevant subset 
+
+bG ⊆ C . (2) Let G ⊆ C denote the gold set of schema items required by the target SQL query. An ideal prediction should cover all items in G while excluding as many irrelevant candidates as possible. Recall is particularly important in schema linking. Once a table or column required by the target SQL is removed, the downstream generator has little opportunity to recover it. By contrast, retaining a small number of irrelevant schema items usually introduces only limited contextual redundancy. Schema linking should therefore prioritize high recall while controlling the size and precision of the predicted subset. 
+
+Method 
+
+AttnLink converts the LLM’s internal attention at the gen-eration anchor into continuous relevance scores over candi-date schema items. As illustrated in Figure 1, both variants share the same pipeline. AttnLink-U directly probes pre-trained attention without parameter updates, while AttnLink-S further aligns the attention distribution with gold schema items through supervision. The resulting scores support flex-ible precision–recall control and efficient prefill-only schema linking. 
+
+AttnLink-U: Training-Free Attention Probing 
+
+AttnLink-U treats the internal attention of a pretrained LLM as a training-free probe for schema relevance. When the model is instructed to copy a relevant schema item from the context, the underlying retrieval process is reflected in the attention assigned to the corresponding candidate span. AttnLink-U extracts this signal from a selected attention head and converts it into a continuous relevance score for each can-didate schema item, without updating any model parameters. 
+
+Copying-Prompt Construction. Given a question x, a database schema S, and a candidate set C, we construct a prompt containing, in order, a task instruction, the question, the complete schema, and a line-separated candidate list. The list represents each schema item in a canonical identi-fier format (e.g., col@table ), enabling unambiguous span mapping and output parsing. The LLM is instructed to copy exactly one relevant identifier and output no SQL or other text. When multiple items are relevant, it is instructed to choose one at random rather than defaulting to the most likely or most confidently predicted item. <|im_start|>user \n         
+
+> Your task is column -level schema linking …\n
+> Database Schema: [Schema]
+> Question: [Question] …
+> * You must copy the relevant candidate column identifier exactly as it appears in Candidate Columns. Your
+> final answer must contain exactly one `column@table` identifier. \n
+> * If multiple candidate columns are relevant, choose one relevant identifier uniformly at random. \n
+> * Do not output SQL, explanations, reasoning, or any other text. Only output `column@table` .\n
+> Candidate Columns:
+> concert_ID@concert \n
+> concert_Name@concert \n
+> ….
+> Average@stadium \n
+> <|im_end|> \n
+> <|im_start|>assistant \n
+> <think> \n
+> \n
+> </think> \n\n
+> Generation Anchor
+
+Figure 2: An illustration of the Generation Anchor. We refer to the final token of the input prompt as the 
+
+generation anchor , as shown in Figure 2. Intuitively, because the LLM hidden state at this position is used to predict the first token of the copied identifier, the generation anchor should attend strongly to the span containing a relevant candidate and incorporate its identifying information into the current representation. Relevant schema items are therefore expected to receive larger anchor-to-candidate attention weights than irrelevant items. We view next-token prediction at the generation anchor as a retrieval operation over candidate schema items. The copying prompt is used only to induce the desired attention pattern; AttnLink does not use the generated text as its pre-diction. Consequently, a single prefill pass is sufficient, and no candidate name needs to be autoregressively decoded. 
+
+Attention extraction at the generation anchor. Let t de-note the generation-anchor position. For layer l and attention head h, let q(l,h ) 
+
+> t
+
+and k(l,h ) 
+
+> j
+
+denote the effective query and key vectors used by the model, including any positional transfor-mation or normalization. In the canonical scaled dot-product form, the self-attention weight from the generation anchor to a visible prefix token j is 
+
+a(l,h ) 
+
+> j
+
+=exp 
+
+
+
+q(l,h ) 
+
+> t
+
+k(l,h )
+
+> j
+> ⊤
+
+/√dh
+
+P 
+
+> r≤t
+
+exp 
+
+
+
+q(l,h ) 
+
+> t
+
+k(l,h )
+
+> r
+> ⊤
+
+/√dh
+
+ , (3) where dh is the head dimension. The denominator covers the entire prompt prefix visible from the generation anchor, including the task instruction, question, schema description, and candidate list. Architecture-specific attention scaling is retained in implementation. Different layers and attention heads encode different types of information, and not every head provides a reliable candidate-ranking signal. As shown in our experiments, strong ranking quality is concentrated in a subset of layers and heads. 
+
+Candidate-Level Score Aggregation. A candidate schema item may consist of one or more tokens. Let Ti
+
+denote the token span corresponding to candidate ci in the candidate list. We aggregate the token-level attention over this span to obtain the candidate score: 
+
+si = Pool ( {aj | j ∈ Ti}) . (4) We use mean pooling by default to reduce the bias introduced by differences in token-span length across schema items. Because attention is also assigned to non-candidate tokens in the prompt, the candidate scores do not by themselves define a normalized distribution over C. We therefore map them directly to a temperature-scaled candidate distribution: 
+
+π(τ ) 
+
+> i
+
+= exp (log( si + ϵ)/τ )
+
+Pnr=1 exp (log( sr + ϵ)/τ ) , (5) where ϵ is a small constant used for numerical stability and 
+
+τ > 0 controls the concentration of the distribution. When 
+
+τ = 1 , Equation 5 reduces to ordinary candidate-wise nor-malization. The resulting distribution represents the relative relevance of each candidate to the current question. 
+
+AttnLink-S: Direct Attention Supervision 
+
+AttnLink-S builds on AttnLink-U by retaining the same copying-style prompt, generation anchor, candidate-span pooling, and candidate-set normalization, while introducing direct supervision over the resulting candidate attention dis-tribution. Given gold schema-linking annotations, it updates the LLM parameters to assign greater probability mass to the schema items required by the target SQL query, rather than relying solely on the pretrained attention pattern. During training, we use the unit-temperature distribution and write 
+
+π(1)  
+
+> i
+
+simply as πi. Let 
+
+I+ = {i ∈ { 1, . . . , n } | ci ∈ G} (6) denote the indices of the gold schema items for a training example. Because a question often requires multiple tables or columns, the training objective must not only separate relevant from irrelevant candidates, but also ensure that every positive candidate receives sufficient probability mass. 
+
+Set-Mass Objective. We first define the total probability mass assigned to the gold positive set: 
+
+PG = X
+
+> i∈I +
+
+πi. (7) The corresponding set-mass loss is 
+
+Lset = − log ( PG + ϵ) . (8) This objective treats the positive candidates collectively, shifting probability mass from irrelevant candidates to the positive set without requiring a uniform allocation within the set. A natural alternative is to optimize cross-entropy against a uniform target over the positives, assigning each a proba-bility of 1/|I +|. However, gold schema items may differ in their semantic association with the question, and enforcing uniformity can suppress these differences; empirically, this objective performs worse. Nevertheless, using Lset alone may cause positive-set col-lapse : a few easy positives can receive enough probability mass to make the total positive mass large, while other re-quired items remain poorly scored, undermining the high recall required for schema linking. Adaptive probability floor. To improve coverage in multi-positive examples, we impose an adaptive lower bound on the probability of each positive candidate. For an example with |I +| positives, we define the floor 
+
+f  I+; ρ = ρ
+
+|I +| , (9) where ρ ∈ [0 , 1] controls the total probability mass that the positive candidates are jointly encouraged to cover. The floor regularizer is 
+
+Lfloor (ρ) = 1
+
+|I +|
+
+X
+
+> i∈I +
+
+max 
+
+
+
+0, log f (I+; ρ) + ϵπi + ϵ
+
+
+
+.
+
+(10) A positive candidate is penalized only when its probability falls below the adaptive floor; once the floor is reached, the corresponding penalty becomes zero. The regularizer there-fore prevents any required schema item from receiving an excessively low score without forcing all positive candidates to have equal probabilities. The final training objective is 
+
+L = Lset + Lfloor (ρ). (11) Here, Lset suppresses probability mass on irrelevant candi-dates, while Lfloor (ρ) prevents the distribution from concen-trating on only a few positives. After training, AttnLink-S uses exactly the same inference procedure as AttnLink-U. 
+
+Tunable Precision–Recall Trade-offs 
+
+Both AttnLink-U and AttnLink-S produce continuous can-didate scores, which Equation 5 converts into a normalized distribution π(τ ). In contrast to methods that directly gener-ate a discrete list of schema items, this distribution preserves both ranking and relative confidence information. AttnLink can therefore adjust the predicted-set size through temper-ature scaling and top-p cumulative-mass selection, without recomputing the model representations. 
+
+Temperature Scaling and Top-p Selection. The temper-ature τ in Equation 5 preserves the candidate ranking while redistributing probability mass across ranks. When τ > 1,the distribution becomes flatter and assigns more probability mass to lower-ranked candidates. When τ < 1, the distri-bution becomes sharper and concentrates more mass on the highest-ranked candidates. We sort the candidates in descending order according to the temperature-scaled distribution: 
+
+π(τ )(1) ≥ π(τ )(2) ≥ · · · ≥ π(τ )(n). (12) For a cumulative-mass threshold p ∈ (0 , 1] , we select the shortest ranked prefix whose cumulative probability reaches 
+
+p:
+
+k∗ = min 
+
+(
+
+k ∈ { 1, . . . , n } :
+
+> k
+
+X
+
+> r=1
+
+π(τ )(r) ≥ p
+
+)
+
+. (13) The final prediction is 
+
+bG(p, τ ) = c(1) , c (2) , . . . , c (k∗) . (14) Unlike nucleus sampling in language-model decoding, At-tnLink retains the entire top-p prefix rather than sampling a single item. Increasing p or τ generally produces a larger set with higher recall, while decreasing them favors a more compact set with higher precision. Top-p selection adapts the output size to the concen-tration of AttnLink’s normalized relevance scores: it se-lects fewer candidates when the scores are concentrated and more when they are diffuse. A maximum-cardinality con-straint ( top-p-max-k ) or a relative probability threshold (min-p ) can be added to further control the candidate budget and remove low-scoring tail items. 
+
+Efficient Prefill-Only Inference 
+
+AttnLink computes all candidate relevance scores in a single prefill pass without autoregressive decoding. It preserves the model architecture, attention mask, and standard inference procedure, requiring only access to the Query–Key represen-tations of a selected layer–head pair to compute generation-anchor attention. This design avoids the sequential decoding latency of generative schema linkers and integrates natu-rally with serving frameworks such as vLLM (Kwon et al. 2023), benefiting from existing inference optimizations. In our experiments, the vLLM-based AttnLink implementation achieves millisecond-scale schema-linking latency. 
+
+Experiments 
+
+Experimental Setup 
+
+Datasets. We evaluate AttnLink on three Text-to-SQL benchmarks: Spider (Yu et al. 2018), BIRD (Li et al. 2023b), and the SQLite subset of Spider 2.0-Lite (Lei et al. 2025). 
+
+Evaluation Metrics. For schema linking, we report Pre-cision ( P), Recall ( R), Strict Recall Rate ( SRR ), and mean Average Precision ( mAP ). SRR measures complete gold-schema coverage, while mAP evaluates overall candidate-ranking quality across operating points. For downstream SQL generation, we report execution accuracy ( EX ). 
+
+Implementation Details. AttnLink uses a single layer– head pair for schema scoring, since strong ranking quality is concentrated in only a few heads and multi-head or cross-layer averaging yields no consistent gains. For AttnLink-U, we randomly sample 400 examples from the BIRD training set to select the best-performing layer–head pair for each model and reuse it across datasets. AttnLink-S instead super-vises a head in the final layer and is trained on the available training split; since Spider2-SQLite does not provide a train-ing split, the model trained on BIRD is directly transferred to Spider2-SQLite. We use top-p = 0 .99 and τ = 2 .0 for both variants during inference, and set ρ = 0 .25 for AttnLink-S during training. Additional implementation details are pro-vided in the supplementary materials. 
+
+Baselines. We compare AttnLink with several categories of schema-linking baselines: embedding-based retrievers, in-cluding BGE-M3 (Chen et al. 2024) and Qwen3-Embedding-8B; cross-encoder rerankers, including Qwen3-Reranker-4B and Qwen3-Reranker-8B (Zhang et al. 2025b); the Method Model Spider Dev BIRD Dev Spider2-SQLite SRR R P mAP SRR R P mAP SRR R P mAP                                                                                                                                                                                                                                           
+
+> Embedding and Reranking Baselines
+> Embedding BGE-M3 97.98 99.53 18.19 80.41 42.37 77.86 18.28 53.79 34.71 68.34 20.70 44.89 Embedding Qwen3-Embedding-8B 95.87 98.86 18.04 78.83 38.07 72.34 16.96 49.13 34.71 70.14 20.87 48.03 Reranking Qwen3-Reranker-4B 99.19 99.78 18.24 89.56 75.03 92.39 21.87 70.83 52.07 81.14 25.21 61.92 Reranking Qwen3-Reranker-8B 99.29 99.82 18.25 89.68 72.23 92.43 21.92 71.75 52.89 81.05 25.50 63.11
+> Generative SFT Linker
+> DTS-SQL Qwen3.5-9B 92.36 97.76 95.12 N/A 69.03 89.30 91.15 N/A 35.56 66.73 77.93 N/A
+> Prompting/Agent-Based Linkers
+> LinkAlign Qwen3.5-9B –––N/A 68.51 87.87 87.55 N/A 57.02 84.58 73.17 N/A RSL-SQL Qwen3.5-9B –––N/A 91.72 97.74 32.88 N/A 78.51 93.87 34.56 N/A AutoLink Qwen3.5-9B –––N/A 98.44 99.60 11.69 N/A 93.33 98.10 8.63 N/A
+> LLM-Based Precision–Recall Tunable Linkers
+> ExSL Qwen2.5-Coder-7B 89.17 97.25 94.46 98.72 86.96 96.32 79.66 94.96 ––––JOLT-SQL Qwen2.5-Coder-7B 93.01 98.83 95.14 98.84 84.62 95.59 82.27 94.90 71.07 91.69 46.58 78.77
+> AttnLink-U Qwen2.5-Coder-7B 99.90 99.96 18.56 88.36 90.15 97.64 19.51 75.82 66.11 88.20 21.10 59.09
+> AttnLink-U Qwen3-4B 99.39 99.90 21.09 91.70 77.82 94.24 21.05 76.51 56.19 86.00 21.60 66.95
+> AttnLink-U Qwen3.5-9B 99.79 99.95 21.12 92.27 91.38 98.01 23.02 79.84 61.98 87.11 24.80 67.80
+> AttnLink-U Llama3.1-8B 99.80 99.96 17.75 87.05 85.45 96.49 19.38 73.15 76.86 94.70 15.45 55.11
+> AttnLink-U Qwen3.5-35B-A3B 100 100 17.29 91.89 95.62 98.99 19.11 82.36 71.03 91.55 23.07 72.43
+> AttnLink-S Qwen2.5-Coder-7B 94.58 99.49 86.39 98.96 96.15 99.14 45.84 95.25 76.21 94.03 38.85 81.25
+> AttnLink-S Qwen3-4B 94.76 98.63 93.38 98.88 96.48 99.13 42.61 95.22 76.03 93.64 39.60 79.46
+> AttnLink-S Qwen3.5-9B 97.02 99.25 94.27 99.22 98.11 99.60 42.34 95.95 91.11 97.10 34.05 83.29
+
+Table 1: Column-level schema linking results on Spider Dev, BIRD Dev, and Spider2-SQLite. For generative linkers that do not produce ranked candidate lists, mAP is not applicable and is therefore reported as N/A. generative SFT method DTS-SQL (Pourreza and Rafiei 2024); prompting- or agent-based methods, including LinkAlign (Wang, Liu, and Yang 2025), RSL-SQL (Cao et al. 2024), and AutoLink (Wang et al. 2026); and the LLM-based, precision–recall-tunable methods ExSL (Glass et al. 2025) and JOLT-SQL (Song et al. 2025). 
+
+Experimental Results 
+
+Table 1 summarizes the column-level schema-linking re-sults. AttnLink-S with Qwen3.5-9B achieves mAP scores of 99.22% , 95.95% , and 83.29% on Spider, BIRD, and Spider2-SQLite, respectively, setting state-of-the-art results among ranked linkers while retaining high SRR. Since Spider2-SQLite has no training split, the BIRD-trained model is directly transferred and still performs strongly, demonstrating robust cross-dataset generalization. Figure 3 shows that varying p and τ smoothly controls the recall– precision–schema-size trade-off. The set-mass objective con-centrates probability on gold items, while the floor regu-larizer preserves less salient but necessary ones. Without task-specific training, AttnLink-U remains effective across Qwen (Hui et al. 2024; Yang et al. 2025; Team 2026) and Llama (Grattafiori et al. 2024) backbones spanning dense Transformers, hybrid-attention designs, and mixture-of-experts architectures, indicating that both the attention-based scoring mechanism and copying-prompt design gen-eralize across model families and architectures.                   
+
+> Dataset ρ
+> 00.10.25 0.50.75 1.0
+> BIRD Dev 88.41 95.54 95.95 95.72 95.48 94.96 Spider2-SQLite 71.44 82.06 83.29 80.75 81.22 78.75
+
+Table 2: Ablation study of the AttnLink-S floor ratio ρ. Re-sults are reported in mAP (%). 
+
+Further Analysis 
+
+Layer–Head Selection for AttnLink-U. Figure 4 shows that retrieval quality varies sharply across layers and heads, making calibration necessary. We further observe that the strongest layer–head configurations tend to emerge in the middle-to-late layers, suggesting that schema-grounding sig-nals become more pronounced after sufficient contextual and semantic processing. Despite differences in absolute mAP, evaluating the layer–head pairs separately on BIRD, Spi-der, and Spider2-SQLite identifies the same optimal pair, and the overall head rankings are strongly correlated across the three datasets. This cross-dataset stability suggests that certain attention heads specialize in retrieval-and-copy op-erations, capturing a transferable schema-grounding signal rather than dataset-specific patterns. Therefore, the layer– head configuration can be selected using a small held-out calibration set and subsequently reused across datasets. 0.50 0.90 0.95 0.98 0.99                            
+
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> SRR
+> (a) Strict Recall Rate
+> Max = 0.9935
+> 0.50 0.90 0.95 0.98 0.99
+> 0.4
+> 0.5
+> 0.6
+> 0.7
+> 0.8
+> 0.9
+> 1.0
+> Recall
+> (b) Recall
+> Max = 0.9987
+> 0.50 0.90 0.95 0.98 0.99
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Precision
+> (c) Precision
+> Max = 0.9783
+> 0.50 0.90 0.95 0.98 0.99
+> 0
+> 5
+> 10
+> 15
+> 20
+> 25
+> Avg. Columns
+> (d) Avg. Columns
+> Max = 19.3096
+> Top-p
+> τ= 0.60 τ= 0.80 τ= 1.00 τ= 1.20 τ= 1.40 τ= 1.60 τ= 2.00 τ= 3.00
+
+Figure 3: Temperature & Top-p sensitivity of Qwen3.5-9B AttnLink-S on BIRD Dev. 3 7 11 15 19 23 27 31                  
+
+> (a) Full Softmax Attention Layer
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> Mean single-head mAP
+> Selected L23
+> 012345678910 11 12 13 14 15
+> (b) Attention Head (Layer 23)
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Single-head mAP
+> Selected H9
+> BIRD Spider Spider2-SQLite
+
+Figure 4: Layer–head analysis of AttnLink-U with Qwen3.5-9B. Panel (a) reports the mean single-head mAP for each full-attention layer, while panel (b) compares all attention heads in the selected layer (Layer 23). 
+
+Effect of the Floor Ratio for AttnLink-S. Table 2 shows that ρ = 0 , which uses only the set-mass objective, suf-fers from positive-set collapse and yields substantially lower mAP. A moderate floor ( ρ = 0 .25 ) provides the best balance, whereas ρ = 1 effectively recovers the target of uniform-positive cross-entropy: satisfying the floor 1/|I+| for every positive candidate requires allocating all probability mass uniformly over the positive set. This prevents the model from emphasizing more salient schema items. 
+
+Efficiency Analysis. Table 3 reports concurrent inference latency for all methods using vLLM 0.21.0 on a single NVIDIA H100 80GB PCIe GPU. AttnLink uses the vLLM-Hook (Ko and Chen 2026) framework to capture Q–K atten-tion during prefill. For generative linkers, whose latency is dominated by autoregressive decoding, we additionally re-port time to last token (TTLT). Latency units are abbreviated as ms , s, m, and h for milliseconds, seconds, minutes, and hours, respectively. AttnLink preserves standard causal pre-fill computation. Unlike ExSL, which adds a classification head, and JOLT-SQL, which requires a bidirectional atten-tion mask, AttnLink introduces no architectural or mask-ing changes and remains compatible with existing serving frameworks. It therefore benefits from continuous batching, prefix caching, compilation, and PagedAttention, achieving millisecond-scale average latency. 
+
+SQL Generation Performance. To isolate the effect of schema linking, we use a unified single-turn generation set-ting without self-consistency, voting, or iterative refinement. As shown in Table 4, AttnLink-S achieves the best or tied-best EX in seven of nine generator–dataset settings, demon-strating that its ranking improvements translate into more reliable SQL generation rather than merely better intrinsic linking metrics. The gains are most pronounced on BIRD and Spider2-SQLite, where large and noisy schemas amplify two competing risks: missing required schema items and retaining excessive distractors. AttnLink-S addresses both by concentrating probability mass on the relevant set while preventing less salient gold items from being suppressed, thereby providing generators with schema contexts that are both complete and compact. AttnLink-U remains compet-itive without training, suggesting that pretrained attention already encodes transferable grounding signals, while di-rect supervision improves their calibration and discrimina-tion. The optimal precision–recall balance is nevertheless generator-dependent: high SRR protects against irreversible omissions, whereas noise-sensitive generators benefit from sharper filtering. 
+
+Related Work 
+
+Schema Linking in Text-to-SQL 
+
+Schema linking identifies the tables and columns required by a natural-language question and remains central to Text-to-SQL systems. Early neural approaches model question– schema relations, introduce schema-independent interme-diate representations, or provide explicit linking supervi-sion (Wang et al. 2020; Guo et al. 2019; Lei et al. 2020). Recent discriminative methods make schema selection ex-plicit: RESDSQL (Li et al. 2023a) ranks schema items with a cross-encoder, while ExSL (Glass et al. 2025) and JOLT-SQL (Song et al. 2025) formulate schema linking as classifi-cation over LLM hidden states, requiring task-specific predic-tion heads and/or modifications to the causal attention mask. In parallel, generative and agent-based methods, including DIN-SQL (Pourreza and Rafiei 2023), DAIL-SQL (Gao et al. 2024), MAC-SQL (Wang et al. 2025), CHESS (Ta-laei et al. 2024), DTS-SQL (Pourreza and Rafiei 2024), Method Model BIRD Dev Spider2-SQLite Avg. Lat. Total Lat. Avg. TTLT Avg. Input Avg. Output Avg. Prefills Avg. Lat. Total Lat. Avg. TTLT Avg. Input Avg. Output Avg. Prefills                                                                                                                                             
+
+> Embedding BGE-M3 38ms 59s –1.0K 047.1 81ms 11s –1.9K 068.1 Embedding Qwen3-Embedding-8B 66ms 1m42s –1.0K 047.1 115ms 15s –2.0K 068.1 Reranking Qwen3-Reranker-8B 157ms 4m1s –8.7K 075.6 237ms 32s –17.6K 0105.7 DTS-SQL Qwen3.5-9B 90ms 2m20s 1s 2.0K 0.1K –162ms 22s 2s 3.9K 0.1K –LinkAlign Qwen3.5-9B 15s 6h22m 4m28s 12.7K 18.9K –48s 1h48m 11m36s 24.1K 50.9K –RSL-SQL Qwen3.5-9B 3s 1h23m 43s 6.0K 2.0K –6s 13m59s 54s 7.6K 2.7K –AutoLink Qwen3.5-9B 4s 1h43m 1m33s 32.9K 2.5K –7s 16m36s 1m42s 72.8K 5.0K –
+> AttnLink Qwen2.5-Coder-7B 15ms 23s –2.0K 01.0 57ms 8s –4.2K 01.0 AttnLink Qwen3-4B 11ms 16s –2.0K 01.0 37ms 5s –4.2K 01.0 AttnLink Qwen3.5-9B 32ms 49s –2.1K 01.0 98ms 13s –4.3K 01.0 AttnLink Qwen3.5-35B-A3B 27ms 41s –2.1K 01.0 67ms 9s –4.3K 01.0
+
+Table 3: Schema linking inference efficiency on BIRD Dev and Spider2-SQLite. Avg. Lat. denotes the average latency per example. Input and output are average token counts per example, while prefills denote the average prefill passes per example.                                                                                              
+
+> SQL Generator Dataset Schema Linking Method (EX, %) BGE-M3 Qwen3-Reranker-8B DTS-SQL RSL-SQL Auto Link Link Align ExSL JOLT-SQL Attn Link-U Attn Link-S Qwen3.5-9B
+> Spider Dev 83.4 83.8 83.9 –––84.1 83.8 84.0 84.1
+> BIRD Dev 49.3 64.6 67.7 68.0 67.8 66.1 67.1 67.5 67.2 69.1
+> Spider2-SQLite 7.4 9.1 10.7 14.9 14.9 15.7 –15.5 13.3 17.0 Qwen3-4B
+> Spider Dev 85.0 85.4 84.8 –––85.1 85.8 85.4 86.4
+> BIRD Dev 47.6 63.1 65.7 64.9 64.4 64.8 65.4 65.8 65.0 66.6
+> Spider2-SQLite 5.0 8.3 8.3 10.3 6.6 8.3 –8.1 8.9 9.6
+> Qwen2.5-Coder-7B
+> Spider Dev 74.3 75.2 79.7 –––79.6 80.2 77.2 80.6
+> BIRD Dev 42.1 52.1 59.1 54.6 52.7 58.5 54.0 55.0 52.4 53.0 Spider2-SQLite 4.4 3.0 6.6 6.6 5.9 5.0 –5.9 5.2 7.4
+
+Table 4: Downstream SQL execution accuracy under different schema-linking methods. For both AttnLink-U and AttnLink-S, we use schema-linking outputs produced by the Qwen3.5-9B linker across all SQL generators. LinkAlign (Wang, Liu, and Yang 2025), RSL-SQL (Cao et al. 2024), and AutoLink (Wang et al. 2026), select or re-fine schema items through prompting, generation, retrieval, or iterative exploration. These methods either produce dis-crete schema subsets with limited post-hoc precision–recall control or require prediction modules, retrieval stages, mod-ified inference procedures, or autoregressive decoding. 
+
+Attention as an Internal Signal 
+
+Attention has long been studied as an internal model sig-nal: individual heads encode structured relations, and task-relevant behavior often concentrates in a small subset of heads (Clark et al. 2019; Wiegreffe and Pinter 2019; Bansal et al. 2023; Yu and Ananiadou 2024). Recent work has fur-ther exploited attention-derived scores for efficient document and long-context retrieval (Chen, Gutiérrez, and Su 2025; Zhang et al. 2025a), yet attention-based schema linking re-mains largely unexplored. AttnLink targets this structured, multi-positive setting, where all relevant items must be jointly covered, assigned continuous relevance scores, and selected under variable schema budgets. It treats generation-anchor at-tention as an operational rather than causal signal, converting it into continuous candidate-level relevance scores in a single prefill pass and directly supervising the distribution for multi-positive coverage. To the best of our knowledge, AttnLink is the first Text-to-SQL schema linker to formulate schema linking directly over LLM attention, unifying training-free probing and supervised alignment within a shared inference framework while enabling post-hoc precision–recall control. 
+
+Conclusion 
+
+We present AttnLink, which converts LLM attention into continuous schema-relevance scores. AttnLink-U provides training-free attention probing, while AttnLink-S improves ranking and multi-positive coverage through set-mass super-vision and an adaptive floor regularizer. AttnLink supports post-hoc precision–recall control and requires only a single prefill pass, achieving millisecond-scale inference without autoregressive decoding or an additional retrieval model. Experiments demonstrate strong schema-linking and down-stream SQL performance, robust cross-dataset transfer, and consistent effectiveness across different LLM architectures. References 
+
+Bansal, H.; Gopalakrishnan, K.; Dingliwal, S.; Bodapati, S.; Kirchhoff, K.; and Roth, D. 2023. Rethinking the role of scale for in-context learning: An interpretability-based case study at 66 billion scale. In Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , 11833–11856. Cao, Z.; Zheng, Y.; Fan, Z.; Zhang, X.; Chen, W.; and Bai, X. 2024. RSL-SQL: Robust Schema Linking in Text-to-SQL Generation. arXiv preprint arXiv:2411.00073 .Chen, J.; Xiao, S.; Zhang, P.; Luo, K.; Lian, D.; and Liu, Z. 2024. M3-Embedding: Multi-Linguality, Multi-Functionality, Multi-Granularity Text Embeddings Through Self-Knowledge Distillation. In Ku, L.-W.; Martins, A.; and Srikumar, V., eds., Findings of the Association for Compu-tational Linguistics: ACL 2024 , 2318–2335. Bangkok, Thai-land: Association for Computational Linguistics. Chen, S.; Gutiérrez, B. J.; and Su, Y. 2025. Attention in Large Language Models Yields Efficient Zero-Shot Re-Rankers. In 
+
+The Thirteenth International Conference on Learning Rep-resentations .Clark, K.; Khandelwal, U.; Levy, O.; and Manning, C. D. 2019. What Does BERT Look At? An Analysis of BERT’s Attention. In Proceedings of the 2019 ACL Workshop Black-boxNLP: Analyzing and Interpreting Neural Networks for NLP , 276–286. Florence, Italy: Association for Computa-tional Linguistics. Gao, D.; Wang, H.; Li, Y.; Sun, X.; Qian, Y.; Ding, B.; and Zhou, J. 2024. Text-to-sql empowered by large language models: A benchmark evaluation. Proceedings of the VLDB Endowment , 17(5): 1132–1145. Glass, M.; Eyceoz, M.; Subramanian, D.; Rossiello, G.; Vu, L.; and Gliozzo, A. 2025. Extractive schema linking for text-to-sql. arXiv preprint arXiv:2501.17174 .Grattafiori, A.; Dubey, A.; Jauhri, A.; Pandey, A.; Kadian, A.; Al-Dahle, A.; Letman, A.; Mathur, A.; Schelten, A.; Vaughan, A.; et al. 2024. The llama 3 herd of models. arXiv preprint arXiv:2407.21783 .Guo, J.; Zhan, Z.; Gao, Y.; Xiao, Y.; Lou, J.-G.; Liu, T.; and Zhang, D. 2019. Towards Complex Text-to-SQL in Cross-Domain Database with Intermediate Representation. In Ko-rhonen, A.; Traum, D.; and Màrquez, L., eds., Proceedings of the 57th Annual Meeting of the Association for Computa-tional Linguistics , 4524–4535. Florence, Italy: Association for Computational Linguistics. Hong, Z.; Yuan, Z.; Zhang, Q.; Chen, H.; Dong, J.; Huang, F.; and Huang, X. 2025. Next-Generation Database Interfaces: A Survey of LLM-Based Text-to-SQL . IEEE Transactions on Knowledge & Data Engineering , 37(12): 7328–7345. Hui, B.; Yang, J.; Cui, Z.; Yang, J.; Liu, D.; Zhang, L.; Liu, T.; Zhang, J.; Yu, B.; Lu, K.; et al. 2024. Qwen2. 5-coder technical report. arXiv preprint arXiv:2409.12186 .Ko, C.-Y.; and Chen, P.-Y. 2026. vLLM Hook v0: A Plug-in for Programming Model Internals on vLLM. arXiv:2603.06588. Kwon, W.; Li, Z.; Zhuang, S.; Sheng, Y.; Zheng, L.; Yu, C. H.; Gonzalez, J. E.; Zhang, H.; and Stoica, I. 2023. Efficient Memory Management for Large Language Model Serving with PagedAttention. In Proceedings of the 29th ACM Sym-posium on Operating Systems Principles (SOSP) , 611–626. Best Paper Award. Lei, F.; Chen, J.; Ye, Y.; Cao, R.; Shin, D.; Su, H.; Suo, Z.; Gao, H.; Hu, W.; Yin, P.; et al. 2025. Spider 2.0: Evalu-ating language models on real-world enterprise text-to-sql workflows. In International Conference on Learning Repre-sentations , volume 2025, 28691–28735. Lei, W.; Wang, W.; Ma, Z.; Gan, T.; Lu, W.; Kan, M.-Y.; and Chua, T.-S. 2020. Re-examining the Role of Schema Linking in Text-to-SQL. In Webber, B.; Cohn, T.; He, Y.; and Liu, Y., eds., Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP) , 6943– 6954. Online: Association for Computational Linguistics. Li, H.; Wu, S.; Zhang, X.; Huang, X.; Zhang, J.; Jiang, F.; Wang, S.; Zhang, T.; Chen, J.; Shi, R.; et al. 2025. OmniSQL: Synthesizing High-Quality Text-to-SQL Data at Scale. Pro-ceedings of the VLDB Endowment , 18(11): 4695–4709. Li, H.; Zhang, J.; Li, C.; and Chen, H. 2023a. RESDSQL: Decoupling Schema Linking and Skeleton Parsing for Text-to-SQL. In Proceedings of the AAAI Conference on Artificial Intelligence , 11, 13067–13075. Li, J.; Hui, B.; Qu, G.; Yang, J.; Li, B.; Li, B.; Wang, B.; Qin, B.; Geng, R.; Huo, N.; et al. 2023b. Can llm already serve as a database interface? a big bench for large-scale database grounded text-to-sqls. Advances in Neural Information Pro-cessing Systems , 36: 42330–42357. Liu, X.; Shen, S.; Li, B.; Ma, P.; Jiang, R.; Zhang, Y.; Fan, J.; Li, G.; Tang, N.; and Luo, Y. 2025. A Survey of Text-to-SQL in the Era of LLMs: Where are we, and where are we going? 
+
+IEEE Transactions on Knowledge and Data Engineering .Pourreza, M.; and Rafiei, D. 2023. DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction. In Advances in Neural Information Processing Systems (NeurIPS) .Pourreza, M.; and Rafiei, D. 2024. Dts-sql: Decomposed text-to-sql with small large language models. In Findings of the Association for Computational Linguistics: EMNLP 2024 , 8212–8220. Shi, L.; Tang, Z.; Zhang, N.; Zhang, X.; and Yang, Z. 2025. A survey on employing large language models for text-to-sql tasks. ACM Computing Surveys , 58(2): 1–37. Song, J.; Zan, H.; Zhang, K.; Mu, L.; Han, Y.; Hua, H.; and Peng, M. 2025. JOLT-SQL: Joint Loss Tuning of Text-to-SQL with Confusion-aware Noisy Schema Sampling. In Christodoulopoulos, C.; Chakraborty, T.; Rose, C.; and Peng, V., eds., Proceedings of the 2025 Conference on Empiri-cal Methods in Natural Language Processing , 6040–6053. Suzhou, China: Association for Computational Linguistics. ISBN 979-8-89176-332-6. Talaei, S.; Pourreza, M.; Chang, Y.-C.; Mirhoseini, A.; and Saberi, A. 2024. Chess: Contextual harnessing for efficient sql synthesis. arXiv preprint arXiv:2405.16755 .Team, Q. 2026. Qwen3.5-Omni Technical Report. arXiv:2604.15804. Wang, B.; Ren, C.; Yang, J.; Liang, X.; Bai, J.; Chai, L.; Yan, Z.; Zhang, Q.-W.; Yin, D.; Sun, X.; and Li, Z. 2025. MAC-SQL: A Multi-Agent Collaborative Framework for Text-to-SQL. In Rambow, O.; Wanner, L.; Apidianaki, M.; Al-Khalifa, H.; Eugenio, B. D.; and Schockaert, S., eds., Pro-ceedings of the 31st International Conference on Computa-tional Linguistics , 540–557. Abu Dhabi, UAE: Association for Computational Linguistics. Wang, B.; Shin, R.; Liu, X.; Polozov, O.; and Richardson, M. 2020. RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers. In Proceedings of the 58th Annual Meeting of the Association for Computational Lin-guistics (ACL) , 7567–7578. Online: Association for Compu-tational Linguistics. Wang, Y.; Liu, P.; and Yang, X. 2025. Linkalign: Scalable schema linking for real-world large-scale multi-database text-to-sql. In Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing , 977–991. Wang, Z.; Zheng, Y.; Cao, Z.; Zhang, X.; Wei, Z.; Fu, P.; Luo, Z.; Chen, W.; and Bai, X. 2026. Autolink: Autonomous schema exploration and expansion for scalable schema link-ing in text-to-sql at scale. In Proceedings of the AAAI Con-ference on Artificial Intelligence , volume 40, 33809–33817. Wiegreffe, S.; and Pinter, Y. 2019. Attention is not not Ex-planation. In Inui, K.; Jiang, J.; Ng, V.; and Wan, X., eds., 
+
+Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP) , 11–20. Hong Kong, China: Association for Com-putational Linguistics. Yang, A.; Li, A.; Yang, B.; Zhang, B.; Hui, B.; Zheng, B.; Yu, B.; Gao, C.; Huang, C.; Lv, C.; et al. 2025. Qwen3 technical report. arXiv preprint arXiv:2505.09388 .Yu, T.; Zhang, R.; Yang, K.; Yasunaga, M.; Wang, D.; Li, Z.; Ma, J.; Li, I.; Yao, Q.; Roman, S.; Zhang, Z.; and Radev, D. 2018. Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task. In Riloff, E.; Chiang, D.; Hockenmaier, J.; and Tsujii, J., eds., Proceedings of the 2018 Conference on Empir-ical Methods in Natural Language Processing , 3911–3921. Brussels, Belgium: Association for Computational Linguis-tics. Yu, Z.; and Ananiadou, S. 2024. How do large language mod-els learn in-context? query and key matrices of in-context heads are two towers for metric learning. In Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing , 3281–3292. Zhang, W.; Yin, F.; Yen, H.; Chen, D.; and Ye, X. 2025a. Query-Focused Retrieval Heads Improve Long-Context Rea-soning and Re-ranking. In Proceedings of the 2025 Confer-ence on Empirical Methods in Natural Language Processing ,23791–23805. Association for Computational Linguistics. Zhang, Y.; Li, M.; Long, D.; Zhang, X.; Lin, H.; Yang, B.; Xie, P.; Yang, A.; Liu, D.; Lin, J.; et al. 2025b. Qwen3 em-bedding: Advancing text embedding and reranking through foundation models. arXiv preprint arXiv:2506.05176 .Appendix Experimental Details 
+
+Datasets and Gold-Schema Construction. We evaluate AttnLink on three Text-to-SQL benchmarks. For each exam-ple, we reconstruct the candidate schema directly from the corresponding SQLite database metadata and parse the refer-ence SQL query using SQLGlot . Table aliases are resolved, and all referenced physical tables and columns are mapped back to their database-original identifiers. The resulting sets are used as supervision for AttnLink-S and as gold labels for schema-linking evaluation. 
+
+• Spider (Yu et al. 2018) contains 7,000 training examples and 1,034 development examples, with databases sep-arated across splits. It primarily evaluates cross-domain generalization to unseen schemas and compositional SQL structures. 
+
+• BIRD (Li et al. 2023b) contains 9,428 original training examples and 1,534 development examples. Compared with Spider, it features larger databases, richer database contents, and questions requiring more realistic value grounding and domain knowledge. During preprocessing, we find that the gold SQL queries of 477 training exam-ples fail to execute against their corresponding databases. We remove these examples from the training split for AttnLink-S. This filtering is applied only to training; eval-uation is conducted on the complete development set. 
+
+• Spider2-SQLite is the SQLite subset of Spider2.0-Lite (Lei et al. 2025) and contains 135 examples. It tar-gets substantially more complex enterprise-level database environments. Since it provides no training split, the AttnLink-S model trained on BIRD is directly transferred for evaluation. 
+
+Schema-Linking Evaluation Metrics. Let M denote the number of evaluation examples. For the m-th example, let 
+
+Gm and bGm denote the gold and predicted schema-item sets, respectively. We compute precision as 
+
+P = 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+bGm ∩ G m
+
+bGm
+
+. (15) Recall is computed as 
+
+R = 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+bGm ∩ G m
+
+|G m| . (16) Precision measures the proportion of selected schema items that are relevant, whereas recall measures the pro-portion of gold schema items retained by the linker. Strict Recall Rate measures the proportion of examples for which the prediction covers the complete gold schema: 
+
+SRR = 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+1
+
+h
+
+Gm ⊆ bGm
+
+i
+
+. (17)                        
+
+> Hyperparameter Value
+> LoRA target modules All linear layers LoRA rank r64 LoRA scaling α512 LoRA dropout 0.08 Training epochs 1Optimizer 8-bit AdamW Learning rate 2×10 −5
+> Learning-rate schedule Cosine annealing, ηmin = 5 ×10 −6
+> Micro-batch size 1Gradient accumulation 4 steps Effective batch size 4Weight decay 10 −2
+> Maximum gradient norm 10.0 Numerical precision BF16
+
+Table 5: Training hyperparameters for AttnLink-S. Unlike recall, which gives partial credit when only a sub-set of the required schema items is retrieved, SRR counts an example as correct only when all gold tables or columns are retained. It therefore directly captures whether schema pruning removes an item required for downstream SQL gen-eration. For ranked schema linkers, we additionally report mean Average Precision (mAP), a standard information-retrieval metric that rewards relevant schema items appearing early in the ranking. Let cm, (1) , . . . , c m, (nm) denote the candidates for example m in descending score order, and let ym,k =
+
+1[cm, (k) ∈ G m]. The Average Precision of example m is 
+
+AP m = 1
+
+|G m|
+
+> nm
+
+X
+
+> k=1
+
+ym,k 
+
+1
+
+k
+
+> k
+
+X
+
+> r=1
+
+ym,r 
+
+!
+
+. (18) Mean Average Precision is 
+
+mAP = 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+AP m. (19) Although mAP serves a role similar to PR-AUC, AttnLink normalizes scores independently within each example. Since candidate sets vary in size and composition, scores are not directly comparable across examples, making a global PR-AUC potentially misleading. mAP instead evaluates each within-example ranking before averaging across the dataset. It is not applicable to generative linkers that return only an unranked subset. 
+
+Implementation Details 
+
+AttnLink-S Training. We train AttnLink-S using LoRA for parameter-efficient optimization. The LoRA adapters are applied to all linear layers of the backbone LLM, while the remaining model parameters are frozen. Table 5 summarizes the training configuration. We use an 8-bit AdamW optimizer and BF16 mixed-precision training. A micro-batch size of one and four gradient-accumulation steps give an effective batch size of four. As a representative example, training AttnLink-S with Qwen3.5-9B takes approximately 45 minutes on a single NVIDIA H100 80 GB PCIe GPU. Gradient checkpointing is not required on the H100. When gradient checkpointing is enabled, the same configuration fits on a consumer GPU with 24 GB of memory and takes approximately 90 minutes on a single NVIDIA RTX 4090. 
+
+Schema-Linking Inference. We perform schema-linking inference using vLLM 0.21.0 in BF16 precision, with asyn-chronous request scheduling and TorchDynamo/Inductor compilation enabled. We set max_num_seqs to 256 and 
+
+max_num_batched_tokens to 8192, and enable both prefix caching and chunked prefill. The maximum model length is set to 100,000 tokens for the Qwen3/Qwen3.5 mod-els and to 32,000 tokens for Qwen2.5-Coder-7B, following the context-length limit of the Qwen2.5 backbone. For hybrid-attention backbones, AttnLink probes only global (full-attention) blocks, since linear-attention blocks do not expose equivalent post-RoPE query and key represen-tations. For example, the global-attention blocks of Qwen3.5-9B are layers 3, 7, 11 , 15 , 19 , 23 , 27 , and 31 , using zero-based layer indices. To retain compilation while extracting attention sig-nals, we implement a compilation-aware Q/K capture mechanism on top of vLLM-Hook (Ko and Chen 2026). Specifically, the post-RoPE query and key tensors are passed through an opaque, alias-preserving custom opera-tor, vllm_hook::capture_qk , immediately before the vLLM attention operator. The capture operator is regis-tered in vLLM’s splitting_ops , which isolates its side-effecting capture logic from the Inductor graph while pre-serving compiled execution of the surrounding projection and MLP regions and retaining vLLM’s optimized attention kernels. Captured Q/K representations are then processed asynchronously. In our warmed-run measurements, enabling Q/K capture introduces only approximately 1.5% additional latency relative to capture-disabled vLLM, which is negli-gible compared with the millisecond-scale inference latency of AttnLink. 
+
+SQL Generation. For downstream SQL generation, we likewise use vLLM and follow the same basic vLLM serv-ing configuration described above for schema-linking infer-ence. We use stochastic decoding with temperature =0.7, 
+
+top_p =0.8, top_k =20, and max_tokens =8000. We fix the random seed throughout generation to control sampling variability and ensure reproducibility. 
+
+Baselines 
+
+We compare AttnLink with the following schema-linking baselines: 
+
+• Embedding Models. BGE-M3 (Chen et al. 2024) and Qwen3-Embedding-8B (Zhang et al. 2025b) encode the question and each schema candidate independently. Can-didates are ranked according to the cosine similarity be-tween their dense representations, enabling efficient re-trieval but without joint question–candidate interaction. 
+
+• Qwen3 Rerankers. Qwen3-Reranker-4B and Qwen3-Reranker-8B (Zhang et al. 2025b) jointly process each question–candidate pair and produce a relevance score. This pairwise interaction provides stronger contextual modeling than independent embeddings, at the cost of a separate forward pass for each candidate. 
+
+• DTS-SQL. DTS-SQL (Pourreza and Rafiei 2024) decom-poses Text-to-SQL into separately fine-tuned schema-linking and SQL-generation stages. Its schema linker au-toregressively generates the relevant tables and columns as text, producing a discrete schema subset rather than a ranked candidate list. 
+
+• LinkAlign. LinkAlign (Wang, Liu, and Yang 2025) tar-gets schema linking in large-scale and multi-database set-tings through multi-round semantic retrieval, irrelevant-information isolation, and schema-extraction enhance-ment. These stages progressively narrow the schema be-fore SQL generation. 
+
+• RSL-SQL. RSL-SQL (Cao et al. 2024) combines bidi-rectional schema linking, contextual information aug-mentation, binary schema selection, and multi-turn self-correction. Its design prioritizes robust coverage of re-quired schema items while reducing irrelevant context. 
+
+• AutoLink. AutoLink (Wang et al. 2026) formulates schema linking as an iterative agent-driven process. The agent autonomously explores and expands the linked schema subset, allowing relevant items to be discovered without placing the complete schema in every model call. 
+
+• ExSL. ExSL (Glass et al. 2025) adapts a decoder-only LLM to extractive schema linking. It applies a task-specific classifier to candidate hidden states to estimate relevance probabilities, providing threshold-based con-trol over the resulting precision–recall trade-off. 
+
+• JOLT-SQL. JOLT-SQL (Song et al. 2025) jointly opti-mizes discriminative schema linking and SQL generation with a unified training objective. It uses local bidirec-tional attention for schema classification and confusion-aware noisy-schema sampling to improve robustness to irrelevant schema items. 
+
+Additional Analyses 
+
+Candidate-Order Stability of AttnLink-U 
+
+Since AttnLink-U derives candidate scores from positional attention weights, we examine whether layer–head selec-tion is sensitive to the ordering of schema candidates. We randomly perturb the candidate order eight times on BIRD Dev and recompute the mAP of all 16 heads in Layer 23 of Qwen3.5-9B. The perturbations include table-level, column-level, and joint table–column reordering. As shown in Figure 5, Head 9 remains the highest-performing head in all eight runs, with an average rank of 
+
+1.00 . Its mAP is 0.8011 ± 0.0027 , ranging only from 0.7966 
+
+to 0.8043 , compared with 0.7984 under the original ordering. It also maintains a clear advantage over the second-ranked head, with an average margin of 0.0542 and a minimum margin of 0.0316 .0.4                                                               
+
+> 0.5
+> 0.6
+> 0.7
+> 0.8
+> (a) Shuffle 1
+> H9 = 0.8027
+> (b) Shuffle 2
+> H9 = 0.7981
+> (c) Shuffle 3
+> H9 = 0.8002
+> (d) Shuffle 4
+> H9 = 0.8009
+> 012345678910 11 12 13 14 15
+> 0.4
+> 0.5
+> 0.6
+> 0.7
+> 0.8
+> (e) Shuffle 5
+> H9 = 0.8029
+> 012345678910 11 12 13 14 15
+> (f) Shuffle 6
+> H9 = 0.7966
+> 012345678910 11 12 13 14 15
+> (g) Shuffle 7
+> H9 = 0.8043
+> 012345678910 11 12 13 14 15
+> (h) Shuffle 8
+> H9 = 0.8035
+> Layer-23 Per-head mAP under Candidate Reordering (BIRD Dev)
+> Attention Head (Layer 23)
+> Single-head mAP
+> Randomized candidate order Original candidate order Head 9
+
+Figure 5: Per-head mAP of Qwen3.5-9B Layer 23 under eight randomized candidate-order perturbations on BIRD Dev. The gray dashed curves show results with the original candidate order, while the blue curves show the corresponding shuffled results. Head 9, highlighted by orange diamonds, remains the best-performing head in every run.                 
+
+> Model Layer/Head first_token span_mean span_sum
+> Qwen3.5-9B L23/H9 78.09 79.84 79.49 Qwen2.5-Coder-7B L22/H12 71.91 75.82 75.08 Qwen3-4B L24/H31 74.72 76.51 75.15
+
+Table 6: Pooling ablation on BIRD Dev. All results use the 
+
+col@table candidate format and report mAP (%). The overall head ranking is similarly stable. The Spearman correlation between each perturbed ranking and the original 16-head ranking is 0.9794 ± 0.0131 , with a minimum of 
+
+0.9676 . These results indicate that candidate reordering may cause small fluctuations in absolute mAP, but does not ma-terially affect either the selected attention head or the overall layer-level head ranking. 
+
+Pooling Strategy 
+
+AttnLink-U obtains each candidate-level score by aggregat-ing generation-anchor attention over the tokens of its iden-tifier. Because a candidate identifier may span multiple to-kens, the pooling strategy can directly affect ranking quality. We therefore examine whether attention to the first identifier token is sufficient or whether information should be aggre-gated over the complete candidate span. Experiments use the fixed layer–head configuration selected for each model: L23/H9 for Qwen3.5-9B, L22/H12 for Qwen2.5-Coder-7B, and L24/H31 for Qwen3-4B. All conditions use the default 
+
+col@table candidate format. We compare attention to the first identifier token ( first_token ), mean pooling over the complete span ( span_mean ), and sum pooling over the complete span ( span_sum ). Despite the importance of the initial token, Table 6 shows that span_mean consistently achieves the highest mAP across all three models. Using only first_token re-duces mAP by approximately 1.75 , 3.91 , and 1.79 percentage points, respectively, indicating that later tokens retain com-plementary identifier information. Although span_sum 
+
+also uses the complete span, it remains consistently below 
+
+span_mean , likely because summation introduces sensitiv-ity to differences in token-span length. These results support the mean-pooling design used in our experiments, which cap-tures the complete identifier while controlling for candidate length. 
+
+Necessity of the Copy-Oriented Instruction 
+
+Having established that AttnLink-U is stable to candidate reordering, we next examine whether its ranking signal de-pends on the copy-oriented instruction used in the main ex-periments. The default instruction asks Qwen3.5-9B to copy exactly one relevant identifier from the candidate list. We replace it with a semantic-rationale instruction that asks the model to identify and briefly explain all relevant columns using ordinary table and column names, removing the exact-copy requirement, single-candidate output, and random se-lection. The schema, question, candidate set and order, and gold labels remain identical. Both settings use Layer 23, Head 9, and span_mean pooling without head reselection. As shown in Table 7, replacing the copy-oriented in-struction causes substantial and consistent degradation. mAP decreases by 54 .23 , 57 .55 , and 46 .15 percentage points on BIRD, Spider, and Spider2-SQLite, respectively, corresponding to relative reductions of 62 .37% –68 .07% .All paired sign-flip tests yield p < 10 −5, indicating Dataset Copy-Oriented Semantic Rationale ∆ Relative Change             
+
+> BIRD 79.84 25.61 −54 .23 −67 .92%
+> Spider 92.27 34.72 −57 .55 −62 .37%
+> Spider2-SQLite 67.80 21.65 −46 .15 −68 .07%
+
+Table 7: Copy-oriented instruction ablation for Qwen3.5-9B, reported in mAP (%). The copy-oriented values match the corresponding results in the main comparison. ∆ denotes semantic-rationale mAP minus copy-oriented mAP in per-centage points.                         
+
+> Layer Head mAP (%) 31 095.95 31 11 95.99 27 096.02 27 495.65 23 15 96.01 19 15 95.68 19 895.44 15 595.12 15 894.84 3275.67 3976.60
+
+Table 8: Layer–head sensitivity of Qwen3.5-9B AttnLink-S on BIRD Dev. The configuration used in the main experi-ments is shown in bold. that the degradation is statistically significant. Thus, the copy-oriented prompting scheme is not merely an output-formatting choice. By making a candidate identifier the im-mediate generation target, it aligns the generation anchor with the candidate spans and induces an attention distribution that is useful for column-level ranking. Figures 6 and 7 provide a qualitative view of this effect. Under the copy-oriented instruction, the mean attention as-signed to gold candidates is 4.64 × 10 −2, compared with 
+
+7.49 × 10 −4 for non-gold candidates. After ablation, the cor-responding means become 8.82 × 10 −5 and 4.93 × 10 −4,respectively, eliminating and even reversing the separation between gold and non-gold candidates. The example AP ac-cordingly decreases from 1.0000 to 0.1597 . This comparison supports the central design of AttnLink-U: the full copy-oriented prompting design is important for inducing a use-ful attention-based ranking signal, whereas generic semantic reasoning alone does not reliably produce this behavior. 
+
+Layer–Head Selection for AttnLink-S 
+
+AttnLink-S directly supervises the attention distribution of a selected layer–head pair. To examine its sensitivity to this choice, we train Qwen3.5-9B AttnLink-S models using rep-resentative heads from different layers while keeping all other training settings fixed. Table 8 reports the resulting mAP on BIRD Dev. AttnLink-S is largely insensitive to the supervised head when the target is placed in a middle-to-late layer. Across Layers 19–31, all tested configurations achieve between 
+
+95 .44% and 96 .02% mAP, while Layer 15 already reaches approximately 95% . These results suggest that, after suffi-cient contextual processing, schema-grounding signals can be reliably induced across different attention heads and do not depend on a narrowly specialized layer–head pair. In contrast, supervision at Layer 3 yields substantially lower mAP. Placing the supervision target too early therefore reduces the effective trainable depth and limits the model’s capacity to align its attention with schema relevance. Given the small differences among middle-to-late layers, we use Head 0 in the final layer throughout the main experiments, avoiding additional layer–head selection. 
+
+Additional Experimental Results 
+
+Tabular Temperature–Top-p Sensitivity 
+
+Table 9 provides the complete column-level results underly-ing the temperature–top-p sensitivity analysis in Figure 3 of the main paper. Increasing either τ or p improves schema coverage by retaining more candidates, resulting in higher SRR and recall but lower precision. The main configuration, τ = 2 .0 and 
+
+p = 0 .99 , achieves an SRR of 0.9811 and a recall of 0.9960 
+
+while selecting 11 .51 columns on average. 
+
+SQL Generation Prompt 
+
+Figure 8 presents the unified prompt used for downstream SQL generation. Following the prompt format of Om-niSQL (Li et al. 2025), it provides the database engine, the schema retained by the evaluated linker, and the input question, together with explicit generation instructions and a structured SQL output format. For every example, we in-voke the corresponding generator exactly once and decode a single SQL query. We use the same prompt throughout all SQL-generation experiments, without self-consistency, ma-jority voting, multi-turn correction, or iterative refinement, ensuring that the reported EX reflects the contribution of schema linking under a controlled generation setting. 
+
+Temperature Sensitivity of Downstream Execution Accuracy 
+
+Figure 9 examines how downstream execution accuracy changes with the schema-link temperature τ , while fixing the AttnLink-S linker, the top-p threshold at p = 0 .99 , and all SQL-generation settings. Increasing τ flattens the normal-ized relevance distribution, causing top-p selection to retain more candidates and thereby trade precision for recall. Across most generator–dataset combinations, EX initially improves as previously omitted schema items are recovered, but even-tually plateaus or declines as additional distractors enter the generator context. The resulting curves therefore show that neither maximal precision nor maximal recall is uniformly optimal; the preferred operating point depends on both the SQL generator and the dataset. The best observed EX values for Qwen2.5-Coder-7B are 
+
+81.9% , 60.7% , and 7.4% on Spider, BIRD, and Spider2-SQLite, respectively; the corresponding values are 87.2% ,
+
+67.4% , and 11.1% for Qwen3-4B, and 85.9% , 69.4% , and 
+
+17.8% for Qwen3.5-9B. The clearest generator-dependent pattern appears on BIRD. Qwen2.5-Coder-7B peaks at τ =<|im_start|> user \n 
+
+Task Overview : \n 
+
+You are a data science expert . Your task is column -level schema linking . Given a natural 
+
+language question and a database schema , identify the gold database tables and columns 
+
+needed to write the SQL query for the question . \n 
+
+\n 
+
+Database Engine : \n 
+
+SQLite \n 
+
+\n 
+
+Database Schema : [Schema omitted] \n 
+
+Question : \n 
+
+What is the maximum mpg of the cars that had 8 cylinders or that were produced before 1 9
+
+8 0 ? \n 
+
+\n 
+
+Instructions : \n 
+
+\n 
+
+* Your task is column -level schema linking . \n 
+
+* First , identify all and only the relevant columns required by the gold SQL query . \n 
+
+* Answer only using candidate column identifiers from Candidate Columns . \n 
+
+* Each candidate column identifier is written in exact ` column @ table ` format . \n 
+
+* You must copy the relevant candidate column identifier exactly as it appears in Candid 
+
+ate Columns . \n 
+
+* Your final answer must contain exactly one ` column @ table ` identifier . \n 
+
+* If multiple candidate columns are relevant , choose one relevant identifier uniformly a
+
+t random . \n 
+
+* Do not prefer the first , last , most obvious , or most important relevant column . \n 
+
+* Do not output SQL , explanations , reasoning , table names alone , column names alone , pun 
+
+ctuation , bullets , numbering , spaces , or any other text . \n 
+
+* Output only the single selected ` column @ table ` identifier . \n 
+
+Candidate Columns : \n 
+
+Id @ car _m akers \n 
+
+FullName @ car _m akers \n 
+
+Maker @ car _m akers \n 
+
+Country @ car _m akers \n 
+
+Make Id @ car _names \n 
+
+Model @ car _names \n 
+
+Make @ car _names \n 
+
+H orse power @ cars _data \n 
+
+Ed is pl @ cars _data \n 
+
+● Year @ cars _data \n 
+
+● C yl inders @ cars _data \n 
+
+Id @ cars _data \n 
+
+Acceler ate @ cars _data \n 
+
+● MP G @ cars _data \n 
+
+Weight @ cars _data \n 
+
+Cont inent @ contin ents \n 
+
+Cont Id @ contin ents \n 
+
+Country Id @ countries \n 
+
+Country Name @ countries \n 
+
+Cont inent @ countries \n 
+
+Model @ model _list \n 
+
+Model Id @ model _list \n 
+
+Maker @ model _list \n 
+
+<|im_end|> \n 
+
+<|im_start|> assistant \n 
+
+<think> \n 
+
+\n 
+
+</think> \n 
+
+\n 
+
+Copy instruction (control) 
+
+sample AP = 1.000 | candidate mean attention: gold = 4.64e-02, non-gold = 7.49e-04, gap = +4.57e-02 
+
+Generation anchor     
+
+> 00.007 0.014 0.021 0.028
+
+Attention from generation anchor (shared absolute scale; pooled p99 clip) 
+
+● Gold candidate Figure 6: Generation-anchor attention of AttnLink-U under the copy-oriented instruction for a Spider Dev example. Darker red indicates greater attention from the generation anchor, and green dots mark gold candidate columns. <|im_start|> user \n 
+
+Task Overview : \n 
+
+You are a data science expert . Your task is column -level schema linking . Given a natural 
+
+language question and a database schema , identify the gold database tables and columns 
+
+needed to write the SQL query for the question . \n 
+
+\n 
+
+Database Engine : \n 
+
+SQLite \n 
+
+\n 
+
+Database Schema : [Schema omitted] \n 
+
+Question : \n 
+
+What is the maximum mpg of the cars that had 8 cylinders or that were produced before 1 9
+
+8 0 ? \n 
+
+\n 
+
+Instructions : \n 
+
+* Analy ze which database columns are logically needed to answer the question . \n 
+
+* Base the analysis on schema meaning , SQL operations , keys , and table relationships . \n 
+
+* Discuss every relevant column , including columns used for joins , filters , grouping , or 
+
+dering , or aggregation . \n 
+
+* Brief ly explain the semantic role of each relevant column . \n 
+
+* Use ordinary table and column names ; focus on reasoning rather than reprodu cing identi 
+
+fier text . \n 
+
+* Do not write the final SQL query . \n 
+
+\n 
+
+** Now explain the relevant columns **: \n 
+
+\n 
+
+Question reminder : \n 
+
+What is the maximum mpg of the cars that had 8 cylinders or that were produced before 1 9
+
+8 0 ? \n 
+
+Candidate Columns : \n 
+
+Id @ car _m akers \n 
+
+FullName @ car _m akers \n 
+
+Maker @ car _m akers \n 
+
+Country @ car _m akers \n 
+
+Make Id @ car _names \n 
+
+Model @ car _names \n 
+
+Make @ car _names \n 
+
+H orse power @ cars _data \n 
+
+Ed is pl @ cars _data \n 
+
+● Year @ cars _data \n 
+
+● C yl inders @ cars _data \n 
+
+Id @ cars _data \n 
+
+Acceler ate @ cars _data \n 
+
+● MP G @ cars _data \n 
+
+Weight @ cars _data \n 
+
+Cont inent @ contin ents \n 
+
+Cont Id @ contin ents \n 
+
+Country Id @ countries \n 
+
+Country Name @ countries \n 
+
+Cont inent @ countries \n 
+
+Model @ model _list \n 
+
+Model Id @ model _list \n 
+
+Maker @ model _list \n 
+
+<|im_end|> \n 
+
+<|im_start|> assistant \n 
+
+<think> \n 
+
+\n 
+
+</think> \n 
+
+\n 
+
+Semantic-rationale ablation 
+
+sample AP = 0.160 | candidate mean attention: gold = 8.82e-05, non-gold = 4.93e-04, gap = -4.05e-04 
+
+Generation anchor     
+
+> 00.007 0.014 0.021 0.028
+
+Attention from generation anchor (shared absolute scale; pooled p99 clip) 
+
+● Gold candidate Figure 7: Generation-anchor attention of AttnLink-U for the same Spider example after replacing the copy-oriented instruction with the semantic-rationale instruction. The absolute color scale is shared with Figure 6. SQL Generation Instruction 
+
+Task Overview: 
+
+You are a data science expert. Below, you are provided with a database schema and a natural 
+
+language question. Your task is to understand the schema and generate a valid SQL query to answer 
+
+the question. 
+
+Database Engine: 
+
+SQLite 
+
+Database Schema: 
+
+[Schema] 
+
+This schema describes the database's structure, including tables, columns, primary keys, foreign keys, 
+
+and any relevant relationships or constraints. 
+
+Question: 
+
+[Question] 
+
+Instructions: 
+
+• Make sure you only output the information that is asked in the question. If the question asks for a
+
+specific column, make sure to only include that column in the SELECT clause , nothing more. 
+
+• The generated query should return all of the information asked in the question without any 
+
+missing or extra information. 
+
+• Before generating the final SQL query, please think through the steps of how to write the query. 
+
+Output Format: 
+
+In your answer, please enclose the generated SQL query in a code block :
+
+```sql 
+
+-- Your SQL query 
+
+``` 
+
+Take a deep breath and think step by step to find the correct SQL query. Figure 8: Single-turn prompt used for downstream SQL generation, following the prompt format of OmniSQL. Lower Top-p Thresholds Temp. τ p = 0 .50 p = 0 .75 p = 0 .90 0.60 0.0104 / 0.3780 / 0.9783 / 1.62 0.0756 / 0.5897 / 0.9662 / 2.64 0.2992 / 0.7869 / 0.9421 / 3.70 0.70 0.0117 / 0.4023 / 0.9778 / 1.74 0.0932 / 0.6340 / 0.9615 / 2.87 0.3996 / 0.8312 / 0.9329 / 3.96 0.80 0.0124 / 0.4261 / 0.9745 / 1.87 0.1108 / 0.6688 / 0.9571 / 3.06 0.4909 / 0.8654 / 0.9209 / 4.21 0.90 0.0143 / 0.4461 / 0.9723 / 1.97 0.1317 / 0.6979 / 0.9505 / 3.23 0.5880 / 0.8941 / 0.9085 / 4.45 1.00 0.0189 / 0.4635 / 0.9719 / 2.06 0.1604 / 0.7251 / 0.9446 / 3.39 0.6662 / 0.9145 / 0.8945 / 4.68 1.10 0.0228 / 0.4796 / 0.9710 / 2.14 0.1917 / 0.7505 / 0.9394 / 3.55 0.7360 / 0.9327 / 0.8803 / 4.91 1.20 0.0254 / 0.4958 / 0.9687 / 2.24 0.2373 / 0.7766 / 0.9320 / 3.72 0.7907 / 0.9470 / 0.8627 / 5.18 1.30 0.0332 / 0.5171 / 0.9661 / 2.34 0.2901 / 0.8012 / 0.9252 / 3.89 0.8292 / 0.9570 / 0.8365 / 5.49 1.40 0.0391 / 0.5374 / 0.9617 / 2.46 0.3507 / 0.8244 / 0.9164 / 4.07 0.8631 / 0.9664 / 0.8088 / 5.86 1.50 0.0482 / 0.5584 / 0.9591 / 2.57 0.4120 / 0.8474 / 0.9076 / 4.27 0.8892 / 0.9725 / 0.7723 / 6.32 2.00 0.1395 / 0.6785 / 0.9410 / 3.19 0.7425 / 0.9398 / 0.8112 / 5.65 0.9648 / 0.9919 / 0.5302 / 9.99 3.00 0.5698 / 0.8820 / 0.8091 / 5.20 0.9635 / 0.9916 / 0.4428 / 13 .14 0.9870 / 0.9969 / 0.2819 / 18 .33                                                                                                                                                                                                                                                                      
+
+> Higher Top-pThresholds Temp. τp= 0 .95 p= 0 .98 p= 0 .99 0.60 0.5834 /0.8849 /0.9199 /4.31 0.7777 /0.9369 /0.8897 /4.81 0.8344 /0.9521 /0.8747 /5.01 0.70 0.6825 /0.9131 /0.9036 /4.58 0.8351 /0.9532 /0.8682 /5.08 0.8664 /0.9615 /0.8504 /5.26 0.80 0.7536 /0.9336 /0.8884 /4.82 0.8670 /0.9632 /0.8430 /5.36 0.8866 /0.9684 /0.8239 /5.53 0.90 0.8103 /0.9487 /0.8696 /5.08 0.8866 /0.9692 /0.8133 /5.66 0.9022 /0.9732 /0.7940 /5.83 1.00 0.8540 /0.9606 /0.8458 /5.38 0.9100 /0.9758 /0.7784 /6.05 0.9205 /0.9785 /0.7596 /6.20 1.10 0.8774 /0.9684 /0.8162 /5.72 0.9224 /0.9796 /0.7424 /6.43 0.9270 /0.9804 /0.7261 /6.56 1.20 0.8957 /0.9727 /0.7807 /6.13 0.9355 /0.9836 /0.7030 /6.88 0.9400 /0.9846 /0.6900 /6.98 1.30 0.9198 /0.9792 /0.7421 /6.60 0.9420 /0.9852 /0.6623 /7.33 0.9446 /0.9861 /0.6553 /7.40 1.40 0.9348 /0.9836 /0.6971 /7.16 0.9518 /0.9875 /0.6237 /7.84 0.9537 /0.9881 /0.6187 /7.90 1.50 0.9452 /0.9862 /0.6487 /7.77 0.9589 /0.9893 /0.5843 /8.39 0.9602 /0.9895 /0.5808 /8.43 2.00 0.9778 /0.9946 /0.4429 /11 .23 0.9804 /0.9957 /0.4241 /11 .49 0.9811 /0.9960 /0.4234 /11 .51 †
+> 3.00 0.9902 /0.9978 /0.2629 /19 .01 0.9935 /0.9987 /0.2560 /19 .25 0.9935 /0.9987 /0.2542 /19 .31
+
+Table 9: Temperature–top-p sensitivity of Qwen3.5-9B AttnLink-S on BIRD Dev. Each cell reports SRR / R / P / Avg. Cols .SRR, recall, and precision are reported on a [0 , 1] scale, while Avg. Cols. denotes the average number of selected columns. The configuration used in the main experiments is marked with †.
+
+0.8, whereas Qwen3-4B peaks at τ = 1 .4. Qwen3.5-9B instead reaches its maximum at τ = 2 .6, favoring a higher recall. This progression suggests that a stronger generator can make effective use of a more complete but noisier schema context, whereas a less robust generator may benefit more from suppressing distractors. We view this as an empirical tendency rather than a universal rule, since the Spider curves favor high recall for all three generators and the smaller Spider2-SQLite benchmark exhibits greater point-to-point variation. This sensitivity analysis highlights a practical advantage of AttnLink’s continuous relevance scores: its precision–recall operating point can be calibrated to a particular downstream generator without retraining the linker. The benefit is espe-cially pronounced for Qwen2.5-Coder-7B on BIRD, where reducing τ from the main-paper setting of 2.0 to 0.8 raises EX from 53 .0% to 60.7% , an absolute gain of 7.7 percent-age points. Using the best observed temperature for each generator–dataset pair improves or matches the fixed setting in all nine cases. These calibrated results also exceed the strongest non-AttnLink baseline reported in the main paper for every generator–dataset combination, by approximately 
+
+0.8–2.1 percentage points. Relative to all main-paper en-tries, including the fixed AttnLink-S configuration, they es-tablish a new maximum in eight settings and tie the remaining Qwen2.5-Coder-7B Spider2-SQLite setting. Although these post-hoc optima are reported as a sensitivity analysis rather than as the uniform setting used for the main comparison, they demonstrate that AttnLink can adapt schema coverage to the distinct noise tolerance of different generators and convert that controllability into measurable execution gains. 
+
+Table-Level Schema-Linking Results 
+
+We further evaluate AttnLink at the table level on Spider and BIRD, as shown in Table 10. The table-level results are strong across model scales. Without parameter updates, AttnLink-U reaches mAP scores of 98.00% on Spider and 96.15% on BIRD, recalls of 
+
+99 .88% and 99 .14% , and SRRs of 99 .61% and 97 .65% ,respectively. This confirms that pretrained attention already provides an effective table-linking signal. Direct attention supervision further pushes ranking quality close to saturation. All three AttnLink-S backbones achieve at least 99 .91% mAP, 99 .92% recall, and 99.71% SRR on Spider. On BIRD, mAP ranges from 98 .26% to 98 .58% , with recall above 99% for every backbone. Qwen3.5-9B achieves 0.2 0.6 1.0 1.4 1.8 2.2 2.6 3.0  
+
+> 0.0
+> 20.0
+> 40.0
+> 60.0
+> 80.0
+> 100.0
+
+(a) Qwen2.5-Coder-7B        
+
+> 81.9
+> 60.7
+> 7.4
+> 0.2 0.6 1.0 1.4 1.8 2.2 2.6 3.0
+
+(b) Qwen3-4B-Instruct        
+
+> 87.2
+> 67.4
+> 11.1
+> 0.2 0.6 1.0 1.4 1.8 2.2 2.6 3.0
+
+(c) Qwen3.5-9B 
+
+> 85.9
+> 69.4
+> 17.8
+> EX (%)
+
+Schema-link temperature τ  
+
+> Spider Dev BIRD Dev Spider2-SQLite
+
+Figure 9: Downstream execution accuracy as a function of the schema-link temperature τ . The Qwen3.5-9B AttnLink-S linker and p = 0 .99 are fixed, while the three panels correspond to different SQL generators. Annotated markers indicate the highest observed EX for each dataset and generator. 
+
+Model Spider Dev BIRD Dev SRR R P mAP SRR R P mAP 
+
+AttnLink-U 
+
+Qwen2.5-Coder-7B 99.61 99.88 54.83 98.00 97.65 99.14 50.51 94.80 Qwen3-4B 95.94 98.40 66.67 96.71 91.00 96.15 76.73 95.28 Qwen3.5-9B 97.58 99.02 60.08 96.23 96.54 98.53 54.42 93.80 Qwen3.5-35B-A3B 99.23 99.71 60.82 97.46 96.09 98.57 58.53 96.15 
+
+AttnLink-S 
+
+Qwen2.5-Coder-7B 99.90 99.98 89.10 99.91 98.11 99.27 72.62 98.26 Qwen3-4B 99.71 99.92 93.47 99.95 97.46 99.07 76.01 98.36 Qwen3.5-9B 99.71 99.92 92.21 99.92 98.04 99.18 81.70 98.58 
+
+Table 10: Table-level schema-linking results on Spider Dev and BIRD Dev. All metrics are reported as percentages (%). 
+
+98.58% mAP, 81 .70% precision, 99 .18% recall, and 98.04% 
+
+SRR, while Qwen3-4B reaches the highest Spider mAP of 
+
+99.95% with 93.47% precision, showing that strong table-level performance does not depend on model scale alone.
