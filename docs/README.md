@@ -6,32 +6,41 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-09
-- 运行时间：2026-08-09 20:38:22 UTC
+- 最新运行日期：2026-08-10
+- 运行时间：2026-08-10 20:51:31 UTC
 - 运行状态：成功
-- 本次总论文数：4
-- 精读区：1
+- 本次总论文数：7
+- 精读区：4
 - 速读区：3
 
 ### 今日简报（AI）
-今日精读1篇、速读3篇，聚焦连续工作记忆机制与记忆/压缩效率优化。最值得看的是精读论文揭示除法归一化如何塑造低秩慢流形以支持连续工作记忆，另可参考语言建模NCA与KV缓存压缩的思路。建议普通读者先把握记忆与压缩的权衡，再拓展到多模态记忆场景。
-- 详情：[/202608/09/README](/202608/09/README)
+今日共读7篇论文，精读4篇、速读3篇，重点关注注意力机制优化。最值得看的是两篇9.0分精读：线性注意力改造扩散语言模型，以及利用冻结查询-键几何实现免数据稀疏注意力。建议普通读者优先从这两篇入手，理解注意力高效化的核心思路与实用价值。
+- 详情：[/202608/10/README](/202608/10/README)
 
 ### 精读区论文标签
-1. [Divisive Normalization Shapes Low-Rank Slow Manifolds for Continuous Working Memory](/202608/09/2608.01947v1-divisive-normalization-shapes-low-rank-slow-manifolds-for-continuous-working-memory)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：关于连续工作记忆的计算神经科学，除性归一化塑造低秩慢流形
+1. [Retrofitting Linear Attention into Diffusion Language Models](/202608/10/2608.06628v1-retrofitting-linear-attention-into-diffusion-language-models)  
+   标签：评分：9.0/10、query:la
+   evidence：将线性注意力应用于扩散语言模型的前序块以加速推理
+2. [Autonomy-of-Heads: Data-Free Sparse Attention from Frozen Query-Key Geometry](/202608/10/2608.06849v1-autonomy-of-heads-data-free-sparse-attention-from-frozen-query-key-geometry)  
+   标签：评分：9.0/10、query:la
+   evidence：从查询-键投影的谱几何中无数据地识别检索头与流头，实现数据无关的稀疏注意力，降低长上下文推理中的KV缓存与计算开销
+3. [Addressable Memory for Video World Models](/202608/10/2608.07408v1-addressable-memory-for-video-world-models)  
+   标签：评分：9.0/10、query:la
+   evidence：视频世界模型以KV缓存作为视觉记忆，解决长期生成中的记忆可寻址性与压缩问题
+4. [StateFlow: Sequence Pipeline Parallelism for Long-Context Modeling with Linear Recurrence](/202608/10/2608.06838v1-stateflow-sequence-pipeline-parallelism-for-long-context-modeling-with-linear-recurrence)  
+   标签：评分：8.0/10、query:la
+   evidence：线性循环模型长上下文训练的序列流水线并行
 
 ### 速读区论文标签
-1. [TextNCA: Neural Cellular Automata for Language Modeling via Hierarchical Local Attention](/202608/09/2608.02050v1-textnca-neural-cellular-automata-for-language-modeling-via-hierarchical-local-attention)  
-   标签：评分：7.0/10、query:la
-   evidence：层次化局部窗口注意力语言模型，具有线性时间复杂度
-2. [V-Mem: Modality-Routed Retrieval for Long-Term Multimodal Agentic Memory](/202608/09/2608.01543v1-v-mem-modality-routed-retrieval-for-long-term-multimodal-agentic-memory)  
+1. [Divisive Normalization Shapes Low-Rank Slow Manifolds for Continuous Working Memory](/202608/10/2608.01947v1-divisive-normalization-shapes-low-rank-slow-manifolds-for-continuous-working-memory)  
+   标签：评分：7.0/10、query:comp-neuro
+   evidence：通过递归分割归一化网络建模连续工作记忆，属于计算神经科学记忆机制研究
+2. [Causal Episodic Memory for Feedback-Driven Agent Repair](/202608/10/2608.05906v1-causal-episodic-memory-for-feedback-driven-agent-repair)  
    标签：评分：6.0/10、query:la
-   evidence：多模态智能体记忆通过模态路由检索解决记忆缺口
-3. [AnchorKV: Anchor-Residual KV Cache Compression](/202608/09/2608.02901v1-anchorkv-anchor-residual-kv-cache-compression)  
+   evidence：使用在线情景记忆和检索增强LLM智能体
+3. [RoRA: Role-Oriented Regional Allocation for Visual Token Pruning in MLLMs](/202608/10/2608.07088v1-rora-role-oriented-regional-allocation-for-visual-token-pruning-in-mllms)  
    标签：评分：6.0/10、query:la
-   evidence：压缩KV缓存以提升注意力机制的内存效率
+   evidence：面向多模态大模型的免训练视觉token剪枝，降低KV缓存与注意力开销
 
 
 <div class="dpr-home-promo-card">
