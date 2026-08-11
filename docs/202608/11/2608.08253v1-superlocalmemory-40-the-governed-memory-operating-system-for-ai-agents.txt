@@ -1,0 +1,944 @@
+Title: SuperLocalMemory 4.0: The Governed Memory Operating System for AI Agents
+
+URL Source: https://arxiv.org/pdf/2608.08253v1
+
+Published Time: Tue, 11 Aug 2026 00:50:59 GMT
+
+Number of Pages: 35
+
+Markdown Content:
+# SuperLocalMemory 4.0: The Governed Memory Operating System for AI Agents 
+
+Unifying Information-Geometric Retrieval, a Self-Organizing Learning Brain, Bi-Temporal Recall, Verifiable Transactions, and Multi-Tenant Governance in One Local-First Control Plane 
+
+Varun Pratap Bhardwaj 1 Garima Singh 2 Arun Pratap Bhardwaj 2
+
+> 1
+
+Qualixar / Independent Researcher, India 2Independent Researcher, India 
+
+varun.pratap.bhardwaj@gmail.com 
+
+garima1213@gmail.com arun.pratap.bhardwaj@gmail.com 
+
+ORCID (Varun Pratap Bhardwaj): 0009-0002-8726-4289 
+
+Abstract 
+
+In plain terms. SuperLocalMemory is an open, local-first memory system for AI agents. It lets agents remember across sessions, machines, and people; it can run entirely on hardware you control, with no cloud provider in the memory path; and a team or a company can operate it without giving up isolation between one person’s context and another’s. What distinguishes it is less the feature list than the evidence standard applied to it: every reliability guarantee is stated as a falsifiable invariant, tested under an adversarial condition with a negative control, and reported together with an explicit account of what the experiment did not exercise. We call that practice AI Reliability Engineering , and this paper is an attempt to hold a memory system to it rather than to report capability numbers alone. The governance that makes those guarantees enforceable is cheap enough to leave on: 1 .687 ms at the median and 2 .728 ms at the 99th percentile per governed write ( n=1 ,000). The remainder of this abstract is technical. AI agents are moving from single-user assistants to shared infrastructure—teams, com-panies, and fleets of autonomous workers that must remember across sessions, machines, and people without leaking one context into another, and, for regulated or data-resident organizations, without a cloud provider in the memory path. The research and product landscape has answered this in fragments : memory SDKs and managed platforms, temporal context graphs, stateful agent runtimes with memory blocks, framework-native primitives, context APIs with connectors, and user-timeline stores. Each is strong on one axis. Few open, local-first runtimes unify retrieval quality, a learning brain, time-awareness, a knowledge graph, verifiable governance, and multi-tenant isolation in a single system an organization can actually operate. We present SuperLocalMemory 4.0 (SLM 4.0) , a governed, local-first memory operating system for AI agents: one control plane, organized as seven operating layers over six managed SQLite stores plus vector and graph projections, reachable through a CLI, an MCP server, an HTTP daemon, a dashboard, an editor plugin, and separately packaged adapters for nine agent frameworks, in three operating modes (fully local; local with an on-device model; provider-assisted). SLM 4.0 unifies, in one runtime: (i) multi-channel retrieval —dense semantic, BM25 lexical, temporal, Hopfield-associative, and spreading-activation candidates fused by reciprocal-rank fusion, over an information-geometric scoring and lifecycle substrate (Fisher-informed scoring, wired with a cosine-similarity fallback when per-memory variance is absent; sheaf-cohomology consistency and a Riemannian–Langevin 
+
+1arXiv:2608.08253v1 [cs.AI] 8 Aug 2026 memory lifecycle introduced in our prior work and carried into V4, the Langevin coupling experimental with no production caller in V4); (ii) a governed learning and behavior brain —feedback, rewards, consolidation, behavioral soft-prompt injection, and governed skill evolution : a blind-verified, budgeted pipeline (screen → confirm → mutate → blind-verify → persist to quarantine) that bounds self-modification with a per-candidate record, DB-enforced hash-linked status transitions, and per-cycle resource limits ( scope : the default configuration stops at verified quarantine; an explicit configuration gate—not human or RBAC approval—can atomically promote a verified skill into the live loader with rollback on failure; faithful parent-version lineage and generation tracking are not yet reported); (iii) 
+
+SLM-Mesh , serverless per-tenant-isolated coordination through a local SQLite broker— authenticated peer messages, shared key/value state, and advisory locks—extended (opt-in) to cross-machine coordination: leaderless, pull-based, deterministic last-writer-wins state convergence under the total order ( revision , node _id ), advisory-lock view convergence under fencing-token order, a bounded durable retrying outbox, opt-in mDNS discovery, and optional TLS/custom-CA, certificate pinning, bearer, and HMAC-authenticated transport ( scope :cross-machine state/lock synchronization is implemented for the default profile and validated on a two-node loopback; it is coordination, not linearizable consensus, quorum, or a conflict-free replicated database, and WAN-scale operation and per-device revocation remain future work); (iv) time-aware memory —a three-date bi-temporal model, a dedicated temporal retrieval channel, superseded-fact demotion, an Ebbinghaus recency model, and cross-surface 
+
+as_of recall; and (v) governance-native memory —multi-scope tenant isolation, role-based access, a login gate, GDPR export/erasure with tamper-evident receipts, a hash-chained audit trail, a deployment-context EU AI Act checklist, and operable recovery —auto-reconciliation, a write-path stall watchdog, and an RBAC-gated admin remediation surface (dashboard, CLI, MCP) for stuck or degraded operations—all in a local-first runtime. These capabilities become trustworthy under one governing design goal—one authenticated actor, one profile generation, one policy decision, one durable receipt, and one verifiable completion state. V4 enforces this invariant on the primary write path (the HTTP /remember route and internal ingestion admission), where the operation policy registry is evaluated and the generation fence applies; the other transports and operation kinds adopt the same gateway incrementally. We therefore present the invariant as the enforced design of the write path and the target architecture for the platform—not as a property already enforced on every surface. Four reliability mechanisms implement it: generation-fenced write admission, verifiable memory transactions (a transactional obligation ledger with per-projection apply/verify/compensate/erase owners covering the registered admission owners—bm25, temporal, vector—and a hash-checkable completion manifest), cross-store verified erasure over those three owners, and bi-temporal 
+
+as_of demotion. A cross-surface operation policy registry in the governance control plane makes the same policy decision available to each participating surface. We evaluate the reliability spine by direct measurement against the candidate artifact: eleven fault-injection and mechanism scenarios, each repeated 200 times as a deterministic flakiness check; every repetition upheld its scoped component property (these repetitions are not independent Bernoulli trials and support no population failure-rate inference; fresh per-repetition SQLite databases are used for the database-backed experiments—two experiments are database-free and one uses synthetic projection-owner stand-ins; no single experiment exercises the full end-to-end path—transport, multi-process, mesh, and long-lived deployment fault-injection are future work); we report real-scale performance on a 1,232 MB memory-store copy (recall/write latency distributions, a concurrency sweep with zero writer-lock errors, and a 60-second resident-memory trace spanning 436.4–440.7 MB with no monotonic increase in that window—a definitive leak verdict needs a longer soak) together with a directly measured governed write-envelope overhead (1 .687 ms at p50 and 2 .728 ms at p99 over the ungoverned path, in-process); and we carry the published LoCoMo retrieval evidence from the V3 architecture (protocol-scoped, not a new V4 benchmark). Exact module and test counts are bound to the final release manifest rather than treated as architectural claims. We are explicit about scope: several capabilities exist individually in prior and commercial art—our contribution is their integration into one local-first, verifiable, governed runtime, together with the physical-store reliability layer and its measured results. The central systems contribution is a hash-verifiable projection-obligation and completion-manifest protocol across heterogeneous local stores under scoped admission; the admission invariant is enforced on 
+
+2the primary write path and extended to other surfaces incrementally. 
+
+# 1 Introduction 
+
+The last two years produced a rich literature on agent memory. Systems have advanced extraction and consolidation [1], temporal knowledge graphs [22], neurobiologically inspired retrieval [5, 6], OS-style hierarchical tiers [9, 18], memory as an OS-managed resource [12], multi-type and multi-agent coordination [25], efficient tiering with offline consolidation [3], strategic forgetting [27], and trust-gated retrieval [31]. Each improves one dimension of memory quality. 
+
+From point solutions to a complete memory layer. A team standing up durable agent memory today still assembles it from specialized parts—each with its own trust boundary, failure model, and audit story. What we did not find, in a dated review of representative systems (Section 2), is a single runtime in which retrieval quality, a learning brain, time-awareness, a knowledge graph, verifiable transactions, and multi-tenant governance are the same system, running on infrastructure the organization controls. This paper contributes that runtime. 
+
+Rent the LLM, own the memory. Foundation models are converging into an inter-changeable, rented capability; what an organization actually accumulates and must protect is its memory —the context, decisions, entities, skills, and provenance its agents build over time. That asset, and the governance over it, should be owned and operated by the organization on hardware it controls. A complete memory layer is therefore local-first by construction : storage, retrieval, the learning brain, governance, and optimization all run on the organization’s own infrastructure, with no provider required in the memory path (Modes A and B; Mode C is provider-assisted). 
+
+The operating questions. A second class of questions becomes central the moment agent memory becomes shared organizational infrastructure: Can one client’s memory surface in another’s recall—on any retrieval path? When a user exercises the right to be forgotten, does the fact disappear from every registered projection store, with evidence? When agents on several laptops collaborate, can they share what they should without a cloud server? When an agent improves its own skills, can the organization bound and audit that self-modification? These are the operating conditions of team-scale, multi-surface agent memory. They are the province of AI Reliability Engineering —the systematic application of reliability, correctness, and governance principles to AI-augmented software—and SLM 4.0 is built for them. 
+
+The governing invariant. SLM 4.0 ’s governing design goal is a single admission invariant— one authenticated actor, one profile generation, one policy decision, one durable operation receipt, and one verifiable completion state across the registered projection owners. V4 realises this invariant on the primary write path (the HTTP /remember route and internal ingestion admission), where the operation policy registry is evaluated and the generation fence applies; the other transports (MCP, CLI, WebSocket) and operation kinds adopt the same gateway incrementally. We present the invariant as the enforced design of the write path and the target architecture for the platform—not as a property already enforced on every surface. 
+
+Contributions. SLM 4.0 consolidates a line of work—trust and behavioral foundations [19], an information-geometric retrieval substrate [21], and a living-brain learning and lifecycle model [20]—into one production system. On those foundations, V4 contributes and measures 
+
+the reliability spine: generation-fenced admission, verifiable memory transactions with a hash-checkable completion manifest, cross-store verified erasure, and a cross-surface operation policy registry. Section 12 states each contribution (C1–C7) with its defensible claim and explicit scope limit. 32 Related Work 
+
+We organize related work by the capability each system most advances and locate SLM 4.0 ’s distinct contribution in each area. 
+
+Extraction and retrieval quality. Mem0 [1, 17] pairs LLM-based extraction with consolidation and reports strong LoCoMo results; its 2026 revision adds cross-memory entity linking and temporal accuracy gains [16]. HippoRAG [5, 6] models hippocampal indexing with Personalized PageRank. Many retrieval-quality systems treat tenant isolation as application metadata rather than a write-time fenced invariant; in the corpus we reviewed, we did not find one that specifies per-operation transactional consistency across multiple heterogeneous derived stores. SLM 4.0 ’s hybrid retrieval applies established hybrid-retrieval principles; we do not claim retrieval-architecture novelty. 
+
+Temporal and knowledge-graph memory. Graphiti/Zep [22, 30] maintains bi-temporal edge validity with automatic invalidation—temporal correctness at the storage level. SLM 4.0 
+
+places time at the retrieval-fusion level: a dedicated temporal candidate channel, non-destructive demotion of superseded facts, and an Ebbinghaus-parameterized recency model applied per fact after RRF fusion. We do not claim end-to-end temporal accuracy superiority; Graphiti’s bi-temporal storage is established prior art, and recent extraction-level results [16] raise that bar. 
+
+OS-inspired memory. MemGPT/Letta [10, 18], MemoryOS [9], and MemOS [12] apply the OS metaphor to hierarchical context tiers and MemCube scheduling. We reuse the OS metaphor but apply it to authorization, multi-store durability, and governance. We do not claim the OS framing itself as novel. 
+
+Self-improvement and governed skill evolution. The memory literature addresses improvement at the level of memory content —profile personalization, note re-linking, and sleep-time consolidation. We are not aware of a prior system (in the corpus reviewed through 2026-08-03) that governs the mutation of live agent skill configurations under a staged screen → confirm → mutate blind-verify → persist pipeline with candidate prove-nance, budget controls, and hash-linked state-transition history. 
+
+Multi-tenancy, governance, and local-first. Multi-tenant isolation, compliance con-trols, and local-first operation are well represented—Supermemory [23], Mem0 [17], and Zep/Graphiti [30] all provide strong posture on these axes individually. Governed multi-tenant shared memory is itself concurrent work: MemClaw [15] provides scoped retrieval, temporal supersession, and policy-governed propagation; a production governed-memory architecture has been described [24]. SLM 4.0 ’s contribution is the integration into a single local-first runtime: a scope algebra enforced by profile-scoped predicates across all retrieval channels, a write-time gen-eration fence, and erasure verified across the three registered projection owners—with isolation and projection erasure measured .
+
+Concurrent transactional memory work. Two July-2026 preprints address transactional agent memory at distinct layers. MemTX [11] stages writes in snapshot-isolated belief transactions with cascading repair—correctness at the semantic/belief layer . MemTxn [2] defines a transaction boundary for source-supported updates with complete-state recovery—correctness at the logical-state layer . SLM 4.0 ’s transactions center on a distinct layer : physical-store projection consistency —were all registered projection owners updated and independently verified, under one hash-checkable completion manifest with an honest degraded state? These layers compose: SLM 4.0 ’s manifest could sit beneath a MemTX belief transaction. We claim no priority over this concurrent work. 
+
+# 3 Platform at a Glance 
+
+SLM 4.0 is one control plane organized as seven operating layers, exposing a full arsenal of capabilities over a single managed store set. This section gives one honest paragraph per 4capability and the cross-system capability coverage map. 
+
+3.1 Seven Operating Layers 
+
+L1. Admission. Identity resolution, scope enforcement, idempotency check, and raw-evidence durability. A canonical write is admitted only after the ActorContext is derived from server-side state and the generation fence confirms the idempotency key is not replayed from a superseded profile-binding epoch. 
+
+L2. Queryable Core. An atomic SQLite transaction writes the canonical fact row, the opera-tion receipt, and the transactional obligation ledger entries for every required projection owner—all or none. 
+
+L3. Enrichment. Fact extraction, entity resolution, scene construction, temporal provenance derivation, graph edge writing, and optional embedding (mode-dependent). 
+
+L4. Memory Brain. Behavioral pattern accumulation, feedback and reward recording, consolidation, soft-prompt generation, and guarded skill-evolution workflows. 
+
+L5. Multi-channel Retrieval. Five candidate producers followed by RRF fusion, optional reranking, and entity-graph score enhancement. 
+
+L6. Context Safety. Policy evaluation, provenance attachment, redaction of recognized secrets, boundary-marker neutralization, and context budget enforcement. 
+
+L7. Operations. Lifecycle management, hash-chained audit, exact-match cache and reversible compression, Mesh peer-coordination, backup/restore, and daemon health surfaces. 
+
+3.2 Capability Inventory 
+
+Multi-channel retrieval. Five parallel candidate producers—dense semantic (with Fisher-Rao re-scoring), BM25 lexical, temporal (bi-temporal validity filter), Hopfield-associative, and spreading-activation—feed a single-pass Weighted RRF step ( k = 15) with strategy-adaptive channel weights. An optional cross-encoder reranker runs post-fusion; the entity-graph channel scores the fused candidate set but does not generate independent candidates. Healthy channels participate; degraded channels are excluded with provenance recorded in the response. Fisher-Rao scoring is wired ( retrieval/semantic_channel.py , core/engine_wiring.py ). 
+
+Information-geometric substrate. The semantic channel applies Fisher-Rao geodesic re-scoring when per-memory variance data is available, falling back to cosine similarity otherwise. Sheaf-cohomology consistency checks and the Riemannian–Langevin lifecycle model were intro-duced in prior work [20, 21]; the EbbinghausLangevinCoupling class is experimental and has no production caller in V4. 
+
+Entity knowledge graph. An AST-based code knowledge graph (blast-radius analysis, community detection, execution-flow tracing, incremental indexing with git-hook and file-watcher updates) and an entity store with typed edges and traversal API run inside the managed store. The spreading-activation channel uses this graph to surface multi-hop associations. 
+
+Bi-temporal time-awareness. Each fact carries a three-date bi-temporal model (referenced / observation / interval). The as_of parameter is threaded across all primary recall surfaces— Python recall engine, HTTP /recall , MCP tool, CLI –as-of —and drives a temporal validity filter: facts are demoted in ranking under half-open event-validity semantics and transaction-time supersession ( point-in-time demotion , not snapshot deletion). References are UTC-normalized. 5Learning and behavior brain. A zero-LLM behavioral pattern miner captures tool-sequence patterns, correction events, temporal clusters, and cross-project assertions, which a soft-prompt generator distills into a compact context prefix prepended during session-context and auto-recall assembly (ordinary recall() ranking is unchanged; initialization failure disables injection fail-soft). Feedback loops (thumbs-up/down, explicit reward signals), outcome recording, a LightGBM ensemble reranker, and a cognitive consolidation queue are all wired and active by default. 
+
+Governed skill evolution. SLM 4.0 governs mutation of live agent skill configurations under a screen → confirm → mutate → blind-verify → persist pipeline with candidate provenance, per-cycle budget controls (30-min wall / 10 LLM calls / 3 cycles-per-day, fail-closed on exhaustion), and DB-enforced hash-linked status transitions. Scope : the default configuration stops at verified quarantine; an explicit auto_approve flag—a configuration gate, not human or RBAC approval— can atomically promote a verified skill into the live loader with rollback on failure. Faithful parent-version lineage and generation tracking are not yet reported. 
+
+SLM-Mesh coordination. SLM-Mesh provides serverless, per-tenant-isolated coordination through a local SQLite broker: authenticated peer messages, shared key/value state, and advisory locks with TTL-based expiry and fencing tokens—available in all three operating modes (zero-cloud Mode A through cloud Mode C). Cross-machine state/lock synchronization (opt-in) extends this to LAN peers: leaderless, pull-based last-writer-wins state convergence under ( revision , node _id ) and advisory-lock view convergence under fencing-token order, with a durable retrying outbox, optional mDNS discovery, and TLS/pinning/HMAC-signed transport. 
+
+Scope : not linearizable consensus, not quorum replication, not a CRDT database; ordinary storage writes do not invoke the fence primitive; cross-machine coverage is currently the default profile, validated on a two-node loopback. 
+
+Unified context optimization. An exact-match cache with tagged invalidation and a reversible compression stage (byte-exact recovery of originals) are co-located in the memory control plane and exposed on three surfaces (proxy, MCP, and skill), with savings telemetry. 
+
+Governance-native controls. A governance control plane runs locally and in-process (no network call): a server-derived immutable ActorContext ; an 18-kind declarative operation policy registry; role-based access (OWNER / ADMIN / MEMBER / VIEWER lattice); multi-scope tenant isolation (personal / shared / global) enforced at write time; GDPR export/erasure with tamper-evident receipts; a hash-chained audit trail; and a deployment-context EU AI Act checklist that abstains from legal classification without intended-use evidence. Details appear in Section 5. 
+
+Operational recovery and remediation. Auto-reconciliation redrives failed projection obligations and dead-letters exhausted ingestions; a write-path stall watchdog fast-fails new writers (rather than freezing all tenants) when the single writer stalls; and an OWNER/ADMIN remediation surface—one-click on the dashboard, plus CLI ( slm ops ) and MCP—lists and resolves (retry / force-reconcile / cancel) stuck, dead-lettered, or degraded operations, with failure counts surfaced on /health . Detailed in Section 6.5. 
+
+3.3 Capability Coverage Matrix 
+
+Table 1 maps fifteen capability axes across SLM 4.0 and six representative systems, showing where coverage concentrates and where SLM 4.0 ’s integration adds axes not individually claimed as novel. Cells are scored from each system’s public documentation as of 2026-08-03, not from 6private testing: a dash (—) means a capability was not found in public sources , which is not 
+
+proof of absence—a system may support more than its docs describe. SLM 4.0 ’s own ✓ cells are the ones backed by the code and tests in this paper. 
+
+> Five candidate producers
+
+Query  
+
+> Dense
+> Semantic
+> BM25
+> Lexical
+> Temporal
+> Bi-temporal Hopfield
+> Associative
+> Spreading
+> Activation
+
+Weighted RRF single-pass fusion 
+
+Cross-channel boost + bridge discovery + scene expansion Entity-graph candidate boost not a sixth producer 
+
+Time-window prune explicit or inferred event time 
+
+Optional cross-encoder reranker Evidence floor + channel diversity Ranked output / abstention 
+
+Figure 1: Implemented retrieval order. Five parallel producers feed weighted reciprocal-rank fusion. Cross-channel intersection boosting, code-memory bridge discovery, and scene expansion enlarge or adjust the fused set before entity-graph scoring boosts existing candidates. Event-time pruning precedes the optional cross-encoder. Finally, the evidence floor removes candidates without qualifying primary evidence and channel diversity is enforced before returning ranked results (or an abstention). 
+
+# 4 Platform Architecture 
+
+SLM 4.0 is one control plane over many surfaces and stores, governed by the admission invariant stated in Section 1. It is realised through an immutable server-derived ActorContext ,a declarative OperationPolicyRegistry , and a transaction spine whose projection owners each prove their own completion. 
+
+System context and boundaries. External actors—human operators via CLI, HTTP, or Dashboard and AI agents via MCP, hooks, or adapters—reach the engine through the daemon bound on port 8765 ( server/unified_daemon.py ). The Admission Gateway derives an immutable ActorContext from the authenticated session and evaluates the operation policy registry. In V4 this full gateway envelope is wired on the HTTP /remember write path and at the internal ingestion admission slot; the other transport surfaces adopt it incrementally—declared MCP tools and selected CLI mutations obtain a shared policy decision but not yet the full envelope, and direct legacy, Hook, and Adapter paths remain incremental. Figure 3 is drawn 7Triggers Evolution budget: 30 min / 10 LLM calls / 3 cycles per day 
+
+T1: Post-session 
+
+> Stop hook
+
+T2: Degradation 
+
+> Consolidation
+
+T3: Health-check   
+
+> Every N-th cycle
+
+1. Screen 
+
+> Anti-loop guards (hash dedup + attempt cap) Skip (already addressed)
+
+2. Confirm 
+
+> configured/lowest-cost model Evidence warrants change? Reject (logged)
+
+3. Mutate 
+
+> configured model Evolve skill content Failed (mutation empty)
+
+4. Blind Verify 
+
+> information-isolated; distinct verifier when available, else independence logged Reject (verifier reasoning logged)
+
+5. Persist 
+
+> Quarantine dir + audit record transition metadata: generation = parent + 1
+> hash match not warranted llm fail verification failed
+
+Figure 2: Governed skill evolution pipeline in SLM 4.0 4.0. Three trigger conditions (post-session Stop hook; degradation scan; health-check scan) initiate evaluation within a hard budget envelope. Five guarded stages run sequentially: anti-loop screening, confirmation by the configured/lowest-cost model, mutation by the configured model, blind verification (information-isolated; the verifier cannot see the generator’s rationale or the original skill; a distinct verifier model is used when available, otherwise reduced independence is logged), and persistence to a quarantine directory with transition metadata setting the generation to the latest promoted parent generation plus one. Red exits persist their state-machine transition; promotion audit logging occurs only after blind verification succeeds. Budget exhaustion aborts the cycle before any LLM call is charged beyond the cap. 8Table 1: Capability coverage across representative agent-memory systems, scored from public documentation as of 2026-08-03. ✓ = documented/supported (for SLM 4.0 , code-verified in this paper); ◦ = partial or scoped in public docs; — = not found in public sources ( not proof of absence). Each system excels on its target axis; this reflects public-documentation focus, not deficiency. 
+
+Capability axis SLM V4 Mem0 Zep/ Graphiti Letta Lang-Mem Super-memory Memo-base 
+
+Local-first, no cloud in write path (Modes A/B) 
+
+✓∗ ◦ ◦ ◦ ◦ ◦ ◦
+
+Multi-scope isolation + RBAC roles 
+
+◦ ◦ ◦ ◦ — ◦ ◦
+
+GDPR erasure + hash audit + EU AI Act 
+
+◦ ◦ ◦ ◦ — ◦ —Bi-temporal / time-aware stor-age 
+
+✓ ◦ ✓ — — — ◦
+
+Multi-channel retrieval + RRF fusion 
+
+✓ ◦ ◦ ◦ — ◦ —Knowledge graph + entities ✓ ◦ ✓ ◦ — — —Learning + behavioral brain (soft prompts) 
+
+✓ — — — — — —Governed skill evolution (guarded pipeline) 
+
+◦y — — — — — —Verifiable transactions + man-ifest 
+
+✓ — — — — — —Verified cross-store erasure re-ceipts 
+
+◦ — — — — — —Exact cache + reversible com-pression 
+
+✓ — — — — — —Trusted-peer mesh (serverless, isolated) 
+
+◦z — — — — — —Bounded agentic loops (inde-pendent gate) 
+
+✓ — — — — — —Operational recovery + admin remediation (dashboard/CLI) 
+
+✓ — — — — — —Framework adapters + multi-surface API 
+
+✓ ✓ ✓ ✓ ✓ ✓ ✓     
+
+> Notes. Per-cell scoring rationale and primary-source citations are maintained in the full report’s capability ledger; compound axes (e.g. GDPR erasure + hash audit + EU AI Act) are scored on their weakest conjunct. SLM V4 local-first ( ✓∗): local-first by default—full in Modes A/B; Mode C is opt-in cloud. (y) Skill evolution ( ◦):
+> quarantine by default; live-loader activation is configuration-gated, not human/RBAC-approved. (z) Mesh ( ◦):
+> opt-in, default-profile leaderless LWW convergence with fencing-token advisory locks and TLS/pinned transport, two-node-loopback validated; not consensus/quorum/CRDT. All entries scored from public documentation reviewed through 2026-08-03; a — for a competitor reflects its public-doc scope, not a deficiency, and competitors may support more than their docs describe.
+
+9from this canonical-path perspective. Figure 3 shows the overall entry path. Figure 4 shows the transaction spine: the transactional obligation ledger, projection owners, and completion manifest that together enforce projection consistency.                              
+
+> Backup-managed SQLite registry (present files only)
+> User / Operator
+> CLI ·HTTP ·Dashboard
+> AI Agent
+> MCP ·Hooks ·Adapters
+> Admission Gateway
+> authenticate ·derive ActorContext (server-side, immutable) ·operation policy eval
+> policy wired at HTTP + ingestion; other surfaces adopt incrementally
+> Memory Transaction Service
+> obligation ledger ·BM25 / Temporal / Vector projection owners ·reconciler ·completion manifest memory.db learning.db code_graph.db audit_chain.db pending.db audit.db
+> memory.db projections: BM25 ·Temporal ·Vector
+> Local LLM
+> Ollama / Apple FM
+> Mesh Peer
+> LAN coord. (exp.)
+> Backup Target
+> local FS
+> embed coord backup
+
+Figure 3: SLM 4.0 system context. The HTTP / internal-ingestion write path reaches the engine through the Admission Gateway (solid arrow from User / Operator); AI agents via MCP / Hooks / Adapters adopt the gateway policy incrementally (dashed arrow); CLI is like-wise incremental. The gateway derives an immutable ActorContext from the authenticated session and evaluates the operation policy registry. The Memory Transaction Service owns the obligation/reconciliation protocol, not the six database files. The backup registry covers the present subset of memory.db , learning.db , audit_chain.db , code_graph.db , pending.db ,and audit.db . Its three registered owners (BM25, Temporal, Vector) maintain projections rooted in the canonical memory.db . Dashed arrows indicate optional runtime connections (external systems) or incremental gateway adoption (AI agents). 
+
+Store catalog. SLM 4.0 manages six primary SQLite files at a configured data root: 
+
+memory.db (canonical facts, FTS5 indexes, entity/graph tables, vec0 virtual table, mesh coor-dination tables, RBAC tables); learning.db (behavioral signals, reward and outcome tables, LightGBM ranker state, soft prompts, skill-evolution lineage); audit_chain.db (append-only hash-chained audit trail); pending.db (pending operations queue); llmcache.db (exact-match LLM cache); and admission_journal.db (encrypted admission journal). The Scale Engine manages two optional derived projections—a CozoDB graph store and a LanceDB vector store— through a prepare → verify → promote → rollback lifecycle, with SQLite + sqlite-vec remaining the canonical source of truth and active retrieval backend at all times. 
+
+Admission gateway. On the canonical HTTP /remember and internal-ingestion paths, the gateway derives an immutable ActorContext (principal_id, roles, allowed profiles, active profile_id, transport, and a session-token hash—from the authenticated session, never from the request body) and assembles the operation’s admission inputs (a stable idempotency key, operation kind, resource IDs, scope, deadline, required schema capability, and a redacted payload hash) on the path’s request record— RememberRequest for HTTP, IngestionRequest 
+
+for internal ingestion—together with a durable receipt. (An OperationRequest dataclass in core/operation_request.py defines this envelope as the target unified shape; the ship-10 HTTP / WebSocket 
+
+> policy wired here
+
+MCP server CLI Hooks / Adapters 
+
+> Transport surfaces incremental
+
+Admission Gateway       
+
+> derive ActorContext (server-side, frozen) ·assemble admission inputs
+> generation epoch captured here →fence.record_admission_epoch
+
+Operation Policy Registry       
+
+> keyed by OperationKind only ·auth checked before role eval ·fail-open (local) / fail-closed (company)
+
+1. Path-specific admission preparation   
+
+> HTTP: trust/validation first, scrub after journal ·internal ingestion: scrub before admission
+
+2. journal.prepare 
+
+> HTTP stores the encrypted original request before scrub
+
+3. WriteCoordinator epoch check          
+
+> compare captured epoch Gvs runtime.current_generation ⇒stale: WriteCoordinatorError (no projection write) ·fresh: proceed
+
+4. Atomic canonical commit     
+
+> canonical row ·durable write receipt ·projection obligations — one transaction, all or none
+
+5. Reconcile projection obligations (verify/apply/verify) Bm25Owner 
+
+> lexical / FTS5
+
+TemporalOwner 
+
+> validity
+
+VectorOwner 
+
+> embed. metadata graph / cache / mesh
+> not registered owners in V4
+
+6. Reconciler → CompletionManifest       
+
+> HMAC-SHA256 v2 (M037; downgrade refused) ·all_met=True : COMPLETE ·all_met=False : DEGRADED (retried) ·canonical fail: FAILED
+> legacy: unkeyed SHA-256 v1 (self-consistency only)
+
+Figure 4: V4 transaction and policy spine. Transport surfaces reach the Admission Gateway; in V4 the operation policy is evaluated on the HTTP write path and the internal ingestion admission slot — other surfaces adopt incrementally. The gateway derives an immutable 
+
+ActorContext (server-side; caller-supplied fields are data, not authority) and captures the profile generation epoch in the process-local generation fence. HTTP admission journals the encrypted original before the ingestion writer scrubs it; internal ingestion scrubs before admission. The WriteCoordinator checks the captured epoch before the atomic canonical-row, durable-receipt, and obligation-ledger commit. The Operation Policy Registry is keyed by OperationKind only; authentication is checked before role evaluation. Three projection owners are registered in V4 (Bm25Owner , TemporalOwner , VectorOwner ); graph, cache, and mesh stores exist but are not 
+
+transaction owners. The Reconciler emits a hash-checkable CompletionManifest (COMPLETE / DEGRADED / FAILED). 11 ping canonical paths use the split request records above rather than constructing it.) The 
+
+ActorContext is a frozen dataclass ( @dataclass(frozen=True, slots=True) ); no downstream path can mutate it. Figure 5 shows the admission and fence protocol for a canonical /remember call. 
+
+1. HTTP /remember : authenticate + RBAC WRITE 2. Deterministic request validation 3. Trust hook evaluation 4. Derive immutable ActorContext + evaluate operation policy 5. Build RememberRequest   
+
+> assign idempotency_key once, outside retry
+
+6. Capture generation epoch G
+
+7. journal.prepare     
+
+> encrypted original request is durable before ingestion scrub
+> 8. WriteCoordinator: G=current_generation ?
+
+STALE 
+
+WriteCoordinatorError 
+
+> retryable; no commit
+
+9. Atomic commit     
+
+> canonical row ·write receipt ·projection obligations
+
+10. Return status=queryable 
+
+> canonical fact and SQLite FTS are immediately readable
+
+11. Projection reconciliation     
+
+> obligation states: APPLIED ·VERIFIED ·FAILED
+
+12. Derive CompletionManifest     
+
+> COMPLETE ·DEGRADED ·FAILED
+> No Yes
+
+Figure 5: HTTP /remember admission sequence. Authentication and WRITE authorization precede deterministic validation and the trust hook. The server then derives authority in an im-mutable ActorContext , evaluates the operation policy, builds one idempotent RememberRequest ,and captures generation G. The encrypted original request is journaled before the ingestion writer scrubs it. The writer checks G before one transaction commits the canonical row, durable receipt, and projection obligations. The caller receives status=queryable ; projection reconcilia-tion subsequently records APPLIED, VERIFIED, or FAILED evidence. 
+
+Delivery surfaces. The daemon hosts the HTTP REST API, dashboard, and HTTP MCP endpoint in a single FastAPI application. The MCP server serves both HTTP and stdio transports; the CLI runs as a separate process with canonical remember proxying to 12 the daemon. Nine separately packaged framework adapters implement each framework’s native memory interface backed by the local SLM engine: LangGraph ( BaseStore ), Se-mantic Kernel ( VectorStore ), Microsoft Agent Framework ( ContextProvider ), LangChain (BaseChatMessageHistory ), LlamaIndex ( BaseChatStore ), CrewAI ( StorageBackend ), Auto-Gen ( Memory ), Google ADK ( BaseMemoryService ), and OpenAI Agents ( SessionABC ). 
+
+Three operating modes. Mode A (fully local, zero cloud: nomic-embed-text-v1.5 768-d, deterministic rule extraction, local PyTorch cross-encoder reranker). Mode B (local Ollama LLM: Phi-3 / Llama 3.2, local embeddings, local PyTorch reranker). Mode C (cloud text-embedding-3-large 3072-d, configured cloud LLM, Cohere reranker; content is sent to the configured provider). Every mode reports eu_ai_act_compliant=None ; intended use and deployment context are required for legal classification. Mode A is the default at installation; “no cloud in the memory path” applies to Modes A and B, not universally. 
+
+# 5 Governance Control Plane 
+
+The strategic premise of SLM 4.0 V4 is rent the LLM, own the memory . Governance is not retrofitted—it is the substrate on which canonical operations run. The controls in this section execute locally and in-process, without a network call. Memory processing is fully local in Modes A and B; the opt-in Mode C may send configured embedding, reranking, extraction, or answer payloads to a provider, while governance state and decisions remain local. 
+
+Governing invariant (scope). V4 realises the full envelope (one authenticated actor, one profile generation, one policy decision, one durable receipt, one verifiable completion state) on the canonical HTTP /remember path and internal ingestion, over the three registered projection owners; declared MCP tools and selected CLI mutations additionally obtain a shared policy 
+
+decision but do not yet share that operation envelope or receipt; direct legacy mutations and HOOK/ADAPTER surfaces remain incremental. We present it as the enforced design of the canonical write path and the target for the platform, not as a property already enforced on every surface. 
+
+5.1 Server-Derived Actor Identity 
+
+ActorContext (core/actor_context.py ) is a frozen dataclass that carries the complete, server-resolved identity for a single operation. Its fields are populated exclusively from server-authenticated state—session tokens, daemon descriptors, the profile runtime, and RBAC results— never from the request body . Key fields: principal_id (stable user or operator identifier, never a raw session token); roles (a FrozenSet drawn from the lat-tice OWNER ≥ ADMIN ≥ MEMBER ≥ VIEWER, plus SYSTEM and ANONYMOUS); 
+
+session_token_hash (first 16 hex chars of the SHA-256 of the raw token, for audit attribution only; no raw session material is retained on any path); transport (HTTP / MCP / CLI / MESH / HOOK / INTERNAL / DASHBOARD / ADAPTER). 
+
+5.2 Operation Policy Registry 
+
+OperationPolicyRegistry (core/operation_policy_registry.py ) is the declarative admis-sion layer. evaluate() is pure and CPU-only —no file, no network, no database access— completing in microseconds. The internal policy table is a types.MappingProxyType , preventing external mutation after construction. One registry makes “the same evaluator and policy table on each participating surface” a checkable property—any caller that invokes it obtains identical evaluation semantics—rather than universal surface coverage, which the registry alone does not establish. The evaluate(kind, actor, mode) chain runs an ordered 8-step decision sequence: resolve operation kind; check the explicit deny list; look up the registered OperationPolicy (fail-open 13 in local modes, fail-closed in company/remote modes for unknown kinds); empty-roles check (deny all); authentication before authorisation ; role disjoint check; transport check; payload size annotation (never a rejection). The registry contains 18 operation kinds; Table 2 shows a representative subset. Figure 6 illustrates the evaluation chain.                                    
+
+> Operation Required roles Allowed transports Audit
+> REMEMBER OWNER, ADMIN, MEMBER all standard
+> RECALL all (incl. VIEWER) all none
+> FORGET /CORRECT OWNER, ADMIN all full
+> ERASE OWNER only all full ∗
+> BACKUP OWNER only all standard
+> RESTORE_BACKUP OWNER only all full
+> MODE_CHANGE OWNER only admin transports full
+> SCHEMA_MIGRATE OWNER only CLI / INTERNAL only full
+> MESH_SEND OWNER, ADMIN, MEMBER mesh transports standard
+> EVOLVE_SKILL OWNER, ADMIN all full
+
+Table 2: Representative policy table from OperationPolicyRegistry.default() . The full table contains 18 operation kinds. ∗ERASE additionally sets resource_ownership_check=True 
+
+and redaction_policy="full" .
+
+5.3 Multi-Scope Isolation and Profile Generation Fence 
+
+SLM 4.0 separates two orthogonal isolation axes: the profile (individual / team / company namespace) and the scope (personal , shared , or global ) within and across profiles. Every tenant-owned memory table carries a profile_id column as a partition key; cross-scope access is default-deny . A fact in personal scope is not visible to a request scoped to shared unless the writer granted it explicitly—enforced at write time (scope label committed with the fact) via profile-scoped predicates across all five retrieval channels. The generation fence rejects a stale, superseded-epoch admitted write on the canonical remember path; it is not the retrieval-channel isolation mechanism. Scope of isolation claim: authorization-layer control, not cryptographic multi-tenancy; a single OS user with direct disk access is outside the threat model. 
+
+5.4 GDPR Export and Erasure 
+
+GDPRCompliance (compliance/gdpr.py ) implements three GDPR data rights locally—no re-quest leaves the device. The Right to Erasure (Art. 17) forget_profile proceeds in three ordered phases: 1. Audit before deletion (Art. 5(2) accountability). The runtime writes an erasure-request record to the hash-chained audit_chain.db before any row is deleted. This is a 
+
+hard precondition : if the audit write fails, the erasure fails closed —it aborts and deletes nothing, so no erasure ever occurs without an accountability record. 2. Cache and vector purge. The brain cache DB is purged before main-DB deletions; the vector store’s delete() is called per fact ID. 3. Schema-driven wipe. Every discovered profile-scoped table is deleted in a single pass. After all deletions, the runtime re-counts residual rows and returns an explicit 
+
+erasure_complete flag, set only when no residue remains and no per-table delete, residue re-count, context-cache purge, learning-DB reset, vector-purge, or owner-proof failure occurred—any such error, including a top-level purge exception or an uncountable table, 14 Request: raw kind ,server-derived actor, mode 1. Resolve raw kind to OperationKind 
+
+Unknown raw kind? 
+
+Unknown-kind decision 
+
+> local: allow; com-pany/remote: deny
+
+2. Explicit deny? explicit_deny 
+
+3. Policy lookup by kind 
+
+Policy found? 4. Required roles empty? 
+
+> policy_denies_ all_roles
+
+5. Auth required and missing? 
+
+> authentication_ required
+
+6. Any required role? 
+
+> insufficient_ roles
+
+7. Transport allowed? 
+
+> transport_ not_allowed
+
+8. Annotate oversized payload (never deny) 
+
+ALLOW 
+
+> yes no yes no no yes yes no yes no no yes no yes
+
+Figure 6: RBAC decision flow in OperationPolicyRegistry.evaluate() . Kind resolution and the mode-dependent unknown-kind decision precede explicit deny and policy lookup. A registered policy with no required roles denies all actors. Authentication is tested before role authorization, followed by transport. Payload size is advisory: oversized input annotates an otherwise allowed decision. 15 forces erasure_complete=0 (fail-closed reporting). Backup artifacts and remote peers are outside the erasure scope (future work). 
+
+5.5 Hash-Chained Audit Trail and EU AI Act Deployment Checklist 
+
+AuditChain (compliance/audit.py ) is a tamper-evident hash-chain audit log in its own SQLite file ( audit_chain.db ), completely independent of the main store. The chain hash is SHA-256 over the prior hash and each entry’s fields; verification walks every entry in insertion order and returns False on the first mismatch. A sibling sidecar (an out-of-table anchor recording chain length and head hash) detects DB-only suffix or whole-chain truncation when the sidecar was successfully written and remains intact ; it is a same-host integrity aid, not a remote trust anchor, and an anchor-write failure is logged rather than blocking the audited write. 
+
+EUAIActChecker.check_compliance(mode) produces a frozen assessment record describ-ing observable mode capabilities and missing deployment context. For every mode it re-turns compliant=None , risk_category="undetermined" , and unset transparency and human-oversight status until intended use, actor roles, and deployment evidence are supplied. Local versus provider-assisted processing alone cannot determine an EU AI Act risk category. This is an engineering checklist, not a conformity assessment or legal certification. 
+
+# 6 Reliability Spine 
+
+The governance layer answers who may act and on which scope . This section answers how we guarantee that the action succeeds consistently . Four mechanisms form the V4 reliability spine: generation-fenced admission, verifiable memory transactions, cross-store verified erasure, and bi-temporal as-of. SLM-Mesh provides the coordination layer. Together they realise the governing design goal on the write path. 
+
+6.1 Generation-Fenced Admission 
+
+A profile deleted and recreated with the same ID must not allow a cached context to write into the new profile’s data. The generation fence uses a process-local, threading.RLock -protected, TTL-bound map of (profile_id, idempotency_key) → (epoch, timestamp) in 
+
+storage/generation_fence.py , with entries expiring after 300 seconds. At admission, record_admission_epoch stores the current profile generation for the idempotency key. If two concurrent admissions record different epochs for the same key, the fence sets the entry to _CONFLICT_EPOCH = -1 —a sentinel that can never equal a real generation (≥ 0)—so both requests are subsequently re-jected. When CanonicalRememberRuntime._handle_admission processes the write, it calls admitted_epoch() and compares against the runtime’s current generation; a mis-match raises ValueError("epoch is stale") , which the WriteCoordinator wraps as 
+
+WriteCoordinatorError before any projection writer is called. The generation epoch is server-derived and cannot be supplied by a caller. Figure 7 shows the fence protocol. Scope : in-process, TTL-bounded, not SQLite-backed; not a revision CAS; does not survive process restart. The canonical HTTP /remember and internal-ingestion boundaries synthesize a non-empty idempotency key (a UUID) when the caller omits one, so omission at those public boundaries does not bypass the fence. 
+
+6.2 Verifiable Memory Transactions 
+
+Every canonical remembered-fact write must produce consistent state across three physical representations: BM25 token index, temporal store, and vector projection. V4 routes the canonical remember path through a transactional obligation ledger with per-projection ownership 16 Stale-epoch path 
+
+Admission: profile_id + idempotency_key 
+
+fence.record_admission_epoch    
+
+> (profile_id, idempotency_key) 7→G
+> TTL-bounded process-local map
+
+Profile rebind / re-create occurs: 
+
+runtime.current_generation bumped to G+1 
+
+WriteCoordinator._handle_admission       
+
+> reads back epoch from fence: G
+> compares Gvs G+1 ⇒STALE
+
+ValueError(“epoch is stale”) 
+
+↪→ WriteCoordinatorError 
+
+> projection writer never called (retryable)
+> time passes
+
+Fresh-epoch path 
+
+Admission: profile_id + idempotency_key 
+
+fence.record_admission_epoch    
+
+> (profile_id, idempotency_key) 7→G
+
+Same runtime, no rebind: 
+
+runtime.current_generation remains G
+
+WriteCoordinator._handle_admission       
+
+> reads back epoch: G
+> compares Gvs G⇒FRESH
+
+Atomic commit proceeds        
+
+> canonical row + ledger + obligation ledger
+> The generation epoch is server-derived and cannot be supplied by a caller.
+> ActorContext.active_profile_generation defaults to 0 for HTTP actors; the fence is independent of that field and relies solely on the (profile_id, idempotency_key) →epoch map ( storage/generation_fence.py ).
+
+Figure 7: Profile generation fence (exp7). The fence is a process-local, TTL-bounded map of (profile_id, idempotency_key) → epoch . At admission, record_admission_epoch() 
+
+stores the current generation G. If the profile is deleted and recreated (or otherwise re-bound) before the write coordinator runs, the runtime’s current_generation advances to 
+
+G+1. _handle_admission reads back G from the fence and compares it to the current gen-eration: a mismatch raises WriteCoordinatorError before any projection writer is called (retryable). On a matching generation the atomic commit proceeds normally. The fence does 
+
+not perform per-owner revision CAS; it rejects stale-epoch admissions at the coordinator level. and a hash-sealed completion manifest; registry-gated MCP/CLI operations and direct legacy mutations do not record these obligations. 
+
+Obligation ledger. On every canonical remembered write, 
+
+_record_projection_obligations creates obligation records for the three registered owners ( "bm25" , "temporal" , "vector" ) in projection_obligations with state=PENDING .This is the V4 transactional obligation ledger—distinct from the Mesh remote-delivery outbox. 
+
+Projection owners. Each of the three owners ( Bm25Owner , TemporalOwner , VectorOwner in 
+
+core/transactions/concrete_owners.py ) implements the ProjectionOwner protocol: apply 
+
+/ verify / compensate / erase / prove_erased / health . Their checksums are SHA-256 over owner name, sorted fact IDs, and per-fact fingerprints. 
+
+Completion manifest. After all owners have been applied and verified, 
+
+CompletionManifest assembles an OwnerEvidence record per obligation and seals the canonical JSON serialisation: on M037-capable databases 1 with an installation-key-derived HMAC-SHA256 (version 2, refusing a version-1 downgrade at verification); on older schemas with a deterministic 
+
+> 1
+
+M037 denotes schema migration 037 (schema version 37), which added the per-installation key column from which the manifest seal’s HMAC-SHA256 key is derived. 
+
+17 unkeyed SHA-256 (accidental-corruption detection only, not tamper-evidence against a malicious DB writer). State derives as: complete (canonical write succeeded, all owners in terminal success); degraded (canonical write succeeded, at least one owner failed, compensation ran); 
+
+failed (canonical write itself failed). A degraded manifest is never silently promoted to 
+
+complete .The reconciler maintenance loop redrives pending or missing-manifest obligations (capped at 10 attempts per obligation), bounding eventual drift from transient write failures. Figure 8 shows the transaction spine. Figure 9 shows the manifest state machine.               
+
+> Atomic canonical write + PEND-ING obligations
+> bm25 ·tem-poral ·vector
+> 1. Per-owner
+> verify() first
+> Projection valid? VERIFIED
+> 2. If in-valid: apply()
+> Apply succeeded? FAILED
+> 3. If applied:
+> verify() again
+> Now valid? VERIFIED or FAILED
+> Derive
+> CompletionManifest
+> COMPLETE /DE-GRADED /FAILED
+> Maintenance reconciler
+> retry apply at-tempts, maximum 10
+> Explicit caller action:
+> compensate()
+> not automatic
+> yes no no yes: APPLIED derive explicit only
+
+Figure 8: Verifiable memory transaction spine. Each reconciliation attempt verifies the existing projection first. Only an invalid projection is applied, and a successful apply is verified again before the obligation is marked VERIFIED; failed apply or verification records FAILED. Maintenance retries are idempotent and apply attempts are bounded at ten. Compensation is a separate explicit service call, not an automatic consequence of failure. The manifest is derived from canonical presence and current obligation evidence. 
+
+6.3 Cross-Store Verified Erasure 
+
+ErasureService (core/transactions/erasure.py ) coordinates verified deletion across all registered projection owners: 18 derive_state   
+
+> canonical presence + current obligation evidence canonical absent or no obligations all terminal-success (VERIFIED / ERASED) canonical present; some obliga-tion not met
+> FAILED COMPLETE DEGRADED
+
+Figure 9: Completion-manifest state derivation. A reconcile cycle recomputes exactly one output from canonical presence and the current obligation set: FAILED when the canonical commit is absent or the set is empty, COMPLETE when every obligation is terminal-success (VERIFIED or ERASED), and DEGRADED otherwise. The fan-out depicts mutually exclusive derivation conditions; there are no state-to-state transitions. 1. Obligation recording. One ERASE obligation per owner enters projection_obligations 
+
+in PENDING state. 2. Tombstones. Before per-owner deletion, a tombstone row is inserted per fact ID. A provenance conflict (two erasure operations recording different memory_id values for the same fact) fails the operation closed : remove() aborts before any owner deletion and the receipt is marked failed .3. Per-owner erase. Each owner’s erase(context) removes its physical entries and returns an OwnerErasureProof with an erasure checksum. 4. Proof verification. ErasureService.finalize() calls each owner’s 
+
+prove_erased(context) —a live physical re-query of the underlying tables, not are-hash of the envelope—to re-confirm absence, then seals the full receipt with an installation-key-derived HMAC-SHA256 on M037-capable databases (version 2, refusing a version-1 downgrade) or unkeyed SHA-256 on older schemas. The receipt carries all_erased=True only when every owner’s proof reports erased=True ;partial residue sets all_erased=False . The three registered owners in V4 are Bm25Owner (BM25 tokens), TemporalOwner (temporal validity rows), and VectorOwner (embedding metadata). Backup artifacts and remote peers are not erased and are outside the current scope. 
+
+6.4 SLM-Mesh: Coordination Across All Three Modes 
+
+SLM-Mesh provides serverless, per-tenant-isolated coordination through a local SQLite broker (in memory.db via mesh_* -prefixed tables): authenticated peer messages, shared key/value state, and advisory locks with TTL-based expiry and fencing tokens. Eight mesh operations are exposed as MCP tools. The broker is available in all three operating modes, including fully offline Mode A. 
+
+Per-tenant isolation. Server-assigned principals are bound to a profile_id ;
+
+check_cross_profile_sender() rejects any peer ID that belongs to a different profile. Cross-machine state/lock synchronization currently covers the default profile only. 
+
+Authentication and fencing. When the broker binds to a non-loopback host it requires 
+
+SLM_MESH_SHARED_SECRET —the broker raises RuntimeError at construction time if the host is not localhost and the secret is absent. Fencing-token order resolves advisory lock views to a single holder; ordinary storage-mutation paths do not currently call that primitive, so this is advisory coordination, not end-to-end single-writer enforcement over storage writes. 19 Cross-machine coordination (opt-in). Each node periodically pulls a peer’s deltas and merges them deterministically: shared state converges by last-writer-wins under the total order (revision , node _id ); advisory-lock views resolve under ( fencing _token , node _id ). A durable remote outbox provides bounded durable retry with duplicate possibility (jittered-backoff retry, 48-hour TTL, per-peer cap, dead-letter path); delivery is not guaranteed after cap eviction, enqueue failure, retry exhaustion, or 48-hour expiry. The transport rejects production plaintext and supports verified TLS, optional pinned certificate, bearer authentication, and HMAC-signed messages; opt-in mDNS discovery is off by default. Figure 10 shows the mesh topology. Scope : cross-machine features are opt-in; WAN-scale operation, per-device revocation, and fault-injection at scale are future work. SLM-Mesh provides leaderless LWW convergence with fencing-token advisory locking— not linearizable consensus, not quorum replication, and not a general CRDT merge. 
+
+Mode A 
+
+Zero LLM, zero cloud Deployment as-sessment required 
+
+SLM-Mesh peer 
+
+Mode B 
+
+Local Ollama LLM Deployment as-sessment required 
+
+SLM-Mesh peer 
+
+Mode C 
+
+Cloud LLM + embeddings Provider review required 
+
+SLM-Mesh peer    
+
+> shared-secret req.; msg-level HMAC: config-gated lock TTL 8 h circuit breaker
+> SLM-Mesh: per-tenant isolation (local broker, default profile); cross-machine covers default profile only 8 MCP tools: summary / peers / send / inbox / state / lock / events / status
+> Coordination, not replication — message content not scrubbed pre-transmission
+
+Figure 10: SLM-Mesh topology across all three operating modes. A mesh instance runs alongside any SLM daemon regardless of mode: Mode A (zero cloud), Mode B (local LLM), or Mode C (cloud). Non-loopback binding requires a shared secret ( SLM_MESH_SHARED_SECRET )to start; message-level HMAC signing/verification is optional and configuration-dependent (off by default for compatibility). Distributed locks auto-expire after 8 hours so a crashed peer cannot deadlock a resource. A circuit breaker on mesh_send fast-fails after three consecutive daemon-unreachable errors and re-probes after a 60 s cooldown. Per-tenant isolation—server-assigned principals bound to profile_id —is inherited by every local-broker mesh primitive; cross-machine state and lock synchronisation currently covers the default profile only. Scope: coordination (signals, shared state, locks), not a conflict-resolving replicated database. 
+
+6.5 Operational Recovery and Admin Remediation 
+
+A shared deployment must ensure that a stuck or failed operation for one tenant neither corrupts nor silently blocks the others, and that every failure is either auto-recovered or resolvable by an operator. V4 layers three mechanisms on the transaction spine. 
+
+Auto-recovery. The maintenance reconciler redrives pending and failed projection obli-gations (capped at ten attempts per obligation); the ingestion path retries a materialization up to ten times and then records the operation in a durable dead_letter_operations table with its content, error, and attempt count. Transient failures heal without human action, and a permanently failed operation is retained rather than lost. 
+
+Stall isolation (write-path watchdog). The single-writer WriteCoordinator serializes 20 canonical writes for correctness. To keep one pathological operation from freezing every tenant’s writes, each in-flight item is watched: if the worker exceeds a stall threshold (default 30 s, far above the 1 s per-item deadline) on a single item, the coordinator trips a circuit breaker so that new submissions fail fast with an explanatory WriterStalledError (“write subsystem stalled; admin remediation required”) instead of queuing behind a dead worker; the breaker clears automatically once the item completes. Callers receive an immediate, actionable error rather than a silent hang. Scope : the watchdog surfaces and fast-fails a stall but does not forcibly terminate the worker thread—a hung native handler still requires a restart (future work). 
+
+Surfacing and one-click remediation. Failures are made visible rather than buried in logs: the daemon /health and get_status surfaces report dead_letter_count ,
+
+degraded_operations , and writer_stalled . An OWNER/ADMIN operator can enumer-ate and resolve them through one remediation surface exposed uniformly on the dash-board, the CLI ( slm ops list / slm ops resolve ), and MCP ( list_failed_operations ,
+
+resolve_operation ), gated by the OPS_INSPECT /OPS_RESOLVE policy kinds with a full audit record on resolve. resolve supports three actions on a specific operation— retry (re-enqueue a dead-lettered ingestion), force-reconcile (redrive its projection obligations immediately, bypassing the periodic throttle), and cancel (mark it terminally handled). Because a large share of SLM 4.0 
+
+operators are non-technical, the dashboard presents this in plain language—a health banner and a “needs attention” table with per-row Retry / Re-sync / Cancel buttons—so recovery requires neither the CLI nor raw SQL. These paths are covered by dedicated tests (stall-watchdog fast-fail and recovery, RBAC-gated listing, and resolve semantics). 
+
+# 7 Formal Model 
+
+The governing invariant states, as a design goal, that a memory operation yields one authenti-cated actor, one profile generation, one policy decision, one durable receipt, and one verifiable completion state across the registered projection owners. V4 realises this full envelope on the canonical HTTP /remember path and internal ingestion; declared MCP tools and selected CLI mutations obtain a shared policy decision without the full envelope. We label the five scoped correctness properties below Verified Design Invariants (VDIs): each is a property of the canonical write/read path established by an implementation trace and measured directly—not a formal theorem deduced from axioms. Each “Sketch” traces the shipped code, and measured evidence for each invariant appears in Section 10. 
+
+Definition 7.1 (Actor context) . An actor context is the frozen tuple A =(p, R, P allow , π, g, Σ, δ, τ, h ) where p is the server-derived principal (never from the request body), 
+
+R is the frozen role set, Pallow is the profile allowlist, π is the active profile ID, g is the active generation, Σ is the scope allowlist, δ is the transport channel, τ is the resolved client host, and h is the SHA-256 prefix of the session token (first 16 hex chars; no raw session material retained). A is authenticated iff p̸ = ε and ANONYMOUS /∈ R.
+
+Definition 7.2 (Projection obligation and owner) . A projection obligation records 
+
+O = (op , ρ, ω, s, v, c ) where ρ is the owner name, ω ∈ {APPLY , ERASE }, s ∈{PENDING , APPLIED , VERIFIED , FAILED , COMPENSATED , ERASED }, and c is an owner-specific SHA-256 checksum. Terminal successes: {VERIFIED , ERASED }. The three registered admission owners are Ω = {bm25 , temporal , vector }.
+
+Definition 7.3 (Completion manifest) . A completion manifest is the frozen record M =(op , π, σ, b, n, E, h M , t c, t u) where σ ∈ { COMPLETE , DEGRADED , FAILED }, b is the all_met 
+
+flag, E is the sorted tuple of OwnerEvidence dicts, and hM is the envelope hash: on M037-capable databases an installation-key HMAC-SHA256 (version 2, refusing a version-1 downgrade); on older schemas, an unkeyed SHA-256 self-consistency check. 
+
+21 Verified Design Invariant 7.1 (Bounded In-Process Generation-Epoch Rejection) . Claim. If the binding epoch increments from g0 to g1 > g 0 after an admission event (k, π, g 0, t 0) is recorded but before _handle_admission executes, the handler raises ValueError("epoch is stale") 
+
+before any projection write occurs. Scope: in-process, single-writer, 300-second TTL, not CAS, not SQLite-backed, not persistent across restarts. 
+
+Sketch. Under _binding_lock , admitted_epoch returns g0̸ = g1, so the guard fires before 
+
+command_impl.submit() is reached; conflict epoch −1̸ = g1 ≥ 0 likewise fires. Measured: exp7, 200/200 (Section 10). 
+
+Verified Design Invariant 7.2 (Completion-Manifest Integrity and Honest State) . Claim. 
+
+(i) On M037-capable databases the manifest envelope is sealed with an installation-key HMAC-SHA256 (version 2, refusing a version-1 downgrade at verification): a DB-only writer without the installation key cannot forge a seal that verify_manifest accepts (authenticity, not merely corruption detection). On older schemas the seal is an unkeyed SHA-256 that detects accidental corruption (bit flips, partial writes) but is not tamper-evidence against a malicious writer. (ii) all_met = True iff every obligation is in terminal-success state; a degraded 
+
+manifest is never reported as success. 
+
+Scope: authenticity holds under installation-key secrecy on M037; legacy unkeyed v1 is corruption-detection only; an attacker holding the installation key is outside the model. 
+
+Sketch. verify_manifest recomputes the versioned seal over the canonical JSON fields and refuses a v1 downgrade on M037; HMAC unforgeability (resp. SHA-256 collision resistance) yields an invalid/different digest on any single-field mutation. derive_state maps all_met=True 
+
+iff all obligations are in {VERIFIED , ERASED }, any other state routing to DEGRADED. Measured: exp2, 200/200. 
+
+Verified Design Invariant 7.3 (Covered HTTP Read Profile Isolation) . Claim. On covered HTTP read paths, an actor lacking READ permission for the active profile πA is rejected before any query executes; an authorized actor cannot retrieve private rows ( profile_id = πB̸ = πA). 
+
+Scope: authorization-layer isolation via SQL predicates and RBAC on covered HTTP paths; MCP stdio and CLI direct-call paths are not covered by this gate; direct SQLite file access is outside the threat model. 
+
+Sketch. Two independent controls. (a) Storage predicate —covered read paths parameterize every query with the actor’s profile_id from the server-side ActorContext , so a query for 
+
+πA never returns πB rows; measured by exp5 with a positive control (200/200) on two read paths, get_facts_by_ids and TemporalChannel . (b) HTTP RBAC middleware —the read gate rejects unauthorized actors with 401/403 before a query runs on enumerated sensitive routes; this is established by code inspection of the middleware, not by exp5. An end-to-end unauthorized/authorized HTTP probe is future work. 
+
+Verified Design Invariant 7.4 (Erasure Completeness over Registered Owners) . Claim (conditional). If the returned receipt has all_erased=True , then at finalize() time each owner o ∈ Ω returned erased=True with empty residue. Partial residue sets all_erased=False ;the receipt is honest about the gap. 
+
+Scope: limited to the three registered owners (bm25, temporal, vector) present in 
+
+ErasureService._owners at erasure time; projection stores not wired as registered owners are not covered. 
+
+Sketch. finalize() calls prove_erased() per owner—a live physical re-query—and seals over all fields with HMAC-SHA256 (v2 on M037); refusing a v1 downgrade makes the receipt unforgeable by a DB-only writer without the installation key. Measured: exp1, 200/200. 
+
+Verified Design Invariant 7.5 (As-Of Temporal Demotion and Retention Non-Increase) .
+
+Claim (a). A system-invalidated fact ( tsi < +∞) receives score factor 0.25; after per-channel re-sort it ranks strictly below any fact with the same positive raw score and demotion factor 1.0. 
+
+22 Claim (b). The production Ebbinghaus function R(t) = e−t/S in ebbinghaus.py is non-increasing in t ≥ 0 for every S ≥ Smin > 0.
+
+Scope: with as_of = q, supersession demotes only when it is visible at q (system_expired_at ≤
+
+q), and half-open event-validity ( valid_from > q or valid_until ≤ q) applies a separate 0.5
+
+factor. Demoted facts remain present and re-ranked— as_of is point-in-time demotion , not snapshot isolation—and the filter fails open on error. 
+
+Sketch. (a) temporal_validity_filter.py multiplies system-invalidated scores by 0.25 and re-sorts descending; 0.25 s < 1.0s for any s > 0. (b) math.exp(-t/S) is non-increasing in t;IEEE 754 underflow eventually clamps to 0.0, making R non-strictly constant there. Measured: exp6a, 200/200. 
+
+# 8 Threat Model and Capability Coverage 
+
+SLM 4.0 ’s threat model is bounded to adversaries operating above the OS boundary or within the runtime’s own failure modes. Isolation is an authorization-layer control; a single OS user with direct access to the SQLite store files is outside this model. 
+
+SLM 4.0 Reliability Evaluation: 10 Deterministic Property Scenarios 
+
+Governance & Isolation    
+
+> exp1
+> erasure com-pleteness BM25+Temporal +Vector tombstone + receipt
+> exp5
+> cross-tenant zero-leak positive control tested on 2 read paths
+> exp8
+> policy registry OWNER/ADMIN/ MEMBER allow VIEWER deny; auth-first
+> 3 exps ·600 trials rate: 1.000
+
+Transactional Integrity     
+
+> exp2
+> manifest COMPLETE all owners applied
+> exp2 (fault)
+> manifest DE-GRADED real compensate()
+> cleans ap-plied owner
+> 1 exp ·200 trials rate: 1.000
+
+Safe Evolution & Recovery       
+
+> exp3
+> downgrade refusal reader_ver
+> >code ver zero mutation
+> exp4
+> partial-restore rollback live ←pre-restore bytes staging cleaned
+> 2 exps ·400 trials rate: 1.000
+
+Temporal Mechanisms    
+
+> exp6a
+> superseded-fact demotion 0.25 ×
+> re-ranked be-low valid
+> exp6b
+> Ebbinghaus decay non-increasing in age bounded [0,1]
+> exp6c
+> date-proximate outranks distant horizon ex-cludes far past
+> 3 exps ·600 trials rate: 1.000
+
+Admission Control    
+
+> exp7
+> generation fence stale-epoch rejected writer never called
+> exp7 (fresh)
+> fresh-epoch admitted
+> runtime.remember()
+> commits ok
+> 1 exp ·200 trials rate: 1.000
+
+All 10 scoped properties held in 200 repeated executions each; repetitions are flakiness checks, not independent statistical samples 
+
+Figure 11: Failure-class taxonomy from Section 10: the ten measured guarantees grouped into five categories that map to SLM 4.0’s five technical areas. Governance & Isolation covers projection-store erasure completeness (exp1), cross-tenant zero-leak with positive control (exp5), and operation policy correctness with authentication-before-role-check (exp8). Transactional Integrity covers completion manifest correctness and real compensate() behavior (exp2). Safe Evolution & Recovery covers migration downgrade refusal (exp3) and backup-restore atomic rollback (exp4). Temporal Mechanisms covers superseded-fact demotion (exp6a), Ebbinghaus decay monotonicity (exp6b), and time-window inference (exp6c). Admission Control covers generation-fenced admission rejection and fresh-epoch commit (exp7). Each scenario ran 200 deterministic repetitions; every scoped property held. 
+
+T1 — Cross-tenant read. Read paths apply a canonical scope predicate enforcing 
+
+profile_id equality and the personal/shared/global scope algebra at query time; cross-scope access requires explicit shared membership (recorded at write time) or the global scope flag, default-deny. The all-channel statement rests on call-path inspection and per-channel unit tests; 
+
+measured evidence is exp5 (200/200 repeated executions), which exercises the scope predicate on 23 two paths ( get_facts_by_ids and the temporal channel) with a positive control—it is not an empirical proof for every channel. 
+
+T2 — Replayed or stale-epoch write. The generation fence records the admitted epoch at ingestion; a mismatch raises ValueError("epoch is stale") before any projection writer is called. Evidence: exp7 (200/200 repeated executions). Scope: in-process, 300-second TTL, on the canonical remember path only. 
+
+T3 — Projection inconsistency. Each canonical write registers an obligation for the three registered owners and records a CompletionManifest sealed with an installation-key HMAC-SHA256 (v2 on M037). If any owner fails to verify, the manifest carries an honest degraded 
+
+status; the maintenance loop redrives pending obligations. degraded is never silently discarded or promoted to complete . Evidence: exp2 (200/200 repeated executions). 
+
+T4 — Memory-content secret leakage. The shared queryable-write chokepoint applies 
+
+scrub_secrets_for_ingest unconditionally before canonical and projection persistence. Dis-closure: mesh coordination messages are not subject to the full admission scrub (fail-open); sender-side filtering remains required for sensitive payloads. 
+
+T5 — Migration downgrade or backup corruption. Two measured controls: a newer-stamped database is refused on the deferred migration pass with the table-set preserved (measured: exp3, 200/200), and a partial-restore failure rolls live data back to pre-restore bytes ( measured: exp4, 200/200). The Scale Engine’s projection parity-verify-before-promote and rollback path is established by code inspection; a fault-injection experiment driving pre-pare/verify/promote/rollback is future work. 
+
+T6 — Unauthorized skill mutation. Skill evolution is gated by a per-cycle bud-get and a blind-verified pipeline to quarantine. The MCP entrypoint is gated by 
+
+OperationPolicyRegistry (EVOLVE_SKILL , roles {OWNER , ADMIN }). Residual gap: the MCP actor is synthesized from deployment mode with no live session principal, so no human-approval step is interposed; auto_approve is a configuration gate, not a live-RBAC control. 
+
+T7 — Mesh relay content exposure. Mesh messages are redaction-scrubbed on receipt but not admission-scrubbed (fail-open). Cross-machine coordination uses leaderless LWW—not consensus, quorum, or a replicated database—with TLS/pinning and HMAC transport available and ordinary storage writes not invoking the fence primitive. 
+
+Deferred controls (D1–D3). Per-device mesh key revocation (future work); cryptographic multi-tenancy (delegated to OS-level disk encryption); inference-time injection gating (comple-mentary to MemGate [31], layerable above the retrieval surface). 
+
+# 9 Implementation 
+
+SLM 4.0 spans more than 25 subsystems ( access , compliance , core , mesh , retrieval ,
+
+storage , temporal components in encoding /retrieval , optimize , code_graph , learning ,
+
+trust , and others), exercised by a release gate whose exact collected, selected, passed, skipped, and deselected counts are bound to the final source SHA, command, and result artifact in the release manifest. The exact commands and environment are documented with the released harness. 24 The system runs in three privacy modes (A, B, C as described in Section 4) and is delivered through a CLI ( slm with agent-native –json ), an MCP server (HTTP and stdio, with configurable tool profiles from core /14 tools to whole /all registered), a dashboard, a Python SDK, editor and proxy integrations, and nine separately packaged framework adapters . The adapters are packaged as standalone distributions outside the base wheel; in this release the repository’s adapter package metadata has been updated to admit SLM 4.0, and the small core surface they depend on ( SLMConfig , MemoryEngine , Mode ) is present and load-verified against 4.0.0. Published adapter releases and full per-framework integration testing are pending. The new architectural modules for the transaction spine, policy registry, admission gateway, schema-capability record, backup coordinator, and erasure manifest are additive: they sit beneath the existing product, and surfaces adopt them incrementally behind transport tests. 
+
+# 10 Reliability Evaluation 
+
+We evaluate SLM 4.0 ’s durability, isolation, temporal, and admission guarantees by direct mea-surement against an installed package reporting version 4.0.0—a fault-injection and mechanism evaluation, not an external conversational-accuracy benchmark. 
+
+Method. Each experiment imports the installed superlocalmemory package and drives pro-duction code paths—real SQLite databases built through the production initialization sequence, the real backup coordinator, the real migration runner, the real authorization/scope layer, the real temporal machinery, the real MemoryTransactionService , the real ErasureService with concrete projection owners from concrete_owners.py , the real generation_fence module, and the real _DEFAULT_REGISTRY . Synthetic inputs are limited to a deterministic vector where a vector is structurally required, plus the synthetic projection owners of exp2 (superseded by the real owners in exp2b; see the per-experiment disclosures below). Every experiment is bracketed : it fails if the mechanism does nothing or does the wrong thing. Isolation (exp5) carries an explicit positive control —the requester must still see its own data through the same read paths. The harness is fail-loud: an infrastructure error crashes the run. Per-experiment setup disclosures: exp2 uses synthetic _TrackingOwner stand-ins; exp7 installs only migrations M018 and M032; exp8 is CPU-only with no SQLite database. Among the rest, only exp1 exercises the full production projection owner set. 
+
+10.1 Results 
+
+All eleven scoped component properties held in every one of 2,200 deterministic repetitions (Table 3) at the disclosed scope of the table. The real-owner replication of Section 10.1 (exp2b, 200 repetitions) is included in that total. The released evidence bundle therefore reports 
+
+2,200/2,200 ; every experiment in it is executed by the single runner benchmark/run_all.py .No single scenario exercises the full end-to-end path (HTTP auth → ActorContext → journal 
+
+→ fence → owners → obligation ledger → manifest → ANN); transport, multi-process, mesh, and long-lived deployment fault-injection are future work. These are deterministic property scenarios, so the repetitions test for flakiness and environ-ment sensitivity rather than sampling a defined random population. We therefore report no confidence interval or inferred failure probability. Experiments exp7, exp2, exp5, exp1, and exp6a correspond to the five Verified Design Invariants of Section 7 (Verified Design Invariants 7.1 to 7.5)—generation fence, completion manifest, read isolation, erasure completeness, and as-of demotion—covering 1,000 of the 2,200 released repetitions; the remainder cover real-owner validation (exp2b), policy-registry evaluation (exp8), and further correctness properties (migration downgrade, backup rollback, and additional temporal mechanisms). 25 Table 3: Reliability evaluation—200 deterministic repetitions per scenario, SLM 4.0 v4.0.0 / Python 3.13. 
+
+# Guarantee (exact as measured) Metric Trials Held Rate 
+
+1 Bm25Owner + TemporalOwner + VectorOwner erase all wipe-tenant projection rows from bm25_tokens ,
+
+fact_temporal_validity , and embedding_metadata ;tombstones and a verifiable receipt persisted; keep-tenant content-hash unchanged complete-erasure 200 200 1.000 2 MemoryTransactionService : committed op → mani-fest COMPLETE with both owners applied; faulted op → manifest DEGRADED, successful owner’s pro-jection removed by real service.compensate() , failed owner had no projection residue manifest-correct 200 200 1.000 2b Real Bm25Owner , TemporalOwner , and VectorOwner :committed writes yield COMPLETE manifests with all projections present; injected Bm25-owner failure yields a DEGRADED manifest and removes the surviving temporal projection to zero residue real-owner-correct 200 200 1.000 3 Newer-stamped DB raised SchemaVersionError on the deferred pass with no change to the table-name set refuse+preserve 200 200 1.000 4 Partial-restore failure rolls live data back to pre-restore bytes rollback+clean 200 200 1.000 5 Personal rows of one tenant never leak to another on the two tested read paths ( get_facts_by_ids and 
+
+TemporalChannel ), with positive control zero-leak 200 200 1.000 6a Superseded facts kept but demoted 0 .25 × and re-ranked below valid correct-demotion 200 200 1.000 6b Ebbinghaus retention non-increasing in age, bounded [0 , 1] monotonic-decay 200 200 1.000 6c Date-proximate events outrank distant ones; horizon excludes far past correct-window 200 200 1.000 7 Generation fence rejects a stale-epoch admission (WriteCoordinatorError , writer never called) and ad-mits a fresh-epoch admission fence-correct 200 200 1.000 8 _DEFAULT_REGISTRY.evaluate() : REMEM-BER allowed for OWNER/ADMIN/MEMBER; VIEWER →REMEMBER denied; unknown kind fail-open in local, fail-closed in company; unauthenticated actor denied with authentication_required before role check policy-correct 200 200 1.000 
+
+Execution total 2,200 2,200 1.000 
+
+Real-owner validation (exp2b). Because exp2’s manifest/compensate check uses syn-thetic owner stand-ins, we additionally ran exp2b with the real Bm25Owner , TemporalOwner ,and VectorOwner driven through MemoryTransactionService : all 200 repetitions held—100 committed writes yielded a complete manifest with all three real projections physically present, and 100 with an injected Bm25-owner failure yielded a degraded manifest in which the real service.compensate() removed the surviving temporal projection to zero residue and the failed owner left no partial rows. Scope : the Bm25 fault is an isolated owner-verify fail-ure (the live retrieval-engine heal path is not exercised), and the VectorOwner runs in its 
+
+embedding_metadata metadata mode with the sqlite-vec ANN index out of scope, as in exp1. 
+
+10.2 Real-Scale Performance 
+
+Performance was measured against a retained memory-store database copy (1,232 MB; 768-d embeddings), driving the real engine with warm caches, GC disabled during timed loops, and embedder warm-up excluded from timing. Provider scope : these figures use the in-process 26 sentence-transformers embedder ( nomic-ai/nomic-embed-text-v1.5 ), whose cold model load is 10,009.9 ms and is excluded; an earlier measurement of this suite against a warm Ollama endpoint recorded a 541.8 ms warm-up. Embedding provider and database size both materially affect these numbers, so both are stated rather than left implicit; figures produced under different providers are not directly comparable. 
+
+Concurrency. Figure 12 sweeps 1–16 GIL-shared threads alternating store_fast writes and direct recall (the legacy bypass path, not the governed write path). Throughput rises from 0.9 to 18.4 ops/s across 1–16 workers, while median per-operation latency degrades from 74.9 ms to 1,009.4 ms as GIL and write-lock contention grow, with zero “database is locked” errors observed at any level under the single-writer, WAL-journaled design; we report the observation without attributing multi-process or transport causality. 
+
+Latency. Figure 13 reports percentiles over n=300 warm operations on the 1,232 MB store. Recall is embedding-bound: 1.93 s at the median and 4.38 s at p99 with the in-process sentence-transformers provider. The 42.0 ms median for the legacy direct store_fast write path on that store bypasses canonical admission, the policy registry, the encrypted journal, projection obligations, and the completion manifest, so it does not bound governed-path cost. 
+
+Governed write-envelope overhead. To bound the control-plane cost directly, we measured the canonical governed write envelope in-process (CanonicalRememberRuntime.remember() —the same path the HTTP handler calls af-ter request parsing: encrypted admission-journal prepare/dispatch/commit, the single-writer 
+
+WriteCoordinator , the canonical SQLite write, and the projection obligation-ledger insert) against the ungoverned in-process write on a fresh store, n=1 ,000 warm calls each after a 30-call warm-up burst. The governed envelope runs at p50/p95/p99 = 3 .522 /4.427 /5.297 ms versus 1.835 /2.379 /2.569 ms ungoverned—a control-plane overhead of 1 .687 ms (p50) to 2 .728 ms (p99). 
+
+Scope : in-process (HTTP transport and request parsing excluded; loopback HTTP typically adds 0 .5–2 ms); databases on a temporary filesystem, so persistent-disk fsync on the first journal write may raise p50 toward the low tens of milliseconds—these are floor numbers—and the ungoverned baseline is IngestionCommand.submit() , making the stated delta a conservative lower bound. A full end-to-end HTTP benchmark under multi-agent concurrency remains future work. 
+
+Memory stability. Figure 14 tracks RSS across 60 s of sustained load. After initial warm-up, RSS remains within 436.4–440.7 MB with no monotonic upward trend (4 MB rounded spread; final 438.0 MB). The harness classifies this window as NONE for its bounded-spread leak indicator; a definitive leak verdict still requires a longer soak with an explicit idle-recovery phase (future work). 
+
+10.3 Retrieval Quality: Carried-Forward V3 LoCoMo Evidence 
+
+The experiments above measure durability, isolation, admission, and temporal mechanisms ; they are not a retrieval-accuracy benchmark. For retrieval quality we carry forward the published LoCoMo [13] evidence for the V3 architecture that SLM 4.0 productionizes; we do not rerun it against the V4 release artifact, and every figure is protocol-scoped. The V3 Mode A Retrieval result breaks down by category as 72.0% single-hop, 70.3% multi-hop, 80.0% temporal, and 85.0% open-domain. An information-geometric ablation on six V3 LoCoMo conversations reported +12 .7 pp under the published protocol; the displayed one-decimal endpoints (71.7% with versus 58.9% without the geometric layers) imply 12.8 points because of rounding. Both are V3-architecture results, not re-verified on V4; an end-to-end V4 comparative benchmark against LoCoMo and LongMemEval is preregistered future work. 27 1 2 4 8 12 16 0510 
+
+> 0.91.95.49
+
+Concurrent workers Throughput (ops/s) 
+
+Figure 12: Mixed remember/recall throughput versus concurrency on a ≈1 GB store (Mode B, Ollama embeddings, ThreadPoolExecutor ). Throughput scales from 1.0 to 18.4 ops/s across 1–16 workers while median per-operation latency rises from 74.9 ms to 1,009.4 ms (0.84–1.23 s), and zero writer-lock errors occur at any level: the single-writer WAL model serialises writers without contention failures. 
+
+p50 p90 p95 p99 10 2
+
+10 3 
+
+> Latency (ms, log scale)  Recall (semantic+BM25+temporal; embed round-trip) Store-fast (write path
+
+Figure 13: Operation-latency percentiles over n=300 warm operations on a 1,232 MB store (Mode B; log scale). Recall latency uses the in-process sentence-transformers provider (nomic-ai/nomic-embed-text-v1.5 ); the write path without embedding (store-fast) is 42.0 ms at the median. Latency is therefore a property of the configured embedding provider, not of the control plane; embedder warm-up (10,009.9 ms, in-process sentence-transformers) is excluded from timing and GC is disabled during each timed loop. 
+
+0 5 10 15 20 25 30 35 40 45 50 55 60 400 420 440 460 Elapsed under sustained load (s) Resident set (MB) 
+
+Figure 14: Process resident-set size over 60 s of sustained mixed load on a 1,232 MB store. RSS remains within 436.4–440.7 MB (4 MB rounded spread; final 438.0 MB) with no monotonic upward trend—consistent with a bounded working set (canonical pages plus embedding buffers) rather than an unbounded leak. A longer soak with an explicit idle-recovery phase is noted as future validation (Section 11). 28 Table 4: Carried-forward LoCoMo evidence for the V3 architecture (protocol-scoped; not a rerun V4-release benchmark). Source: [21].                     
+
+> Configuration LoCoMo Protocol scope
+> Mode A Raw 60.4% 10 conversations; 1,276 scored questions; local embeddings, local retrieval, zero-LLM answer construction. Mode A Retrieval 74.8% Same set; local retrieval followed by a single GPT-4.1-mini answer-formation pass—the standard Lo-CoMo answering protocol, distinct from the zero-LLM Raw row above. Published V3 result, not re-derived on the V4 artifact; a hash-pinned V4 re-run is future work. Mode C 87.7% Conv-30 only; 81 scored questions; text-embedding-3-large plus GPT-4.1-mini answer gen-eration and judge. Not a full-dataset result.
+
+# 11 Limitations and Threats to Validity 
+
+Authorization-layer isolation only. Tenant and scope isolation are enforced by the autho-rization layer; a single OS user with direct filesystem access to the SQLite stores is outside the threat model. 
+
+Mesh validated only at small scale. Per-device revocation and key rotation, WAN-latency and network-partition fault injection, and multi-machine operation beyond a two-node loopback remain future work. Mesh is coordination—not consensus, quorum, or a CRDT database. 
+
+Temporal accuracy not benchmarked end-to-end. We measure temporal mechanisms ;we do not report agent-task accuracy against an external benchmark. The cross-surface as_of 
+
+demotion path is newly wired and not yet benchmarked. The EbbinghausLangevinCoupling 
+
+class is experimental with no production caller. 
+
+Reliability evaluation is component-level. The harness drives real production modules over fresh per-trial SQLite databases but does not exercise the HTTP/MCP/WebSocket server stack, inter-process communication, or production-scale concurrency. The sqlite-vec ANN index is not loadable in the harness environment; exp1’s vector erasure is scoped to the 
+
+embedding_metadata SQL table. Retained result artifacts record package version and platform but not a source commit or wheel hash. 
+
+External long-context benchmarks are future work. No new V4 LoCoMo run is reported; V3-architecture LoCoMo results are carried forward, protocol-scoped. An end-to-end V4 benchmark against LoCoMo and LongMemEval is preregistered. 
+
+Single-node local-first scope. All reliability results are from single-machine deployments; multi-node mesh behavior and distributed consistency are not characterized. 
+
+Concurrent and closely related prior art. MemTX and MemTxn [2, 11] on adjacent transaction layers; MemClaw / Governed Memory [15, 24] on governed multi-tenant shared memory; PROJECTMEM [14] on local-first event-sourced agent memory. SLM 4.0 ’s position is a distinct local-first composition, not priority over any of these. 
+
+Corpus-bounded novelty. “Not found in the searched corpus” is a dated review through 2026-08-03, not proof of first invention. 
+
+# 12 Novelty and Contributions 
+
+We state novelty with corpus-bounded language: “not found in the searched corpus” means not described in primary sources reviewed through 2026-08-03—a dated review, not a priority claim. Several capabilities SLM 4.0 provides—multi-tenant isolation, compliance controls, 29 temporal memory, local-first operation—exist individually in shipping systems. We claim (a) their integration into one governed, local-first, verifiable runtime under a governing admission invariant (enforced on the primary write path; target architecture for all surfaces), and (b) specific innovations the V2–V4 line of work contributes. 
+
+C1 — Governed skill evolution (major). A blind-verified, budgeted pipeline under per-cycle budget controls with append-only, hash-linked status transitions to a quarantine store. Not found in the corpus for live agent skill mutation. Scope: default stops at quarantine; 
+
+auto_approve flag (not human/RBAC) can activate; faithful parent-version lineage not yet reported. 
+
+C2 — SLM-Mesh: serverless governed coordination (major). Serverless, per-tenant-isolated coordination through a local SQLite broker, with optional remote peer discovery and message proxying, across all three operating modes. Scope: leaderless LWW, opt-in, default-profile, two-node-loopback validated; not consensus/quorum/CRDT; WAN-scale and per-device revocation are future work. 
+
+C3 — Governance-native memory with deployment-context assessment (co-lead). Ascoped governance control plane in a local-first runtime: immutable server-derived actor identity, pure kind-keyed policy registry, role-based access, write-time generation-fenced isolation with verified projection-store erasure, hash-chained audit, a non-authoritative EU AI Act checklist that abstains without intended-use context, and operable recovery (auto-reconciliation, a write-path stall watchdog, and an RBAC-gated dashboard/CLI/MCP remediation surface for stuck or degraded operations). Cross-tenant isolation (exp5), erasure completeness (exp1), generation-fenced admission (exp7), and policy evaluation (exp8) are measured . Scope: authorization-layer isolation, not legal certification. 
+
+C4 — Verifiable memory transactions (co-lead). An atomic canonical commit with a transactional obligation ledger, per-projection apply/verify/compensate/erase owners under generation fencing, and a hash-checkable completion manifest (COMPLETE / DEGRADED / FAILED). Distinct from and composable with concurrent belief-level [11] and logical-state [2] transactions. Manifest correctness and real compensate() behavior are measured (exp2). 
+
+C5 — Time-aware memory (major). A shipped temporal stack: three-date model, bi-temporal storage, dedicated temporal retrieval channel, non-destructive superseded-fact demotion, Ebbinghaus recency model, and cross-surface as_of recall. Three temporal behaviors measured directly. 
+
+C6 — Information-geometric retrieval brain, productionized (major). Five candi-date producers fused by RRF, over Fisher-Rao scoring, sheaf-cohomology consistency, and a Riemannian–Langevin lifecycle, together with an entity knowledge graph and unified caching and compression. Contribution is productionizing and governing this brain inside a multi-tenant runtime. 
+
+C7 — Direct reliability evaluation method (supporting). A bracketed, positive-controlled, fail-loud fault-injection harness measuring agent-memory durability, isolation, admis-sion, and temporal guarantees against the candidate package. 30 13 Future Work 
+
+Memory scaling via quantization. SLM 4.0 ’s context-optimization layer combines exact-match caching with reversible lossless compression to reduce working-set pressure at the session boundary. As deployment stores grow to tens or hundreds of gigabytes—a realistic trajectory for long-lived enterprise agents—a near-lossless vector-quantization tier for the semantic-channel em-bedding store becomes necessary. Gao and Long [4] showed that a codebook-free, random-rotation 1-bit quantizer achieves a provably tight error bound and outperforms product quantization on ANN recall at near-zero indexing cost; Zandieh et al. [29] extended this line, combining a polar-coordinate preprocessing stage [7] with a 1-bit quantized Johnson–Lindenstrauss resid-ual corrector [28] to reach near-optimal distortion across bit-widths. The natural SLM 4.0 
+
+extension is a pluggable, data-oblivious quantization tier in the optimize layer that compresses stored embeddings without changing the retrieval interface, with the existing lossless path as a strict-reversibility fallback. 
+
+Graph engineering and knowledge-graph maturation. SLM 4.0 maintains an entity knowledge graph with spreading-activation retrieval, but graph construction currently relies on LLM-extracted entities without automatic temporal-edge invalidation or community-level organization. Graphiti [22] demonstrates one concrete realization—an episode/entity/community architecture where a contradiction sets an expired_at timestamp on the superseded edge rather than deleting it, and a label-propagation step groups entities into communities with maintained summaries. Integrating temporal-edge invalidation into SLM 4.0 ’s entity-graph channel and adding community summaries as an additional retrieval signal are well-scoped extensions that would strengthen multi-hop and cross-entity recall. 
+
+Temporal memory: point-in-time reconstruction and calibration. SLM 4.0 ’s as_of 
+
+path performs superseded-fact demotion at query time but does not reconstruct full system state at an arbitrary past instant—in particular it does not yet apply as_of to the backup store or the sqlite-vec ANN index. Extending temporal-validity filtering to the ANN index and the restore path would close that scope gap and make point-in-time audits complete; wiring the (currently unwired) Fisher–Langevin posterior coupling would make the Ebbinghaus decay adaptive rather than fixed-parameter; and an ablation against the temporal categories of LoCoMo [13] and LongMemEval [26] would quantify the accuracy contribution of bi-temporal demotion. 
+
+End-to-end agent retrieval benchmark. The evaluation here measures structural cor-rectness at the component level; it is not a retrieval-accuracy benchmark. A dedicated V4 suite should run SLM 4.0 as a live recall server across the LongMemEval [26] abilities and the LoCoMo [13] categories, exercise multi-session write/recall cycles that trigger the generation fence and the completion manifest, and report retrieval degradation under fault injection. He et al. [8] further show that LoCoMo-saturating agents still fail when memorization and action are coupled across sessions, motivating an additional pass on interdependent multi-session workflows. 
+
+SLM-Mesh at WAN scale and per-device revocation. Extending the mesh beyond a LAN raises three problems: consistency under arbitrary partition (a causal-consistency or explicit CRDT model to remain correct across disconnect/reconnect); per-device revocation (invalidating a decommissioned device’s state across peers without a central coordinator); and message-content scrubbing before transit (mesh state values pass a secrets filter, but mesh_send 
+
+payloads are not yet scrubbed pre-transmission). Each is a scoped, engineering-grade extension with clear acceptance criteria. 31 Persistent generation fence and watchdog upgrade. Two operational gaps are docu-mented as out of scope for this release. The generation fence is enforced in process memory and does not survive a restart; persisting the fence epoch to the control store and rehydrating on startup is a self-contained fix. The write-path watchdog detects a stalled worker and fails new writes fast, but does not yet kill and replace the thread; a kill-and-replace path with restart backoff and alerting would harden unattended, long-running deployments. 
+
+Machine-checked formal proofs. The Verified Design Invariants of Section 7 are established here by implementation trace and fault-injection measurement. Upgrading them to machine-checked proofs (e.g. in Lean 4 or TLA +) would lift the guarantee from empirically upheld at N =200 per trial to proven for all executions conforming to the protocol . The completion manifest’s complete /degraded /failed derivation is a natural first target: a small, bounded state space tractable for model checking. 
+
+# 14 Conclusion 
+
+Agent memory is becoming shared infrastructure, judged by properties that retrieval-accuracy benchmarks do not capture: isolation between tenants, verifiable correctness of canonical operations, governed self-improvement, coordination without a central server, first-class time, and operable governance. SLM 4.0 addresses a specific, under-served point in this space—a local-first runtime that co-locates multi-scope isolation, verifiable memory transactions, and governance controls under one admission path, without requiring a cloud service. The contribution is not any single mechanism—bi-temporal storage, knowledge-graph retrieval, and GDPR-aware erasure each have strong prior art—but their composition into one verifiable, governed, open-source runtime, together with a physical-store transaction spine and a measured reliability evaluation. The all-2,200-repetitions fault-injection result is deliberately narrow: it shows the spine services upheld eleven deterministic structural properties at the component level; it does not claim retrieval-accuracy superiority over commercial services, nor does it substitute for an end-to-end multi-agent benchmark. Within that honest scope, SLM 4.0 delivers what its architecture promises—tenants isolated by a write-time fence rather than a retrieval-time filter, every cross-store write either verifiably complete or recorded as a hash-checkable degraded 
+
+manifest, and erasure proved complete for the three canonical projection stores—as one instance of AI Reliability Engineering for the memory layer. The open threads of Section 13—near-lossless quantization as stores scale, graph engineering, an end-to-end V4 retrieval benchmark, WAN-scale mesh, a persistent fence, and machine-checked proofs—are each bounded extensions. 
+
+SLM 4.0 lays the control plane; the reliability and quality properties reported here are a lower bound on what a production deployment requires. 
+
+# Availability and Full Report 
+
+SuperLocalMemory is open source under AGPL-3.0 at https://github.com/qualixar/ superlocalmemory and is packaged for PyPI and npm as superlocalmemory . It installs and runs on a single machine in three modes—fully local (no provider in the memory path), local with an on-device model, and provider-assisted—with no Docker, external graph database, or API key required for the default local mode. The reliability evaluation harness of Section 10 and its per-experiment result records are released alongside this paper. Reproducibility is per-result :the harness re-runs the fault-injection experiments on Python 3.13, whereas the carried-forward performance and V3 LoCoMo figures depend on artifacts (a ∼1 GB store and external model calls) that are not fully hash-pinned—retained records note package version and platform but not a source commit or wheel hash. The exact audited 4.0 build is pinned at release. 32 This preprint is self-contained. A longer internal technical report—with extended assumptions, full proofs, per-layer implementation detail, and an exhaustive capability inventory—underlies this work; it is not part of this preprint’s artifact. 
+
+# Author Biography 
+
+Varun Pratap Bhardwaj is a Solution Architect and the founder of Qualixar. His work centres on AI Reliability Engineering —the systematic application of reliability, correctness, and governance to AI-augmented software. SuperLocalMemory is his line of work on local-first, governed memory for AI agents, consolidated across the V2–V4 releases into the system described here. ORCID: 0009-0002-8726-4289 .
+
+# Availability and Licensing 
+
+SLM 4.0 4.0 is released as open source under the GNU Affero General Public License v3.0 (AGPL-3.0-or-later) , with a separate commercial licence available for closed-source, proprietary, or hosted deployment. Source, packaging metadata ( pyproject.toml , package.json ) and the 
+
+LICENSE file all declare AGPL-3.0-or-later; earlier preprints in this series that stated a permissive licence are superseded by this statement. The reliability evidence in Section 10 is not merely reported: the full experiment harness ships with the source under benchmark/ , and the bundle in this paper is regenerated by a single runner, benchmark/run_all.py . A repository test asserts that every experiment on disk is reachable from that runner, so a result cited here cannot become unrunnable without the test suite failing. Readers are invited to regenerate the numbers rather than take them on trust. 
+
+# Author Contributions 
+
+Varun Pratap Bhardwaj conceived the system, designed and implemented SuperLocalMem-ory 4.0, specified the reliability guarantees and their formal statements, designed and executed the evaluation, and wrote the manuscript. 
+
+Garima Singh contributed to the product conception and requirements definition, shaped the evaluation criteria and acceptance conditions from a product-ownership perspective, and carried out sustained independent validation over several months on separate hardware. The resulting defect reports, usability findings, and prioritisation feedback materially changed the system’s scope, its interface design, and which guarantees were treated as load-bearing. 
+
+Arun Pratap Bhardwaj established and ran the iterative validation feedback loop across the three operating modes and successive releases, contributed an operational-technology and industrial-systems perspective on reliability and failure handling, and reported the behavioural findings that drove several correctness fixes. All authors reviewed the manuscript, take responsibility for the work as presented, and approved the submitted version. 
+
+# References 
+
+[1] P. Chhikara, D. Khant, S. Aryan, T. Singh, and D. Yadav. Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory, 2025. arXiv:2504.19413. [2] H. Cui et al. MemTxn: A Transaction Boundary for Source-Supported Updates and Complete-State Recovery in Agent Memory, 2026. arXiv:2607.27834. 33 [3] J. Fang et al. LightMem: Lightweight and Efficient Memory-Augmented Generation, 2026. ICLR 2026. arXiv:2510.18866. [4] Jianyang Gao and Cheng Long. RaBitQ: Quantizing High-Dimensional Vectors with a Theoretical Error Bound for Approximate Nearest Neighbor Search. In Proc. ACM SIGMOD International Conference on Management of Data , 2024. [5] B. J. Gutiérrez, Y. Shu, Y. Gu, M. Yasunaga, and Y. Su. HippoRAG: Neurobiolog-ically Inspired Long-Term Memory for Large Language Models, 2024. NeurIPS 2024. arXiv:2405.14831. [6] B. J. Gutiérrez, Y. Shu, W. Qi, S. Zhou, and Y. Su. From RAG to Memory: Non-Parametric Continual Learning for Large Language Models (HippoRAG 2), 2025. ICML 2025. arXiv:2502.14802. [7] Insu Han, Praneeth Kacham, Amin Karbasi, Vahab Mirrokni, and Amir Zandieh. Polar-Quant: Quantizing KV Caches with Polar Transformation, 2025. [8] Zexue He et al. MemoryArena: Benchmarking Agent Memory in Interdependent Multi-Session Agentic Tasks, 2026. [9] J. Kang, M. Ji, Z. Zhao, and T. Bai. Memory OS of AI Agent, 2025. arXiv:2506.06326. [10] Letta AI. Letta. https://github.com/letta-ai/letta .[11] X. Li et al. MemTX: Transactional Belief Commit for Stateful Agent Memory, 2026. arXiv:2607.23929. [12] Z. Li et al. MemOS: A Memory OS for AI System, 2025. arXiv:2507.03724. [13] A. Maharana et al. Evaluating Very Long-Term Conversational Memory of LLM Agents, 2024. arXiv:2402.17753. [14] R. C. Malo and T. Qiu. PROJECTMEM: A Local-First, Event-Sourced Memory and Judgment Layer for AI Coding Agents, 2026. arXiv:2606.12329. [15] Y. Margalit, N. Cohen-Inger, E. Avram, R. Taig, and O. Margalit. Governed Shared Memory for Multi-Agent LLM Systems (the MemClaw service and the ArgusFleet governance harness), 2026. arXiv:2606.24535. [16] Mem0. Introducing the token-efficient memory algorithm. https://mem0.ai/blog/ mem0-the-token-efficient-memory-algorithm , 2026. Vendor technical report describ-ing single-pass extraction, entity linking, multi-signal retrieval, and vendor-reported April 2026 benchmark results; accessed 2026-08-05. [17] Mem0 AI. Mem0 (incl. the OpenMemory local MCP server). https://github.com/mem0ai/ mem0 .[18] C. Packer et al. MemGPT: Towards LLMs as Operating Systems, 2023. arXiv:2310.08560. [19] V. Pratap. SuperLocalMemory: Trust and Behavioral Foundations for Privacy-Preserving Agent Memory (v2), 2026. arXiv:2603.02240. [20] V. Pratap. SuperLocalMemory V3.3: The Living Brain, 2026. arXiv:2604.04514. Harvard ADS: 2026arXiv260404514P. [21] V. Pratap. SuperLocalMemory (v3), 2026. arXiv:2603.14588. 34 [22] P. Rasmussen, P. Paliychuk, T. Beauvais, J. Ryan, and D. Chalef. Zep: A Temporal Knowledge Graph Architecture for Agent Memory, 2025. arXiv:2501.13956. [23] Supermemory. Supermemory — memory API for the AI era (container-tag multi-tenancy; SOC 2 Type 2 / HIPAA / GDPR; Docker self-host). https://supermemory.ai , 2026. [24] H. Taheri. Governed Memory: A Production Architecture for Multi-Agent Workflows, 2026. arXiv:2603.17787. [25] Y. Wang and X. Chen. MIRIX: Multi-Agent Memory System for LLM-Based Agents, 2025. arXiv:2507.07957. [26] D. Wu et al. LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory, 2025. ICLR 2025. arXiv:2410.10813. [27] N. Yang et al. SF-AMS: Strategic Forgetting for Structured Memory in LLM Agents, 2026. arXiv:2607.22562. [28] Amir Zandieh, Majid Daliri, and Insu Han. QJL: 1-Bit Quantized JL Transform for KV Cache Quantization with Zero Overhead, 2024. [29] Amir Zandieh, Majid Daliri, Majid Hadian, and Vahab Mirrokni. TurboQuant: Online Vector Quantization with Near-optimal Distortion Rate, 2025. [30] Zep AI. Graphiti. https://github.com/getzep/graphiti .[31] J. Zhang et al. Beyond Similarity: Trustworthy Memory Search for Personal AI Agents (MemGate), 2026. arXiv:2606.06054. 35
