@@ -6,56 +6,47 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-13
-- 运行时间：2026-08-13 21:22:52 UTC
+- 最新运行日期：2026-08-14
+- 运行时间：2026-08-14 21:13:24 UTC
 - 运行状态：成功
-- 本次总论文数：12
-- 精读区：6
-- 速读区：6
+- 本次总论文数：9
+- 精读区：5
+- 速读区：4
 
 ### 今日简报（AI）
-今日精读6篇、速读6篇，共覆盖12篇论文；其中最亮眼的是两类高分工作：高容量广义Hopfield网络与混合线性注意力大模型中的“预注意力尖峰”现象。值得重点关注的是，Hopfield网络在容量扩展上的突破，以及大模型注意力分布中发现的尖峰-平台新规律，两者均达9.0/10。建议普通读者先浏览这两篇的摘要与图表，再结合速读中的Transformer变体对比，快速把握当前架构演进热点。
-- 详情：[/202608/13/README](/202608/13/README)
+今日精读5篇、速读4篇，重点聚焦记忆增强模型与航拍分割任务。最值得关注的是《MARCH》以9.0分领跑，提出内容路由状态锚点扩展循环记忆；《AeroReformer2》亦以8.0分展示航拍图像口语查询分割的进展。建议普通读者优先浏览这两篇精读论文，快速掌握当前记忆机制与多模态分割的前沿方向。
+- 详情：[/202608/14/README](/202608/14/README)
 
 ### 精读区论文标签
-1. [High-Capacity Generalized Hopfield Networks](/202608/13/2608.08226v1-high-capacity-generalized-hopfield-networks)  
+1. [MARCH: Scaling Recurrent Memory with Content-Routed State Anchors](/202608/14/2608.12435v1-march-scaling-recurrent-memory-with-content-routed-state-anchors)  
    标签：评分：9.0/10、query:la
-   evidence：提出广义Hopfield网络，直接对应联想记忆模型
-2. [Massive Activations in Hybrid Linear Attention Large Language Models: Pre-Attention Spikes and Inter-Spike Plateaus](/202608/13/2608.12149v1-massive-activations-in-hybrid-linear-attention-large-language-models-pre-attention-spikes-and-inter-spike-plateaus)  
-   标签：评分：9.0/10、query:la
-   evidence：系统研究混合线性注意力大模型中的大规模激活，直接服务线性注意力与RNN架构设计
-3. [Three Tokens Force Exponential Feature Rank in Nonnegative Kernel Attention](/202608/13/2608.11427v1-three-tokens-force-exponential-feature-rank-in-nonnegative-kernel-attention)  
+   evidence：通过内容路由状态锚点扩展循环记忆，契合线性注意力与现代RNN架构设计
+2. [AeroReformer2: Spoken-Query Referring Segmentation for Aerial Images](/202608/14/2608.08874v2-aeroreformer2-spoken-query-referring-segmentation-for-aerial-images)  
    标签：评分：8.0/10、query:la
-   evidence：核注意力（线性注意力）局限性的理论分析
-4. [FLARE++: Low-rank attention with dynamic attention routing](/202608/13/2608.11519v1-flare-low-rank-attention-with-dynamic-attention-routing)  
+   evidence：采用核线性跨模态注意力实现高效语音查询指代分割
+3. [LoKiFormer: Locality-aware Attention with Decoupled Knowledge Memory for Efficient Large Language Model Pretraining](/202608/14/2608.12419v1-lokiformer-locality-aware-attention-with-decoupled-knowledge-memory-for-efficient-large-language-model-pretraining)  
    标签：评分：8.0/10、query:la
-   evidence：基于动态路由的低秩注意力用于高效序列处理
-5. [Consolidator: Learning Persistent Routed Memory Across Context Boundaries](/202608/13/2608.11701v1-consolidator-learning-persistent-routed-memory-across-context-boundaries)  
+   evidence：基于局部感知注意力和解耦知识记忆的高效语言模型预训练
+4. [RippleMem: From Isolated Retrieval to Associative Recollection for Long-Term Agent Memory](/202608/14/2608.13334v1-ripplemem-from-isolated-retrieval-to-associative-recollection-for-long-term-agent-memory)  
    标签：评分：8.0/10、query:la
-   evidence：跨上下文边界的持久化路由记忆，使用 KV 缓存与长时记忆
-6. [Hybrid Gated Attention](/202608/13/2608.11805v1-hybrid-gated-attention)  
+   evidence：长期智能体记忆系统，用自适应联想回忆替代孤立检索，受线索依赖情景记忆启发。
+5. [StreamTTT: Reconciling Real-Time Perception and Long-Term Memory in Streaming VLMs](/202608/14/2608.13416v1-streamttt-reconciling-real-time-perception-and-long-term-memory-in-streaming-vlms)  
    标签：评分：8.0/10、query:la
-   evidence：带低秩分解的混合门控注意力，扩展高效注意力设计
+   evidence：将长程历史写入注意力上下文之外的在线快速权重，结合短滑动KV缓存，兼顾流式VLM的实时感知与长时记忆
 
 ### 速读区论文标签
-1. [Training Crossroads for Recurrent Vision Transformers: Recurrence, Neural ODEs, and Deep Supervision](/202608/13/2608.04879v1-training-crossroads-for-recurrent-vision-transformers-recurrence-neural-odes-and-deep-supervision)  
+1. [SCOPE: Subspace Clustering with Online Per-Head Top-K Estimation for Sparse Video Attention](/202608/14/2608.12780v1-scope-subspace-clustering-with-online-per-head-top-k-estimation-for-sparse-video-attention)  
    标签：评分：7.0/10、query:la
-   evidence：循环视觉Transformer的实证研究，属于现代RNN式架构
-2. [CoDAT: Collaborative Dual-Attention Transformer with Low-Cost Temporal Modeling for Efficient Edge Action Recognition](/202608/13/2608.06691v1-codat-collaborative-dual-attention-transformer-with-low-cost-temporal-modeling-for-efficient-edge-action-recognition)  
-   标签：评分：7.0/10、query:la
-   evidence：用压缩QKV的轻量双分支注意力实现边缘端高效动作识别
-3. [Full-bandwidth transformer](/202608/13/2608.08888v1-full-bandwidth-transformer)  
+   evidence：面向视频扩散的无训练自适应逐头Top-K稀疏注意力
+2. [Rethinking Attention Locality in Spiking Transformers](/202608/14/2608.08541v1-rethinking-attention-locality-in-spiking-transformers)  
    标签：评分：6.0/10、query:la
-   evidence：潜在反馈拓宽自回归 Transformer 的垂直反馈通道，连接 RNN 式循环
-4. [SparSTAR: Sparse Attention for SpaceTime AutoRegressive Video Synthesis](/202608/13/2608.10519v1-sparstar-sparse-attention-for-spacetime-autoregressive-video-synthesis)  
+   evidence：无Softmax的脉冲自注意力及其局部性增强，与高效注意力和面向序列处理的非Softmax注意力变体相关。
+3. [EgoCITE: Context-Augmented Indexing and Time-Aware Retrieval for Long-Horizon Egocentric Memory](/202608/14/2608.12627v1-egocite-context-augmented-indexing-and-time-aware-retrieval-for-long-horizon-egocentric-memory)  
    标签：评分：6.0/10、query:la
-   evidence：面向视频自回归合成的免训练块稀疏注意力，属于高效注意力机制
-5. [StreamFlow: Dynamic Memory Flows for Streaming Video Understanding](/202608/13/2608.10949v1-streamflow-dynamic-memory-flows-for-streaming-video-understanding)  
+   evidence：面向长视界记忆检索的框架，通过上下文增强索引和时间感知检索，与高效记忆检索相关。
+4. [ERSkill: Evolving for Skill-Guided Adaptive Memory Retrieval](/202608/14/2608.12720v1-erskill-evolving-for-skill-guided-adaptive-memory-retrieval)  
    标签：评分：6.0/10、query:la
-   evidence：面向流式视频高效按需访问的动态记忆流
-6. [LoSA: Near-Lossless Sparse Attention for Training-Free Video Diffusion Acceleration](/202608/13/2608.12032v1-losa-near-lossless-sparse-attention-for-training-free-video-diffusion-acceleration)  
-   标签：评分：6.0/10、query:la
-   evidence：面向扩散Transformer高效序列处理的稀疏注意力
+   evidence：面向LLM智能体的自演化技能引导记忆检索，与记忆增强检索和自适应证据构建相关。
 
 
 <div class="dpr-home-promo-card">
