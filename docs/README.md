@@ -6,32 +6,29 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-15
-- 运行时间：2026-08-15 20:08:12 UTC
+- 最新运行日期：2026-08-16
+- 运行时间：2026-08-16 19:49:06 UTC
 - 运行状态：成功
-- 本次总论文数：4
-- 精读区：1
-- 速读区：3
+- 本次总论文数：3
+- 精读区：2
+- 速读区：1
 
 ### 今日简报（AI）
-今日精读1篇、速读3篇，聚焦LLM长时记忆与KV缓存优化；最值得看的是LycheeMemory V2的语义分段整合，以及DistillCache的自适应缓存驱逐；下一步可侧重对比记忆模块与缓存压缩的实际收益。
-- 详情：[/202608/15/README](/202608/15/README)
+今日精读2篇、速读1篇，聚焦长程Agent记忆证据选择与非欧几里得注意力框架。最值得关注的是任务自适应的多结构证据选择（8.0分）和双曲-球面几何注意力建模，二者对长程推理效率有明显启发。建议下一步优先了解MESA中的证据筛选机制，再结合QV-PIC的缓存思路做应用落地。
+- 详情：[/202608/16/README](/202608/16/README)
 
 ### 精读区论文标签
-1. [LycheeMemory V2: Efficient Long-Term Memory for LLM Agents via Semantic Segment-Level Consolidation](/202608/15/2608.12990v1-lycheememory-v2-efficient-long-term-memory-for-llm-agents-via-semantic-segment-level-consolidation)  
+1. [MESA:Task-Adaptive Multi-Structure Evidence Selection for Long-Horizon Agent Memory](/202608/16/2608.10108v1-mesatask-adaptive-multi-structure-evidence-selection-for-long-horizon-agent-memory)  
    标签：评分：8.0/10、query:la
-   evidence：面向LLM智能体的高效长期记忆整合
+   evidence：针对长时程智能体，从多个外部记忆结构中自适应选择互补证据
+2. [Riemann GeoResolver: A Non-Euclidean Attention Framework from Euclidean Resolver to Hyperbolic-Spherical Geometry](/202608/16/2608.10416v1-riemann-georesolver-a-non-euclidean-attention-framework-from-euclidean-resolver-to-hyperbolic-spherical-geometry)  
+   标签：评分：8.0/10、query:la
+   evidence：理论上以O(1)资源实现精确检索与线性收敛，与线性注意力在效率目标上等价
 
 ### 速读区论文标签
-1. [DistillCache: KL-Guided Adaptive KV-Cache Eviction for Memory-Efficient LLM Inference](/202608/15/2608.08878v1-distillcache-kl-guided-adaptive-kv-cache-eviction-for-memory-efficient-llm-inference)  
-   标签：评分：7.0/10、query:la
-   evidence：基于强化学习的自适应KV缓存淘汰，在内存高效推理中保留预测影响力
-2. [Neural Introspection Gating for Adaptive KV-Cache Reuse in Vision-Language-Action Models](/202608/15/2608.10824v1-neural-introspection-gating-for-adaptive-kv-cache-reuse-in-vision-language-action-models)  
+1. [QV-PIC: Query-Aware Visual Position-Independent Caching for Efficient RAG Serving](/202608/16/2608.12121v1-qv-pic-query-aware-visual-position-independent-caching-for-efficient-rag-serving)  
    标签：评分：6.0/10、query:la
-   evidence：利用神经内省门控自适应重用KV缓存，提升注意力记忆效率
-3. [Lapis: Laplacian Spiking Attention via First-Spike Timing and Membrane Leakage](/202608/15/2608.11865v1-lapis-laplacian-spiking-attention-via-first-spike-timing-and-membrane-leakage)  
-   标签：评分：6.0/10、query:la
-   evidence：用于高效序列处理的拉普拉斯脉冲注意力
+   evidence：面向检索增强生成的查询感知KV缓存复用
 
 
 <div class="dpr-home-promo-card">

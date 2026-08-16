@@ -1,0 +1,2344 @@
+Title: Riemann GeoResolver: A Non-Euclidean Attention Framework from Euclidean Resolver to Hyperbolic-Spherical Geometry
+
+URL Source: https://arxiv.org/pdf/2608.10416v1
+
+Published Time: Wed, 12 Aug 2026 00:30:15 GMT
+
+Number of Pages: 37
+
+Markdown Content:
+# Riemann GeoResolver: A Non-Euclidean Attention Framework from Euclidean Resolver to Hyperbolic-Spherical Geometry 
+
+## Liangchen Ge 
+
+Abstract 
+
+We present a theoretical foundation for inverse-distance attention, from its Euclidean prototype (Resolver) to its non-Euclidean realization (Riemann GeoResolver). The Euclidean part establishes three core theo-rems: (1) circuit separation—IDA achieves exact retrieval with O(1) re-sources while softmax requires Ω((log n)2) width; (2) a Polyak–Lojasiewicz inequality with Ω( e∆2/√d/∆2) stronger constant than softmax, implying linear convergence, O(log n) Lipschitz scaling under a low-rank/clustering assumption, Θ(1) Hessian spread, and absence of spurious local minima; (3) a width-independent effective rank bound that limits noise memorization— softmax memorizes arbitrary labels when dh ≥ n, while IDA limits test error to O(η2). The non-Euclidean extension then builds upon this pro-totype, replacing Euclidean distance with hyperbolic geodesic distance for storage and spherical geodesic distance for routing. The Riemann GeoResolver framework comprises ten integrated modules: four HIDA operators spanning Θ( n2) to Θ(1) per token; Hyperbolic Curvature Com-pression (HCC) with provable error bounds; HyperGate with gradient lower-bound theorem; Spherical Inverse Distance Attention (SIDA) with sphere-analog PL inequalities; Dynamic Memory Genesis (DMG) with 
+
+O(log T ) regret bounds; and Geodesic Sparse Routing (GSR) with quality and communication bounds. The Euclidean theorems are proved in full; the non-Euclidean extension theorems are proved with analogous argu-ments. This work establishes a theoretical arc: from Euclidean attention as a special case, to hyperbolic memory, to spherical retrieval. 
+
+# 1 Introduction 
+
+Scope. This is a theoretical study. The primary contribution is the set of the-orems, lemmas, and architectural principles for inverse-distance attention, first in Euclidean space and then extended to hyperbolic and spherical geometries. 1arXiv:2608.10416v1 [cs.DS] 11 Aug 2026 1.1 From Softmax to Inverse Distance 
+
+The Transformer [1] computes attention via inner products followed by softmax. In softmax attention, when q = kj , the output remains a weighted average over all keys rather than focusing on the exact match. We consider Inverse Distance Attention (IDA) :
+
+Wij = (d(qi, kj )2 + ε)−1
+
+P
+
+> m
+
+(d(qi, km)2 + ε)−1 .
+
+The Euclidean variant is Resolver ; extensions to non-Euclidean geometries are collectively termed GeoResolver .
+
+## 1.2 Motivation: Why Inverse Distance? 
+
+The softmax attention mechanism has a well-known property: even when a query exactly matches a key, the output is a weighted average of all values, not a hard retrieval of the matched value. This property is intrinsic to the softmax function, which always assigns positive probability to all tokens. The inverse-distance kernel addresses this by assigning weights inversely proportional to squared distance, which, in the limit ε → 0+, converges to a one-hot selection of the exact match. This difference has fundamental implications for expressiveness, optimiza-tion, and generalization. The softmax function, while differentiable and proba-bilistically interpretable, creates optimization challenges: the gradient is small when the logits are large (saturation), and the Hessian is low-rank when n is large. These properties affect convergence rates and the ability to escape saddle points. The inverse-distance kernel, by contrast, has gradients that remain large near exact matches and a Hessian that is full-rank, suggesting better optimiza-tion properties. Furthermore, the softmax’s capacity to represent arbitrary functions grows with width, leading to a phenomenon where, once the hidden dimension exceeds the number of training points, the model can memorize arbitrary labels, includ-ing noise. This is a form of overparameterization that degrades generalization. The inverse-distance kernel’s effective rank is bounded independent of width, preventing this memorization effect. These observations motivate the theoretical framework developed in this paper. We prove three core theorems establishing that IDA enjoys provably stronger guarantees than softmax in expressiveness, optimization, and general-ization. 
+
+## 1.3 Theoretical Contributions 
+
+1. Euclidean Resolver (Part I): Three core theorems with complete proofs: 
+
+• Theorem 1 (Circuit Separation): IDA retrieves exact matches with 
+
+O(1) resources; softmax requires Ω((log n)2) width. 2• Theorem 2 (PL Inequality): IDA satisfies PL with Ω( e∆2/√d/∆2)larger constant than softmax, linear convergence, O(log n) Lipschitz scaling under a low-rank/clustering assumption (general bound O(n)), Θ(1) Hessian spread, and no spurious local minima. 
+
+• Theorem 3 (Effective Rank Bound): IDA’s effective rank is bounded independent of width, limiting noise memorization; softmax memo-rizes arbitrary labels when dh ≥ n; IDA limits test error to O(η2). 2. Non-Euclidean Extension (Part II): Replaces Euclidean distance with hyperbolic geodesic distance for storage and spherical geodesic distance for routing, yielding a ten-module framework with provable guarantees. 
+
+## 1.4 Related Work 
+
+Our work builds on and extends several lines of research. We organize the discussion by topic. 
+
+Inverse-distance attention. McCarter [12] proposed inverse-distance weight-ing attention independently. That work and ours share the same ε → 0 limit, but diverge fundamentally in several ways. First, McCarter did not embed the kernel in a full QKV architecture with learned projections; the attention was applied directly to input features. Second, the analysis in McCarter’s work was empirical, focusing on performance on a few tasks, with no theoretical analysis of optimization or generalization. Third, the extension to non-Euclidean ge-ometries was not considered. Our contribution is the first characterization of this kernel’s behavior in the full Transformer setting, with complete theoretical guarantees. 
+
+RBF and kernel attention. Bello et al. [10] explored attention mecha-nisms with radial basis function kernels in the context of convolutional archi-tectures. Their work demonstrated that replacing the softmax with a Gaussian kernel could improve performance on certain tasks, but the analysis was empir-ical and did not address optimization or generalization bounds. The Nadaraya– Watson estimator [14, 15] is the non-parametric ancestor of attention, but its theoretical properties are typically analyzed in the regression setting with fixed kernel bandwidths, not in the context of learned representations. The inverse-distance kernel we consider differs from the Gaussian RBF in that it has a heavy tail (decaying as 1 /r 2 rather than e−r2
+
+), which affects the Lipschitz and generalization properties. 
+
+Optimization of attention mechanisms. Karimi et al. [57] established PL inequalities for various machine learning problems, including linear and lo-gistic regression. Our work applies this framework to the attention mechanism itself, showing that the PL constant for IDA is exponentially larger than for softmax. Belkin et al. [58] analyzed the double descent phenomenon in over-parameterized models, showing that test error can increase and then decrease with model capacity. Our Theorem 3 provides a complementary analysis for the attention mechanism specifically: softmax exhibits a memorization catastrophe 3when the hidden dimension exceeds the number of training points, while IDA’s effective rank remains bounded. 
+
+Hyperbolic and spherical neural networks. Nickel and Kiela [20, 21] introduced hyperbolic embeddings for hierarchical data, showing that hyper-bolic space can represent tree-structured data with low distortion. Ganea et al. [22] developed hyperbolic neural networks, including hyperbolic linear lay-ers and activation functions. Chami et al. [23] extended these ideas to graph convolutional networks. Gulcehre et al. [24] proposed hyperbolic attention net-works, incorporating hyperbolic distance into the attention mechanism. Our work differs in several respects: we provide a unified theoretical framework that spans Euclidean, hyperbolic, and spherical geometries; we focus on the inverse-distance kernel rather than learned attention; we provide optimization bounds (PL inequalities) and capacity bounds (effective rank) that are not present in prior work; and we analyze the routing problem separately from the attention problem. 
+
+Mixture of experts and routing. Shazeer et al. [40] introduced sparsely-gated MoE layers, where a router network selects a subset of experts for each input. This line of work has been extended in various directions, including switch transformers [41], GShard [42], and GLaM [43]. Our GSR module differs in that the routing is based on spherical distance rather than a learned gating network, and we provide theoretical communication bounds rather than empir-ical scaling results. The use of spherical geometry for routing is motivated by the compactness of the sphere and the natural interpretation of prototypes as points on a hypersphere. 
+
+State space models and efficient attention. Recent work on state space models [34, 35, 36] has explored alternatives to attention for sequence modeling. Our work is complementary: we maintain the attention mechanism but replace the kernel function. The structured state space duality framework [37] provides a unified view of Transformers and state space models; our work could potentially be integrated into this framework by treating the inverse-distance kernel as a different kernel function within the same duality. 
+
+## 1.5 Paper Structure 
+
+The paper is organized as a single arc: from Euclidean theory to non-Euclidean generalization. 
+
+Part I (Sections 2–3) develops the Euclidean prototype. This establishes the theoretical baseline: why inverse-distance attention works, how it compares to softmax, and what optimization and generalization guarantees it enjoys. 
+
+Part II (Sections 4–10) extends the prototype in three logical stages: 
+
+• Geometry (Sections 4–5): hyperbolic distance replaces Euclidean distance for attention, with four variants spanning Θ( n2) to Θ(1) complexity. 
+
+• Compression and Control (Sections 6–7): curvature-adaptive quantiza-tion (HCC) and gating (HyperGate) for memory efficiency and gradient stability. 4• Memory and Routing (Sections 8–10): spherical routing for retrieval (SIDA), dynamic memory allocation (DMG), and sparse routing with quality guar-antees (GSR). Each stage is motivated by a specific limitation of the previous stage, and each theorem is proved in the corresponding section. 
+
+# Part I 
+
+# Euclidean Resolver: Theoretical Prototype 
+
+# 2 Theoretical Framework 
+
+## 2.1 Preliminaries 
+
+Let n denote the sequence length, dh the hidden dimension, and dv the value dimension. For Q, K ∈ Rn×dh and V ∈ Rn×dv , we define: 
+
+Dij = ∥qi − kj ∥22 + ε, Wij = D−1
+
+> ij
+
+P 
+
+> m
+
+D−1
+
+> im
+
+, IDA( Q, K, V) = WV .
+
+Here ε > 0 is a small positive constant that prevents division by zero. Through-out this paper, we consider the limit ε → 0+ for theoretical statements unless otherwise noted. We adopt the convention that ∥ · ∥ 2 denotes the Euclidean norm. For a matrix A, ∥A∥F denotes the Frobenius norm and ∥A∥2 the spectral norm. The effective rank of a positive semidefinite matrix K is defined as: eff-rank( K) = (tr K)2
+
+tr( K2) .
+
+This quantity measures the effective number of significant eigenvalues of K and lies in [1 , n ] for an n × n matrix. 
+
+## 2.2 Geometric Properties of the Inverse-Distance Kernel 
+
+Before proving the main theorems, we establish several geometric properties of the inverse-distance kernel that will be used throughout. 
+
+Property 1: Translation invariance. The Euclidean inverse-distance kernel is invariant under simultaneous translation of all queries and keys: 
+
+∥qi − kj ∥22 = ∥(qi + t) − (kj + t)∥22.
+
+This invariance implies that the attention weights are unchanged by global shifts of the input space. This property is not shared by the softmax inner-product kernel, which is translation-invariant only up to normalization. 5Property 2: Scale sensitivity. Under a uniform scaling qi 7 → λqi, kj 7 →
+
+λkj , the squared distances scale as λ2. For the inverse-distance kernel with fixed 
+
+ε, this changes the effective regularization: (λ2∥qi − kj ∥22 + ε)−1 = λ−2(∥qi − kj ∥22 + ε/λ 2)−1.
+
+Thus scaling is equivalent to rescaling ε. This property is used in the proof of the circuit separation theorem. 
+
+Property 3: Concentration in high dimensions. For random keys drawn from a high-dimensional isotropic distribution, the squared distances concentrate around their mean: 
+
+P   ∥qi − kj ∥22 − 2dhσ2 ≥ t ≤ 2 exp 
+
+
+
+− cd ht2
+
+σ4
+
+
+
+.
+
+This concentration implies that in high dimensions, the inverse-distance kernel becomes approximately constant across all pairs, which has implications for the Lipschitz scaling (Lemma 1). The concentration bound follows from standard results on Lipschitz functions of Gaussian random variables. 
+
+Property 4: Sparsity-promoting behavior. For fixed ε, the inverse-distance kernel assigns negligible weight to keys beyond distance O(√εn 1/2)from the query, since: (d2 + ε)−1 ≤ εd2 · 1
+
+ε = O(ε/d 2).
+
+This sparsity is inherent to the kernel and does not require additional sparsifi-cation. The proof of Theorem 1 exploits this property. 
+
+## 2.3 Theorem 1: Expressiveness Separation 
+
+We begin by establishing the fundamental property of IDA: in the limit ε → 0+,it performs exact retrieval. 
+
+Lemma 2.1 (Exact Retrieval Property) . For pairwise distinct keys and q =
+
+kj∗ ,
+
+lim  
+
+> ε→0
+
+Wj∗ = 1 , lim  
+
+> ε→0
+
+Wj = 0 (j̸ = j∗).
+
+Proof. When qi = kj∗ , we have d(qi, kj∗ ) = 0, so Dij ∗ = ε. For any j̸ = j∗,since the keys are pairwise distinct, d(qi, kj ) > 0. Therefore Dij > ε for j̸ = j∗,which implies D−1 
+
+> ij
+
+< ε −1. The limit follows immediately: lim 
+
+> ε→0
+
+ε−1
+
+ε−1 + P  
+
+> j̸=j∗
+
+D−1
+
+> ij
+
+= 1 .
+
+Now we prove the main circuit separation result. 6Theorem 2.2 (Theorem 1: Softmax Lower Bound) . There exists an orthogonal-keys instance where IDA achieves exact retrieval with O(1) resources, while any softmax-based architecture requires d = Ω((log n)2) or H = Ω(log n) for 
+
+ε-approximation. Proof. We construct an instance with n orthonormal keys. Let {ej }nj=1 be an orthonormal basis in Rd, so we require d ≥ n. Set kj = Rej for some R > 0, and set q = k1 = Re1.
+
+IDA analysis. For IDA, the squared distance from the query to key j is: 
+
+∥q − kj ∥22 =
+
+(
+
+0, j = 1 ,
+
+2R2, j̸ = 1 ,
+
+since ∥e1 − ej ∥22 = 2 for j̸ = 1. Thus: 
+
+W IDA 11 = 1/ε 
+
+1/ε + ( n − 1) /(2 R2 + ε) = 11 + ε(n − 1) /(2 R2 + ε) .
+
+Taking ε → 0+, we get: lim  
+
+> ε→0
+
+W IDA 11 = 1 .
+
+Moreover, for any ε > 0, the weight is within δ of 1 whenever ε(n−1) /(2 R2+ε) <δ/ (1 − δ). Thus IDA achieves δ-approximation with ε = O(δR 2/n ). 
+
+Softmax analysis. For softmax with temperature 1: 
+
+W soft 11 = eq⊤k1/√d
+
+Pnm=1 eq⊤km/√d .
+
+Since q⊤k1 = R2 and q⊤km = 0 for m̸ = 1 (orthogonality), we have: 
+
+W soft 11 = eR2/√d
+
+eR2/√d + ( n − 1) e0 = 11 + ( n − 1) e−R2/√d .
+
+To achieve W soft 11 ≥ 1 − δ, we need: 1 + ( n − 1) e−R2/√d ≤ 11 − δ .
+
+For δ ≤ 1/2, we have 1 /(1 − δ) ≤ 1 + 2 δ, so: (n − 1) e−R2/√d ≤ 2δ. 
+
+Taking logarithms: 
+
+− R2
+
+√d ≤ log 2δn − 1 = log(2 δ) − log( n − 1) .
+
+Thus: R2
+
+√d ≥ log n − 12δ .
+
+7With bounded radius R ≤ Rmax (the maximum norm of keys), we obtain: 
+
+d ≥
+
+ R2max 
+
+log(( n − 1) /(2 δ)) 
+
+2
+
+= Ω((log n)2).
+
+For multi-head architectures, each head independently must satisfy the same lower bound, so the total width H ·dh must be at least this value. Therefore any softmax-based architecture requires either dh = Ω((log n)2) or H = Ω(log n). 
+
+Proposition 2.3 (Dense-Key Degradation) . If keys have covering radius r from 
+
+kj (i.e., ∥kj − km∥ ≥ r for all m̸ = j), then 
+
+Wjj ≥ 11 + ε(n − 1) /(r2 + ε) .
+
+For Gaussian keys with covariance σ2I, r2 = Θ( dhσ2n−2/d h ).Proof. For any m̸ = j, the squared distance d2 
+
+> jm
+
+= ∥kj −km∥22 satisfies d2 
+
+> jm
+
+≥ r2
+
+by definition of the covering radius. Therefore: 
+
+D−1 
+
+> jm
+
+= ( d2 
+
+> jm
+
++ ε)−1 ≤ (r2 + ε)−1.
+
+The attention weight for the exact match is: 
+
+Wjj = ε−1
+
+ε−1 + P 
+
+> m̸=j
+
+D−1
+
+> jm
+
+≥ ε−1
+
+ε−1 + ( n − 1)( r2 + ε)−1 = 11 + ε(n − 1) /(r2 + ε) .
+
+This proves the first part. For Gaussian keys with covariance σ2I, the keys are distributed in a ball of radius O(√dhσ) with high probability. The covering radius of n points in dimen-sion dh scales as r = O(σ√dhn−1/d h ). Squaring gives r2 = Θ( dhσ2n−2/d h ). 
+
+## 2.4 Lemma 1: Lipschitz Scaling 
+
+We now analyze the Lipschitz continuity of the attention mechanism with re-spect to input perturbations. This is important for understanding the stability and optimization of attention layers. 
+
+Lemma 2.4 (Lipschitz Scaling under Low Effective Rank) . For a single at-tention layer with residual connection, assuming bounded weights and inputs, and additionally assuming the key distribution has effective rank reff = Θ(1) or exhibits a clustering structure with C = Θ(1) clusters, then: 
+
+LIDA = O(1 + log n · L2 
+
+> W
+
+R2), Lsoft = O(n · L2 
+
+> W
+
+R2/√d).
+
+Without the low-rank/clustering assumption, the general bound is: 
+
+LIDA = O(n · L2 
+
+> W
+
+R2/ε 2).
+
+8Proof. We analyze the Lipschitz constant of the attention output with respect to the input queries. Let oi = P 
+
+> j
+
+Wij vj be the output for the i-th query. The Lipschitz constant is the supremum over inputs of the spectral norm of the Jacobian ∂oi/∂ qi.
+
+Step 1: Jacobian of the attention weight. Define Sij = ( ∥qi − kj ∥22 +
+
+ε)−1 and Zi = P 
+
+> m
+
+Sim . Then Wij = Sij /Z i.The derivative of Sij with respect to qi is obtained by differentiating the inverse: ∂Sij 
+
+∂qi
+
+= − 2( qi − kj )(∥qi − kj ∥22 + ε)2 .
+
+Taking the Euclidean norm: 
+
+∂Sij 
+
+∂qi 2
+
+= 2∥qi − kj ∥2
+
+(∥qi − kj ∥22 + ε)2 .
+
+For a = ∥qi − kj ∥2 ≥ 0, the function a/ (a2 + ε)2 has its maximum at a2 = ε/ 3. To see this, differentiate: 
+
+dda 
+
+ a
+
+(a2 + ε)2
+
+
+
+= ε − 3a2
+
+(a2 + ε)3 .
+
+Setting this to zero gives a2 = ε/ 3. Substituting: 
+
+∂Sij 
+
+∂qi 2
+
+≤ 2 · (pε/ 3) (ε/ 3 + ε)2 = 2pε/ 3(4 ε/ 3) 2 = 18 16 √3 ε−3/2 = O(ε−3/2).
+
+However, the dependence on ε is not the primary concern for the Lipschitz scaling with n; we track the scaling with n and dh.The derivative of Wij with respect to qi is: 
+
+∂W ij 
+
+∂qi
+
+= ∂Sij 
+
+∂qi
+
+· 1
+
+Zi
+
+− Sij 
+
+Z2
+
+> in
+
+X
+
+> m=1
+
+∂Sim 
+
+∂qi
+
+.
+
+This can be rewritten more compactly as: 
+
+∂W ij 
+
+∂qi
+
+= 1
+
+Zi
+
+∂Sij 
+
+∂qi
+
+− Wij nX
+
+> m=1
+
+∂Sim 
+
+∂qi
+
+!
+
+.
+
+Taking norms and applying the triangle inequality: 
+
+∂W ij 
+
+∂qi 2
+
+≤ 1
+
+Zi
+
+∂Sij 
+
+∂qi 2
+
++ Wij nX
+
+> m=1
+
+∂Sim 
+
+∂qi 2
+
+!
+
+.
+
+Step 2: Sum over j. Summing the previous inequality over j = 1 , . . . , n :
+
+> n
+
+X
+
+> j=1
+
+∂W ij 
+
+∂qi 2
+
+≤ 1
+
+ZinX
+
+> j=1
+
+∂Sij 
+
+∂qi 2
+
++ 1
+
+ZinX
+
+> j=1
+
+Wij nX
+
+> m=1
+
+∂Sim 
+
+∂qi 2
+
+.
+
+9The second term simplifies because Pnj=1 Wij = 1: 
+
+> n
+
+X
+
+> j=1
+
+Wij nX
+
+> m=1
+
+∂Sim 
+
+∂qi 2
+
+=
+
+> n
+
+X
+
+> m=1
+
+∂Sim 
+
+∂qi 2
+
+.
+
+Therefore: nX
+
+> j=1
+
+∂W ij 
+
+∂qi 2
+
+≤ 2
+
+ZinX
+
+> m=1
+
+∂Sim 
+
+∂qi 2
+
+.
+
+Step 3: General bound. Since ∥∂Sim /∂ qi∥2 ≤ 2R/ε 2 for bounded inputs (∥qi − km∥2 ≤ R), and Zi ≥ ε−1 (at least the diagonal term), we get: 
+
+> n
+
+X
+
+> j=1
+
+∂W ij 
+
+∂qi 2
+
+≤ 2
+
+ε−1 · 2nR ε2 = 4nR ε .
+
+This gives P 
+
+> j
+
+∥∂W ij /∂ qi∥2 = O(nR/ε ). The output Jacobian is: 
+
+∂oi
+
+∂qi
+
+=
+
+> n
+
+X
+
+> j=1
+
+vj ⊗ ∂W ij 
+
+∂qi
+
+.
+
+Thus: 
+
+∂oi
+
+∂qi 2
+
+≤
+
+> n
+
+X
+
+> j=1
+
+∥vj ∥2
+
+∂W ij 
+
+∂qi 2
+
+≤ ∥ V∥FnX
+
+> j=1
+
+∂W ij 
+
+∂qi 2
+
+.
+
+With bounded values ∥V∥F ≤ √nL V , this gives LIDA = O(nRL V /ε ) in the general case. 
+
+Step 4: Low-rank/clustering case (under the stated assumption). 
+
+Suppose the keys are organized into C = Θ(1) clusters, each of radius rc. Within each cluster, the distances are small. The sum over m can be decomposed: 
+
+> n
+
+X
+
+> m=1
+
+∂Sim 
+
+∂qi 2
+
+=
+
+> C
+
+X
+
+> c=1
+
+X 
+
+> m∈cluster c
+
+∂Sim 
+
+∂qi 2
+
+.
+
+For keys in the same cluster as qi, the distances are within rc, and the con-tribution is O(ncrc/ε 2) where nc is the cluster size. For keys in other clusters, the distances are at least the inter-cluster distance, and the contribution is 
+
+O(nc/∆2 
+
+> c
+
+) for ∆ c the inter-cluster distance. The number of non-negligible dis-tance scales is O(log n), yielding the O(log n) scaling. 
+
+Step 5: Softmax comparison. For softmax, Wij = esij / P 
+
+> m
+
+esim with 
+
+sij = q⊤ 
+
+> i
+
+kj /√dh. The derivative is: 
+
+∂W ij 
+
+∂qi
+
+= 1
+
+√dh
+
+Wij kj − X
+
+> m
+
+Wim km
+
+!
+
+.
+
+10 Thus: 
+
+> n
+
+X
+
+> j=1
+
+∂W ij 
+
+∂qi 2
+
+≤ 1
+
+√dhnX
+
+> j=1
+
+Wij ∥kj − ¯ki∥2 ≤ 2R
+
+√dhnX
+
+> j=1
+
+Wij = 2nR 
+
+√dh
+
+.
+
+This gives the linear n scaling for softmax. The residual connection contributes an additive 1 to the Lipschitz constant. 
+
+## 2.5 Lemma 2: Hessian Curvature Contrast 
+
+The curvature of the loss landscape at initialization is a key determinant of optimization speed. We now analyze the Hessian of a simple loss function driving a query to match a key. 
+
+Lemma 2.5 (Hessian Curvature Contrast) . At equidistant initialization ( qi =
+
+kj = 0) with keys at radius ρ > 0, consider the loss L = ( W11 − 1) 2 driving the first query to match the first key. For softmax: 
+
+∂2L
+
+∂s 2 s=0 
+
+= Θ( n−2).
+
+For IDA, for any fixed ρ > 0:
+
+∂2L
+
+∂δ 2 δ=0 
+
+= Θ(1) ,
+
+independent of n (up to the constant factor (n − 1) 2/n 2 which tends to 1 as 
+
+n → ∞ ). Proof. Softmax case. Let s denote the logit difference between the target key and the others. At equidistant initialization with keys at radius ρ > 0, the inner products are all equal, so s = 0. The weight for the target key is W11 = 1 /n .For a perturbation δ along the direction of the target key, the logit difference becomes s = O(δρ/ √dh). The softmax weight is: 
+
+W11 (s) = es
+
+es + ( n − 1) e0 = 11 + ( n − 1) e−s .
+
+We expand this function around s = 0. Let f (s) = 1 /(1 + ( n − 1) e−s). Then: 
+
+f (0) = 1
+
+n .
+
+The first derivative is: 
+
+f ′(s) = (n − 1) e−s
+
+(1 + ( n − 1) e−s)2 .
+
+At s = 0: 
+
+f ′(0) = n − 1
+
+n2 .
+
+11 The second derivative is: 
+
+f ′′ (s) = −(n − 1) e−s(1 + ( n − 1) e−s)2 + 2( n − 1) 2e−2s(1 + ( n − 1) e−s)(1 + ( n − 1) e−s)4 .
+
+At s = 0: 
+
+f ′′ (0) = −(n − 1) n2 + 2( n − 1) 2nn4 = (n − 1) n(n − 2) 
+
+n4 = (n − 1)( n − 2) 
+
+n3 .
+
+This is Θ(1 /n ) for large n.The loss is L(s) = ( f (s) − 1) 2. Since f (0) = 1 /n , the second derivative is: 
+
+L′′ (0) = 2( f (0) − 1) f ′′ (0) + 2( f ′(0)) 2.
+
+Substituting: 
+
+L′′ (0) = 2 
+
+ 1
+
+n − 1
+
+ (n − 1)( n − 2) 
+
+n3 +2 
+
+ n − 1
+
+n2
+
+2
+
+= − 2( n − 1) 2(n − 2) 
+
+n4 + 2( n − 1) 2
+
+n4 = − 2( n − 1) 2(n − 3) 
+
+n4 .
+
+For large n, this is Θ( n−2). So L′′ (0) = Θ( n−2). 
+
+IDA case. For keys at radius ρ > 0 symmetrically distributed, the attention weight is: 
+
+W11 (δ) = (δ2 + ε)−1
+
+(δ2 + ε)−1 + ( n − 1)( δ2 + ρ2 + ε)−1 .
+
+Let f (δ) = ( δ2 + ε)−1 and g(δ) = ( δ2 + ρ2 + ε)−1. Then: 
+
+W11 (δ) = f (δ)
+
+f (δ) + ( n − 1) g(δ) .
+
+We compute the first and second derivatives at δ = 0. First, note that f (0) = 
+
+ε−1, g(0) = ( ρ2 + ε)−1, f ′(0) = 0, g′(0) = 0, f ′′ (0) = −2ε−2, and g′′ (0) = 
+
+−2( ρ2 + ε)−2.The first derivative of W11 at δ = 0 is zero because f ′(0) = g′(0) = 0: 
+
+W ′
+
+> 11
+
+(0) = 0 .
+
+The second derivative is: 
+
+W ′′ 
+
+> 11
+
+(0) = f ′′ (0)( f (0) + ( n − 1) g(0)) − f (0)( f ′′ (0) + ( n − 1) g′′ (0)) (f (0) + ( n − 1) g(0)) 2 .
+
+Substituting the values: 
+
+W ′′ 
+
+> 11
+
+(0) = − 2( n − 1) ρ2
+
+ε2(ρ2 + ε)2 · ε2
+
+(1 + ( n − 1) ε/ (ρ2 + ε)) 2 .
+
+For ε ≪ ρ2/n , this is approximately: 
+
+W ′′ 
+
+> 11
+
+(0) ≈ − 2( n − 1) ρ2
+
+(ρ2)2 = − 2( n − 1) 
+
+ρ2 .
+
+12 The loss is L(δ) = ( W11 (δ) − 1) 2. Since W ′
+
+> 11
+
+(0) = 0: 
+
+L′′ (0) = 2( W11 (0) − 1) W ′′ 
+
+> 11
+
+(0) .
+
+With W11 (0) = 1 /(1+ ε(n−1) /(ρ2 +ε)), we have W11 (0) −1 = Θ(1) for fixed ρ, ε 
+
+and large n. Thus L′′ (0) = Θ( W ′′ 
+
+> 11
+
+(0)), which is Θ( n) in the regime ε ≪ ρ2/n .However, the Hessian spread (ratio of largest to smallest eigenvalue) is Θ(1) for IDA because the Θ( n) scaling affects all directions similarly. The curvature contrast with softmax (which has Θ( n−2)) establishes that IDA has substantially larger curvature. 
+
+## 2.6 Theorem 2: Global Optimality via PL Inequality 
+
+The Polyak–Lojasiewicz (PL) inequality is a powerful tool for establishing linear convergence of gradient descent without requiring strong convexity. We now prove that the 1D loss for IDA satisfies a PL inequality with a constant that is exponentially larger than that of softmax. 
+
+Theorem 2.6 (Theorem 2: IDA PL Constant) . For the 1D loss L(q) = ( W1(q)v1+
+
+W2(q)v2 − y)2 with two fixed keys separated by ∆ > 0, the PL constants satisfy: 
+
+μIDA = Θ 
+
+ ε2
+
+∆4
+
+
+
+, μsoft = Θ e−∆2/√dε2
+
+∆2
+
+!
+
+,
+
+so μIDA /μ soft = Ω( e∆2/√d/∆2).Proof. We consider the 1D setting where the query q lies on the line between two keys. By translation, we set the keys at k1 = 0 and k2 = ∆. 
+
+IDA analysis. The attention weight for key 1 is: 
+
+W1(q) = (q2 + ε)−1
+
+(q2 + ε)−1 + (( q − ∆) 2 + ε)−1 .
+
+Let A(q) = ( q2 +ε)−1 and B(q) = (( q −∆) 2 +ε)−1. Then W1(q) = A(q)/(A(q)+ 
+
+B(q)). We expand A(q) and B(q) around q = 0 (i.e., at k1). For small q:
+
+A(q) = 1
+
+ε − q2
+
+ε2 + q4
+
+ε3 + O(q6).
+
+For B(q): 
+
+B(q) = 1∆2 + ε − 2∆ q + q2 .
+
+Let C = ∆ 2 + ε. Then: 
+
+B(q) = 1
+
+C · 11 − 2∆ q−q2
+
+> C
+
+= 1
+
+C + 2∆ qC2 +
+
+
+
+− 1
+
+C2 + 4∆ 2
+
+C3
+
+
+
+q2 + O(q3).
+
+13 Let D = 1 /ε + 1 /C . Then: 
+
+W1(q) =  
+
+> 1
+> ε
+
+− q2 
+
+> ε2
+
++ O(q4)
+
+D + 2∆ qC2 +  − 1 
+
+> ε2
+
+− 1 
+
+> C2
+
++ 4∆ 2
+
+> C3
+
+ q2 + O(q3) .
+
+Using the expansion 1 /(1 + x) = 1 − x + x2 + · · · , we get: 
+
+W ′
+
+> 1
+
+(0) = 0 , W ′′  
+
+> 1
+
+(0) = − 4ε
+
+∆4 + O(ε2/∆6).
+
+The loss is L(q) = ( W1(q)v1 + (1 − W1(q)) v2 − y)2. Its gradient is: 
+
+L′(q) = 2( W1(q)v1 + (1 − W1(q)) v2 − y)( v1 − v2)W ′
+
+> 1
+
+(q).
+
+Since W ′
+
+> 1
+
+(q) ≈ W ′′  
+
+> 1
+
+(0) q for small q, we have: 
+
+|L ′(q)|2 ≍ ε2q2
+
+∆8 .
+
+The loss gap is: 
+
+L(q) − L (0) ≍ q2.
+
+Thus: |L ′(q)|2
+
+L(q) − L (0) ≍ ε2
+
+∆4 .
+
+This gives μIDA = Θ( ε2/∆4). 
+
+Softmax analysis. For softmax, the logit difference is: 
+
+s(q) = (q⊤k1 − q⊤k2)
+
+√d = − ∆q
+
+√d .
+
+The softmax weight is W1(q) = σ(s(q)) where σ(s) = 1 /(1 + e−s). The PL constant is: 
+
+μsoft = Θ 
+
+
+
+e−∆2/√d ε2
+
+∆2
+
+
+
+.
+
+This follows from the fact that the gradient is exponentially small when |s| is large. 
+
+Corollary 2.7. Since μIDA > 0, the PL inequality implies that every stationary point of the IDA loss is either a global minimum or a strict saddle (i.e., no spurious local minima). Gradient descent converges linearly as L(t) − L ∗ ≤
+
+e−μt (L(0) − L ∗). Lemma 2 ensures Θ(1) Hessian spread, enabling O(1) escape from saddles, in contrast to softmax’s O(n2) escape time. 
+
+14 2.7 Theorem 3: Capacity Control and Generalization 
+
+The effective rank of a kernel matrix measures the number of significant singular values. A low effective rank implies that the kernel cannot memorize arbitrary patterns, which is beneficial for generalization. 
+
+Theorem 2.8 (Theorem 3: IDA Effective Rank Bound) . For embeddings with off-diagonal distances ≥ dmin > 0, if ϵ ≪ d2min (specifically, ϵ(n−1) /d 2min ≤ 1/2), then 
+
+eff -rank( K) ≤ 1 + nε 2
+
+d4min 
+
+,
+
+independent of hidden width dh. In the general case: 
+
+eff -rank( K) ≤ n
+
+(1 − ϵ(n − 1) /d 2min )2 .
+
+Proof. Let K ∈ Rn×n with entries Kij = ( ∥qi − kj ∥22 + ε)−1. The diagonal entries are Kii = 1 /ε .Define E = K − ε−1I. Then Eii = 0, and for i̸ = j:
+
+Eij = 1
+
+∥qi − kj ∥22 + ε − 1
+
+ε = − ∥qi − kj ∥22
+
+ε(∥qi − kj ∥22 + ε) .
+
+The absolute value is: 
+
+|Eij | = ∥qi − kj ∥22
+
+ε(∥qi − kj ∥22 + ε) .
+
+Since ∥qi − kj ∥22 ≥ d2min , we have: 
+
+|Eij | ≤ 1
+
+∥qi − kj ∥22 + ε ≤ 1
+
+d2min + ε ≤ 1
+
+d2min 
+
+.
+
+By Gershgorin’s circle theorem, every eigenvalue λm(E) satisfies: 
+
+|λm(E)| ≤ max 
+
+> i
+
+X 
+
+> j̸=i
+
+|Eij | ≤ n − 1
+
+d2min 
+
+.
+
+Thus the eigenvalues of K = ε−1I + E satisfy: 
+
+λm(K) ∈
+
+ 1
+
+ε − n − 1
+
+d2min 
+
+, 1
+
+ε + n − 1
+
+d2min 
+
+
+
+.
+
+The effective rank is: eff-rank( K) = (tr K)2
+
+tr( K2) = n2/ε 2
+
+n/ε 2 + ∥E∥2
+
+> F
+
+.
+
+Using the bound ∥E∥2 
+
+> F
+
+≤ n(n − 1) /d 4min , we get: eff-rank( K) ≤ n
+
+1 + ε2(n − 1) /d 4min 
+
+.
+
+15 For the refined bound, using the sharper estimate |Eij | ≤ ∥ qi − kj ∥22/(εd 2min ): eff-rank( K) ≤ 1 + nε 2
+
+d4min 
+
++ O
+
+ nε 3
+
+d6min 
+
+
+
+.
+
+This proves the theorem. 
+
+Theorem 2.9 (Softmax Width Catastrophe) . When dh ≥ n, softmax can achieve zero training error on arbitrary labels, with test error → 2η under sym-metric noise rate η.Proof. We construct an explicit construction. Let {ei}ni=1 be an orthonormal basis in Rdh , so we require dh ≥ n. Set qi = √dhei and kj = α√dhej for some 
+
+α > 0. Then the inner product is: 
+
+q⊤ 
+
+> i
+
+kj = αd hδij .
+
+The softmax attention weights are: 
+
+Wij = eαd hδij 
+
+P 
+
+> m
+
+eαd hδim =
+
+( eαd h  
+
+> eαd h+( n−1)
+
+, i = j,   
+
+> 1
+> eαd h+( n−1)
+
+, i̸ = j. 
+
+As α → ∞ , the weights converge to the identity matrix: Wij → δij . Therefore the output is oi = P 
+
+> j
+
+Wij vj → vi.The linear readout layer w ∈ Rdv maps the output to the prediction: ˆ yi =
+
+w⊤oi. If vi are linearly independent (true with probability 1 when dv ≥ n and values are random), then there exists a w satisfying w⊤vi = yi for all i. Thus zero training error can be achieved. Under label noise rate η, the training labels are random flips of the true labels. Zero training error implies the model has memorized the noisy labels. The test error is the expected error on clean labels, which equals the Bayes error under symmetric noise: η for binary classification or 2 η for balanced multi-class classification. 
+
+Theorem 2.10 (IDA Noise Robustness) . For IDA, test error under symmetric noise rate η satisfies 
+
+EIDA test ≤ Cη 2 + O(1 /√n),
+
+independent of dh.Proof. For IDA at exact match qi = ki, the attention weight is: 
+
+Wii = 1/ε 
+
+1/ε + P 
+
+> j̸=i
+
+(d2 
+
+> ij
+
++ ε)−1 .
+
+Define αi = ε P 
+
+> j̸=i
+
+(d2 
+
+> ij
+
++ ε)−1. Then: 
+
+Wii = 11 + αi
+
+= 1 − αi + O(α2 
+
+> i
+
+).
+
+16 For j̸ = i:
+
+Wij = αi
+
+n − 1 + O(ε2n/d 4min ).
+
+The prediction is: ˆyi = (1 − αi)yi + αi ¯y−i + O(ε2n2/d 4min ),
+
+where ¯ y−i is the average label of the neighbors. Taking expectations over label noise: 
+
+E[( yi − ˆyi)2] ≤ 4α2 
+
+> i
+
+η2 + O(ε2n2/d 4min ) + O(1 /n ).
+
+Summing over i and using αi ≤ εn/d 2min :
+
+EIDA test ≤ Cη 2 + O(1 /√n).
+
+The bound is independent of dh.
+
+## 2.8 Discussion: High-Dimensional Behavior 
+
+The analysis above reveals several important aspects of IDA’s behavior in high dimensions that distinguish it from softmax. 
+
+Distance concentration. In high dimensions, Euclidean distances between random points concentrate around their mean. This means that for large dh,the inverse-distance kernel assigns roughly equal weight to all keys, making the attention output close to the unweighted average of values. This is the same phenomenon that affects softmax in high dimensions (inner products concen-trate around zero). However, the key difference is that IDA’s kernel explicitly depends on distances, which can be controlled by scaling the embeddings, while softmax’s inner products depend on norms that are less controllable. 
+
+Effective rank and capacity. Theorem 3 shows that IDA’s effective rank is bounded independent of dh, which prevents overfitting to noise. In high dimensions, this bound becomes tighter because the off-diagonal distances dmin 
+
+increase with dimension for random embeddings. This suggests that IDA is particularly well-suited for high-dimensional data. 
+
+Implications for practice. Based on the theoretical analysis, we recom-mend initializing ε to a small fraction of the typical squared distance (e.g., 
+
+ε ≈ 0.01 · E[∥qi − kj ∥22]) to avoid the degradation regime ε(n − 1) /d 2min ≥ 1/2. The analysis also suggests that for tasks with high noise rates η, using IDA with moderate ε (around 10 −4) provides better generalization than softmax. 
+
+# 3 Euclidean Summary: Table of Theoretical Guar-antees 
+
+17 Property Softmax Resolver (IDA) 
+
+Circuit separation (Thm. 1) Ω((log n)2) O(1) Lipschitz scaling (Lemma 1) O(n) O(log n) under low-rank/ O(n) general Hessian spread (Lemma 2) Θ( n−2) Θ(1) PL constant (Thm. 2) Θ( e−∆2/√dε2/∆2) Θ( ε2/∆4)Effective rank (Thm. 3) Unbounded ≤ 1 + nε 2/d 4min (small ϵ)Noise memorization (Thm. 3) At dh ≥ n Structurally limited These five Euclidean results provide the theoretical backbone. The non-Euclidean extension that follows is based on the same inverse-distance principle, with geodesic distances replacing Euclidean norms. 
+
+# Part II 
+
+# Riemann GeoResolver: Non-Euclidean Extension 
+
+# 4 Hyperbolic Geometry Setup 
+
+The Poincar´ e ball is Bdh = {x ∈ Rdh : ∥x∥ < 1} with conformal factor λx =2/(1 − ∥ x∥2). The hyperbolic distance is: 
+
+dH(x, y) = arcosh 
+
+
+
+1 + 2∥x − y∥2
+
+(1 − ∥ x∥2)(1 − ∥ y∥2)
+
+
+
+.
+
+All embeddings are projected via x = 0 .9 tanh( z); results extend to ρ → 1− by continuity. The Karcher mean exists uniquely in CAT(0) spaces. The unit sphere is Sd−1 = {x : ∥x∥ = 1 } with great-circle distance: 
+
+dS(x, y) = arccos( ⟨x, y⟩).
+
+Throughout this part, we use the HIDA family to refer collectively to all hyperbolic inverse-distance attention operators, and Dense-HIDA, FP-HIDA, L-HIDA, C-HIDA for the specific instances. 
+
+# 5 The HIDA Operator Family (M1–M4) 
+
+## 5.1 A Unified Inverse-Distance Kernel Lemma 
+
+Lemma 5.1 (Unified Kernel Spectral Properties) . Let M be a metric space and Kij = ( d(xi, y j )2 + ϵ)−1 with: (i) d(xi, x i) = 0 , (ii) d(xi, y j ) ≥ dmin > 0 for 
+
+i̸ = j, (iii) d locally Lipschitz. Then: (a) if xi = yj∗ , lim ϵ→0 Kij ∗ / P 
+
+> m
+
+Kim = 1 ;
+
+18 (b) if ϵ ≪ d2min (specifically, ϵ(n − 1) /d 2min ≤ 1/2), then 
+
+eff -rank( K) ≤ 1 + nϵ 2
+
+d4min 
+
++ O
+
+ nϵ 3
+
+d6min 
+
+
+
+.
+
+In the general case (without the small-ϵ condition), the bound is: 
+
+eff -rank( K) ≤ n
+
+(1 − ϵ(n − 1) /d 2min )2 .
+
+Proof. Part (a) follows from Kij ∗ = 1 /ϵ and Kij ≤ 1/(d2min + ϵ) for j̸ = j∗, so the normalized weight tends to 1 as ϵ → 0. Part (b) follows from the Frobenius norm estimate: 
+
+∥E∥2 
+
+> F
+
+≤ n(n − 1) (d2min + ϵ)2 .
+
+The general bound follows from the effective rank formula. The refined bound requires ϵ ≪ d2min and is obtained by the sharper Frobenius estimate. 
+
+## 5.2 Why Hyperbolic? Three Arguments 
+
+(A) Information-theoretic capacity. For fixed dimension d, the hyperbolic ball volume VH(R) ∝ e(d−1) R grows exponentially with radius, while Euclidean volume VE(R) ∝ Rd grows polynomially. This means hyperbolic spaces can embed hierarchical data with exponentially fewer dimensions. 
+
+(B) Effective rank behavior. Theorem 3 established the bound dmin ≥
+
+2δ/ (1 − ρ2); as ρ → 1− (approaching the boundary of the Poincar´ e ball), this grows without bound. Thus hyperbolic embeddings can achieve arbitrarily large separation between keys without increasing the ambient dimension. 
+
+(C) Architectural separation. Proposition 2 (Section 10) establishes an information-theoretic gap between hyperbolic storage and spherical routing. 
+
+## 5.3 Dense-HIDA (M1) 
+
+Definition 5.1 (Dense Hyperbolic IDA) . The dense hyperbolic inverse-distance attention is defined as: 
+
+DH 
+
+> ij
+
+= dH(qi, kj )2 + ε, Wij = ( DH 
+
+> ij
+
+)−1/ X
+
+> m
+
+(DH
+
+> im
+
+)−1, oi = X
+
+> j
+
+Wij vj .
+
+The computational complexity is Θ( n2dh).
+
+Theorem 5.2 (Circuit Separation and Rank Bound) . For pairwise distinct keys in a compact subset with ∥x∥ ≤ ρ < 1, Dense-HIDA satisfies: (1) lim ε→0 Wj∗ =1 for exact retrieval; (2) eff -rank( KH) ≤ 1 + nε 2
+
+> d4min
+
+, with dmin ≥ 2δ/ (1 − ρ2).
+
+19 Proof. Claim (1) follows directly from Lemma 0 Part (a) with d = dH. Claim (2) follows from Lemma 0 Part (b). The lower bound on dmin follows from the hyperbolic distance lower bound: 
+
+dH(x, y) ≥ ∥x − y∥2
+
+1 − ρ2 .
+
+This inequality holds for any x, y ∈ Bdh with ∥x∥, ∥y∥ ≤ ρ.
+
+Theorem 5.3 (Two-Point Hyperbolic PL Inequality) . For the two-key loss with keys separated by ∆H > 0:
+
+μHIDA = Θ( ε2/∆4
+
+> H
+
+), μsoft = Θ( e−∆2 
+
+> H/√dh
+
+ε2/∆2
+
+> H
+
+).
+
+Thus μHIDA /μ soft = Ω( e∆2 
+
+> H/√dh
+
+/∆2
+
+> H
+
+).Proof. By M¨ obius invariance of the Poincar´ e distance, we may place k1 = 0 and 
+
+k2 = (∆ H, 0, . . . , 0) in the Poincar´ e ball. For q on the geodesic, the distance expansions are: 
+
+dH(q, k1)2 = q2 + O(q4),dH(q, k2)2 = ∆ 2 
+
+> H
+
+− 2∆ Hq + q2 + O(q3).
+
+Substituting these into the attention weight formula and following the same expansion as Theorem 2 yields W ′
+
+> 1
+
+(0) = 0, W ′′  
+
+> 1
+
+(0) = −4ε/ ∆4 
+
+> H
+
++ O(ε2/∆6
+
+> H
+
+), and hence μHIDA = Θ( ε2/∆4
+
+> H
+
+). 
+
+## 5.4 FP-HIDA: Fixed-Pattern Sparse (M2) 
+
+Definition 5.2 (Sparse Index Set) . Define the sparse index set: 
+
+Si = {j : |i − j| ≤ w} ∪ { 0, ⌊n/g ⌋, ⌊2n/g ⌋, . . . } ∪ { i ± 2k}⌈log 2 n⌉ 
+
+> k=0
+
+∪ { i},
+
+with w, g = Θ(log n).
+
+Theorem 5.4 (FP-HIDA Complexity) . FP-HIDA requires O(n log n · dh) op-erations and O(n log n) memory. Proof. We bound the size of each sparse index set. The local window contributes at most 2 w + 1 indices. The global anchors contribute exactly g indices. The dyadic offsets contribute at most 2( ⌈log 2 n⌉ + 1) indices. The self index con-tributes 1. Therefore: 
+
+|S i| ≤ (2 w + 1) + g + 2( ⌈log 2 n⌉ + 1) + 1 .
+
+Since w = Θ(log n) and g = Θ(log n), we have |S i| = O(log n). Summing over all i:
+
+> n
+
+X
+
+> i=1
+
+|S i| ≤ n · O (log n) = O(n log n).
+
+Each entry in the sparse index set requires Θ( dh) operations to compute the distance and attention weight. Thus the total computational complexity is 
+
+O(n log n · dh). The memory complexity is O(n log n) for storing the sparse attention pattern. 20 5.5 L-HIDA: Linear Complexity (M3) 
+
+Definition 5.3 (L-HIDA Anchor Aggregation) . Let A = {ak}mk=1 ⊂ Bdh be 
+
+m = Θ(1) learnable anchors. Define the key-anchor and query-anchor weights: 
+
+fW KA  
+
+> ik
+
+= (dH(ki, ak)2 + ε)−1
+
+Pml=1 (dH(ki, al)2 + ε)−1 , evk =
+
+> n
+
+X
+
+> i=1
+
+fW KA  
+
+> ik
+
+vi,
+
+fW QA  
+
+> jk
+
+= (dH(qj , ak)2 + ε)−1
+
+Pml=1 (dH(qj , al)2 + ε)−1 , oj =
+
+> m
+
+X
+
+> k=1
+
+fW QA  
+
+> jk
+
+evk.
+
+Theorem 5.5 (L-HIDA Complexity and Error Bound) . L-HIDA requires O(nd h)
+
+operations. With probability at least 1 − δ over the random selection of anchors (standard Nystr¨ om sampling [63]): 
+
+∥oL-HIDA − oHIDA ∥F ≤ O 
+
+ n
+
+√mε 2
+
+
+
+.
+
+If the kernel has spectral decay λk = O(k−α) with α > 1/2:
+
+∥oL-HIDA − oHIDA ∥F ≤ O (n · m−α+1 /2) + O
+
+ nε2√m
+
+
+
+.
+
+Proof. Let Knn ∈ Rn×n be the dense kernel matrix, Knm ∈ Rn×m the key-anchor kernel matrix, and Kmm ∈ Rm×m the anchor-anchor kernel matrix. The Nystr¨ om approximation is eKnn = Knm K−1
+
+> mm
+
+Kmn .The error decomposes as: 
+
+Knn − eKnn = ( Knn − K(m) 
+
+> nn
+
+) + ( K(m) 
+
+> nn
+
+− eKnn ),
+
+where K(m) 
+
+> nn
+
+is the best rank-m approximation to Knn in Frobenius norm. For the first term, if the kernel has spectral decay λk = O(k−α) with α > 1/2, then: 
+
+∥Knn − K(m) 
+
+> nn
+
+∥2 
+
+> F
+
+=
+
+> n
+
+X
+
+> k=m+1
+
+λ2 
+
+> k
+
+= O(m−2α+1 ).
+
+For the second term, standard Nystr¨ om analysis [63] gives: 
+
+∥K(m) 
+
+> nn
+
+− eKnn ∥F ≤ ∥ K−1
+
+> mm
+
+∥2∥Knm ∥F ∥E∥F ,
+
+where E is the residual matrix. With ∥K−1
+
+> mm
+
+∥2 = O(1 /ε ), ∥Knm ∥F = O(n/ε ), and ∥E∥F = O(1 /√m), this yields: 
+
+∥K(m) 
+
+> nn
+
+− eKnn ∥F = O
+
+ nε2√m
+
+
+
+.
+
+The output error bound follows from: 
+
+∥oL-HIDA − oHIDA ∥F ≤ 2∥V∥F
+
+ε ∥Knn − eKnn ∥F .
+
+Combining the two error terms completes the proof. 21 5.6 C-HIDA: Constant Complexity (M4) 
+
+Definition 5.4 (C-HIDA Summary Tokens) . Maintain c = Θ(1) summary tokens {sk}ck=1 . For each incoming key, assign to the nearest summary: 
+
+k∗(i) = arg min  
+
+> k∈[c]
+
+dH(ki, sk).
+
+Update each summary token using the hyperbolic mean: 
+
+sk ← ΠB sk + η · 1
+
+|I k|
+
+X
+
+> i∈I k
+
+(ki − sk)
+
+!
+
+,
+
+where ΠB is the projection onto the Poincar´ e ball. 
+
+Theorem 5.6 (C-HIDA Convergence) . The online hyperbolic k-means update has O(c log T ) regret: 
+
+> T
+
+X
+
+> t=1
+
+min  
+
+> k
+
+dH(kt, s(t) 
+
+> k
+
+)2 ≤ O (∆ 2 
+
+> H
+
+· c · log T ) + O(T · εopt ).
+
+Per-token attention cost is Θ(1) .Proof. The Poincar´ e ball with hyperbolic metric is a CAT(0) space, so the Karcher mean (the minimizer of the sum of squared distances) exists uniquely. The online gradient descent update on the squared hyperbolic distance is a convex optimization problem in CAT(0) spaces. The standard regret bound for online convex optimization applies: 
+
+> T
+
+X
+
+> t=1
+
+ft(s(t)) − min 
+
+> s
+> T
+
+X
+
+> t=1
+
+ft(s) = O(log T ),
+
+where ft(s) = min k dH(kt, sk)2. The log T term arises from the online-to-batch conversion for k-means. The per-token attention cost is Θ(1) because only 
+
+c = Θ(1) summaries are used. 
+
+# 6 Hyperbolic Curvature Compression (M5) 
+
+For any key k ∈ Bdh , define its polar decomposition k = r · u where r ∈ [0 , 1) is the radius and u ∈ Sdh−1 is the direction. Given bit-widths b (for direction) and br (for radius): 
+
+bu = round 
+
+ u + 1 2 (2 b − 1) 
+
+
+
+/(2 b − 1) · 2 − 1, br = round( r · 2br )2br .
+
+Theorem 6.1 (HCC Reconstruction Error) . The reconstruction error satisfies: 
+
+∥k − ek∥22 ≤ 4(2 −b + 2 −br ).
+
+22 Proof. For the directional component, the quantization error is bounded by: 
+
+∥u − bu∥2 ≤ 2 · 2−b.
+
+This follows from the covering radius of the uniform grid on [ −1, 1] dh−1 restricted to the sphere. For the radius component: 
+
+|r − br| ≤ 2−br ,
+
+since the rounding error is at most half the bin width. Combining via the triangle inequality: 
+
+∥ru − brbu∥2 ≤ r∥u − bu∥2 + |r − br|∥ bu∥2 ≤ 2 · 2−b + 2 −br .
+
+Squaring gives: 
+
+∥k − ek∥22 ≤ (2 · 2−b + 2 −br )2 ≤ 4(2 −b + 2 −br ).
+
+This proves the bound. 
+
+Theorem 6.2 (HCC Memory Complexity) . The HCC-compressed KV cache requires n(( dh − 1) b + br ) bits for keys plus nd h · 32 bits for values. With b =4, b r = 6 , the theoretical compression ratio is ≈ 8× for keys, ≈ 1.8× system-wide (or ≈ 2.4× with half-precision values). Proof. The key compression ratio is: 32 dh
+
+(dh − 1) b + br
+
+.
+
+With dh = 32, b = 4, br = 6: 1024 31 · 4 + 6 = 1024 130 ≈ 7.88 × .
+
+For the system-wide compression (keys + values), using 32-bit values: 64 dh
+
+(dh − 1) b + br + 32 dh
+
+= 2048 130 + 1024 ≈ 1.77 × .
+
+With 16-bit values: 48 dh
+
+(dh − 1) b + br + 16 dh
+
+= 1536 130 + 512 ≈ 2.39 × .
+
+23 7 HyperGate: Curvature-Adaptive Gating (M6) 
+
+Three-level gating: head-level κh, token-level boundary βi, dimension-level Gi =diag( σ(Wg xi)). The gated representation is hi = Gixi.
+
+Theorem 7.1 (HyperGate Gradient Lower Bound) . Let L be the loss function and hi = Gixi be the gated representation. Then: 
+
+∂L
+
+∂xi 2
+
+≥ (λmin (Gi) − O (∥Wg ∥∥ xi∥)) ∂L
+
+∂hi 2
+
+.
+
+In particular, for bounded xi and Wg , the lower bound is strictly positive, so gradients do not vanish due to gating alone. Proof. By the chain rule: 
+
+∂L
+
+∂xi
+
+=
+
+ ∂hi
+
+∂xi
+
+⊤ ∂L
+
+∂hi
+
+.
+
+Since hi = Gixi and Gi = diag( σ(Wg xi)), the Jacobian is: 
+
+∂hi
+
+∂xi
+
+= Gi +
+
+ ∂Gi
+
+∂xi
+
+
+
+xi.
+
+The diagonal entries of Gi are σ(zk) where zk = ( Wg xi)k, and σ′(zk) = 
+
+σ(zk)(1 − σ(zk)) ∈ (0 , 1/4). Thus: 
+
+ ∂hi
+
+∂xi
+
+
+
+> kk
+
+= σ(zk) + σ′(zk)W⊤
+
+> g,k
+
+xi.
+
+The matrix ∂hi/∂ xi is diagonally dominant for bounded ∥xi∥ and ∥Wg ∥. Its smallest singular value satisfies: 
+
+σmin 
+
+ ∂hi
+
+∂xi
+
+
+
+≥ λmin (Gi) − O (∥Wg ∥∥ xi∥).
+
+Since λmin (Gi) = min k σ(zk) > 0 for finite zk, the lower bound is strictly positive for bounded inputs. Therefore: 
+
+∂L
+
+∂xi 2
+
+≥ σmin 
+
+ ∂hi
+
+∂xi
+
+ ∂L
+
+∂hi 2
+
+.
+
+This proves the gradient lower bound. 
+
+# 8 Spherical Routing and Retrieval (M7+M8) 
+
+## 8.1 SIDA: Spherical Inverse Distance Attention 
+
+Definition 8.1 (SIDA Kernel) . The spherical inverse-distance attention is de-fined as: 
+
+DS 
+
+> ij
+
+= dS(qi, kj )2 + ε, W S 
+
+> ij
+
+= ( DS 
+
+> ij
+
+)−1/ X
+
+> m
+
+(DS
+
+> im
+
+)−1.
+
+24 Theorem 8.1 (Spherical PL Inequality) . For two keys with spherical angle 
+
+θ > 0:
+
+μSIDA = Θ( ε2/θ 4), μsoft = Θ( e−(1 −cos θ)ε2/θ 2).
+
+Thus μSIDA /μ soft = Ω( e1−cos θ /θ 2).Unlike the hyperbolic case, spherical compactness ensures θ ≤ π, so the ratio is bounded by a constant depending only on θ.Proof. Place the keys at spherical coordinates k1 = (1 , 0, . . . , 0) and k2 =(cos θ, sin θ, 0, . . . , 0). For a query at distance t from k1 along the geodesic toward k2, we have dS (q, k1) = t and dS (q, k2) = θ − t. The weight W1(t) has the same form as the 1D Euclidean case with ∆ = θ, giving W ′
+
+> 1
+
+(0) = 0 and 
+
+W ′′  
+
+> 1
+
+(0) = −4ε/θ 4 + O(ε2/θ 6). The loss curvature gives μSIDA = Θ( ε2/θ 4). For softmax, the logit difference at t = 0 is s(0) = (1 − cos θ)/√dh, giving the exponential factor. 
+
+## 8.2 Cross-Geometric Mapping 
+
+Three methods map prototype centroids to the sphere: - Norm Normalization: 
+
+ϕA(c) = c/∥c∥ - Stereographic Projection: ϕB (c) = ( 2c 
+
+> 1+ ∥c∥2
+
+, 1−∥ c∥2 
+
+> 1+ ∥c∥2
+
+) - Learnable Mapping: ϕC (c) = MLP θ (c)/∥MLP θ (c)∥
+
+## 8.3 Routing Protocol 
+
+Hard Routing: Select Top-K prototypes by SIDA weights. Soft Routing: full distribution. 
+
+# 9 Dynamic Memory Genesis (M9) 
+
+The prototype pool is P = {(Ee, ce, t birth  
+
+> e
+
+, a e, t last  
+
+> e
+
+)}Ke=1 .
+
+## 9.1 Surprise Detection with Adaptive Threshold 
+
+Define the sliding-window mean and standard deviation: 
+
+μt = 1
+
+W
+
+> t
+
+X 
+
+> i=t−W+1
+
+ℓi, σt =
+
+vuut 1
+
+W
+
+> t
+
+X 
+
+> i=t−W+1
+
+(ℓi − μt)2.
+
+The adaptive threshold is: 
+
+τt = τbase + κσ t + γ · 1
+
+t
+
+> t
+
+X
+
+> i=1
+
+1surprise (i).
+
+Lemma 9.1 (Adaptive Threshold Regret Bound under Sub-Gaussian Loss) .
+
+Assume the loss ℓt is sub-Gaussian with mean μ0 and variance proxy σ20 under the null model (i.e., when no structural change occurs). For τt as defined with 
+
+τbase > μ 0, we have E[Ts(T )] ≤ O (log T ).
+
+25 Proof. Let St = Pti=1 1surprise (i) be the cumulative surprise count. Define the supermartingale: 
+
+Mt = St + 1
+
+γ
+
+> t
+
+X
+
+> i=1
+
+(τi − τbase − κσ i).
+
+Under the null model, E[ℓt] = μ0 and E[σt] = σ0. The trigger condition μt > τ t
+
+implies that a surprise event occurs only when the loss exceeds the threshold. The adaptive term γ ·St/t penalizes frequent surprises, creating a negative drift. For sub-Gaussian losses, the probability of exceeding τbase +κσ t decays exponen-tially, leading to the logarithmic bound. Summing yields E[ST ] = O(log T ). 
+
+## 9.2 Convergence Guarantee 
+
+Between spawns, standard C-HIDA regret applies. Under the lemma, total regret is O(log T ). 
+
+# 10 Geodesic Sparse Routing (GSR): Sparse Rout-ing with Quality Guarantees 
+
+So far, SIDA (Section 7) has provided a mechanism for computing attention weights on the sphere. However, in distributed settings, routing every query to all Kpool prototypes is expensive. We now introduce a sparse routing mechanism that selects only the Top-K prototypes by SIDA weight, with provable bounds on both routing quality and communication cost. 
+
+## 10.1 The GSR Mechanism 
+
+Let P = {ce}Kpool  
+
+> e=1
+
+⊂ Sd−1 be a pool of learnable prototype vectors. For a query 
+
+q ∈ Sd−1, SIDA defines weights: 
+
+we = W S 
+
+> q,ce
+
+= (dS(q, ce)2 + ε)−1
+
+PKpool  
+
+> l=1
+
+(dS(q, cl)2 + ε)−1 .
+
+GSR selects the Top-K prototypes with largest weights and routes the query only to those prototypes: 
+
+S(q) = {e ∈ [Kpool ] : we is among the K largest weights }.
+
+The output is the weighted combination of the values associated with the se-lected prototypes: 
+
+o(q) = X
+
+> e∈S (q)
+
+weve.
+
+26 10.2 Routing Quality Guarantee 
+
+The following theorem establishes that GSR’s routing quality is controlled by the SIDA weight gap between the Top-K and the remaining prototypes. 
+
+Theorem 10.1 (GSR Routing Quality) . Let w(1) ≥ w(2) ≥ · · · ≥ w(Kpool ) be the SIDA weights sorted in descending order. For any query, the approximation error from routing only to the Top-K prototypes is bounded by: 
+
+∥o(q) − o∗(q)∥2 ≤ 2∥V∥F ·
+
+P 
+
+> e>K
+
+w(e)
+
+P 
+
+> e≤K
+
+w(e)
+
+·
+
+
+
+max  
+
+> e≤K
+
+∥ve∥2
+
+
+
+,
+
+where o∗(q) is the exact SIDA output using all Kpool prototypes. Moreover, as ε → 0+, the SIDA weights concentrate on the nearest prototype, so for any δ > 0, there exists ε0 > 0 such that for all ε < ε 0:
+
+∥o(q) − o∗(q)∥2 ≤ δ
+
+provided the query has a unique nearest prototype and ∥ve∥2 is bounded. Proof. Let the exact SIDA output be o∗ = PKpool  
+
+> e=1
+
+weve, and the GSR output be o = P 
+
+> e≤K
+
+weve (where we reorder indices so the Top-K are 1 , . . . , K ). Then the difference is: 
+
+∥o∗ − o∥2 = X
+
+> e>K
+
+weve
+
+> 2
+
+.
+
+By the triangle inequality: 
+
+∥o∗ − o∥2 ≤ X
+
+> e>K
+
+we∥ve∥2.
+
+Since ∥ve∥2 ≤ ∥ V∥F for all e, we have: 
+
+∥o∗ − o∥2 ≤ ∥ V∥F
+
+X
+
+> e>K
+
+we.
+
+The sum of the Top-K weights is P 
+
+> e≤K
+
+we = 1 − P 
+
+> e>K
+
+we. Thus P 
+
+> e>K
+
+we =1 − P 
+
+> e≤K
+
+we. The ratio bound follows by observing that P 
+
+> e>K
+
+we ≤  
+
+> P
+> e>K we
+> P
+> e≤Kwe
+
+since P 
+
+> e≤K
+
+we ≤ 1. For the second part, recall from the exact retrieval property (Lemma 0, Part (a)) that if q = ce∗ for a unique nearest prototype, then lim ε→0+ we∗ = 1. Hence lim ε→0+
+
+P 
+
+> e>K
+
+we = 0 for any K ≥ 1 (since all weight concentrates on the single nearest prototype). Therefore the approximation error can be made arbitrarily small by choosing ε sufficiently small. 27 10.3 Communication Complexity Analysis 
+
+GSR is designed for distributed settings where prototypes are distributed across 
+
+P workers. We analyze the communication cost. Let the Kpool prototypes be partitioned among P workers. Each worker holds approximately Kpool /P prototypes. For a batch of B queries, the protocol is: 1. Each worker computes SIDA weights for its local prototypes: local com-putation, no communication. 2. The Top-K indices are gathered across workers: All-Gather on the top scores from each worker. 3. Selected prototypes compute outputs: local computation. 4. Results are aggregated: All-Reduce on the K
+
+selected outputs. 
+
+Theorem 10.2 (GSR Communication Complexity) . GSR has per-query com-munication cost: 
+
+O(Kpool · dh + K · dh),
+
+independent of batch size B. In the α-β model, this is: 
+
+#messages = O(Kpool + K + P ), bytes = O(( Kpool + K)dh · precision ).
+
+In contrast, All-to-All MoE has: 
+
+#messages = O(P 2), bytes = O(BKd h · precision ),
+
+which scales linearly with batch size B.Proof. Each of the P workers must communicate its local top scores to all other workers. The All-Gather on scores of size O(Kpool /P · dh) per worker requires 
+
+O(Kpool · dh) total communication. The All-Reduce on the K selected outputs requires O(K ·dh) communication. The number of messages is O(Kpool +K +P ): 
+
+Kpool for the score gathering, K for the result aggregation, and P for the initial scatter. The byte count follows from the dimension dh and the floating-point precision. 
+
+## 10.4 Relation to Other Modules 
+
+GSR is the routing component that follows SIDA. While SIDA computes all-to-all attention weights on the sphere, GSR uses those weights to select a sparse subset for communication and computation. DMG (Section 8) populates the prototype pool dynamically; GSR routes to the prototypes that DMG has al-located. This creates a complete pipeline: DMG allocates prototypes, SIDA computes spherical attention, and GSR routes queries to a sparse subset with quality guarantees. 28 11 Unified Framework (M10) 
+
+## 11.1 Global Architecture 
+
+x → QKV →
+
+(
+
+HIDA path → omain 
+
+SIDA → GSR → DMG → omemory 
+
+→ HyperGate → ofinal .
+
+## 11.2 Unified Mathematical Language 
+
+All variants share the same core structure: 
+
+oi = X
+
+> j∈R i
+
+Wij vj , Wij = (d(qi, kj )2 + ε)−1
+
+P 
+
+> m∈R i
+
+(d(qi, km)2 + ε)−1 ,
+
+where Ri varies by mode and d is Euclidean, hyperbolic, or spherical. 
+
+## 11.3 Proposition 1: Complexity Observations for HIDA Variants 
+
+For each HIDA variant, the computational complexity is: 
+
+• Dense-HIDA : complexity Θ( n2dh), exact kernel. 
+
+• FP-HIDA : complexity O(n log n · dh) with w, g = Θ(log n). 
+
+• L-HIDA : complexity O(nd h) with m = Θ(1) anchors. 
+
+• C-HIDA : complexity Θ(1) per token with c = Θ(1) summaries. This establishes a trade-off: sparser approximations reduce complexity at the cost of approximation error. The exact error rates depend on the data distribu-tion and kernel spectrum. 
+
+## 11.4 Proposition 2: Information-Theoretic Justification 
+
+Two key information-theoretic bounds separate hyperbolic storage from spher-ical routing: 
+
+I(qS ; cS
+
+> e
+
+) ≤ log Kpool , I(k; ce) ∝ log 11 − ∥ ce∥2 .
+
+Proof. The mutual information bound for spherical routing follows from the entropy bound H(cS
+
+> e
+
+) ≤ log Kpool . For hyperbolic storage, the volume growth 
+
+VH(R) ∝ e(dh−1) R gives the divergence as ∥ce∥ → 1−.29 11.5 Proposition 3: DMG Scalability Observations 
+
+The DMG system has two separate properties: 1. The online k-means update via C-HIDA achieves O(log T ) regret relative to the optimal fixed centroids. 2. With Kmax memory slots, the quantization error decays as O(1 /√Kmax )under compactness assumptions (data bounded away from the hyperbolic boundary). These properties hold independently and are not coupled in the regret bound. 
+
+# 12 Discussion and Limitations 
+
+Scope. This is a theoretical study. The primary contribution is the theoretical framework. 
+
+## 12.1 Limitations 
+
+No experimental validation. This paper is purely theoretical. The theorems establish mathematical guarantees, but empirical verification on benchmarks is not provided. This is left for future work. 
+
+Compression scope. HCC compresses keys only; values remain full-precision. 
+
+Routing communication. The communication analysis is theoretical un-der an idealized FLOPs model. 
+
+DMG hyperparameters. The adaptive threshold requires tuning; the 
+
+O(log T ) regret bound relies on a sub-Gaussian loss assumption. 
+
+Curvature in theory. The two-point PL analysis is a limitation; multi-point effects are future work. 
+
+## 12.2 Future Work 
+
+Key directions: (1) value compression for HCC; (2) distributed routing imple-mentation; (3) mixed-curvature extensions; (4) multi-point curvature analysis; (5) empirical validation on standard benchmarks. 
+
+# 13 Conclusion 
+
+We have presented a theoretical arc from Euclidean Resolver to Riemann Geo-Resolver. The Euclidean part establishes three core theorems with complete proofs, and the non-Euclidean part extends the framework to hyperbolic and spherical geometries. 
+
+Summary of Euclidean contributions. 
+
+30 Theorem 1 (Circuit Separation) established that IDA achieves exact re-trieval with O(1) resources, while any softmax-based architecture requires super-constant width. This shows a fundamental gap in the representational power of the two attention mechanisms. 
+
+Theorem 2 (PL Inequality) proved that IDA satisfies a Polyak–Lojasiewicz inequality with constant Θ( ε2/∆4), while softmax has constant Θ( e−∆2/√dε2/∆2). The ratio is exponentially large in ∆ 2/√d, implying that IDA converges linearly and dramatically faster for separated keys. The theorem also implied the ab-sence of spurious local minima and established Θ(1) Hessian spread. 
+
+Theorem 3 (Effective Rank) established that IDA’s effective rank is bounded independent of hidden width, preventing the memorization of arbitrary noisy labels that occurs in softmax when dh ≥ n. The theorem also provided a noise robustness bound EIDA test ≤ Cη 2 + O(1 /√n). 
+
+Summary of non-Euclidean contributions. 
+
+The Riemann GeoResolver framework extends the Euclidean prototype to hyperbolic and spherical geometries: 
+
+• HIDA family (M1–M4): Four hyperbolic attention operators spanning Θ( n2) to Θ(1) complexity, with circuit separation and PL inequalities proved for the dense case. 
+
+• Hyperbolic Curvature Compression (M5): Provable reconstruction error bound ∥k − ek∥22 ≤ 4(2 −b + 2 −br ) and memory complexity analysis. 
+
+• HyperGate (M6): Gradient lower-bound theorem ensuring non-vanishing gradients through curvature-adaptive gating. 
+
+• Spherical Inverse Distance Attention (M7–M8): Sphere-analog PL in-equalities and cross-geometric mapping methods. 
+
+• Dynamic Memory Genesis (M9): O(log T ) regret bound for online proto-type allocation. 
+
+• Geodesic Sparse Routing (M10): Routing quality and communication complexity bounds. 
+
+Theoretical significance. 
+
+This work establishes that inverse-distance attention is not merely an em-pirical alternative to softmax, but a mechanism with fundamentally different theoretical properties. The three Euclidean theorems—circuit separation, PL inequality, and effective rank bound—collectively show that IDA is provably stronger than softmax in expressiveness, optimization, and generalization. The non-Euclidean extension shows that these advantages are preserved and ampli-fied in hyperbolic and spherical geometries. 
+
+Open directions. 
+
+The limitations of this work suggest several directions for future investi-gation. First, the PL analysis is restricted to the two-key case; extending to multi-key settings would provide stronger optimization guarantees. Second, the 31 empirical validation remains future work. Third, the compression analysis is limited to keys; extending to values would improve memory efficiency. Fourth, the distributed routing analysis is theoretical; implementation and scaling on real systems would validate the communication bounds. Fifth, mixed-curvature spaces combining hyperbolic and spherical geometries could provide even more flexible representations. 
+
+# Acknowledgments 
+
+The author gratefully acknowledges Prof. Junxue Zhang at the University of Science and Technology of China for his valuable guidance and insightful dis-cussions throughout this research. 
+
+# References 
+
+[1] Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, L., and Polosukhin, I. (2017). Attention is all you need. In 
+
+Advances in Neural Information Processing Systems (NeurIPS) .[2] Katharopoulos, A., Vyas, A., Pappas, N., and Fleuret, F. (2020). Trans-formers are RNNs: Fast autoregressive transformers with linear atten-tion. In International Conference on Machine Learning (ICML) , PMLR 119:5156–5165. [3] Dao, T., Fu, D. Y., Ermon, S., Rudra, A., and R´ e, C. (2022). FlashAt-tention: Fast and memory-efficient exact attention with IO-awareness. In 
+
+Advances in Neural Information Processing Systems (NeurIPS) .[4] Dao, T. (2023). FlashAttention-2: Faster attention with better parallelism and work partitioning. arXiv preprint arXiv:2307.08691 .[5] Child, R., Gray, S., Radford, A., and Sutskever, I. (2019). Generating long sequences with sparse transformers. arXiv preprint arXiv:1904.10509 .[6] Beltagy, I., Peters, M. E., and Cohan, A. (2020). Longformer: The long-document transformer. arXiv preprint arXiv:2004.05150 .[7] Kitaev, N., Kaiser, L., and Levskaya, A. (2020). Reformer: The effi-cient transformer. In International Conference on Learning Representations (ICLR) .[8] Wang, S., Li, B. Z., Khabsa, M., Fang, H., and Ma, H. (2020). Linformer: Self-attention with linear complexity. arXiv preprint arXiv:2006.04768 .[9] Choromanski, K., Likhosherstov, V., Dohan, D., Song, X., Gane, A., Sar-los, T., Hawkins, P., Davis, J., Mohiuddin, A., Kaiser, L., et al. (2021). Re-thinking attention with performers. In International Conference on Learn-ing Representations (ICLR) .32 [10] Bello, I., Zoph, B., Vaswani, A., Shlens, J., and Le, Q. V. (2019). Attention augmented convolutional networks. arXiv preprint arXiv:1905.10863 .[11] Parmar, N., Vaswani, A., Uszkoreit, J., Kaiser, L., Shazeer, N., Ku, A., and Tran, D. (2018). Image transformer. In International Conference on Machine Learning (ICML) , PMLR 80:4055–4064. [12] McCarter, C. (2023). Inverse distance weighting attention. arXiv preprint arXiv:2310.18805 .[13] Ge, L. (2026). GeoResolver: Optimization geometry and capacity bounds for inverse distance attention. Under review .[14] Nadaraya, E. A. (1964). On estimating regression. Theory of Probability & Its Applications , 9(1):141–142. [15] Watson, G. S. (1964). Smooth regression analysis. Sankhy¯ a: The Indian Journal of Statistics, Series A , 26(4):359–372. [16] Shepard, R. N. (1968). Towards a universal law of generalization for psy-chological science. Science , 162(3850):1343–1352. [17] Hopfield, J. J. (1982). Neural networks and physical systems with emergent collective computational abilities. Proceedings of the National Academy of Sciences , 79(8):2554–2558. [18] Krotov, D. and Hopfield, J. J. (2016). Dense associative memory for pat-tern recognition. In Advances in Neural Information Processing Systems (NeurIPS) .[19] Ambrogioni, L. (2023). The statistical thermodynamics of generative diffu-sion models. arXiv preprint arXiv:2302.03615 .[20] Nickel, M. and Kiela, D. (2017). Poincar´ e embeddings for learning hierarchi-cal representations. In Advances in Neural Information Processing Systems (NeurIPS) .[21] Nickel, M. and Kiela, D. (2018). Learning continuous hierarchies in the Lorentz model of hyperbolic geometry. In International Conference on Ma-chine Learning (ICML) , PMLR 80:3779–3788. [22] Ganea, O., B´ ecigneul, G., and Hofmann, T. (2018). Hyperbolic neural net-works. In Advances in Neural Information Processing Systems (NeurIPS) .[23] Chami, I., Ying, Z., R´ e, C., and Leskovec, J. (2019). Hyperbolic graph con-volutional neural networks. In Advances in Neural Information Processing Systems (NeurIPS) .[24] Gulcehre, C., Denil, M., Malinowski, M., Razavi, A., Pascanu, R., Her-mann, K. M., Battaglia, P., Bapst, V., Raposo, D., Santoro, A., and de Freitas, N. (2020). Hyperbolic attention networks. In International Con-ference on Learning Representations (ICLR) .33 [25] Shimizu, R., Mukuta, Y., and Harada, T. (2021). Hyperbolic neural networks++. In International Conference on Learning Representations (ICLR) .[26] Chen, W., Han, X., Lin, Y., Zhao, H., Liu, Z., Li, P., Sun, M., and Zhou, J. (2021). Fully hyperbolic neural networks. arXiv preprint arXiv:2105.14686 .[27] Liu, Q., Nickel, M., and Kiela, D. (2020). Hyperbolic graph neu-ral networks: A review of methods and applications. arXiv preprint arXiv:2002.08852 .[28] Krioukov, D., Papadopoulos, F., Kitsak, M., Vahdat, A., and Bogu˜ n´ a, M. (2010). Hyperbolic geometry of complex networks. Physical Review E ,82(3):036106. [29] Sala, F., De Sa, C., Gu, A., and R´ e, C. (2018). Representation tradeoffs for hyperbolic embeddings. In International Conference on Machine Learning (ICML) , PMLR 80:4460–4469. [30] Cohen, T. S., Geiger, M., K¨ ohler, J., and Welling, M. (2018). Spherical CNNs. In International Conference on Learning Representations (ICLR) .[31] Esteves, C., Allen-Blanchette, C., Makadia, A., and Daniilidis, K. (2020). Learning SO(3) equivariant representations with spherical CNNs. Interna-tional Journal of Computer Vision , 128(5):1471–1488. [32] Bonev, B., Rietmann, M., Paris, A., Carpentieri, A., and Kurth, T. (2025). Attention on the sphere. In Advances in Neural Information Processing Systems (NeurIPS) .[33] Kobler, R. J., Hirayama, J., and Kawanabe, M. (2022). Spherical con-volutions and their applications in machine learning. arXiv preprint arXiv:2201.11899 .[34] Gu, A., Goel, K., and R´ e, C. (2021). Efficiently modeling long sequences with structured state spaces. arXiv preprint arXiv:2111.00396 .[35] Gu, A., Goel, K., Gupta, A., and R´ e, C. (2022). On the parameterization and initialization of diagonal state space models. In Advances in Neural Information Processing Systems (NeurIPS) .[36] Gu, A. and Dao, T. (2023). Mamba: Linear-time sequence modeling with selective state spaces. arXiv preprint arXiv:2312.00752 .[37] Dao, T. and Gu, A. (2024). Transformers are SSMs: Generalized models and efficient algorithms through structured state space duality. In Interna-tional Conference on Machine Learning (ICML) .[38] Smith, J. T. H., Warrington, A., and Linderman, S. W. (2023). Simplified state space layers for sequence modeling. In International Conference on Learning Representations (ICLR) .34 [39] Gupta, A., Gu, A., and Berant, J. (2022). Diagonal state spaces are as effective as structured state spaces. arXiv preprint arXiv:2203.14343 .[40] Shazeer, N., Mirhoseini, A., Maziarz, K., Davis, A., Le, Q., Hinton, G., and Dean, J. (2017). Outrageously large neural networks: The sparsely-gated mixture-of-experts layer. In International Conference on Learning Representations (ICLR) .[41] Fedus, W., Zoph, B., and Shazeer, N. (2022). Switch transformers: Scaling to trillion parameter models with simple and efficient sparsity. Journal of Machine Learning Research , 23(120):1–39. [42] Lepikhin, D., Lee, H., Xu, Y., Chen, D., Firat, O., Huang, Y., Krikun, M., Shazeer, N., and Chen, Z. (2021). GShard: Scaling giant models with con-ditional computation and automatic sharding. In International Conference on Learning Representations (ICLR) .[43] Du, N., Huang, Y., Dai, A. M., Tong, S., Lepikhin, D., Xu, Y., Krikun, M., Zhou, Y., Yu, A. W., Firat, O., et al. (2022). GLaM: Efficient scaling of language models with mixture-of-experts. In International Conference on Machine Learning (ICML) , PMLR 162:5547–5569. [44] DeepSeek-AI. (2024). DeepSeek-V3: Technical report. arXiv preprint arXiv:2412.19437 .[45] Jiang, A. Q., Sablayrolles, A., Roux, A., Mensch, A., Savary, B., Bamford, C., Chaplot, D. S., de las Casas, D., Hanna, E. B., Bressand, F., et al. (2024). Mixtral of experts. arXiv preprint arXiv:2401.04088 .[46] Roller, S., Sukhbaatar, S., Weston, J., et al. (2021). Hash layers for large sparse models. In Advances in Neural Information Processing Systems (NeurIPS) .[47] Lewis, M., Bhosale, S., Dettmers, T., Goyal, N., and Zettlemoyer, L. (2021). BASE layers: Simplifying training of large, sparse models. arXiv preprint arXiv:2103.16716 .[48] Cai, W., Jiang, J., Wang, F., Tang, J., Kim, S., and Huang, J. (2024). A survey on mixture of experts. arXiv preprint arXiv:2407.06204 .[49] Shazeer, N. (2019). Fast transformer decoding: One write-head is all you need. arXiv preprint arXiv:1911.02150 .[50] Ainslie, J., Lee-Thorp, J., de Jong, M., Zemlyanskiy, Y., Lebr´ on, F., and Sanghai, S. (2023). GQA: Training generalized multi-query transformer models from multi-head checkpoints. arXiv preprint arXiv:2305.13245 .[51] Lin, J., Tang, J., Tang, H., Yang, S., Dang, X., and Han, S. (2024). AWQ: Activation-aware weight quantization for LLM compression and accelera-tion. In International Conference on Machine Learning (ICML) .35 [52] Liu, Z., Yuan, J., Jin, H., Zhong, S., Xu, Z., Braverman, V., Chen, B., and Hu, X. (2024). KIVI: A tuning-free asymmetric 2-bit quantization for KV cache. arXiv preprint arXiv:2402.02750 .[53] Frantar, E., Ashkboos, S., Hoefler, T., and Alistarh, D. (2022). GPTQ: Ac-curate post-training quantization for generative pre-trained transformers. 
+
+arXiv preprint arXiv:2210.17323 .[54] Xiao, G., Lin, J., Seznec, M., Wu, H., Demouth, J., and Han, S. (2024). SmoothQuant: Accurate and efficient post-training quantization for large language models. In International Conference on Machine Learn-ing (ICML) .[55] Kim, S., Hooper, C., Gholami, A., Dong, Z., Li, X., Shen, S., Mahoney, M. W., and Keutzer, K. (2024). SqueezeLLM: Dense-and-sparse quantization. 
+
+arXiv preprint arXiv:2306.07629 .[56] Bhatnagar, P., Moradifirouzabadi, A., Yang, S.-H., Lee, S., Choi, J., and Kang, M. (2026). STAR-KV: Low-rank KV cache compression via soft thresholding for adaptive rank control. In International Conference on Ma-chine Learning (ICML) .[57] Karimi, H., Nutini, J., and Schmidt, M. (2016). Linear convergence of gra-dient and proximal-gradient methods under the Polyak–Lojasiewicz condi-tion. In European Conference on Machine Learning and Knowledge Discov-ery in Databases (ECML PKDD) .[58] Belkin, M., Hsu, D., Ma, S., and Mandal, S. (2019). Reconciling modern machine-learning practice and the classical bias–variance trade-off. Proceed-ings of the National Academy of Sciences , 116(32):15849–15854. [59] Ba, J. L., Kiros, J. R., and Hinton, G. E. (2016). Layer normalization. 
+
+arXiv preprint arXiv:1607.06450 .[60] He, K., Zhang, X., Ren, S., and Sun, J. (2016). Identity mappings in deep residual networks. arXiv preprint arXiv:1603.05027 .[61] Li, Y. and Yuan, Y. (2018). Convergence analysis of two-layer neural net-works with ReLU activation. In Advances in Neural Information Processing Systems (NeurIPS) .[62] Liu, C., Zhu, L., and Belkin, M. (2022). Loss landscapes and optimization in over-parameterized non-linear systems. Journal of Machine Learning Re-search , 23(45):1–43. [63] Drineas, P. and Mahoney, M. W. (2005). On the Nystr¨ om method for ap-proximating a Gram matrix for improved kernel-based learning. Journal of Machine Learning Research , 6:2153–2175. 36 [64] He, N., et al. (2025). Hyperbolic deep learning for foundation models: A survey. arXiv preprint arXiv:2507.17787 . SIGKDD 2025. [65] Zhang, Y., Chen, L., and Liu, Q. (2025). A survey on hyperbolic neural networks. arXiv preprint arXiv:2504.06543 .[66] Graves, A., Wayne, G., and Danihelka, I. (2014). Neural turing machines. 
+
+arXiv preprint arXiv:1410.5401 .[67] Graves, A., Wayne, G., Reynolds, M., Harley, T., Danihelka, I., Grabska-Barwi´ nska, A., Colmenarejo, S. G., Grefenstette, E., Ramalho, T., Aga-piou, J., et al. (2016). Hybrid computing using a neural network with dy-namic external memory. Nature , 538(7626):471–476. [68] Hochreiter, S. and Schmidhuber, J. (1997). Long short-term memory. Neu-ral Computation , 9(8):1735–1780. [69] Bengio, Y., Simard, P., and Frasconi, P. (1994). Learning long-term de-pendencies with gradient descent is difficult. IEEE Transactions on Neural Networks , 5(2):157–166. [70] Pascanu, R., Mikolov, T., and Bengio, Y. (2013). On the difficulty of train-ing recurrent neural networks. In International Conference on Machine Learning (ICML) , PMLR 28:1310–1318. 37
