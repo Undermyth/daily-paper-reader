@@ -6,29 +6,35 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-16
-- 运行时间：2026-08-16 19:49:06 UTC
+- 最新运行日期：2026-08-17
+- 运行时间：2026-08-17 19:35:50 UTC
 - 运行状态：成功
-- 本次总论文数：3
+- 本次总论文数：5
 - 精读区：2
-- 速读区：1
+- 速读区：3
 
 ### 今日简报（AI）
-今日精读2篇、速读1篇，聚焦长程Agent记忆证据选择与非欧几里得注意力框架。最值得关注的是任务自适应的多结构证据选择（8.0分）和双曲-球面几何注意力建模，二者对长程推理效率有明显启发。建议下一步优先了解MESA中的证据筛选机制，再结合QV-PIC的缓存思路做应用落地。
-- 详情：[/202608/16/README](/202608/16/README)
+今日精读5篇论文，聚焦线性注意力可遗忘机制与图序列模型跳点提取两大方向。最值得关注的是《The Query Knows What to Forget》提出第二擦除方向（9.0分），以及《HOPPER》的可学习跳点提取（8.0分）。建议优先研读这两篇，其余三篇涉及推理加速与KV缓存压缩，可作为补充。
+- 详情：[/202608/17/README](/202608/17/README)
 
 ### 精读区论文标签
-1. [MESA:Task-Adaptive Multi-Structure Evidence Selection for Long-Horizon Agent Memory](/202608/16/2608.10108v1-mesatask-adaptive-multi-structure-evidence-selection-for-long-horizon-agent-memory)  
+1. [The Query Knows What to Forget: A Second Erase Direction for Linear Attention](/202608/17/2608.13668v1-the-query-knows-what-to-forget-a-second-erase-direction-for-linear-attention)  
+   标签：评分：9.0/10、query:la
+   evidence：为线性注意力引入源自查询的第二擦除方向，减少干扰并提升检索性能
+2. [HOPPER: Learnable Hop Extraction for Linearized Graph Sequence Models](/202608/17/2608.09031v1-hopper-learnable-hop-extraction-for-linearized-graph-sequence-models)  
    标签：评分：8.0/10、query:la
-   evidence：针对长时程智能体，从多个外部记忆结构中自适应选择互补证据
-2. [Riemann GeoResolver: A Non-Euclidean Attention Framework from Euclidean Resolver to Hyperbolic-Spherical Geometry](/202608/16/2608.10416v1-riemann-georesolver-a-non-euclidean-attention-framework-from-euclidean-resolver-to-hyperbolic-spherical-geometry)  
-   标签：评分：8.0/10、query:la
-   evidence：理论上以O(1)资源实现精确检索与线性收敛，与线性注意力在效率目标上等价
+   evidence：为线性化图序列模型引入可学习的跳数提取，推进类线性注意力序列架构。
 
 ### 速读区论文标签
-1. [QV-PIC: Query-Aware Visual Position-Independent Caching for Efficient RAG Serving](/202608/16/2608.12121v1-qv-pic-query-aware-visual-position-independent-caching-for-efficient-rag-serving)  
+1. [Reduced Matrix Multiplication: Input-Adaptive Matrix-Product Reduction for LLM Inference](/202608/17/2608.13426v1-reduced-matrix-multiplication-input-adaptive-matrix-product-reduction-for-llm-inference)  
+   标签：评分：7.0/10、query:la
+   evidence：缩减Transformer矩阵乘法以高效推理，与线性注意力目标一致
+2. [Prof-K: Probabilistic One-Pass Filtering for Efficient Top-k Selection](/202608/17/2608.12573v1-prof-k-probabilistic-one-pass-filtering-for-efficient-top-k-selection)  
    标签：评分：6.0/10、query:la
-   evidence：面向检索增强生成的查询感知KV缓存复用
+   evidence：高效top-k过滤，可用于注意力剪枝
+3. [KV Cache Compression Through the Lens of Transform Coding](/202608/17/2608.14191v1-kv-cache-compression-through-the-lens-of-transform-coding)  
+   标签：评分：6.0/10、query:la
+   evidence：面向内存高效Transformer推理的注意力感知KV缓存压缩
 
 
 <div class="dpr-home-promo-card">
