@@ -1,0 +1,734 @@
+Title: p-Spin Glass Network Efficient Single-Batch Continual Learning
+
+URL Source: https://arxiv.org/pdf/2608.14774v1
+
+Published Time: Tue, 18 Aug 2026 00:08:12 GMT
+
+Number of Pages: 9
+
+Markdown Content:
+# p-Spin Glass Network Efficient Single-Batch Continual Learning 
+
+Vladimer Khasia 1
+
+## Abstract 
+
+Modern sequence models heavily rely on mas-sive memory footprints and large-batch stochas-tic optimization, barriers that restrict sample ef-ficiency and continual learning. We introduce the p-Spin Glass Network, a novel architecture that overcomes these limitations, structurally man-ages optimization variance and yields four no-ticeable capabilities: 1. It enforces memory ef-ficiency: native ternary quantization compresses internal parameters by 8×, while exact implicit gradients strictly bound activation memory to 
+
+O(B · T · D). 2. it demonstrates sample effi-ciency, matching the asymptotic performance of a Transformer baseline while utilizing 8× fewer training sequences. 3. Method enables single-batch stability and smooth, monotonic conver-gence at a stochastic micro-batch size of 1. 4. Finally, this stability proves modality-agnostic, maintaining robust temporal credit assignment across both discrete subword and long horizon uncompressed raw byte streams. Ultimately, this work removes large batch requirement for stable deep learning, establishing a foundation for con-tinuous learning and edge AI. Code: https: //github.com/VladimerKhasia/sgn 
+
+## 1. Introduction 
+
+Modern deep learning relies fundamentally on the Trans-former architecture (Vaswani et al., 2017; Radford et al., 2019), whose dependence on massive memory footprints and large batch gradient accumulation heavily obstructs low resource and continual learning (Parisi et al., 2019). While recent advancements in linear-time state-space mod-els (SSMs) (Gu et al., 2022; Dao et al., 2022; Gu & Dao, 2023) alleviate sequence length memory bottlenecks and extreme network quantization (Wang et al., 2023; Ma et al.,    
+
+> Preprint. 1Independent Researcher. Correspondence to: Vladimer Khasia <vladimer.khasia.1@gmail.com >.
+
+2024) compresses parameter footprints, these techniques collectively fail to resolve the severe gradient variance and optimization instability inherent to training at minimal batch sizes. To overcome this stochastic optimization barrier, we reframe sequence representation through the theoretical lens of im-plicit deep learning (Bai et al., 2019; El Ghaoui et al., 2021) and physics-inspired thermodynamic attractors (Hopfield, 1982; Choromanska et al., 2015; Ramsauer et al., 2021). Un-like standard architectures that map inputs through explicitly unrolled feed-forward graphs, implicit models define hidden states as the converged roots of an iterative fixed point solver. By extracting exact analytical gradients at the equilibrium manifold via the Implicit Function Theorem (IFT), activa-tion memory becomes mathematically decoupled from the integration depth. Building upon these principles while inspired by physics of Spin Glasses (M´ ezard et al., 1987; Parisi, 1980; Crisanti & Sommers, 1992; Gross & M´ ezard, 1984), we introduce the p-Spin Glass Network. We apply ternary quantization specif-ically to the internal thermodynamic projection matrices. This targeted compression explicitly bounds the Lipschitz constant of the equilibrium layer, providing a structural ther-modynamic regularization that dampens gradient variance. Formulated as a generalized framework, the architecture sustains robust temporal credit assignment across both stan-dard subword token spaces and long horizon uncompressed raw byte streams (Xue et al., 2022; YU et al., 2023; Khasia, 2026). In summary, core contributions are as follows: • Architectural Memory Efficiency: We quantize the projection matrices of the implicit p-spin attractor (Wext , W int ) to ternary values, yielding an 8× param-eter compression in the equilibrium layers. Further-more, by coupling SRAM-fused state-space chunking with gradient derivation via the Implicit Function The-orem, we bound HBM activation memory strictly to 
+
+O(B · T · D), unconditionally invariant to the fixed point iteration count K.• Sample-Efficient Optimization: We demonstrate that the method achieves asymptotic performance parity 1arXiv:2608.14774v1 [cs.LG] 14 Aug 2026 p-Spin Glass Network    
+
+> Figure 1. Architectural diagram of the p-Spin Glass Network. The left column illustrates modality-agnostic input encoding. The center column details the hardware-fused continuous state-space routing and the higher-order p-spin attractor search. The right column depicts the final vocabulary projection and cross-entropy evaluation.
+
+with optimized standard Transformers while consum-ing only 12 .5% of the required training sequences. • Single-Batch Stability for Continual Learning: We establish that the bounded fixed point solver struc-turally dampens gradient variance. This mathematical regularization guarantees smooth, monotonic conver-gence even at a pure stochastic micro batch size of 
+
+B = 1 , eliminating the standard requirement for mas-sive batch accumulation. • Modality Agnostic Processing: We empirically val-idate the architecture as a generalized sequence mod-eling framework. It successfully maintains temporal credit assignment across fundamentally different repre-sentation scales, from discrete subword token spaces (|V | = 49152 ) to extreme-horizon continuous raw byte streams ( |V | = 256 ). 
+
+## 2. Methodology 
+
+2.1. Mathematical Formulation and Derivation 
+
+This section provides formulation of the p-Spin Glass Net-work. The architecture acts as a general sequence modeling framework, evaluated here on discrete language modalities. The forward and backward propagation dynamics strictly couple continuous time state-space integrations with p-spin glass equilibrium attractors. 
+
+Notation Glossary: 
+
+• B, T, D : Batch size, sequence length, and hidden fea-ture dimension. • H, d h: Number of attention heads and head dimension (D = H · dh). • C, N : Chunk size and number of sequence chunks (T = N · C). • X ∈ RB×T ×D : Input sequence representation. • Wq , W k, W v , W g , W o ∈ RD×D: State-space linear projection weights. • Wext ∈ R2Dint ×D, Wint ∈ R2Dint ×Dint : External drive and internal equilibrium ternary matrices. • γparam ∈ RDint : Learnable spin frustration (relaxation rate) parameters. • K ∈ Z+: Number of equilibrium micro-steps (fixed point iterations). 2p-Spin Glass Network 
+
+2.1.1. C ONTINUOUS ODE I NTEGRATION VIA GATED 
+
+STATE -S PACES 
+
+For a given layer l, the input tensor X(l−1) is normalized via Root Mean Square Normalization (with ϵ = 10 −6): 
+
+˜Xb,t,d = X(l−1) 
+
+> b,t,d
+
+q 1
+
+> D
+
+PDj=1 (X(l−1)  
+
+> b,t,j
+
+)2 + ϵ
+
+⊙ Wnorm ,d (1) The state-space projections Q, K, V ∈ RB×T ×H×dh are computed as ˜XW ⊤ 
+
+> q
+
+, ˜XW ⊤ 
+
+> k
+
+, ˜XW ⊤ 
+
+> v
+
+, with Q ← Q · d−0.5 
+
+> h
+
+.The data-dependent ODE decay gate G ∈ RB×T ×H bounds the continuous-time temporal growth strictly to negative domains via the softplus operator: 
+
+Gb,t,h = 1
+
+dhdhX
+
+> j=1
+
+− log 
+
+
+
+1 + exp 
+
+
+
+( ˜XW ⊤ 
+
+> g
+
+)b,t,h,j 
+
+ 
+
+(2) To circumvent O(T 2) memory materialization, the sequence is partitioned into N chunks of length C. The intra-chunk cumulative sum Gcs governs the exact causal decay mask 
+
+M(i) ∈ RC×C , materialized directly in SRAM: 
+
+M(i) 
+
+> c,j
+
+=
+
+(exp 
+
+
+
+G(i,c ) 
+
+> cs
+
+− G(i,j )
+
+> cs
+
+
+
+if c ≥ j
+
+0 otherwise (3) The contextualized output of chunk i combines intra chunk causal attention and cross chunk global memory h(i−1) :
+
+O(i) 
+
+> intra
+
+=
+
+
+
+Q(i)(K(i))⊤ ⊙ M (i)
+
+V (i) (4) 
+
+O(i) 
+
+> cross
+
+=
+
+
+
+Q(i)h(i−1) 
+
+⊙ exp 
+
+
+
+G(i)
+
+> cs
+
+
+
+(5) 
+
+h(i) = h(i−1) ⊙ exp 
+
+
+
+G(i,C )
+
+> cs
+
+
+
++
+
+
+
+K(i) ⊙ exp 
+
+
+
+G(i,C ) 
+
+> cs
+
+− G(i)
+
+> cs
+
+ ⊤
+
+V (i) (6) The concatenated sequence passes through W ⊤ 
+
+> o
+
+, yielding 
+
+Xssm . The residual update is Xmid = X(l−1) + Xssm .2.1.2. H IGHER -O RDER INTERACTIONS (p-S PIN GLASS 
+
+GATED ATTRACTORS )The residual tensor Xmid is normalized to ¯X. The p-spin glass MLP evaluates an implicit equilibrium fixed point. To enforce parameter efficiency, the dense projec-tion matrices are quantized to {− 1, 0, 1} using an absolute mean scale s and a Straight-Through Estimator (STE). For 
+
+W ∈ { Wext , W int }:
+
+s = max 1
+
+|W |
+
+X
+
+> w∈W
+
+|w|, 10 −5
+
+!
+
+(7) 
+
+W Q = STE 
+
+
+
+clamp 
+
+
+
+round 
+
+ Ws
+
+
+
+, −1, 1
+
+
+
+· s
+
+
+
+(8) The external thermodynamic drive projects the representa-tion to a 2Dint space: Z = ¯X(W Q
+
+> ext
+
+)⊤. Splitting Z iso-lates the value bounds U0 and the spin gates G0. The frustration rate is bounded by γ = 0 .5 tanh( γparam ). For 
+
+k ∈ { 1, . . . , K } micro steps, the network seeks the energy minimum Y ∗ = YK :
+
+Yk−1 = tanh( Uk−1) ⊙ σ(Gk−1) (9) 
+
+Hk = Z + ( γ ⊙ Yk−1)( W Q 
+
+> int
+
+)⊤ (10) 
+
+Uk, G k = Hk, [: ,:,:Dint ], H k, [: ,:,D int :] (11) The equilibrium state Y ∗ is down-projected via Wdown , pro-ducing the layer’s final output: X(l) = Xmid + Y ∗W ⊤
+
+> down
+
+.2.1.3. E XACT IMPLICIT GRADIENTS 
+
+Backpropagation through the iterative attractor relies on the Implicit Function Theorem via a Neumann series ap-proximation, ensuring exact gradient reconstruction without 
+
+O(K) graph unrolling. Defining equilibrium derivatives 
+
+ϕu = (1 − tanh 2(UK )) ⊙ σ(GK ) and ϕg = tanh( UK ) ⊙
+
+σ(GK ) ⊙ (1 − σ(GK )) , the iterative gradient Vk given in-coming ∇Y ∗ L is: 
+
+Vk = ∇Y ∗ L+γ ⊙
+
+
+
+[Vk−1 ⊙ ϕu ∥ Vk−1 ⊙ ϕg ] W Q
+
+> int
+
+
+
+(12) Yielding exact gradients ∇H = [( VK ⊙ ϕu) ∥ (VK ⊙ ϕg )] ,strictly evaluated at the fixed point manifold. 
+
+2.2. Algorithmic Specification 
+
+We present the complete algorithmic specifications of the 
+
+p-Spin Glass Network. To demonstrate its modality agnostic applicability as a general sequence modeling framework, the methodology is provided in two distinct, formulations corresponding directly to the provided code implementa-tions. Algorithm 1 delineates the standard subword-tokenized ar-chitecture leveraging a unified vocabulary size of |V | =49152 . Conversely, Algorithm 2 formalizes the charac-ter level (continuous raw byte) formulation operating over an uncompressed vocabulary of |V | = 256 . Both algo-rithms execute the exact same internal p-spin attractor and hardware-fused state-space dynamics, diverging exclusively in their input encoding spaces, embedding matrices, and final evaluation metrics (Perplexity versus Bits Per Byte). 
+
+2.3. Complete Complexity Analysis 
+
+We analyze the theoretical time (computational operations) and space (memory footprint) complexities of the p-Spin Glass Network. The analysis strictly isolates the discrete modalities (Subword vs. Byte level) to formalize how vo-cabulary scaling impacts the algorithmic execution bounds. Let L denote the number of layers. 3p-Spin Glass Network 
+
+Algorithm 1 p-Spin Glass Network (Subword Level) 
+
+Require: Raw Text S, Subword Tokenizer τsub (|V | =49152 ), Target Ytarg , Layers L.
+
+Ensure: Loss L, Perplexity metric. 
+
+1: I ← τsub (S) ∈ ZB×T
+
+2: X(0) ← Embedding (I, W emb )
+
+3: for l = 1 to L do 
+
+4: // 1. Gated State-Space Continuous Integration 
+
+5: ˜X ← RMSNorm (X(l−1) )
+
+6: Q, K, V ← ˜XW ⊤ 
+
+> q
+
+, ˜XW ⊤ 
+
+> k
+
+, ˜XW ⊤
+
+> v
+
+7: G ← 1
+
+> dh
+
+P − log(1 + exp( ˜XW ⊤ 
+
+> g
+
+)) 
+
+8: Split into chunks of size C; h ← 0
+
+9: for each chunk i ∈ { 1 . . . N } do 
+
+10: M(i) ← exp( G(i) 
+
+> cs
+
+− (G(i) 
+
+> cs
+
+)⊤) (Masked lower-triangular) 
+
+11: Ointra ← (( QiK⊤ 
+
+> i
+
+) ⊙ M (i))Vi
+
+12: Ocross ← (Qih) ⊙ exp( G(i) 
+
+> cs
+
+)
+
+13: Oi ← Ointra + Ocross 
+
+14: Update continuous state h using Ki, V i, G cs 
+
+15: end for 
+
+16: Xmid ← X(l−1) + Concat (O1 . . . O N )W ⊤
+
+> o
+
+17: // 2. Higher-Order Interactions ( p-Spin Equilib-rium) 
+
+18: ¯X ← RMSNorm (Xmid )
+
+19: W Q
+
+> ext
+
+, W Q 
+
+> int
+
+← Quantize1.58b (Wext ), Quantize1.58b (Wint )
+
+20: Z ← ¯X(W Q
+
+> ext
+
+)⊤
+
+21: U0, G 0 ← Split (Z, dim = −1) 
+
+22: Y ← tanh( U0) ⊙ σ(G0)
+
+23: for k = 1 to K do 
+
+24: Hk ← Z + ( γ ⊙ Y )( W Q 
+
+> int
+
+)⊤
+
+25: Uk, G k ← Split (Hk, dim = −1) 
+
+26: Y ← tanh( Uk) ⊙ σ(Gk)
+
+27: end for 
+
+28: X(l) ← Xmid + Y W ⊤
+
+> down
+
+29: end for 
+
+30: // 3. Vocabulary Projection (Tied Embeddings) & Loss 
+
+31: ˆY ← RMSNorm (X(L))W ⊤ 
+
+> emb
+
+{Wemb tied to output head }
+
+32: L ← CrossEntropy ( ˆY , Y targ )
+
+33: return L, Perplexity ← exp( L)
+
+2.3.1. T IME COMPLEXITY (C OMPUTATIONAL 
+
+OPERATIONS )The forward pass time complexity is governed by three primary computational phases: the continuous state-space integration, the p-spin equilibrium fixed point derivation, and the final vocabulary projection. 
+
+1. Gated State-Space Continuous Integration: The initial linear projections ( Q, K, V, g ) require O(B · T · D2) opera-tions. The sequence is processed in N = T /C chunks. The 
+
+Algorithm 2 p-Spin Glass Network (Byte Level) 
+
+Require: Raw Text S, UTF-8 Byte Encoder τbyte (|V | =256 ), Target Ytarg , Layers L.
+
+Ensure: Loss L, Bits-Per-Byte (BPB) metric. 
+
+1: I ← τbyte (S) ∈ { 0 . . . 255 }B×T
+
+2: X(0) ← Embedding (I, W emb )
+
+3: for l = 1 to L do 
+
+4: // 1. Gated State-Space Continuous Integration 
+
+5: ˜X ← RMSNorm (X(l−1) )
+
+6: Q, K, V ← ˜XW ⊤ 
+
+> q
+
+, ˜XW ⊤ 
+
+> k
+
+, ˜XW ⊤
+
+> v
+
+7: G ← 1
+
+> dh
+
+P − log(1 + exp( ˜XW ⊤ 
+
+> g
+
+)) 
+
+8: Split into chunks of size C; h ← 0
+
+9: for each chunk i ∈ { 1 . . . N } do 
+
+10: M(i) ← exp( G(i) 
+
+> cs
+
+− (G(i) 
+
+> cs
+
+)⊤) (Masked lower-triangular) 
+
+11: Ointra ← (( QiK⊤ 
+
+> i
+
+) ⊙ M (i))Vi
+
+12: Ocross ← (Qih) ⊙ exp( G(i) 
+
+> cs
+
+)
+
+13: Oi ← Ointra + Ocross 
+
+14: Update continuous state h using Ki, V i, G cs 
+
+15: end for 
+
+16: Xmid ← X(l−1) + Concat (O1 . . . O N )W ⊤
+
+> o
+
+17: // 2. Higher-Order Interactions ( p-Spin Equilib-rium) 
+
+18: ¯X ← RMSNorm (Xmid )
+
+19: W Q
+
+> ext
+
+, W Q 
+
+> int
+
+← Quantize1.58b (Wext ), Quantize1.58b (Wint )
+
+20: Z ← ¯X(W Q
+
+> ext
+
+)⊤
+
+21: U0, G 0 ← Split (Z, dim = −1) 
+
+22: Y ← tanh( U0) ⊙ σ(G0)
+
+23: for k = 1 to K do 
+
+24: Hk ← Z + ( γ ⊙ Y )( W Q 
+
+> int
+
+)⊤
+
+25: Uk, G k ← Split (Hk, dim = −1) 
+
+26: Y ← tanh( Uk) ⊙ σ(Gk)
+
+27: end for 
+
+28: X(l) ← Xmid + Y W ⊤
+
+> down
+
+29: end for 
+
+30: // 3. Vocabulary Projection (Tied Embeddings) & Loss 
+
+31: ˆY ← RMSNorm (X(L))W ⊤ 
+
+> emb
+
+{Wemb tied to output head }
+
+32: L ← CrossEntropy ( ˆY , Y targ )
+
+33: return L, BPB ← L / ln(2) 
+
+intra-chunk masked attention (evaluated in SRAM) com-putes a C × C temporal interaction matrix per head, requir-ing O(C2 · dh) operations per chunk. Across N chunks and 
+
+H heads, this yields O(N ·H·C2·dh) = O(B·T ·C·D). The cross-chunk continuous state update involves multiplication with the dh × dh hidden state h, taking O(C · d2
+
+> h
+
+) per chunk. Across all heads and chunks, this requires O(B · T · D · dh).The total time complexity for the state-space module per layer is: 
+
+Ossm = O B · T · D · (D + C + dh) (13) 4p-Spin Glass Network 
+
+2. Higher-Order Interactions ( p-Spin Attractor): The external thermodynamic drive projects the input requiring 
+
+O(B·T ·D·Dint ). The core p-spin attractor iterates K micro-steps to converge to the fixed point. Each step executes a linear projection bounded by O(B · T · D2
+
+> int
+
+). Crucially, because W Q 
+
+> ext
+
+and W Q 
+
+> int
+
+are quantized to {− 1, 0, 1}, these operations strictly require hardware addition/subtraction, bypassing floating-point multiplications. The total time complexity for the equilibrium module per layer is: 
+
+Opspin = O B · T · Dint · (D + K · Dint ) (14) 
+
+3. Modality Divergence (Vocabulary Projection): The sole algorithmic divergence between the Subword and Byte configurations manifests in the final tied embedding projection to the categorical probability simplex, costing 
+
+O(B · T · D · | V |).• Subword Modality (Algorithm 1): |V | = 49152 .The time complexity is heavily dominated by the out-put logits computation, introducing a massive O(B ·
+
+T · D · 49152) bottleneck. • Byte Modality (Algorithm 2): |V | = 256 . The pro-jection collapses to a negligible O(B · T · D · 256) ,making the overall architecture strongly bound by the internal hidden dimensions rather than the vocabulary surface. 2.3.2. S PACE COMPLEXITY (M EMORY FOOTPRINT )The spatial demands of the architecture are strictly bounded by two mathematically derived constant-memory guaran-tees: SRAM causal chunking and the Implicit Function Theorem (IFT). 
+
+1. Activation Memory (Training): Standard global atten-tion scales quadratically with sequence length O(B ·T 2 ·H).By enforcing the Triton-fused chunked ODE integration, the 
+
+C × C decay mask M is materialized strictly within GPU SRAM and immediately reduced. Thus, the HBM sequence activation footprint remains strictly linear: O(B · T · D).Furthermore, standard recurrent fixed point or unrolled solvers require O(K · B · T · Dint ) memory to store the computational graph for backpropagation. By utilizing the Neumann series approximation of the inverse Jacobian via the Implicit Function Theorem, the backward pass depends exclusively on the converged state Y ∗ and intermediate bounds U, G at step K. The activation memory of the p-spin module is unconditionally invariant to the number of micro-steps K:
+
+Oact-pspin = O(B · T · Dint ) (15) 
+
+2. Parameter Compression Footprint: The logical pa-rameter matrices are stored as high-precision weights but deployed as packed representations during execution. The state-space matrices ( Wq , W k, W v , W g , W o) utilize stan-dard 16 -bit floats. The internal p-spin thermodynamic inter-actions ( Wext , W int ) are quantized to 1.58 -bit (packed into 
+
+2-bit blocks). The spatial parameter complexity per layer is: 
+
+Oparams = 5 · 16 D2 + 2(2 D · Dint + 2 D2
+
+> int
+
+) bits (16) This establishes a mathematically rigorous parameter com-pression ratio, explicitly shrinking the MLP footprint by a theoretical factor of ≈ 8× compared to equivalent 16 -bit standard architectures. 
+
+3. Peak Logit VRAM (Modality Split): The peak memory allocation during the cross-entropy gradient formulation is fundamentally bottlenecked by the categorical distribution vector. For the Subword architecture, this requires O(B · T ·
+
+49152) floating-point elements per batch step, dominating the loss calculation tensor space. Conversely, the Byte-level architecture bounds this to O(B · T · 256) , allowing extreme context length expansions ( T → ∞ ) given equivalent GPU High-Bandwidth Memory capacities. 
+
+## 3. Experiments 
+
+To empirically validate the theoretical properties of the p-Spin Glass Network, we evaluate its performance against a heavily optimized standard Transformer baseline. The evaluation isolates three algorithmic dimensions: sample efficiency, modality agnosticism (subword vs. byte level representations), and gradient stabilization dynamics under extreme batch size constraints. 
+
+3.1. Experimental Setup 
+
+All models are trained on the HuggingFaceFW/fineweb-edu dataset (10BT sample split) (Lozhkov et al., 2024). The baseline model is a standard autoregressive Transformer optimized with community standard hyperparameters, oper-ating on a batch size of B = 64 and trained for 1, 000 steps (totaling 64 , 000 sequences). The proposed p-Spin Glass models are trained in two config-urations: a Subword-level formulation ( |V | = 49152 ) and a Byte-level formulation ( |V | = 256 ). Both p-Spin architec-tures are trained strictly at a micro-batch size of B = 1 for 
+
+8, 000 steps (totaling 8, 000 sequences). Consequently, the proposed methods are evaluated under an 8× data deficit compared to the baseline. Extensive architectural details, training hyperparameters, and hardware specifications are provided in Appendix A. 
+
+3.2. Sample Efficiency and State-Space Evaluation 
+
+Table 1 summarizes the final evaluation metrics. Despite processing 8× fewer total sequences, the Subword p-Spin Glass model achieves a final validation cross-entropy loss of 5p-Spin Glass Network 
+
+4.8004 (Perplexity 121 .56 ), marginally outperforming the standard Transformer baseline which converged at 4.8025 
+
+(Perplexity 121 .81 ). This demonstrates exceptional sample efficiency. We at-tribute this capability to the infinite-depth continuous rout-ing of the implicit equilibrium forward pass, which con-textualizes representations more effectively per stochastic update than standard discrete attention layers. Furthermore, step execution latency validates the architectural efficiency: the subword p-Spin model executes at 0.44 seconds per step (B = 1 ), compared to the baseline’s 18 .9 seconds per step (B = 64 ).     
+
+> Figure 2. Validation loss as a function of total sequences processed. The p-Spin model (Subword) reaches the baseline’s asymptotic performance utilizing only 12 .5% of the training data.
+
+3.3. Modality Agnosticism: Byte-Level Processing 
+
+Algorithmically, evaluating sequences over raw bytes col-lapses the VRAM projection footprint by ∼ 192 × (|V | =49152 down to 256 ). Traditionally, byte-level autoregressive models suffer from optimization instability due to highly elongated sequence horizons. Operating again at B = 1 for 8, 000 sequences, the Byte-level p-Spin model reached a final evaluation of 2.12 Bits-Per-Byte (BPB). To establish a direct comparison with the subword baseline, we compute the equivalent subword cross-entropy loss: Lsub ≈ BPB · ln(2) · μ, where μ = 3 .8 is the empirical bytes per token compression ratio for the baseline tokenizer. This yields an equivalent subword loss of 5.5.While this configuration does not surpass the heavily opti-mized subword baseline under the current computational budget, the monotonically decreasing trend confirms that the 
+
+p-Spin architecture consistently manages temporal credit assignment over uncompressed byte streams. 
+
+3.4. Optimization Dynamics and Thermodynamic Stability 
+
+A fundamental observation in our experiments is the stability of the optimization trajectory. In standard deep learning, operating at a batch size of 1 (pure Stochastic Gradient Descent) typically yields a highly chaotic, high-variance loss surface. Conversely, the p-Spin Glass Network exhibits a perfectly smooth, monotonic convergence curve at B = 1 ,lacking the stochastic jumps characteristic of low-batch training. We formalize this phenomenon as thermodynamic regular-ization . The iterative p-spin fixed point solver (Section 2.1) acts as a variance damper. Because the implicit equilibrium forces the internal representation into a stable energy min-imum before calculating the gradient, the backward pass (computed via the Implicit Function Theorem) traces an optimized manifold rather than mapping the raw noise of a single input sequence. Additionally, because the internal projection matrices (W Q 
+
+> int
+
+, W Q
+
+> ext
+
+) are ternarily quantized to {− 1, 0, 1}, the Lips-chitz constant of the equilibrium layer is strictly bounded. This prevents catastrophic gradient scaling and eliminates the necessity for massive gradient accumulation, suggesting that the p-Spin architecture is uniquely optimal for memory-constrained continual learning on edge devices.     
+
+> Figure 3. Raw training loss variance of p-Spin Glass model. De-spite utilizing a total batch size of 1, the p-Spin Glass model exhibits significantly smooth optimization dynamics, showing the variance-damping properties of the fixed point attractor.
+
+## 4. Conclusion 
+
+In this work, we introduced the p-Spin Glass Network, which bridges continuous-time state-space integration with implicit physical attractors. The architecture establishes four fundamental advantages over standard baselines: 6p-Spin Glass Network                                       
+
+> Table 1. Empirical evaluation of the p-Spin Glass models against the Transformer baseline. Equivalent Subword Loss for the byte-level model is derived via Lsub ≈BPB ·ln(2) ·3.8.ARCHITECTURE MODALITY BATCH SIZE SEQ . S EEN TIME /S TEP FINAL LOSS (L)TRANSFORMER BASE SUBWORD 64 64 ,000 18 .90 S4.8025
+> p-S PIN (O URS )SUBWORD 18,000 0.44 S4.8004
+> p-S PIN (O URS )BYTE 18,000 1.53 S5.5839
+
+1. Memory Efficiency: Native ternary quantization of internal thermodynamic interactions yields an 8× pa-rameter compression, strictly reducing the byte-level logical footprint to 41 .37 MB. Additionally, deriving gradients via the Implicit Function Theorem alongside SRAM-fused chunking bounds the HBM activation memory to O(B · T · D).2. Sample Efficiency: The continuous routing of the implicit equilibrium enables asymptotic parity with optimized Transformers (validation loss of 4.8004 vs. 
+
+4.8025 ), while processing exactly 12 .5% of the train-ing sequences ( 8, 000 vs. 64 , 000 ). 3. Knowledge Acquisition and Continual Learning: 
+
+The fixed point solver fundamentally dampens gra-dient variance. By bounding the Lipschitz constant via ternary quantization, the architecture yields strictly smooth, monotonic convergence at a stochastic micro-batch size of B = 1 , ensuring stable continuous knowl-edge retention without requiring gradient accumula-tion. 4. Modality Agnosticism: Operating as a general se-quence modeling framework, the architecture scales effectively across varying input topologies. Empiri-cal evaluations confirm robust temporal credit assign-ment on both heavily compressed subword spaces (|V | = 49152 ) and extreme-horizon, uncompressed raw byte streams ( |V | = 256 ). Collectively, the architecture’s native low-bit compression, high sample efficiency, and single-batch optimization stabil-ity establish a foundation optimal for continuous learning paradigms and memory constrained applications. 
+
+## A. Extended Experimental Details and Parameter Analysis 
+
+In this appendix, we provide the complete architectural spec-ifications, optimization hyperparameters, and a breakdown of the memory footprint for both the baseline and the pro-posed p-Spin Glass Sequence architectures. 
+
+A.1. Dataset and Preprocessing 
+
+All models were trained iteratively on the sample-10BT 
+
+split of the HuggingFaceFW/fineweb-edu dataset. The training pipeline streams data sequentially with a shuffle buffer size of 500 and a predefined random seed ( 1337 ). • Subword Modality: Text is tokenized using the 
+
+SmolLM2-135M tokenizer, yielding a discrete vocab-ulary space of |V | = 49152 . Sequences are packed to a maximum context length of T = 1024 .• Byte Modality: Text is directly encoded into raw UTF-8 bytes, strictly bounding the vocabulary space to |V | = 256 (with byte 255 reserved for EOS). Se-quences are packed to a maximum context length of 
+
+T = 2048 .
+
+A.2. Architectural Configurations and Optimization 
+
+For fair evaluation, all models were scaled to approximately 
+
+∼ 60 M logical parameters. The p-Spin Glass formulations utilize L = 4 layers, H = 8 attention heads, and an equi-librium micro step count of K = 5 . For the State-Space continuous integration, the chunk size is fixed at C = 128 .To isolate the capabilities of the byte-level architecture against its subword counterpart and match total parameter number, its internal dimensions were expanded. Specifically, the Subword model utilizes a hidden dimension D = 544 
+
+and an intermediate dimension Dint = 1408 , whereas the Byte model is expanded to D = 704 and Dint = 2048 .Models were trained using AdamW with a weight decay of 
+
+0.05 and gradient clipping capped at a global norm of 1.0.The learning rate schedule applied to p-Spin Glass methods used a linear warmup over the first 500 steps peaking at 
+
+8×10 −4, followed by a stable plateau phase, and concluding with a cosine decay to a minimum ratio of 0.1 during the final 1, 000 steps. 
+
+A.3. Parameter Footprint and Memory Analysis 
+
+Table 2 and Table 3 detail the parameter distribution and logical memory footprint of the models. Conversely, the p-Spin Glass models achieve a theoretical MLP compression ratio of 8.0× by quantizing the internal 7p-Spin Glass Network 
+
+thermodynamic interactions ( Wext , W int ) to 1.58 -bit repre-sentations (logically packed as 2-bit structures in hardware). Notably, the Byte-level p-Spin model heavily reallocates its parameter budget from the vocabulary embedding projec-tion into the core continuous logic matrices (Ternary MLP and State-Space Attention), reducing the global memory footprint to just 41 .37 MB while standard transformer or other natively uncompressed model would require ( 116 .62 
+
+MB). 
+
+## References 
+
+Bai, S., Kolter, J. Z., and Koltun, V. Deep equilibrium mod-els. Advances in neural information processing systems ,32, 2019. Choromanska, A., Henaff, M., Mathieu, M., Ben Arous, G., and LeCun, Y. The Loss Surfaces of Multilayer Net-works. In Lebanon, G. and Vishwanathan, S. V. N. (eds.), 
+
+Proceedings of the Eighteenth International Conference on Artificial Intelligence and Statistics , volume 38 of Pro-ceedings of Machine Learning Research , pp. 192–204, San Diego, California, USA, 09–12 May 2015. PMLR. URL https://proceedings.mlr.press/v38/ choromanska15.html .Crisanti, A. and Sommers, H.-J. The spherical p-spin inter-action spin glass model: the statics. Zeitschrift f¨ ur Physik B Condensed Matter , 87(3):341–354, 1992. Dao, T., Fu, D. Y., Ermon, S., Rudra, A., and Re, C. Flashattention: Fast and memory-efficient exact atten-tion with IO-awareness. In Oh, A. H., Agarwal, A., Belgrave, D., and Cho, K. (eds.), Advances in Neural Information Processing Systems , 2022. URL https: //openreview.net/forum?id=H4DqfPSibmx .El Ghaoui, L., Gu, F., Travacca, B., Askari, A., and Tsai, A. Implicit deep learning. SIAM Journal on Mathematics of Data Science , 3(3):930–958, 2021. Gross, D. J. and M´ ezard, M. The simplest spin glass. Nu-clear Physics B , 240(4):431–452, 1984. Gu, A. and Dao, T. Mamba: Linear-time se-quence modeling with selective state spaces. CoRR ,abs/2312.00752, 2023. URL https://doi.org/10. 48550/arXiv.2312.00752 .Gu, A., Goel, K., and Re, C. Efficiently modeling long sequences with structured state spaces. In In-ternational Conference on Learning Representations ,2022. URL https://openreview.net/forum? id=uYLFoz1vlAC .Hopfield, J. J. Neural networks and physical sys-tems with emergent collective computational abili-ties. Proceedings of the National Academy of Sci-ences , 79(8):2554–2558, 1982. doi: 10.1073/pnas.79.8. 2554. URL https://www.pnas.org/doi/abs/ 10.1073/pnas.79.8.2554 .Khasia, V. Holobyte: Continuous hyperspherical distilla-tion for tokenizer-free modeling, 2026. URL https: //arxiv.org/abs/2603.16917 .Lozhkov, A., Ben Allal, L., von Werra, L., and Wolf, T. Fineweb-edu: the finest collection of educational content, 2024. URL https://huggingface.co/ datasets/HuggingFaceFW/fineweb-edu .Ma, S., Wang, H., Ma, L., Wang, L., Wang, W., Huang, S., Dong, L., Wang, R., Xue, J., and Wei, F. The era of 1-bit llms: All large language models are in 1.58 bits, 2024. URL https://arxiv.org/abs/2402.17764 .M´ ezard, M., Parisi, G., and Virasoro, M. A. Spin glass the-ory and beyond: An Introduction to the Replica Method and Its Applications , volume 9. World Scientific Publish-ing Company, 1987. Parisi, G. The order parameter for spin glasses: a function on the interval 0-1. Journal of Physics A: Mathematical and General , 13(3):1101–1112, 1980. Parisi, G. I., Kemker, R., Part, J. L., Kanan, C., and Wermter, S. Continual lifelong learning with neural networks: A review. Neural networks , 113:54–71, 2019. Radford, A., Wu, J., Child, R., Luan, D., Amodei, D., Sutskever, I., et al. Language models are unsupervised multitask learners. OpenAI blog , 1(8):9, 2019. Ramsauer, H., Sch¨ afl, B., Lehner, J., Seidl, P., Widrich, M., Gruber, L., Holzleitner, M., Adler, T., Kreil, D., Kopp, M. K., Klambauer, G., Brandstetter, J., and Hochre-iter, S. Hopfield networks is all you need. In In-ternational Conference on Learning Representations ,2021. URL https://openreview.net/forum? id=tL89RnzIiCd .Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, L. u., and Polosukhin, I. Attention is all you need. In Guyon, I., Luxburg, U. V., Bengio, S., Wallach, H., Fergus, R., Vishwanathan, S., and Garnett, R. (eds.), Advances in Neural Information Processing Systems , volume 30. Curran Associates, Inc., 2017. URL https://proceedings.neurips. cc/paper_files/paper/2017/file/ 3f5ee243547dee91fbd053c1c4a845aa-Paper. pdf .Wang, H., Ma, S., Dong, L., Huang, S., Wang, H., Ma, L., Yang, F., Wang, R., Wu, Y., and Wei, F. Bitnet: Scaling 1-bit transformers for large language models, 2023. URL 
+
+https://arxiv.org/abs/2310.11453 .8p-Spin Glass Network 
+
+Table 2. Parameter breakdown for the standard Transformer Baseline. COMPONENT PARAMETER COUNT 
+
+TOTAL PARAMETERS 60 , 569 , 600 
+
+EMBEDDING / H EAD (T IED ) 25 , 165 , 824 
+
+NON -E MBEDDING PARAMS 35 , 403 , 776 
+
+Table 3. Comprehensive Layer Capacity and Memory Footprint for the p-Spin Glass Sequence architectures (Subword and Byte variations). Natively quantized Ternary matrices strictly achieve an 8× memory reduction compared to FP16 baselines. CONFIGURATION LAYER TYPE PARAMS (M) LOGICAL PRECISION SIZE (MB) 
+
+SUBWORD p-S PIN 
+
+EMBEDDINGS (T IED ) 26 .74 M 32 -BIT (FP32) 102 .00 MB EQ. MLP (T ERNARY ) 21 .99 M 1.58 -BIT (P ACKED 2B) 5.24 MB STATE -S PACE ATTENTION 8.99 M 16 -BIT (FP16/BF16) 17 .15 MB 
+
+TOTAL / F OOTPRINT 57.72 M Uncompressed Eq: 161.09 MB 124.40 MB BYTE p-S PIN 
+
+EMBEDDINGS (T IED ) 0.18 M 32 -BIT (FP32) 0.69 MB EQ. MLP (T ERNARY ) 45 .09 M 1.58 -BIT (P ACKED 2B) 10 .75 MB STATE -S PACE ATTENTION 15 .69 M 16 -BIT (FP16/BF16) 29 .93 MB 
+
+TOTAL / F OOTPRINT 60.96 M Uncompressed Eq: 116.62 MB 41.37 MB 
+
+Xue, L., Barua, A., Constant, N., Al-Rfou, R., Narang, S., Kale, M., Roberts, A., and Raffel, C. ByT5: To-wards a token-free future with pre-trained byte-to-byte models. Transactions of the Association for Com-putational Linguistics , 10:291–306, 2022. doi: 10. 1162/tacl a 00461. URL https://aclanthology. org/2022.tacl-1.17/ .YU, L., Simig, D., Flaherty, C., Aghajanyan, A., Zettle-moyer, L., and Lewis, M. MEGABYTE: Predicting million-byte sequences with multiscale transformers. In 
+
+Thirty-seventh Conference on Neural Information Pro-cessing Systems , 2023. URL https://openreview. net/forum?id=JTmO2V9Xpz .9

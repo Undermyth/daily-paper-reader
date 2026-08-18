@@ -1,0 +1,2681 @@
+Title: Training-Free Universal Approximation by Prompting Random Transformers
+
+URL Source: https://arxiv.org/pdf/2608.09558v1
+
+Published Time: Tue, 11 Aug 2026 02:18:40 GMT
+
+Number of Pages: 31
+
+Markdown Content:
+# Training-Free Universal Approximation by Prompting Random Transformers 
+
+## Alexander Hsu ∗ Rongjie Lai †
+
+Abstract 
+
+How expressive is prompting a transformer? Answering this question is important for separating the roles of prompting, architecture, and pretraining in transformer models, and for determining whether task-specific behavior must be stored in model weights or can instead be induced at inference time through the prompt. We show, in an approximation-theoretic sense, that pretraining is optional: asingle-layer softmax attention network with random, untrained weights can approximate any Hölder function on a compact manifold when steered by an appropriate soft prompt. Guided by the connection between softmax attention and kernel methods, we construct explicit soft prompts—a prompt per target function, independent of the query—as solutions to linear systems matching attention logits to Gaussian kernel exponents, under which the frozen transformer emulates the classical Nadaraya-Watson kernel estimator. The construction requires only a mild rank condition on the weights, which we show holds almost surely under Gaussian initialization. The prompted network inherits the theoretical guarantees of kernel regression, leading to universal approximation theorems with minimax-optimal rates that depend on the intrinsic dimension. We further quantify the cost of prompting, exposing a tradeoff between the norm of the constructed soft prompt tokens, prompt length, and hidden dimension. Numerical experiments corroborate the constructions and predicted rates. 
+
+# 1 Introduction 
+
+The transformer architecture [Vaswani et al., 2017] has seen tremendous real-world success, most notably through the rise of the large language model (LLM). These models are massive in scale, with modern frontier models using trillions of parameters and petabytes of training data [Zhao et al., 2026]. Given the prohibitively expensive pretraining costs, significant efforts have been dedicated to getting more out of existing pretrained models, rather than retraining from scratch. Ideally, general-purpose transformers could generalize to diverse domains, incorporate new information, or even self-improve. A high-level approach, commonly employed in agent-forward settings, extends capabilities by allowing transformers access to external resources at inference time via methods such as retrieval-augmented genera-tion [Lewis et al., 2020] or tool calling [Schick et al., 2023]. On the architectural level, (weight) fine-tuning and its many variants have proved popular, which work by adapting a subset of weights to different downstream tasks [Houlsby et al., 2019, Hu et al., 2022]. The focus of this work is to explore prompt engineering , broadly construed, which changes the behavior of the model through its inputs [Sahoo et al., 2024]. Altering the prompt has emerged as a lightweight, flexible method of adapting pretrained transformers to new tasks at inference time. The most straightforward method directly edits the human-language input fed into the model, known as hard prompting . Some examples include providing examples in the prompt ( few-shot prompting , Brown et al. [2020]), requiring the model to think step-by-step ( Chain-of-Thought , Wei et al. [2022]), or telling the model to assume a specific role (role-prompting , Kong et al. [2024]). While these work well heuristically, hard prompting is formally a discrete optimization problem, which makes it difficult from an optimization standpoint [Shin et al., 2020]. More amenable to mathematical techniques is soft prompting (or prompt tuning , Lester et al. [2021]), which optimizes a prefix in real-valued embedding space, and prefix-tuning [Li and Liang, 2021], which appends trainable tokens to the keys and values of every attention layer. Compared to weight-based tuning, these 
+
+> ∗A. Hsu (hsu297@purdue.edu) is with the Department of Mathematics, Purdue University.
+> †R. Lai (lairj@purdue.edu) is with the Department of Mathematics, Purdue University.
+
+1arXiv:2608.09558v1 [cs.LG] 10 Aug 2026 methods tend to require fewer trainable parameters and are easier to edit on the fly [Lester et al., 2021, Li and Liang, 2021]. Despite its widespread adoption, theoretical guarantees for prompt engineering are still developing. Questions traditionally asked of neural network weights can equally be asked of prompts. For example, it is natural to wonder how expressive prompting methods are, especially in comparison to weight-based methods [Petrov et al., 2024b, Meyer et al., 2025]. Viewing transformers through the lens of control theory [Luo et al., 2023], the expressivity of prompting corresponds to understanding reachability [Bhargava et al., 2023]. Our work focuses on soft prompting in particular, where we formulate the question of expressivity formally through the ideas of approximation theory. One particularly relevant question is that of universal approximation : can a transformer with fixed weights be steered to approximate any function in some class simply by changing its prompt? In certain settings, this has been answered in the affirmative. Wang et al. [2023] and Hu et al. [2025] show prompting can universally approximate Lipschitz sequence-to-sequence functions, and Petrov et al. [2024a] derive corresponding quantitative approximation rates for prompting a single attention head model. Nakada et al. [2025] study a mechanism behind prompting-based universal approximation, showing prompts can program a transformer to emulate ReLU networks at inference. All these works demonstrate the potential and limitations of prompting, but suffer from a limitation common to approximation-theoretic works: the results rely on particular transformer weights, for which there are no guarantees the training process will find or even approximate. The training dynamics of transformers is an important (and difficult) question, which is only beginning to be studied [Ahn et al., 2023, Oymak et al., 2023, Huang et al., 2024, Zhang et al., 2024]. We consider function regression, but eschew training completely by studying random transformers with frozen, untrained weights. Our work culminates in Theorem 6, which concerns a very simple transformer model consisting of an affine embedding layer, one softmax single-headed attention layer, and an affine decoding layer, all of which have random Gaussian weights. Even in this extreme setting, we constructively show that for any given Hölder function in some class, there almost surely exists a soft prompt which, when prepended to any query, makes the transformer approximate the function evaluated at that query, with approximation rate scaling with prompt length. Moreover, we track the constructed soft prompt magnitude, exposing a tradeoff involving prompt length and hidden dimension. Our approximation approach is straightforward and intuitive, building on connections between the at-tention mechanism [Bahdanau et al., 2015, Vaswani et al., 2017] and kernel methods [Tsai et al., 2019, Shen et al., 2026, Ching et al., 2026]. In particular, we show that transformers can reproduce the Nadaraya-Watson kernel estimator [Nadaraya, 1964, Watson, 1964] in their forward pass, similar to Shen et al. [2026]. Whereas they choose specific weights to algebraically build the estimator through the transformer blocks, we show that an appropriate soft prompt can already force a single softmax attention layer to closely match the estimator’s functional form. The soft prompt is derived as the solution to specific linear systems, and we specify a mild rank condition on the weights (Condition 1) under which a solution exists. Using standard techniques from random matrix theory, we show that random Gaussian initializations satisfy this condition almost surely. Working through the well-studied Nadaraya-Watson estimator allows us to borrow existing approximation theory bounds for kernel regression. We extend the approximation of the kernel estimator through the soft prompt to full quantitative universal approximation-type theorems for prompting with rate of convergence (Jackson-type), with probabilistic guarantees in the nondeterministic cases. Our results also inherit the beneficial properties of the kernel estimator, such as minimax-optimal rates for noisy regression of Hölder functions on manifolds [Bickel and Li, 2007] up to logarithmic factors, with primary dependence only on the manifold’s intrinsic dimension. We summarize our results as follows: 1. We show that prompting can reproduce the Nadaraya-Watson kernel estimator: given a single-layer softmax attention transformer whose weights satisfy a mild rank condition, and any set of n sup-port points, we construct a soft prompt of prompt length n under which the transformer’s output approximates the NW kernel estimator built on those points (Theorem 1). The soft prompt is the minimum-norm solution of a linear system matching attention logits to Gaussian kernel exponents; we use logit shifting to suppress the unwanted query self-attention term at an exponential rate. 2. We show that the rank condition for the weights is generic, satisfied by Gaussian initializations almost 2surely, which allows the construction to work with almost every random-attention transformer (Theo-rem 3). Furthermore, we extend to fully random transformers, where embedding and decoding become affine maps with Gaussian weights (Theorem 5). We conclude similar results in this setting. 3. In each setting, we produce corresponding quantitative universal approximation theorems for Hölder functions on a manifold (Theorems 2, 4 and 6). By tuning the kernel bandwidth and logit shift, we achieve the minimax-optimal noisy approximation rate of ˜O(n−2α/ (2 α+dX )), where α is the Hölder exponent and dX is the intrinsic manifold dimension. 4. We track the costs of our constructions in terms of the magnitude of the soft prompt tokens, and how it relates to the prompt length n and hidden dimension dh. Prompt token norms grow as 
+
+O(n2/(2 α+dX )) in the deterministic parameter case with fixed embedding and decoding, improving to O(n2/(2 α+dX )/√dh + 1) with random attention, and O(n2/(2 α+dX )/d h + √dh) for fully random transformers. 
+
+## 1.1 Other Related Works 
+
+Single-task and in-context learning Traditional models are studied primarily in the setting of single-task learning , where each task or function requires its own tailored model. The ability of neural networks to approximate a single function is the foundation of approximation theory in machine learning, and has been studied extensively for various architectures [Cybenko, 1989, Hornik, 1991, Barron, 1993, Yarotsky, 2017]. For transformers in particular, universal approximation was first shown by Yun et al. [2020], and later extended to other settings [Takakura and Suzuki, 2023, Havrilla and Liao, 2024, Jiang and Li, 2024]. Relevant to our setting is the expressivity of models with only one attention layer, which has been studied by Kajitsuka and Sato [2024] and Jiang and Li [2024]. In contrast, transformers also demonstrate an additional remarkable phenomenon known as in-context learning (ICL), where a transformer is able to process and apply information provided in the prompt, entirely at inference time with frozen weights [Radford et al., 2019, Brown et al., 2020]. The theoretical setting usually considers prompts consisting of a function, described as input-output pairs, which forms the context , followed by a separate query [Garg et al., 2022]. ICL can be thought of as the transformer’s ability to approximate an operator which maps such prompts to the function evaluated on the query. It must infer the relevant function from the context, then apply it to the query, and output the result, all in the same forward pass. A popular mechanistic explanation of ICL is that transformers, with the appropriate weights, are able to execute certain statistical algorithms at inference, such as gradient descent [Akyürek et al., 2023, von Oswald et al., 2023, Ahn et al., 2023], direct least-squares [Akyürek et al., 2023, Bai et al., 2023], polynomial and spline regression [Hsu et al., 2026], and kernel methods [Han et al., 2025, Shen et al., 2026]. Related to our work, Hu et al. [2026] show that algorithm parameters can be encoded into the prompt, such that the transformer then emulates the corresponding algorithm in-context. While our universal approximation theorems are presented in the language of single-task learning, we overlap heavily with the ICL setting. Most notably, all our results involve first fixing a transformer (i.e., a particular realization of the weights), which we then use to regress any function of a certain class by only adapting the soft prompt. The soft prompt is constructed based on the specific realization of the weights and function, but is independent of the chosen query. Much like context in the theoretical ICL setting, it is prepended to the query, which then steers the transformer to perform kernel regression. The main difference is that ICL assumes a fixed algebraic form of the input sequence (input-output pairs followed by query) and chooses the weights to process those, whereas we fix the weights and find a task-dependent soft prompt to achieve the same goal. 
+
+Randomness in machine learning Many techniques in machine learning leverage randomness. Beyond stochasticity in training, frozen random parameters have proven surprisingly effective and insightful across many domains, while also saving on the computational cost of training. Rahimi and Recht [2007, 2008] demonstrated the expressivity of random features in kernel methods, allowing kernel machines to scale to large datasets. Similar ideas of random representations were explored in neural networks: for feedforward networks, approaches like Extreme Learning Machines [Huang et al., 2006] and Random Vector Functional Link models [Igelnik and Pao, 1995] demonstrated that a single trainable linear readout following frozen 3random layers is sufficient for universal approximation. For sequential data, reservoir computing paradigms apply the same strategy to recurrent networks, projecting data into high-dimensional space through a fixed, untrained network (the reservoir ) and only training a simple readout layer on top of that [Jaeger, 2001, Maass et al., 2002, te Vrugt, 2024]. Random and partially random transformers have received growing attention. Choromanski et al. [2021] and Peng et al. [2021] introduce linear-complexity variants of softmax attention by approximation with random features. Shen et al. [2021b] demonstrate one-layer random-weight transformers contain performant subnetworks. Building on reservoir computing ideas, Shen et al. [2021a] study the effectiveness of interleaving random layers in a transformer, and Zhong and Andreas [2024] show training only the embeddings of an otherwise random transformer suffices for some nontrivial tasks. Dong et al. [2025] discover that random frozen attention performs competitively on language modeling, which they use to analyze the roles of different transformer components. Related to our setting, Wang and Lin [2025] observed prompt-tuned randomly initialized transformers can effectively memorize finite datasets. Our work relies on randomness and mirrors many of the aforementioned ideas. Much like reservoir com-puting, we also borrow the expressivity of a black box, where the entire frozen untrained transformer network is the reservoir. Instead of training a readout layer, we only control the input to steer the transformer’s be-havior, and demonstrate that this is expressive enough. Moreover, beyond savings in pretraining cost, we also show how random standard normal weights can lead to smaller soft prompt norms by more effective use of hidden dimension. 
+
+## 1.2 Summary of Notation 
+
+Notation Description 
+
+X Domain (manifold) 
+
+dX Intrinsic manifold dimension 
+
+R max x∈X ∥x∥
+
+τX Reach of Xdin Input dimension = ambient dimension 
+
+dh Hidden dimension 
+
+xemb Embedding vector of x
+
+G Transformer class 
+
+G A transformer 
+
+eG The transformer G sans embedding 
+
+α Hölder exponent 
+
+L Hölder constant 
+
+Sf max x∈X |f (x)|
+
+Snoise Output noise bound |εi| ≤ Snoise 
+
+S Combined bound Sf + Snoise 
+
+h Kernel bandwidth 
+
+β Logit shift 
+
+n Number of support points = prompt length We use ∥ · ∥ to denote the ℓ2-norm for vectors and the spectral norm for matrices. Boldface letters are reserved for vectors, lowercase regular letters are used for scalars, and matrices are denoted by uppercase regular letters. Throughout, we use the terms weights and parameters for the entries of the transformer’s maps. 42 Preliminaries 
+
+## 2.1 Architecture 
+
+We consider the following hypothesis class ( G) of transformer networks: single-layer softmax-attention net-works with fixed embedding and decoding maps. We define each component individually below. Let din be the input dimension. The embedding maps each input token into a high-dimensional space of hidden dimension dh via a homogeneous embedding with additional zero padding, arranged as a row vector. In the deterministic setting (Section 3), we need only that dh ≥ din + 2 ; in the later analysis on random versions (Section 4) we will assume dh ≫ din + 2 .In this setting, our (hard) prompt will only consist of a single token x ∈ Rdin , the query point we are predicting the function at, and we denote its embedding as 
+
+E(x) = xemb := [ xT , 1, 0, . . . , 0] ∈ R1×dh . (2.1) Softmax (self-)attention A acting on a matrix H ∈ R(n+1) ×dh is defined as 
+
+A(H) = softmax 
+
+ HW Q(HW K )T
+
+√dh
+
+
+
+HW V (2.2) where softmax acts row-wise, with the query, key, and value matrices WQ, W K , W V ∈ Rdh×dh .1 Note that A
+
+outputs a matrix of the same size. We only consider single-head attention. Since we are only interested in the transformer’s prediction for the query x, the decoder D only looks at the last row, where it reads out the bottom-right entry. The transformer hypothesis class is defined as all compositions of these three components: 
+
+G = G = D ◦ A ◦ E | WQ, W K , W V ∈ Rdh×dh .
+
+Notice the embedding and decoding are fixed in the current setup; in Section 4.2, we consider models where these components are also variable. 
+
+## 2.2 Problem Setup 
+
+We are interested in deriving a universal approximation-type theorem for prompting. Informally, given a function f : X → R, we wish to find a soft prompt which makes the transformer output approximate f (x)
+
+for any given query x ∈ X.In more detail, let G = D ◦ A ◦ E be a transformer network in the aforementioned class G. We denote by 
+
+eG = D◦A, the part of the network after embedding. We prepend a soft prompt P = [ p1, p2, . . . , pn] ∈ Rdh×n
+
+to the embedded x as 
+
+HP, x =
+
+
+
+pT
+
+> 1
+
+pT
+
+> 2
+
+...
+
+pTn
+
+xemb 
+
+
+
+∈ R(n+1) ×dh . (2.3) Our objective is: find a soft prompt P = [ p1, p2, . . . , pn] ∈ Rdh×n
+
+such that eG(HP, x) ≈ f (x) for all x ∈ X. 
+
+The soft prompt should depend on the function being regressed (in particular, the noisy input-output samples of it), but be independent of the specific query.    
+
+> 1We refer to these as the attention parameters to differentiate them from attention weights , the standard term for the post-softmax coefficients.
+
+52.3 Outline of Proof Strategy 
+
+Let us expand on the informal description of our approach, starting by recalling regression with the Nadaraya-Watson (NW) kernel estimator . We assume we have an empirical description of f as noisy input-output pairs: using an unnormalized Gaussian kernel with bandwidth h > 0, with n support points {xi ∈ X}ni=1 
+
+and corresponding target values {yi := f (xi) + εi}ni=1 , the noisy empirical NW kernel estimator is defined on an x ∈ X as 
+
+bKh(x) = 
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+
+
+yi
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+ . (2.4) Given a fixed transformer network in G, we expand the transformer output by definition, assuming an input of the form (2.3). Attention is already a kernel, and we explicitly match, term-by-term, the attention logits with the Gaussian kernel exponents from (2.4), generating systems of linear equations to determine each pi. The solvability of these linear systems is guaranteed by a mild condition on the weights, which we show, in later sections, is satisfied almost surely by Gaussian initializations. There is an additional term remaining in the transformer output, corresponding to the self-attention contribution of the query token with itself, which does not appear in (2.4). We suppress this term with logit shifting , introducing an additional variable β ≥ 0 that inflates the relevant attention logits. This is folded into the linear systems, which we then solve using the minimum-norm solutions. With this, we have shown that given a fixed transformer and any fixed set of kernel support points, we may construct a soft prompt such that the transformer output approximates the output of the empirical kernel estimator. Leveraging existing results in approximation theory for kernel regression, we extend our construction to complete and constructive universal approximation results. In particular, we bound the contribution of noise to the estimator, then use bounds for the empirical-integral gap of the kernel estimator and the inherent kernel regression bias. We require the following standard assumptions to derive explicit bounds. For the domain, we restrict ourselves to a compact manifold. 
+
+Assumption 1 (Domain) . The domain X is a compact dX -dimensional Riemannian manifold ( dX ≥ 1)with positive reach τX > 0, isometrically embedded in Rdin , satisfying ∥x∥ ≤ R for all x ∈ X.
+
+The function class is restricted to Hölder functions on that manifold. 
+
+Assumption 2 (Function class) . The function class is restricted to f ∈ CαL (X), consisting of α-Hölder functions X → R with Hölder constant L, where 0 < α ≤ 1.
+
+For a fixed such f , let Sf := max x∈X |f (x)|. Finally, we assume bounded noise. 
+
+Assumption 3 (Label noise) . Labels are observed with noise: yi = f (xi) + εi, where ε1, . . . , ε n are indepen-dent, mean-zero, and satisfy |εi| ≤ Snoise almost surely, independent of the support points {xi}ni=1 and the query x.
+
+Denote by S the combined upper bound S := Sf + Snoise .
+
+# 3 Deterministic Weights 
+
+## 3.1 Prompting can Approximate the NW Kernel Estimator 
+
+We first show, in this subsection, that with an appropriate prompt, the transformer output can approximate the NW kernel estimator (2.4) with any fixed set of support points. In the next subsection, we extend this to a full universal approximation theorem using standard approximation theory results. Our approach and subsequent proof will suggest a sufficient condition on the attention parameters, which we state here. Let WQ, W K , W V denote the parameters for the attention layer A of a transformer G ∈ G .Denote by W = 1√dh
+
+WQW TK . Let W1: din denote the first din rows of W , and Wdin +1 be the (din + 1) -th row. 6Let wV denote the last column of WV . Define the matrix fW ∈ R(din +2) ×dh as 
+
+fW =
+
+
+
+W1: din 
+
+Wdin +1 
+
+wTV
+
+ .
+
+Condition 1 (Solvability of prompt) . The attention parameters of G are such that fW has full row rank. 
+
+With this, we state our first theorem. 
+
+Theorem 1 (Prompting can approximate NW kernel estimator) . Let X satisfy Assumption 1 and let 
+
+f : X → R satisfy Assumption 2. Let n ≥ 1 and fix support points {xi ∈ X}ni=1 with labels satisfying Assumption 3; let bKh(x) denote the Nadaraya-Watson kernel estimator evaluated at x, constructed using these support points and bandwidth h > 0. Let G ∈ G be a transformer network whose attention parameters satisfy Condition 1. For any logit shift β ≥ 0, there exists a corresponding soft prompt P ∗ of length n such that 
+
+sup 
+
+> x∈X
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+= O
+
+ 1
+
+n2e2β · exp 
+
+ 3R2
+
+h2
+
+ 
+
+,
+
+where O(·) depends on ∥W ∥, ∥wV ∥, R , and S. Furthermore, the soft prompt tokens satisfy 
+
+∥p∗ 
+
+> i
+
+∥ = O(β + h−2)
+
+for all 1 ≤ i ≤ n, where O(·) hides a dependence on σmin (fW )−1, R, and S.Proof. Expanding the definition of attention (2.2), we first find that the last row of A(HP, x) is 
+
+A(HP, x)n+1 =
+
+Pni=1 exp 
+
+ 1√dh
+
+xemb WQW TK pi
+
+
+
+pTi WV + exp 
+
+ 1√dh
+
+xemb WQW TK xT
+
+> emb
+
+
+
+xemb WV
+
+Pni=1 exp 
+
+ 1√dh
+
+xemb WQW TK pi
+
+
+
++ exp 
+
+ 1√dh
+
+xemb WQW TK xT
+
+> emb
+
+ . (3.1) To get the whole eG(HP, x) we decode the attention output, reading off the last coordinate. Mathematically, this corresponds to right multiplying the above output by the dh-th standard basis vector edh = [0 , . . . , 0, 1] T .Note that the attention contribution of xemb with itself is independent of pi. Let us temporarily ignore this part, leaving the following output after decoding: 
+
+Pni=1 exp 
+
+ 1√dh
+
+xemb WQW TK pi
+
+
+
+pTi WV edh
+
+Pni=1 exp 
+
+ 1√dh
+
+xemb WQW TK pi
+
+ . (3.2) We recall the kernel estimator (2.4) here: 
+
+bKh(x) = 
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+
+
+yi
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+ .
+
+We rewrite this in a more convenient form. For each i, the exponents expand as 
+
+− ∥x − xi∥2
+
+2h2 = − ∥x∥2
+
+2h2 + xT xi
+
+h2 − ∥xi∥2
+
+2h2 ,
+
+whereupon we may split off the first part from the exponentiation: 
+
+exp 
+
+
+
+− ∥x − xi∥2
+
+2h2
+
+
+
+= exp 
+
+
+
+− ∥x∥2
+
+2h2
+
+
+
+exp 
+
+ xT xi
+
+h2 − ∥xi∥2
+
+2h2
+
+
+
+.
+
+The first term is independent of the index i, thus may be factored out of the numerator and denominator and canceled. This leaves the mathematically equivalent formula of the kernel estimator: 
+
+bKh(x) = 
+
+Pni=1 exp 
+
+ xT xi 
+
+> h2
+
+− ∥xi∥2
+
+> 2h2
+
+
+
+yi
+
+Pni=1 exp 
+
+ xT xi 
+
+> h2
+
+− ∥xi∥2
+
+> 2h2
+
+ ,
+
+7where yi = f (xi) + εi.Comparing the attention output in (3.2) to the above formula, we see that the soft prompt should satisfy two properties. First, we should have pTi WV edh = yi for all i, i.e. the projected values align with the true target values. WV edh is the last column of WV , which we denote wV . We rewrite the condition as 
+
+wTV pi = yi.We also want to match the kernel part, which involves matching the attention logits with the exponents for all i, i.e. 
+
+1
+
+√dh
+
+xemb WQW TK pi = xT xi
+
+h2 − ∥xi∥2
+
+2h2 . (3.3) Denote by W = 1√dh
+
+WQW TK . Note that due to the zero padding in xemb , we effectively only consider the first din + 1 rows of W . We denote the first din rows as W1: din , and the (din + 1) -th row as Wdin +1 . The attention logit rewrites as 
+
+xemb W pi = xT W1: din pi + 1 · Wdin +1 pi.
+
+We match respective parts with the RHS of (3.3): 
+
+xT (W1: din pi) = xT xi
+
+h2 ,
+
+for which it suffices to enforce 
+
+W1: din pi = xi
+
+h2
+
+and 
+
+Wdin +1 pi = − ∥xi∥2
+
+2h2 . (3.4) This is the purpose of the homogeneous coordinate: the bias allows us to absorb scalar shifts. It also allows us to handle the contribution of the query’s attention with itself, which we have hitherto ignored, using logit shifting—recalibrating attention by artificially inflating certain logits. Adding decoding and rewriting equation (3.1) with our new notation, we get 
+
+eG(HP, x) = 
+
+Pni=1 exp( xemb W pi)pTi wV + exp( xemb W xT
+
+> emb
+
+)xemb wV
+
+Pni=1 exp( xemb W pi) + exp( xemb W xT
+
+> emb
+
+) .
+
+Notice the effect of adding a constant β ≥ 0 to the logits which involve the soft prompt tokens: 
+
+Pni=1 exp( xemb W pi + β)pTi wV + exp( xemb W xT
+
+> emb
+
+)xemb wV
+
+Pni=1 exp( xemb W pi + β) + exp( xemb W xT
+
+> emb
+
+)= eβ Pni=1 exp( xemb W pi)pTi wV + exp( xemb W xT
+
+> emb
+
+)xemb wV
+
+eβ Pni=1 exp( xemb W pi) + exp( xemb W xT
+
+> emb
+
+)=
+
+Pni=1 exp( xemb W pi)pTi wV + 1 
+
+> eβ
+
+exp( xemb W xT
+
+> emb
+
+)xemb wV
+
+Pni=1 exp( xemb W pi) + 1 
+
+> eβ
+
+exp( xemb W xT
+
+> emb
+
+) .
+
+For large β, the attention contribution of the query with itself is negligible. We may realize this constant shift in the bias term by modifying condition (3.4) to 
+
+Wdin +1 pi = − ∥xi∥2
+
+2h2 + β. 
+
+This comes at the cost of a larger (in magnitude) soft prompt; we will formally bound this later. Adding the additional value matching condition wTV pi = yi from before, for each pi we are left with a linear system 
+
+fW pi = vi, where 
+
+fW =
+
+
+
+W1: din 
+
+Wdin +1 
+
+wTV
+
+ and vi =
+
+
+
+> xi
+> h2
+
+− ∥xi∥2 
+
+> 2h2
+
++ βyi
+
+ . (3.5) 8By Condition 1, the matrix fW has full row rank, thus the system has at least one solution for any target vector vi. We construct the minimum-norm solution by the Moore-Penrose pseudoinverse fW †:
+
+p∗ 
+
+> i
+
+= fW †vi := fW T (fW fW T )−1vi.
+
+Assembling the soft prompt tokens, we get a soft prompt P ∗ such that 
+
+eG(HP ∗,x) = 
+
+Pni=1 exp 
+
+ xT xi 
+
+> h2
+
+− ∥xi∥2
+
+> 2h2
+
+
+
+yi + 1 
+
+> eβ
+
+exp( xemb W xT
+
+> emb
+
+)xemb wV
+
+Pni=1 exp 
+
+ xT xi 
+
+> h2
+
+− ∥xi∥2
+
+> 2h2
+
+
+
++ 1 
+
+> eβ
+
+exp( xemb W xT
+
+> emb
+
+)
+
+.
+
+It remains to uniformly bound the difference eG(HP ∗,x) − bKh(x) . Factoring out the denominator, the difference simplifies to 
+
+eG(HP ∗,x) − bKh(x) = 
+
+> 1
+> eβ
+
+exp( xemb W xT
+
+> emb
+
+)xemb wV − bKh(x) 1 
+
+> eβ
+
+exp( xemb W xT
+
+> emb
+
+)
+
+Pni=1 exp 
+
+ xT xi 
+
+> h2
+
+− ∥xi∥2
+
+> 2h2
+
+
+
++ 1 
+
+> eβ
+
+exp( xemb W xT
+
+> emb
+
+)
+
+≤
+
+> 1
+> eβ
+
+
+
+exp( xemb W xT
+
+> emb
+
+) |xemb wV | + bKh(x) exp( xemb W xT
+
+> emb
+
+)
+
+Pni=1 exp 
+
+ xT xi 
+
+> h2
+
+− ∥xi∥2
+
+> 2h2
+
+
+
++ 1 
+
+> eβ
+
+exp( xemb W xT
+
+> emb
+
+)
+
+≤ 1
+
+eβ ·
+
+exp( xemb W xT
+
+> emb
+
+)
+
+
+
+|xemb wV | + bKh(x)
+
+Pni=1 exp 
+
+ xT xi 
+
+> h2
+
+− ∥xi∥2
+
+> 2h2
+
+ (3.6) where the first inequality comes from the triangle inequality, and the second from discarding the positive term in the denominator. We establish bounds on each component. Recall, in particular, Assumptions 1 to 3. It follows from the norm bound on the query and support points that 
+
+xT xi
+
+h2 − ∥xi∥2
+
+2h2 ≥ − R2
+
+h2 − R2
+
+2h2 = − 3R2
+
+2h2 ,
+
+from which we may conclude the following bound on the denominator of the kernel estimator: 
+
+> n
+
+X
+
+> i=1
+
+exp 
+
+ xT xi
+
+h2 − ∥xi∥2
+
+2h2
+
+
+
+≥ n exp 
+
+
+
+− 3R2
+
+2h2
+
+
+
+> 0.
+
+The homogeneous embedding of x specified in (2.1) satisfies ∥xemb ∥ ≤ √R2 + 1 . We have that 
+
+|xemb W xT
+
+> emb
+
+| ≤ ∥ xemb ∥2∥W ∥ ≤ (R2 + 1) · ∥ W ∥
+
+and 
+
+|xemb wV | ≤ ∥ xemb ∥∥ wV ∥ ≤ pR2 + 1 · ∥ wV ∥.
+
+Exponentiating everywhere gives the corresponding bounds. Finally, the kernel estimator is a convex combination of target values yi, thus its absolute value is bounded above by 
+
+bKh(x) ≤ max  
+
+> 1≤i≤n
+
+|yi| ≤ S. 
+
+Plugging everything back into (3.6), we arrive at the final bound 
+
+sup 
+
+> x∈X
+
+eG(HP ∗,x) − bKh(x) ≤ 1
+
+ne β exp 
+
+ 3R2
+
+2h2
+
+
+
+exp  (R2 + 1) ∥W ∥ p R2 + 1 ∥wV ∥ + S
+
+
+
+. (3.7) Squaring both sides and hiding constants gives our desired result: 
+
+sup 
+
+> x∈X
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+= O
+
+ 1
+
+n2e2β · exp 
+
+ 3R2
+
+h2
+
+ 
+
+.
+
+9Asymptotically, we have quadratic decay in terms of soft prompt length n, exponential decay in terms of the logit shift β, and exponential growth in inverse kernel bandwidth h.To bound the norm of the constructed soft prompt tokens, we first derive a uniform bound on the ∥vi∥,which was defined in (3.5). By Assumption 1, ∥xi∥ ≤ R, so ∥xi/h 2∥ ≤ R/h 2. Similarly, taking absolute value of the second term yields 
+
+− ∥xi∥2
+
+2h2 + β ≤ R2
+
+2h2 + β, 
+
+since β, h , and R are nonnegative. Lastly, by definition, |yi| ≤ S. Together, we have 
+
+∥vi∥ ≤ 
+
+s
+
+R2
+
+h4 +
+
+
+
+β + R2
+
+2h2
+
+2
+
++ S2
+
+for any 1 ≤ i ≤ n.Since fW ∈ R(din +2) ×dh is wide with full row rank (Condition 1), its smallest singular value σmin (fW )
+
+is guaranteed to be strictly positive. The Moore-Penrose pseudoinverse has spectral norm equal to the reciprocal of this smallest singular value: 
+
+∥fW †∥ = 1
+
+σmin (fW ) .
+
+Submultiplicativity then yields our total bound: for all 1 ≤ i ≤ n,
+
+∥p∗ 
+
+> i
+
+∥ ≤ ∥ fW †∥∥ vi∥ ≤ 1
+
+σmin (fW )
+
+s
+
+R2
+
+h4 +
+
+
+
+β + R2
+
+2h2
+
+2
+
++ S2 = O(β + h−2).
+
+Remark 1. Logit shifting allows us to exponentially suppress the unwanted query self-attention term, but it is not strictly necessary. If we set the shift to β = 0 , the squared error still decays at a quadratic rate in prompt length, though this alone is insufficient for our forthcoming universal approximation theorems. Alternatively, this issue could be handled via prompt duplication (concatenating exact copies of the soft prompt to inflate their mass in the kernel), or bypassed entirely by modifying the architecture to use a masked/cross-attention that explicitly prevents query self-attention, allowing for exact reconstruction of the kernel estimator. Our approach relies on logit shifting for two reasons: it achieves an exponential rate under a standard, unmodified self-attention regime, and it aligns with the real-world computational preference for scaling token magnitude over increasing prompt length. The exponential decay in β will be important to balance the bandwidth sensitivity for Theorem 2 in the next subsection, and also some random constants in the analogous theorems in Section 4. 
+
+Remark 2. Condition 1 is stronger than is necessary for the existence of a sufficient soft prompt from this procedure, which only requires vi to be in the column space of fW . We use it to also track the prompt norm of the construction, and have a cleaner sample-independent condition. 
+
+## 3.2 Universal Approximation 
+
+Using standard techniques and results from approximation theory, the results of the previous subsection can be extended to derive complete universal approximation error rates for regression. Mirroring the in-context learning setup, we study regression with sampled support points (as opposed to fixed designs) and a sampled query. 
+
+Assumption 4 (Distribution of support points and query) . Support points x1, x2, . . . , xn and the query x
+
+are drawn iid from the uniform distribution on X, denoted U(X).
+
+10 We decompose the total approximation error by introducing some more intermediate terms (beyond Theorem 1), which we define here. First, to consider the error induced by noise, define the noiseless empirical kernel estimator analogously as (2.4): 
+
+Kh(x) = 
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+
+
+f (xi)
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+ .
+
+We may bound the difference between the noisy and noiseless kernel estimators with the following lemma. 
+
+Lemma 1 (Noise term of kernel estimator) . Suppose X satisfies Assumption 1, the support points and query satisfy Assumption 4, and the labels satisfy Assumption 3. Then for any x ∈ X and 0 < h ≤ τX /2,
+
+E
+
+> xi,ε i
+
+ bKh(x) − K h(x)
+
+2
+
+= O
+
+ S2noise 
+
+nh dX
+
+
+
+,
+
+where O(·) hides dependence on dX and τX .Proof. Expanding out definitions, notice that the core of the estimator involving f (xi) cancels out, and we are only left with the noise contribution: 
+
+bKh(x) − K h(x) = 
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+
+
+εi
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+ .
+
+Squaring and conditioning on the support points and query, note that Assumption 3 implies the cross-terms E[εiεj ] vanish, leaving 
+
+E
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+
+
+εi
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+
+
+> 2
+
+{xi}ni=1 , x
+
+ =
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+2
+
+E(ε2 
+
+> i
+
+)
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+ 2
+
+≤ S2noise · min 
+
+1, 1
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+ ,
+
+by Assumption 3 and since 0 < exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+
+
+≤ 1.Each support point xj such that ∥x − xj ∥ ≤ h will contribute at least e−1/2 to the denominator; letting 
+
+m denote the number of such points, the sum can be bounded as 
+
+> n
+
+X
+
+> i=1
+
+exp 
+
+
+
+− ∥x − xi∥2
+
+2h2
+
+
+
+≥ e−1/2 · m. 
+
+We then have 
+
+min 
+
+1, 1
+
+Pni=1 exp 
+
+
+
+− ∥x−xi∥2
+
+> 2h2
+
+ ≤ min 
+
+
+
+1, e1/2
+
+m
+
+
+
+≤ 2e1/2
+
+1 + m .
+
+By Assumption 4 the support points are iid uniform on X (and independent of x), thus when conditioned on the query, m is binomial with n trials and success probability Pt∼U (X)(∥x − t∥ ≤ h). The first inverse moment identity for binomial variables yields 
+
+E
+
+ 2e1/2
+
+1 + m x
+
+
+
+≤ 2e1/2
+
+(n + 1) Pt∼U (X)(∥x − t∥ ≤ h) .
+
+11 Finally, standard small-ball probability bounds (see, e.g., Niyogi et al. [2008]) give that Pt∼U (X)(∥x − t∥ ≤ 
+
+h) = Ω( hdX ) for any x ∈ X and 0 < h ≤ τX /2, where the hidden constant depends only on dX and τX .Combining the above, we may conclude the result: 
+
+E
+
+> xi,ε i
+
+ bKh(x) − K h(x)
+
+2
+
+= O
+
+ S2noise 
+
+nh dX
+
+
+
+for any x ∈ X.The remaining two components in the error decomposition are the finite-sample gap and kernel regression bias, both of which involve the noiseless integral kernel estimator: 
+
+Kh(x) = 
+
+R 
+
+> X
+
+exp 
+
+
+
+− ∥x−t∥2
+
+> 2h2
+
+
+
+f (t) d t
+
+R 
+
+> X
+
+exp 
+
+
+
+− ∥x−t∥2
+
+> 2h2
+
+
+
+dt
+
+.
+
+For these, we recall some results regarding noiseless kernel regression on manifolds, directly adapted from Shen et al. [2026]. The proofs are deferred to their work. 
+
+Lemma 2 (Variance of kernel estimator) . Suppose X and f satisfy Assumption 1 and Assumption 2 re-spectively, and suppose we have support points {xi}ni=1 and a query x satisfying Assumption 4. For any 
+
+δ ∈ (0 , 1] , we have that 
+
+Kh(x) − K h(x) = O  log  h−1 3dX /4 ·
+
+r log(4 /δ )
+
+nh dX
+
+!
+
+with probability at least 1 − δ, where h > 0 is the kernel bandwidth. Here, O(·) hides dependence on dX , S f ,
+
+and τX , where the dependency on dX can be ddX /2 
+
+> X
+
+in the worst case. 
+
+Lemma 3 (Bias of kernel regression on manifold) . Suppose X and f satisfy Assumption 1 and Assumption 2 respectively. Uniformly over X, the integral kernel estimator Kh for f with bandwidth h > 0 satisfies 
+
+|K h(x) − f (x)| = O(hα log( h−1)) .
+
+The O(·) hides dependence on dX , L, S f , and τX , with at most exponential dependence on dX .
+
+With these in hand, we state and prove our universal approximation theorem for prompting in the deterministic case, showing that under certain assumptions, any function can be approximated at a specific rate by prompting. Note that by our approach of going through the NW kernel estimator, we also inherit its positive qualities: we recover the minimax-optimal convergence rate for noisy nonparametric regression on manifolds (up to logarithmic factors), which is independent of the ambient dimension din (up to constants, through R). 
+
+Theorem 2 (Universal approximation for prompting) . Let X satisfy Assumption 1 and G ∈ G be a trans-former network whose attention parameters satisfy Condition 1. Suppose the support points and query satisfy Assumption 4, and the labels satisfy Assumption 3. For any f satisfying Assumption 2, there exists a map assigning to each realization of samples {xi, y i = f (xi) + εi}ni=1 a soft prompt P ∗ of length n, independent of the query x, such that 
+
+E
+
+> xi,ε i,x
+
+( eG(HP ∗,x) − f (x)) 2 = O
+
+
+
+n− 2α 
+
+> 2α+dX
+
+(log n)1+ 3dX
+
+> 2
+
+
+
+.
+
+Moreover, uniformly over all realizations of samples, the tokens of P ∗ have norm bounded as 
+
+∥p∗ 
+
+> i
+
+∥ = O(n 22α+dX ).
+
+12 Proof. Fix a query x ∈ X and a set of support points {xi}ni=1 . Inserting intermediate terms leads to the following decomposition: 
+
+ eG(HP ∗,x) − f (x)
+
+2
+
+≤ 4
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+| {z }
+
+> I
+
++4 
+
+ bKh(x) − K h(x)
+
+2
+
+| {z }
+
+> II
+
++4  Kh(x) − K h(x)2
+
+| {z }
+
+> III
+
++4 ( Kh(x) − f (x)) 2
+
+| {z }
+
+> IV
+
+.
+
+We bound the four terms separately. The first term I is essentially Theorem 1, which was proved by the explicit construction of an appropriate soft prompt. Terms II , III , and IV are bounded by Lemmas 1, 2 and 3 respectively. To recover minimax-optimal rates, we choose the kernel bandwidth and logit shift as 
+
+h = n− 12α+dX and β = 3R2
+
+2 · n 22α+dX
+
+respectively. Since we are proving an asymptotic (in n) bound, we may assume n > (2 /τ X )2α+dX , so that 
+
+0 < h < min(1 /2, τ X /2) .Recall from (the proof of) Theorem 1, we have 
+
+sup 
+
+> x∈X
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+= O
+
+ 1
+
+n2e2β · exp 
+
+ 3R2
+
+h2
+
+ 
+
+.
+
+This result holds independently of the specific choice of support points, and the supremum over the query implies the same bound holds in expectation. Plugging in our choice of h and β, the exponents cancel exactly, leaving 
+
+E
+
+> xi,x∼U (X)
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+= O(n−2). (3.8) By Lemma 1, term II is directly bounded as 
+
+E
+
+> xi,ε i
+
+ bKh(x) − K h(x)
+
+2
+
+= O
+
+ S2noise 
+
+nh dX
+
+
+
+.
+
+Substituting the choice for h and hiding Snoise ,
+
+E
+
+> xi,ε i
+
+ bKh(x) − K h(x)
+
+2
+
+= O
+
+
+
+n−2α/ (2 α+dX )
+
+. (3.9) For term III , by Lemma 2, 
+
+Kh(x) − K h(x) = O  log  h−1 3dX /4 ·
+
+r log(4 /δ )
+
+nh dX
+
+!
+
+with probability 1 − δ, for any δ > 0. By definition of the kernel, we have the uniform bound 2S (recall 
+
+S = Sf + Snoise ), which we may use on the failure probability δ to get an expectation bound: 
+
+E
+
+> xi,x∼U (X)
+
+ Kh(x) − K h(x)2 ≤ (1 − δ) · O
+
+ log  h−1 3dX /2 · log(4 /δ )
+
+nh dX
+
+
+
++ δ(2 S)2.
+
+Recall that α ≤ 1. We explicitly set δ = 4 h2, whereupon the bound simplifies to 
+
+E
+
+> xi,x
+
+ Kh(x) − K h(x)2 = O (log( h−1)) 1+ 3dX
+
+> 2
+
+nh dX
+
+!
+
+= O
+
+
+
+n− 2α 
+
+> 2α+dX
+
+(log n)1+ 3dX
+
+> 2
+
+
+
+(3.10) 13 The first equality uses that 0 < h < 1/2; the second line follows from actually substituting h = n− 12α+dX .Finally, Lemma 3 directly gives us a bound on term IV , which inherently does not involve support points: 
+
+E 
+
+> x∼U (X)
+
+(Kh(x) − f (x)) 2 = O(h2α(log( h−1)) 2).
+
+Substituting in our choice of h yields 
+
+E 
+
+> x∼U (X)
+
+(Kh(x) − f (x)) 2 = O
+
+
+
+n− 2α 
+
+> 2α+dX
+
+(log n)2
+
+. (3.11) Assembling (3.8),(3.9),(3.10), and(3.11) together, we arrive at the total bound: 
+
+E
+
+> xi,ε i,x
+
+( eG(HP ∗,x) − f (x)) 2
+
+= O(n−2) + O
+
+
+
+n− 2α
+
+> 2α+dX
+
+
+
++ O
+
+
+
+n− 2α 
+
+> 2α+dX
+
+(log n)1+ 3dX
+
+> 2
+
+
+
++ O
+
+
+
+n− 2α 
+
+> 2α+dX
+
+(log n)2
+
+.
+
+The first term decays the fastest. For the other three terms, since dX ≥ 1, the exponents compare as 
+
+1 + 3 dX /2 > 2 > 0 and the middle term slightly dominates: 
+
+E
+
+> xi,ε i,x
+
+( eG(HP ∗,x) − f (x)) 2 = O
+
+
+
+n− 2α 
+
+> 2α+dX
+
+(log n)1+ 3dX
+
+> 2
+
+
+
+.
+
+The norm bound for the soft prompt tokens follows directly by substituting our choice of h and β into the bound from Theorem 1 and hiding constants. 
+
+# 4 Random Transformers 
+
+In this section, we show that random transformers are universal approximators when appropriately prompted. We first consider random attention parameters, then extend to fully random transformers with random embedding and decoding. While our previous deterministic results were for any hidden dimension satisfying dh ≥ din + 2 , in the random setting we consider the large-width limit where dh ≫ din + 2 , which is common in practice [Brown et al., 2020]. We recall here a useful result in random matrix theory regarding the singular values of random matrices with Gaussian entries; for standard references, see Davidson and Szarek [2001] or Vershynin [2026]. 
+
+Lemma 4 (Nonasymptotic tail bounds on singular values of random Gaussian matrix) . Let A ∈ RM ×N
+
+with M ≥ N be a random matrix with iid N (0 , 1) entries. Then for every t ≥ 0,
+
+P
+
+
+
+σmin (A) ≥ √M − √N − t
+
+
+
+≥ 1 − e−t2/2
+
+and 
+
+P
+
+
+
+σmax (A) ≤ √M + √N + t
+
+
+
+≥ 1 − e−t2/2.
+
+We will usually apply this result to wide matrices, noting that a matrix and its transpose have the same singular values. Some of our applications will involve iid N (0 , σ 2) entries; in those cases both bounds scale by σ.
+
+## 4.1 Random Attention Parameters 
+
+Instead of directly assuming particular parameters which satisfy Condition 1, we consider attention param-eters with Gaussian entries, and show that these satisfy the condition almost surely. This lets us extend the universal approximation theorem for prompting to these random transformers. 
+
+Assumption 5 (Random attention parameters) . The entries of the attention parameters WK , WQ, and 
+
+WV are drawn iid from Gaussian distributions N (0 , σ 2 
+
+> WK
+
+), N (0 , σ 2 
+
+> WQ
+
+), and N (0 , σ 2 
+
+> WV
+
+) respectively. 
+
+14 Remark 3. Outside of a few baselines, our numerical experiments in Section 5 will initialize the entries of all random parameters (including those in Assumption 6) according to N (0 , 1) , and our theoretical derivations reflect this choice. Since our networks are not trained, we do not use width-dependent initialization schemes which are necessary for gradient-based learning, such as Xavier [Glorot and Bengio, 2010] or Kaiming [He et al., 2015]. Note that such initialization variances, typically on the order of Θ(1 /d h), will change the asymptotic prompt norm bounds throughout Section 4. For completeness, we faithfully track the variance dependencies throughout the intermediate derivations, up until the final asymptotic bounds. For the analogous universal approximation theorem, we need only to prove a random version of Theorem 1, since the remaining approximation theory results on kernel regression are independent of transformers. Note that in the random setting, the quantities ∥W ∥ and ∥wV ∥, which were treated as constants in Theorem 1, are in fact random variables. We adjust our theorem accordingly to make this explicit. 
+
+Theorem 3 (Prompting NW kernel estimator from random attention transformer) . Let X satisfy Assump-tion 1, f : X → R satisfy Assumption 2, and labels satisfy Assumption 3. Let G ∈ G be a transformer network whose attention parameters satisfy Assumption 5. With probability 1 over the initialization of at-tention parameters, for any prompt length n ≥ 1 and support points {xi ∈ X}ni=1 , bandwidth h > 0, and logit shift β ≥ 0, there exists a soft prompt P ∗ of length n such that 
+
+sup 
+
+> x∈X
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+≤ C2
+
+> G
+
+n2e2β · exp 
+
+ 3R2
+
+h2
+
+
+
+,
+
+where CG = exp  (R2 + 1) ∥W ∥   √R2 + 1 ∥wV ∥ + S is an almost surely finite random constant depending on the realized parameters. Moreover, for any δ > 0, the norm of the constructed soft prompt tokens ∥p∗ 
+
+> i
+
+∥ is bounded as 
+
+∥p∗ 
+
+> i
+
+∥ = O
+
+ β + h−2
+
+√dh
+
+
+
+with probability at least 1 − δ over the initialization of the attention parameters and uniformly over the realizations of the samples, where the hidden constant can depend on δ.Proof. We prove existence first, then derive the corresponding norm bound. 
+
+Existence. By Theorem 1, it suffices to show that Assumption 5 implies fW satisfies the full row rank condition of Condition 1 with probability 1.Recall fW ∈ R(din +2) ×dh is defined by vertically concatenating the first din + 1 rows of the query-key matrix W = WQW TK /√dh with the last column of the value matrix WV transposed: 
+
+fW =
+
+
+
+W1: din 
+
+Wdin +1 
+
+wTV
+
+ .
+
+We first show that the key matrix WK is invertible almost surely. This is a standard result for Gaussian random matrices (which WK is, by Assumption 5), but we include a proof for completeness. The determinant of WK is a polynomial in d2h variables, and is clearly not identically zero. Its vanishing locus forms a lower-dimensional algebraic variety, thus has Lebesgue measure zero in Rd2h . Integrating the joint PDF over the measure zero set yields P(det( WK ) = 0) = 0 , and WK is invertible almost surely. Next, consider the wide matrix WQ, 1: din +1 ∈ R(din +1) ×dh , the first din + 1 rows of WQ. By Assumption 5, following the same argument as above, any (( din + 1) × (din + 1)) -submatrix has nonzero determinant almost surely. Hence rank( WQ, 1: din +1 ) = din + 1 almost surely. The transpose of an invertible matrix is invertible, and right-multiplication by an invertible matrix (or a nonzero scalar) preserves row rank. Therefore, we may conclude that the first din + 1 rows of W have rank 
+
+din + 1 almost surely. Let V denote that row space. Finally, WV is initialized independently of WQ and WK , thus its last column wV is a random vector independent of V. Noting the dimensions, V must be a proper subspace of Rdh , thus has Lebesgue measure zero in Rdh . Integrating the respective PDF over a set of measure zero, we find P(wV ∈ V | V ) = 0 , thus concatenating wV will increase rank almost surely. 15 Put together, we conclude that rank( fW ) = din + 2 (the condition of Condition 1) with probability 1, after which we may directly invoke the construction with the Moore-Penrose pseudoinverse from Theorem 1, which yields the desired soft prompt and corresponding bounds: 
+
+sup 
+
+> x∈X
+
+eG(HP ∗,x) − bKh(x) ≤ 1
+
+ne β exp 
+
+ 3R2
+
+2h2
+
+
+
+exp  (R2 + 1) ∥W ∥ p R2 + 1 ∥wV ∥ + S
+
+
+
+.
+
+A small caveat, as noted above: in the random case, the last two terms which involve ∥W ∥ and ∥wV ∥
+
+are no longer constants, but random variables (which grow like √dh, by Lemma 4). Accordingly, we define a new explicit random constant 
+
+CG := exp  (R2 + 1) ∥W ∥ p R2 + 1 ∥wV ∥ + S
+
+
+
+, (4.1) which is almost surely finite. With this, we rewrite our error as 
+
+sup 
+
+> x∈X
+
+eG(HP ∗,x) − bKh(x) ≤ CG
+
+ne β exp 
+
+ 3R2
+
+2h2
+
+
+
+.
+
+Squaring both sides gives the squared error bound in the theorem. 
+
+Norm bound. Recall from the proof of Theorem 1, we have that 
+
+∥p∗ 
+
+> i
+
+∥ ≤ ∥ fW †∥∥ vi∥ ≤ 1
+
+σmin (fW )
+
+s
+
+R2
+
+h4 +
+
+
+
+β + R2
+
+2h2
+
+2
+
++ S2.
+
+The only component that changes in the random attention case is the smallest singular value σmin (fW ), which is now a random variable we must bound in probability. Fix δ > 0.We first consider W1: din +1 , the first din + 1 rows of fW . By definition of W , it can be written as 
+
+W1: din +1 = 1
+
+√dh
+
+WQ, 1: din +1 W TK .
+
+Note that WQ, 1: din +1 ∈ R(din +1) ×dh is a wide Gaussian matrix. Invoking Lemma 4, for any t > 0,
+
+P(σmin (WQ, 1: din +1 ) ≥ σWQ (pdh − pdin + 1 − t)) ≥ 1 − e−t2/2.
+
+Picking t = p2 log(2 /δ ) and with dh ≫ din (at least dh ≥ 8( din + 1 + 2 log(2 /δ ))) , we have 
+
+σmin (WQ, 1: din +1 ) = Ω 
+
+
+
+σWQ
+
+pdh
+
+
+
+with probability at least 1 − δ/ 2.Conditioned on WQ, 1: din +1 , the product WQ, 1: din +1 W TK /√dh is a random matrix with independent Gaus-sian columns. The final row of fW is wTV , which is completely independent of WQ and WK . Together, fW
+
+has the block-diagonal covariance structure 
+
+Σ := 
+
+" σ2 
+
+> WK
+> dh
+
+WQ, 1: din +1 W TQ, 1: din +1 00 σ2
+
+> WV
+
+#
+
+.
+
+Conditioned on WQ, we may write (reparameterization trick) 
+
+fW d
+
+= Σ 1/2Z, 
+
+where Z ∈ R(din +2) ×dh is a random matrix with iid standard normal entries. Since Σ1/2 is square and invertible and Z is wide with full row rank almost surely, supermultiplicativity of the minimum singular value implies 
+
+σmin (fW ) ≥ σmin (Σ 1/2)σmin (Z).
+
+16 For block-diagonal matrices, their minimum singular value is simply the minimum of the singular values for each respective block: 
+
+σmin (Σ 1/2) = min 
+
+ σWK
+
+√dh
+
+σmin (WQ, 1: din +1 ), σ WV
+
+
+
+.
+
+On the aforementioned high probability event, this reduces to 
+
+σmin (Σ 1/2) ≥ min( c1σWQ σWK , σ WV )
+
+Note Z ∈ R(din +2) ×dh is a wide matrix since dh ≫ din + 2 . As above, by Lemma 4 we deduce that 
+
+σmin (Z) ≥ Ω
+
+p dh
+
+
+
+with probability at least 1 − δ/ 2.Union bounding with the first high probability event, we have that with probability at least 1 − δ,
+
+σmin (fW ) ≥ σmin (Σ 1/2) σmin (Z) = Ω 
+
+
+
+min( σWQ σWK , σ WV )pdh
+
+
+
+.
+
+Putting everything together, we conclude 
+
+∥p∗ 
+
+> i
+
+∥ ≤ ∥vi∥
+
+σmin (fW ) ≤
+
+s
+
+R2
+
+h4 +
+
+
+
+β + R2
+
+2h2
+
+2
+
++ S2
+
+σmin (fW ) = O
+
+ β + h−2
+
+√dh
+
+
+
+with probability at least 1 − δ.As a corollary, we get a universal approximation theorem in the random setting analogous to Theorem 2. 
+
+Theorem 4 (Universal approximation for prompting random attention transformer) . Let G ∈ G be a transformer network whose attention parameters satisfy Assumption 5. Suppose X satisfies Assumption 1 and fix an f satisfying Assumption 2. Suppose the support points and query satisfy Assumption 4, and labels satisfy Assumption 3. For almost every initialization of the attention parameters, there exists a map, depending on the realized parameters, assigning to each realization of samples {xi, y i = f (xi) + εi}ni=1 a soft prompt P ∗ of length n, independent of the query x, such that 
+
+E
+
+> xi,ε i,x
+
+( eG(HP ∗,x) − f (x)) 2 = O
+
+
+
+n− 2α 
+
+> 2α+dX
+
+(log n)1+ 3dX
+
+> 2
+
+
+
+,
+
+conditional on the realized parameters. Furthermore, for any δ > 0, with probability at least 1 − δ over the attention parameters, the soft prompt tokens satisfy 
+
+∥p∗ 
+
+> i
+
+∥ = O n 22α+dX
+
+√dh
+
++ 1 
+
+!
+
+for all 1 ≤ i ≤ n, uniformly over the realizations of the samples. Proof. We have the same four term decomposition from Theorem 2. Terms II , III , and IV are inherent to kernel regression, holding independently of the transformer. We use Theorem 3 to bound term I in the random case. Recall (3.7) from the proof of Theorem 1: 
+
+sup 
+
+> x∈X
+
+eG(HP ∗,x) − bKh(x) ≤ 1
+
+ne β exp 
+
+ 3R2
+
+2h2
+
+
+
+exp  (R2 + 1) ∥W ∥ p R2 + 1 ∥wV ∥ + S
+
+
+
+.
+
+In the proof of Theorem 2, we chose h = n− 12α+dX and correspondingly set β = 3R2 
+
+> 2
+
+· n 22α+dX ; the remaining constant was absorbed into the O(·). In the random attention case this constant is a random 17 variable, which we defined as CG in (4.1), and will in fact depend exponentially on √dh. To deal with this, we may redefine β to exactly absorb it: 
+
+β = 3R2
+
+2 · n 22α+dX + log + CG.
+
+We restrict to log + x := max(log x, 0) , the positive part of the logarithm, to avoid edge cases which cause negative β. Substituting in this new β gives the desired ≤ n−2 bound for term I almost surely. The remaining steps follow the proof of Theorem 2, mutatis mutandis. Fix δ > 0. The token norm bound follows by inserting h and β into the token bound from Theorem 3, to which we allocate failure probability δ/ 2. By Lemma 4, with high probability we have that 
+
+∥W ∥ ≤ 1
+
+√dh
+
+∥WQ∥∥ WK ∥ = O(σWQ σWK
+
+pdh)
+
+and ∥wV ∥ = O(σWV
+
+√dh), whence we find 
+
+log +
+
+p R2 + 1 ∥wV ∥ + S
+
+
+
+= O(log( σWV
+
+pdh)) .
+
+We distribute the other δ/ 2 failure probability over these events. Consequently, the change in β only results in an added O(1) term to the norm bound (hiding the variance dependence): 
+
+log + CG
+
+√dh
+
+≤ (R2 + 1) ∥W ∥ + log +
+
+ √R2 + 1 ∥wV ∥ + S
+
+√dh
+
+= O(1) 
+
+with probability at least 1 − δ/ 2. The union bound gives the claimed token norm bound with probability at least 1 − δ.
+
+Remark 4. Unlike before in Theorem 2, the logit shift is now adaptive to the realized network (in particular, the realization of the random attention parameters), with only an additional O(1) cost in token norm. 
+
+## 4.2 Random Embedding and Decoding 
+
+For fully random transformers, we expand our transformer class. The fixed embedding and decoding defined in Section 2.1 were used primarily for clarity and concreteness. Here, we redefine them as affine maps, which will also be initialized randomly alongside the attention parameters. The embedding is now given by 
+
+Eaff (x) = xemb := xT UE + bTE , (4.2) where UE ∈ Rdin ×dh and bE ∈ Rdh . Similarly, letting Hn+1 denote the last row of a matrix H, the decoding is redefined as 
+
+Daff (H) = Hn+1 uD + bD ,
+
+where uD ∈ Rdh and bD ∈ R. The bias is necessary in the embedding, but optional for decoding, as we will see in the proof of Theorem 5. Abusing notation, we define eG = Daff ◦ A like before. We still consider a transformer model with a single attention layer. Our new transformer class is given by 
+
+Gaff = G = Daff ◦ A ◦ Eaff | WQ, W K , W V ∈ Rdh×dh , U E ∈ Rdin ×dh , bE , uD ∈ Rdh , b D ∈ R .
+
+We refer to the totality of the weights as the transformer weights , to distinguish them from just the attention parameters as before. We have a similar randomness assumption for the new embedding and decoding parameters. 
+
+Assumption 6 (Random embedding and decoding parameters) . The embedding parameters UE and bE
+
+have entries distributed iid according to Gaussian distributions N (0 , σ 2 
+
+> UE
+
+) and N (0 , σ 2 
+
+> bE
+
+) respectively. The decoding parameter uD has entries distributed iid according to N (0 , σ 2 
+
+> uD
+
+) and bD ∼ N (0 , σ 2 
+
+> bD
+
+).
+
+18 Even in the fully random setting, prompting can still reconstruct the NW kernel estimator, as the following theorem shows. 
+
+Theorem 5 (Prompting NW kernel estimator for fully random transformer) . Let X satisfy Assumption 1 and f : X → R satisfy Assumption 2. Assume labels satisfy Assumption 3. Fix G ∈ G aff whose attention parameters satisfy Assumption 5 and embedding and decoding parameters satisfy Assumption 6. With prob-ability 1 over the initialization of the transformer weights, for any prompt length n ≥ 1, set of support points 
+
+{xi ∈ X}ni=1 , bandwidth h > 0, and logit shift β ≥ 0, there exists a soft prompt P ∗ of length n such that 
+
+sup 
+
+> x∈X
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+≤ C2
+
+> G, aff
+
+n2e2β · exp 
+
+ 3R2
+
+h2
+
+
+
+,
+
+where 
+
+CG, aff := exp 
+
+
+
+(R∥UE ∥ + ∥bE ∥)2 ∥W ∥
+
+
+
+(( R∥UE ∥ + ∥bE ∥) ∥WV ∥∥ uD ∥ + |bD | + S)
+
+is an almost surely finite random constant depending on the realized transformer weights. Moreover, for any 
+
+δ > 0, the constructed soft prompt has tokens ∥p∗ 
+
+> i
+
+∥ satisfying 
+
+∥p∗ 
+
+> i
+
+∥ = O
+
+ β + h−2
+
+dh
+
+
+
+,
+
+with probability at least 1 − δ, uniformly over the realizations of the samples. Proof. We closely follow the proof structure of Theorem 1, adapting it to this random setting. Recall that the attention logit for each prompt token pi looks like xemb W pi, where W = 1√dh
+
+WQW TK . Substituting our new affine embedding defined in (4.2), the logit expands as 
+
+xemb W pi = ( xT UE + bTE )W pi = xT (UE W )pi + bTE W pi.
+
+Further recall that to mimic the NW kernel estimator (2.4), we want this logit to match xT xi 
+
+> h2
+
+− ∥xi∥2 
+
+> 2h2
+
++ β,which yields the following two conditions: 
+
+UE W pi = xi
+
+h2 and bTE W pi = − ∥xi∥2
+
+2h2 + β. 
+
+We also wanted to match the value part, which is affected by the new decoding. The unnormalized contribution of a prompt token pi to the output is pTi WV uD + bD , which suggests the following constraint: 
+
+(WV uD )T pi = yi − bD .
+
+We consolidate the conditions into a single system fWaff pi = v′
+
+> i
+
+, where 
+
+fWaff =
+
+
+
+UE W
+
+bTE W
+
+(WV uD )T
+
+ ∈ R(din +2) ×dh and v′ 
+
+> i
+
+=
+
+
+
+> xi
+> h2
+
+− ∥xi∥2 
+
+> 2h2
+
++ βyi − bD
+
+ ∈ Rdin +2 . (4.3) Like in the proof of Theorem 3, it suffices to show fWaff has full row rank almost surely. Since WQ and WK
+
+are initialized with independent Gaussian entries, W has rank dh almost surely. Similarly, the distributions of UE and bE imply UE
+
+bTE
+
+
+
+∈ R(din +1) ×dh
+
+has full row rank din + 1 almost surely, which is preserved under right multiplication by the full-rank W .Lastly, consider WV uD , a nondegenerate (since uD̸ = 0 almost surely) random vector independent of the previous rows of fWaff . The previous rows span a proper subspace of Rdh (Lebesgue measure 0), thus the probability that WV uD is in the subspace is 0, meaning its inclusion strictly increases the rank. 19 We conclude the system has at least one solution; we construct P ∗ using the Moore-Penrose pseudoinverse. It remains to uniformly bound the difference eG(HP ∗,x) − bKh(x) . As we did in (3.6), we expand our attention output with the constructed prompt and split it into individual terms: 
+
+eG(HP ∗,x) − bKh(x) ≤ 1
+
+eβ ·
+
+exp( xemb W xT
+
+> emb
+
+)
+
+
+
+|xemb WV uD + bD | + bKh(x)
+
+Pni=1 exp 
+
+ xT xi 
+
+> h2
+
+− ∥xi∥2
+
+> 2h2
+
+ . (4.4) We retain the bounds on the deterministic parts, i.e. 
+
+> n
+
+X
+
+> i=1
+
+exp 
+
+ xT xi
+
+h2 − ∥xi∥2
+
+2h2
+
+
+
+≥ n exp 
+
+
+
+− 3R2
+
+2h2
+
+
+
+and bKh(x) ≤ S. 
+
+The norm of the embedded query is bounded as 
+
+∥xemb ∥ = ∥xT UE + bTE ∥ ≤ R∥UE ∥ + ∥bE ∥,
+
+from which it follows that 
+
+|xemb W xT
+
+> emb
+
+| ≤ ∥ xemb ∥2∥W ∥ ≤ (R∥UE ∥ + ∥bE ∥)2∥W ∥.
+
+The decoding part is bounded similarly: 
+
+|xemb WV uD + bD | ≤ ∥ xemb ∥∥ WV ∥∥ uD ∥ + |bD | ≤ (R∥UE ∥ + ∥bE ∥)∥WV ∥∥ uD ∥ + |bD |.
+
+As before, we define a new variable to summarize the random constants, which is almost surely finite: 
+
+CG, aff := exp 
+
+
+
+(R∥UE ∥ + ∥bE ∥)2 ∥W ∥
+
+
+
+(( R∥UE ∥ + ∥bE ∥) ∥WV ∥∥ uD ∥ + |bD | + S) . (4.5) Though we do not use it here, note that by Lemma 4 we may derive 
+
+CG, aff = exp  O(d1.5h ) (4.6) with high probability. As before, we will absorb CG, aff into the logit shift later in the corresponding universal approximation theorem. Plugging everything into (4.4) and squaring both sides, the final bound simplifies compactly as 
+
+sup 
+
+> x∈X
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+≤ C2
+
+> G, aff
+
+n2e2β · exp 
+
+ 3R2
+
+h2
+
+
+
+.
+
+Norm bound. As in the proof of Theorem 1, the minimum-norm solution satisfies 
+
+∥p∗ 
+
+> i
+
+∥ ≤ ∥ fW † 
+
+> aff
+
+∥∥ v′
+
+> i
+
+∥ = ∥v′
+
+> i
+
+∥
+
+σmin (fWaff ) .
+
+Compared to (3.5), the only coordinate in v′ 
+
+> i
+
+that differs is the last, which is now yi − bD (versus just 
+
+yi). A standard Gaussian tail bound yields |bD | ≤ σbD
+
+p2 log(10 /δ ) with probability at least 1 − δ/ 5. This does not change the asymptotic bound: on this event, 
+
+∥v′
+
+> i
+
+∥ ≤ 
+
+s
+
+R2
+
+h4 +
+
+
+
+β + R2
+
+2h2
+
+2
+
++
+
+
+
+S + σbD
+
+p2 log(10 /δ )
+
+2
+
+= O(β + h−2)
+
+for all 1 ≤ i ≤ n, where the hidden constant may depend on δ.For the smallest singular value, we first write 
+
+M := 
+
+UE
+
+bTE
+
+
+
+= Λ Z1 ∈ R(din +1) ×dh
+
+20 where Λ := diag( σUE , . . . , σ UE , σ bE ) and Z1 ∈ R(din +1) ×dh has iid standard normal entries. The first din + 1 
+
+rows of fWaff can then be written as 
+
+M W = 1
+
+√dh
+
+M W QW TK ,
+
+and the j-th column of M W can be written 
+
+1
+
+√dh
+
+M W QW TK,j ,
+
+where WK,j denotes the j-th row of WK . The WK,j are iid random vectors with covariance σ2 
+
+> WK
+
+Idh . Similarly, the j-th entry of the last row of fWaff is WV,j uD where WV,j is the j-th row of WV . These entries are iid from N (0 , σ 2 
+
+> WV
+
+∥uD ∥2), independent of WK . Together, conditioned on M , WQ, and uD , the columns of fWaff 
+
+are iid Gaussian with block-diagonal covariance 
+
+Σ = 
+
+" σ2 
+
+> WK
+> dh
+
+(M W Q)( M W Q)T 00 σ2 
+
+> WV
+
+∥uD ∥2
+
+#
+
+.
+
+Again, we write fWaff 
+
+> d
+
+= Σ 1/2Z for Z ∈ R(din +2) ×dh with iid standard normal entries. By supermultiplicativity of the minimum singular value in this case and the block-diagonal structure, 
+
+σmin (fWaff ) ≥ min 
+
+ σWK
+
+√dh
+
+σmin (M W Q), σ WV ∥uD ∥
+
+
+
+· σmin (Z). (4.7) It remains to lower bound each random quantity. Conditioning on M , the columns of M W Q are iid 
+
+N (0 , σ 2 
+
+> WQ
+
+M M T ), so M W Qd
+
+= σWQ (M M T )1/2Z2 with standard Gaussian Z2 ∈ R(din +1) ×dh , giving 
+
+σmin (M W Q) ≥ σWQ σmin (M ) σmin (Z2) ≥ σWQ min( σUE , σ bE ) σmin (Z1) σmin (Z2).
+
+Each of Z1, Z 2, and Z is a wide standard Gaussian matrix; we apply Lemma 4 individually. This yields 
+
+σmin (Z1) = Ω 
+
+p dh
+
+
+
+, σmin (Z2) = Ω 
+
+p dh
+
+
+
+, σmin (Z) = Ω 
+
+p dh
+
+
+
+,
+
+each with probability at least 1 − δ/ 5, where the constants may depend on δ.Finally, Lemma 4 also gives ∥uD ∥ = Ω  σuD
+
+√dh
+
+ with probability at least 1 − δ/ 5. Union bounding over all five events and substituting into (4.7), we find 
+
+σmin (fWaff ) = Ω 
+
+
+
+min 
+
+
+
+σWQ σWK min( σUE , σ bE ), σ WV σuD
+
+
+
+· dh
+
+
+
+with probability at least 1 − δ.Putting the two bounds together, we arrive at the overall bound: with probability at least 1 − δ,
+
+∥p∗ 
+
+> i
+
+∥ ≤ 
+
+r 
+
+> R2
+> h4
+
++  β + R2
+
+> 2h2
+
+2 +
+
+
+
+S + σbD
+
+p2 log(10 /δ )
+
+2
+
+σmin (fWaff ) = O
+
+ β + h−2
+
+dh
+
+
+
+.
+
+Remark 5. Notice the improved prompt norm scaling in the fully random case: we have dh in the denom-inator, as opposed to √dh in the fixed embedding and decoding case. The random versions distribute the constraints on each token densely across dh, which scales up fWaff by a factor of √dh relative to fW , whose zero padding embedding and coordinate readout decoding limit the constraints to a few rows. We will see in Theorem 6 that this comes at a cost: the query self-attention is also inflated, which requires a larger logit shift to offset it, impacting the token norm bound (see Remark 6). Using this result gives the following analogous universal approximation theorem in the fully random case. 21 Theorem 6 (Universal approximation for prompting fully random transformer) . Let G ∈ G aff be a trans-former network whose attention parameters satisfy Assumption 5 and whose embedding and decoding pa-rameters satisfy Assumption 6. Suppose X satisfies Assumption 1 and fix an f satisfying Assumption 2. Suppose the support points and query satisfy Assumption 4 with labels satisfying Assumption 3. For al-most every initialization of the parameters, there exists a map assigning to each realization of samples 
+
+{xi, y i = f (xi) + εi}ni=1 a soft prompt P ∗ of length n, independent of the query x, such that 
+
+E
+
+> xi,ε i,x
+
+( eG(HP ∗,x) − f (x)) 2 = O
+
+
+
+n− 2α 
+
+> 2α+dX
+
+(log n)1+ 3dX
+
+> 2
+
+
+
+,
+
+conditional on the realized parameters. Furthermore, for any δ > 0, with probability at least 1 − δ over the transformer weights, the soft prompt tokens satisfy 
+
+∥p∗ 
+
+> i
+
+∥ = O n 22α+dX
+
+dh
+
++ pdh
+
+!
+
+for all 1 ≤ i ≤ n, uniformly over the realizations of the samples. Proof. The proof follows the same approach as Theorem 4. In the four term decomposition from the proof of Theorem 2, the latter three are bounded independently of the transformer, so still hold here. For term I, we use the above result of Theorem 5: 
+
+sup 
+
+> x∈X
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+≤ C2
+
+> G, aff
+
+n2e2β · exp 
+
+ 3R2
+
+h2
+
+
+
+.
+
+Like we did in Theorem 4, we still set h = n− 12α+dX , but change β to absorb the random constant defined in (4.5): 
+
+β = 3R2
+
+2 · n 22α+dX + log + CG, aff .
+
+Substituting these choices, we are left with exactly 
+
+sup 
+
+> x∈X
+
+ eG(HP ∗,x) − bKh(x)
+
+2
+
+≤ 1
+
+n2
+
+almost surely. Assembling the four terms exactly as in Theorem 2, we get our desired bound. We compute our token bound the same way as in Theorem 4, but the different β changes our conclusion slightly. Fix δ > 0; from Theorem 5 we have that 
+
+∥p∗ 
+
+> i
+
+∥ = O
+
+ β + h−2
+
+dh
+
+
+
+with probability at least 1 − δ/ 2. As mentioned in (4.6), using standard Gaussian norm bounds we find that with probability at least 1 − δ/ 2,
+
+CG, aff = exp  O(d1.5h ) ,
+
+which means 
+
+β = O
+
+
+
+n 22α+dX + d1.5h
+
+
+
+.
+
+Therefore, with probability at least 1 − δ over the initialization of the transformer weights, 
+
+∥p∗ 
+
+> i
+
+∥ = O n 22α+dX
+
+dh
+
++ pdh
+
+!
+
+uniformly over the realizations of the samples. 
+
+Remark 6. In contrast with Theorem 4 where adapting the logit shift to the realized attention parameters came at only an additional O(1) cost in token norm, the random embedding and decoding necessitate a larger O(√dh) increase. 22 5 Numerical Experiments 
+
+In this section, we perform numerical experiments on synthetic datasets to validate our theoretical findings. Our model architectures remain faithful to the settings where our results were derived, using a single softmax attention layer with no feedforward component. Our experiments involve the two architectural variants used in Sections 4.1 and 4.2 respectively: • Architecture A. One-layer softmax attention with fixed embedding and decoding, exactly as specified in Section 2.1. In particular, we use a homogeneous embedding with additional zero padding and a readout decoder. The attention parameters are randomly initialized and not trained. • Architecture B. One-layer softmax attention with variable affine embedding and decoding, as de-scribed at the beginning of Section 4.2. All transformer weights (attention, embedding, decoding) are randomly initialized and not trained. As noted in Remark 3, all random parameters that will not be trained are initialized according to N (0 , 1) .Only in the baseline comparisons for the regression rate experiment do we use width-dependent initializations. We perform all softmax computations in log-space. All experiments were run over 10 seeds. Our domain is the unit sphere X = S2 ⊂ R3 with dX = 2 , d in = 3 , R = 1 , and τX = 1 . Support points are drawn iid uniformly on X. Queries are either also sampled uniformly, or set over a 2,000-point Fibonacci lattice (when testing suprema). The test function is a unit-norm combination of degree-4 real spherical harmonics, drawn once by sampling a coefficient vector for the nine basis functions and fixed throughout. We find that the sampled function f has supremum norm Sf ≈ 2.6, computed on a 200,000-point Fibonacci lattice. Spherical harmonics are smooth, in particular α = 1 . Labels are generated with uniform noise 
+
+U([ −1, 1]) .
+
+Rank and σmin scaling. Sweeping over hidden dimension dh, we check that the relevant coefficient ma-trices, fW and fWaff (defined in (3.5) and (4.3) respectively), have minimum singular values which scale as 
+
+Ω( √dh) and Ω( dh) respectively, and are full rank. The results are shown in Fig. 1. 8 16 32 64 128 256 512 1024        
+
+> dh
+> 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9
+> min (W)/  dh
+> Architecture A
+> 816 32 64 128 256 512 1024
+> dh
+> 0.2 0.4 0.6 0.8
+> min (Waff )/ dh
+> Architecture B
+
+Figure 1: Semi-log plot of normalized minimum singular value versus dh for both architectures. Architecture A normalizes by √dh and Architecture B normalizes by dh. Solid lines show medians and shaded regions show IQR. As expected, Fig. 1 exhibits respective normalized minimum singular values concentrating on a positive constant at a shrinking speed. No visible points close to zero supports the almost surely full rank condition. 23 Kernel approximation. We test the main mechanism of our work: the explicit closed-form construction of a soft prompt to approximate the NW kernel estimator, following Theorem 3. Across different kernel bandwidths h, we observe the scaling in prompt length n and logit shift β, reporting supremum squared error over a 2000 -point Fibonacci lattice. We test only for Architecture A; the inflated norms of Architecture B cause large fluctuations across seeds which obscure the scaling. The results are shown in Fig. 2. 816 32 64 128 256 512 1024            
+
+> n
+> 10 16
+> 10 13
+> 10 10
+> 10 7
+> 10 4
+> 10 1
+> Sup squared error
+> h= 0.2
+> h= 0.4
+> h= 0.6
+> h= 0.8 slope 2
+
+(a) Log-log plot of error versus sample size/prompt length n, with fixed β = 8 and dh = 256 .0 4 8 12            
+
+> 10 18
+> 10 15
+> 10 12
+> 10 9
+> 10 6
+> 10 3
+> 10 0
+> Sup squared error
+> h= 0.2
+> h= 0.4
+> h= 0.6
+> h= 0.8 slope 2
+
+(b) Semi-log plot of error versus logit shift β, with fixed n = 256 and dh = 256 .
+
+Figure 2: Scaling of supremum squared error between construction and oracle NW estimator across different bandwidths. Solid lines show medians and shaded regions show IQR. Fig. 2a supports the predicted scaling in n at the rate n−2; we observe an interesting phenomenon for small bandwidth h = 0 .2, where there is an initial steeper drop for small n before aligning with the predicted rate. This is likely attributable to some queries having insufficient local support points in the small n and h
+
+regime, so the query self-attention term in the transformer output dominates. In Fig. 2b, we see the scaling matches almost exactly across all bandwidths (our fixed n is sufficiently large to avoid the aforementioned behavior for h = 0 .2). 
+
+Token norm bound. We report the largest norm of the constructed soft prompt tokens, with results shown in Fig. 3. Again, we only test Architecture A here. 0 4 8 12 16 20     
+
+> 0.25 0.50 0.75 1.00 1.25 1.50 1.75 2.00
+> max
+> i
+> pi
+> h= 0.2
+> h= 0.4
+> h= 0.6
+> h= 0.8
+
+Figure 3: Max token norm versus β across various bandwidths h. Fixed dh = 256 and n = 256 . Solid lines show medians and shaded regions show IQR. 24 Fig. 3 verifies the predicted linear norm growth in logit shift; we again observe nonmonotonic behavior with small bandwidth h = 0 .2, explainable by the cancellation of the particular prompt coordinate β −
+
+h−2/2 = β − 12 .5. The other bandwidths demonstrate similar behavior but are not as obvious on the plot (for example, h = 0 .4 dips down at around 4). 
+
+Minimax regression rate. We verify Theorems 4 and 6, the predicted minimax convergence rate for universal approximation. Exactly as we did in the proofs, we pick h and β by explicitly computing the constants CG and CG, aff , and directly constructing the soft prompts using the pseudoinverses. We compare against four benchmarks, the last three of which are architecture dependent (A or B): 1. the oracle (empirical) NW estimator; 2. random frozen weights, trained prompt; 3. no prompt, trained weights; 4. frozen random prompt, trained weights. For all benchmarks, parameters to be trained are initialized with variance 1/d h and trained with Adam; everything else uses the standard variance 1 initialization. The results are shown in Fig. 4. 816 32 64 128 256 512 1024     
+
+> n
+> 10 1
+> 10 0
+> MSE
+> Architecture A
+> slope 1/2
+> theory (random frozen weights, constructed prompt) B1 (oracle NW estimator) B2 (trained prompt, random frozen weights) B3 (no prompt, trained weights) B4 (random frozen prompt, trained weights)
+> 816 32 64 128 256 512 1024
+> n
+> 10 1
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> 10 4
+> MSE
+> Architecture B
+> slope 1/2
+> theory (random frozen weights, constructed prompt) B1 (oracle NW estimator) B2 (trained prompt, random frozen weights) B3 (no prompt, trained weights) B4 (random frozen prompt, trained weights)
+
+Figure 4: Log-log plots of MSE versus n for both architectures and various baselines, with fixed dh = 256 
+
+throughout. h and β are set according to the theory: h = n−1/4 and β = 3 √n/ 2 + log +(CG) (or β =3√n/ 2 + log +(CG, aff ) for Architecture B). MSE is computed over 1000 uniformly sampled test queries per seed. Lines show geometric means and error bars are 95% Student-t CIs (computed in log-space). In nearly all cases, the error is similar for small n, since the number of samples is insufficient to accu-rately capture the function. For both architectures, our closed-form construction of the prompt is virtually indistinguishable from the empirical kernel estimator; comparing with the predicted minimax slope of n−1/2
+
+supports the upper bound for sample size/prompt length scaling. Benchmark 3 (weight training alone with no prompt) maintains MSE ≈ 1 throughout. This is unsurprising, since a single softmax attention head on a single token collapses to an affine map, which has insufficient capacity no matter how it is tuned. In Architecture A, Benchmark 2 (frozen weights, trained prompt) shows slightly sharper scaling than our constructed prompts; the construction is sufficient, but likely not tight. Benchmark 4 (frozen prompt, trained weights) performs remarkably well, with seemingly better scaling than Benchmark 2, although not by a visibly significant amount. This highlights the utility of random context as a computational scratchpad for attention, an interesting idea that we leave for future work. In Architecture B, Benchmarks 2 and 4 do not learn anything meaningful, with Benchmark 2 even performing worse than the flat Benchmark 3 at smaller n. This is almost certainly a numerical failure, 25 since the unit-variance initializations for the frozen components scale the attention logits to a size that is computationally infeasible for gradient-based methods. We still expect our construction not to be tight, and this just shows that there are settings where an explicit construction can outperform direct computational optimization. 
+
+Cost of adaptive logit shift. Finally, we test the predicted prompt norm tradeoffs in dh, as specified in Theorems 4 and 6. In particular, we see the impact of the adaptive logit shift between Architecture A, which involves CG, and Architecture B, which instead uses CG, aff . The results are presented in Fig. 5. 816 32 64 128 256 512 1024                 
+
+> dh
+> 10 1
+> 10 2
+> max
+> i
+> pi
+> Architecture A
+> n= 8
+> n= 16
+> n= 32
+> n= 64
+> n= 128
+> n= 256
+> n= 512
+> n= 1024
+> 816 32 64 128 256 512 1024
+> dh
+> 10 2
+> 10 3
+> max
+> i
+> pi
+> Architecture B
+> n= 8
+> n= 16
+> n= 32
+> n= 64
+> n= 128
+> n= 256
+> n= 512
+> n= 1024
+
+Figure 5: Log-log plots of maximum prompt token norm of constructed soft prompt versus dh for both architectures across various n. We use the same explicitly computed choices for h and β as in Fig. 4. Lines show medians and shaded regions show IQR. The prompt norm size in Architecture A is essentially monotone decreasing and flattening, aligning with the predicted O(d−1/2h + 1) rate. In the Architecture B result, the rate of O(d−1h + √dh) manifests as a U-shaped curve, where the size initially decreases before rising linearly after a certain threshold. 
+
+# 6 Conclusion 
+
+We showed that a single-layer softmax attention network with frozen random weights is a universal approx-imator under soft prompting: for a Hölder function on a manifold, we give an explicit construction of a soft prompt, as the minimum-norm solution to a linear system, that steers the network to emulate the Nadaraya-Watson kernel estimator, inheriting minimax-optimal rates that depend primarily on intrinsic dimension. The required rank condition on the weights holds almost surely under Gaussian initialization. We tracked the required soft prompt norm under three regimes: deterministic attention parameters, random attention parameters, and fully random transformers. Our results demonstrate the expressivity of prompting in an extreme case, leveraging the computational power of a single random attention head. The result is based on an explicit construction that depends on the realized transformer, directly connecting softmax attention and kernel methods through the prompt. 
+
+Future work Our work has focused on a heavily simplified transformer model, which we have proved is sufficient for our purposes. An interesting question is whether we can incorporate other elements of trans-formers, such as multi-head attention, deeper networks, feedforward components, residual connections, causal masking, and layer norm. In traditional weight-based approximation theory, most additional components only increase expressivity of networks, but it is not entirely obvious if that is also true in the prompting 26 setting with random weights. In terms of the function class, extending to sequence-to-sequence functions is a natural next step. Our theoretical bounds were derived with the soft prompt construction and are not tight, as the numerical results suggest. The construction also utilizes one prompt token per support point; would fewer tokens be able to realize a comparable estimator, and is there a lower bound for a given accuracy? 
+
+# References 
+
+Kwangjun Ahn, Xiang Cheng, Hadi Daneshmand, and Suvrit Sra. Transformers learn to implement precon-ditioned gradient descent for in-context learning. In Advances in Neural Information Processing Systems ,2023. Ekin Akyürek, Dale Schuurmans, Jacob Andreas, Tengyu Ma, and Denny Zhou. What learning algorithm is in-context learning? investigations with linear models. In International Conference on Learning Repre-sentations , 2023. Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio. Neural machine translation by jointly learning to align and translate. In International Conference on Learning Representations , 2015. Yu Bai, Fan Chen, Huan Wang, Caiming Xiong, and Song Mei. Transformers as statisticians: Provable in-context learning with in-context algorithm selection. In Advances in Neural Information Processing Systems , 2023. A.R. Barron. Universal approximation bounds for superpositions of a sigmoidal function. IEEE Transactions on Information Theory , 39(3):930–945, 1993. doi: 10.1109/18.256500. Aman Bhargava, Cameron Witkowski, Shi-Zhuo Looi, and Matt Thomson. What’s the magic word? acontrol theory of llm prompting, 2023. URL https://arxiv.org/abs/2310.04444 .Peter J. Bickel and Bo Li. Local polynomial regression on unknown manifolds. Lecture Notes-Monograph Series , 54:177–186, 2007. ISSN 07492170. URL http://www.jstor.org/stable/20461468 .Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, et al. Language models are few-shot learners. In Advances in Neural Information Processing Systems , 2020. Michelle Ching, Ioana Popescu, Nico Smith, Tianyi Ma, William G. Underwood, and Richard J. Samworth. Efficient and minimax optimal in-context nonparametric regression with transformers. In International Conference on Machine Learning , 2026. Krzysztof Marcin Choromanski, Valerii Likhosherstov, David Dohan, Xingyou Song, Andreea Gane, Tamas Sarlos, Peter Hawkins, Jared Quincy Davis, Afroz Mohiuddin, Lukasz Kaiser, David Benjamin Belanger, Lucy J Colwell, and Adrian Weller. Rethinking attention with performers. In International Conference on Learning Representations , 2021. URL https://openreview.net/forum?id=Ua6zuk0WRH .George Cybenko. Approximation by superpositions of a sigmoidal function. Mathematics of Control, Signals and Systems , 2:303–314, 1989. Kenneth R. Davidson and Stanislaw J. Szarek. Chapter 8 - local operator theory, random matrices and banach spaces. In W.B. Johnson and J. Lindenstrauss, editors, Handbook of the Geometry of Banach Spaces , volume 1 of Handbook of the Geometry of Banach Spaces , pages 317–366. Elsevier Science B.V., 2001. doi: https://doi.org/10.1016/S1874-5849(01)80010-3. URL https://www.sciencedirect.com/ science/article/pii/S1874584901800103 .Yihe Dong, Lorenzo Noci, Mikhail Khodak, and Mufan Li. Is random attention sufficient for sequence modeling? disentangling trainable components in the transformer, 2025. URL https://arxiv.org/abs/ 2506.01115 .Shivam Garg, Dimitris Tsipras, Percy Liang, and Gregory Valiant. What can transformers learn in-context? a case study of simple function classes. In Advances in Neural Information Processing Systems , 2022. 27 Xavier Glorot and Yoshua Bengio. Understanding the difficulty of training deep feedforward neural networks. In Yee Whye Teh and Mike Titterington, editors, Proceedings of the Thirteenth International Conference on Artificial Intelligence and Statistics , volume 9 of Proceedings of Machine Learning Research , pages 249–256, Chia Laguna Resort, Sardinia, Italy, 13–15 May 2010. PMLR. URL https://proceedings. mlr.press/v9/glorot10a.html .Chi Han, Ziqi Wang, Han Zhao, and Heng Ji. Understanding emergent in-context learning from a kernel regression perspective. Transactions on Machine Learning Research , 2025. Alex Havrilla and Wenjing Liao. Predicting scaling laws with statistical and approximation theory for transformer neural networks on intrinsically low-dimensional data. In Advances in Neural Information Processing Systems , 2024. Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Delving deep into rectifiers: Surpassing human-level performance on imagenet classification. In 2015 IEEE International Conference on Computer Vision (ICCV) , pages 1026–1034, 2015. doi: 10.1109/ICCV.2015.123. Kurt Hornik. Approximation capabilities of multilayer feedforward networks. Neural Networks , 4(2):251–257, 1991. Neil Houlsby, Andrei Giurgiu, Stanislaw Jastrzebski, Bruna Morrone, Quentin De Laroussilhe, Andrea Ges-mundo, Mona Attariyan, and Sylvain Gelly. Parameter-efficient transfer learning for NLP. In Kamalika Chaudhuri and Ruslan Salakhutdinov, editors, Proceedings of the 36th International Conference on Ma-chine Learning , volume 97 of Proceedings of Machine Learning Research , pages 2790–2799. PMLR, 09–15 Jun 2019. URL https://proceedings.mlr.press/v97/houlsby19a.html .Alexander Hsu, Zhaiming Shen, Wenjing Liao, and Rongjie Lai. Understanding in-context learning for nonlinear regression with transformers: Attention as featurizer, 2026. URL https://arxiv.org/abs/ 2605.05176 .Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and Weizhu Chen. LoRA: Low-rank adaptation of large language models. In International Conference on Learning Representations , 2022. Jerry Yao-Chieh Hu, Wei-Po Wang, Ammar Gilani, Chenyang Li, Zhao Song, and Han Liu. Fundamental limits of prompt tuning transformers: Universality, capacity and efficiency. In International Conference on Learning Representations , 2025. Jerry Yao-Chieh Hu, Hude Liu, Jennifer Yuntong Zhang, and Han Liu. In-context algorithm emulation in fixed-weight transformers. In The Fourteenth International Conference on Learning Representations , 2026. URL https://openreview.net/forum?id=BC7YLA0zJ0 .Guang-Bin Huang, Qin-Yu Zhu, and Chee-Kheong Siew. Extreme learning machine: Theory and applica-tions. Neurocomputing , 70(1-3):489–501, 2006. Yu Huang, Yuan Cheng, and Yingbin Liang. In-context convergence of transformers. In Ruslan Salakhutdi-nov, Zico Kolter, Katherine Heller, Adrian Weller, Nuria Oliver, Jonathan Scarlett, and Felix Berkenkamp, editors, Proceedings of the 41st International Conference on Machine Learning , volume 235 of Pro-ceedings of Machine Learning Research , pages 19660–19722. PMLR, 21–27 Jul 2024. URL https: //proceedings.mlr.press/v235/huang24d.html .Boris Igelnik and Yoh-Han Pao. Stochastic choice of basis functions in adaptive function approximation and the functional-link net. IEEE Transactions on Neural Networks , 6(6):1320–1329, 1995. Herbert Jaeger. The “echo state” approach to analysing and training recurrent neural networks. Technical Report GMD Report 148, German National Research Center for Information Technology, 2001. 28 Haotian Jiang and Qianxiao Li. Approximation rate of the transformer architecture for sequence modeling. In A. Globerson, L. Mackey, D. Belgrave, A. Fan, U. Paquet, J. Tomczak, and C. Zhang, editors, Advances in Neural Information Processing Systems , volume 37, pages 68926–68955. Curran Associates, Inc., 2024. doi: 10.52202/079017-2202. URL https://proceedings.neurips.cc/paper_files/paper/2024/file/ 7f64034009f4a5fa417a57e1a987c5cd-Paper-Conference.pdf .Tokio Kajitsuka and Issei Sato. Are transformers with one layer self-attention using low-rank weight matrices universal approximators? In The Twelfth International Conference on Learning Representations , 2024. URL https://openreview.net/forum?id=nJnky5K944 .Aobo Kong, Shiwan Zhao, Hao Chen, Qicheng Li, Yong Qin, Ruiqi Sun, Xin Zhou, Enzhi Wang, and Xiaohang Dong. Better zero-shot reasoning with role-play prompting. In Kevin Duh, Helena Gomez, and Steven Bethard, editors, Proceedings of the 2024 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 1: Long Papers) ,pages 4099–4113, Mexico City, Mexico, June 2024. Association for Computational Linguistics. doi: 10. 18653/v1/2024.naacl-long.228. URL https://aclanthology.org/2024.naacl-long.228/ .Brian Lester, Rami Al-Rfou, and Noah Constant. The power of scale for parameter-efficient prompt tuning. In Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing , 2021. Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, et al. Retrieval-augmented generation for knowledge-intensive NLP tasks. In Advances in Neural Information Processing Systems , 2020. Xiang Lisa Li and Percy Liang. Prefix-tuning: Optimizing continuous prompts for generation. In Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers) , 2021. Yifan Luo, Yiming Tang, Chengfeng Shen, Zhennan Zhou, and Bin Dong. Prompt engineering through the lens of optimal control, 2023. URL https://arxiv.org/abs/2310.14201 .Wolfgang Maass, Thomas Natschläger, and Henry Markram. Real-time computing without stable states: A new framework for neural computation based on perturbations. Neural Computation , 14(11):2531–2560, 2002. Maxime Meyer, Mario Michelessa, Caroline Chaux, and Vincent Y. F. Tan. Memory limitations of prompt tuning in transformers, 2025. URL https://arxiv.org/abs/2509.00421 .Elizbar A. Nadaraya. On estimating regression. Theory of Probability and Its Applications , 9(1):141–142, 1964. Ryumei Nakada, Wenlong Ji, Tianxi Cai, James Zou, and Linjun Zhang. A theoretical framework for prompt engineering: Approximating smooth functions with transformer prompts, 2025. URL https: //arxiv.org/abs/2503.20561 .Partha Niyogi, Stephen Smale, and Shmuel Weinberger. Finding the homology of submanifolds with high confidence from random samples. Discrete & Computational Geometry , 39(1):419–441, March 2008. ISSN 1432-0444. doi: 10.1007/s00454-008-9053-2. URL https://doi.org/10.1007/s00454-008-9053-2 .Samet Oymak, Ankit Singh Rawat, Mahdi Soltanolkotabi, and Christos Thrampoulidis. On the role of attention in prompt-tuning. In International Conference on Machine Learning , 2023. Hao Peng, Nikolaos Pappas, Dani Yogatama, Roy Schwartz, Noah Smith, and Lingpeng Kong. Ran-dom feature attention. In International Conference on Learning Representations , 2021. URL https: //openreview.net/forum?id=QtTKTdVrFBB .Aleksandar Petrov, Philip H. S. Torr, and Adel Bibi. Prompting a pretrained transformer can be a universal approximator. In International Conference on Machine Learning , 2024a. 29 Aleksandar Petrov, Philip H. S. Torr, and Adel Bibi. When do prompting and prefix-tuning work? a theory of capabilities and limitations. In International Conference on Learning Representations , 2024b. Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, Ilya Sutskever, et al. Language models are unsupervised multitask learners. OpenAI blog , 1(8):9, 2019. Ali Rahimi and Benjamin Recht. Random features for large-scale kernel machines. In Advances in Neural Information Processing Systems , 2007. Ali Rahimi and Benjamin Recht. Weighted sums of random kitchen sinks: Replacing minimization with ran-domization in learning. In D. Koller, D. Schuurmans, Y. Bengio, and L. Bottou, editors, Advances in Neural Information Processing Systems , volume 21. Curran Associates, Inc., 2008. URL https://proceedings. neurips.cc/paper_files/paper/2008/file/0efe32849d230d7f53049ddc4a4b0c60-Paper.pdf .Pranab Sahoo, Ayush Kumar Singh, Sriparna Saha, Vinija Jain, Samrat Mondal, and Aman Chadha. Asystematic survey of prompt engineering in large language models: Techniques and applications, 2024. URL https://arxiv.org/abs/2402.07927 .Timo Schick, Jane Dwivedi-Yu, Roberto Dessi, Roberta Raileanu, Maria Lomeli, Eric Hambro, Luke Zettle-moyer, Nicola Cancedda, and Thomas Scialom. Toolformer: Language models can teach themselves to use tools. In Thirty-seventh Conference on Neural Information Processing Systems , 2023. URL 
+
+https://openreview.net/forum?id=Yacmpz84TH .Sheng Shen, Alexei Baevski, Ari S. Morcos, Kurt Keutzer, Michael Auli, and Douwe Kiela. Reservoir transformers. In Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers) ,2021a. Sheng Shen, Zhewei Yao, Douwe Kiela, Kurt Keutzer, and Michael W. Mahoney. What’s hidden in a one-layer randomly weighted transformer? In Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing , 2021b. Zhaiming Shen, Alexander Hsu, Rongjie Lai, and Wenjing Liao. Understanding in-context learning on structured manifolds: Bridging attention to kernel methods. In The Fourteenth International Conference on Learning Representations , 2026. URL https://openreview.net/forum?id=WbRULwqsIy .Taylor Shin, Yasaman Razeghi, Robert L. Logan IV, Eric Wallace, and Sameer Singh. AutoPrompt: Elic-iting knowledge from language models with automatically generated prompts. In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing , 2020. Shokichi Takakura and Taiji Suzuki. Approximation and estimation ability of transformers for sequence-to-sequence functions with infinite dimensional input. In International Conference on Machine Learning ,2023. Michael te Vrugt. An introduction to reservoir computing, 2024. URL https://arxiv.org/abs/2412. 13212 .Yao-Hung Hubert Tsai, Shaojie Bai, Makoto Yamada, Louis-Philippe Morency, and Ruslan Salakhutdinov. Transformer dissection: An unified understanding for transformer’s attention via the lens of kernel. In 
+
+Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP) , 2019. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in Neural Information Processing Systems ,2017. Roman Vershynin. High-Dimensional Probability: An Introduction with Applications in Data Science . Cam-bridge Series in Statistical and Probabilistic Mathematics. Cambridge University Press, Cambridge, 2 edition, 2026. 30 Johannes von Oswald, Eyvind Niklasson, Ettore Randazzo, Joao Sacramento, Alexander Mordvintsev, An-drey Zhmoginov, and Max Vladymyrov. Transformers learn in-context by gradient descent. In Interna-tional Conference on Machine Learning , 2023. Haiyu Wang and Yuanyuan Lin. Prompt tuning transformers for data memorization. In Advances in Neural Information Processing Systems , 2025. Yihan Wang, Jatin Chauhan, Wei Wang, and Cho-Jui Hsieh. Universality and limitations of prompt tuning. In Advances in Neural Information Processing Systems , 2023. Geoffrey S. Watson. Smooth regression analysis. Sankhy¯ a: The Indian Journal of Statistics, Series A , 26 (4):359–372, 1964. Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Brian Ichter, Fei Xia, Ed Chi, Quoc V. Le, and Denny Zhou. Chain-of-thought prompting elicits reasoning in large language models. In Advances in Neural Information Processing Systems , 2022. Dmitry Yarotsky. Error bounds for approximations with deep relu networks. Neural Networks , 94:103– 114, 2017. ISSN 0893-6080. doi: https://doi.org/10.1016/j.neunet.2017.07.002. URL https://www. sciencedirect.com/science/article/pii/S0893608017301545 .Chulhee Yun, Srinadh Bhojanapalli, Ankit Singh Rawat, Sashank J. Reddi, and Sanjiv Kumar. Are trans-formers universal approximators of sequence-to-sequence functions? In International Conference on Learn-ing Representations , 2020. Ruiqi Zhang, Spencer Frei, and Peter L. Bartlett. Trained transformers learn linear models in-context. 
+
+Journal of Machine Learning Research , 25(49):1–55, 2024. URL http://jmlr.org/papers/v25/23-1042. html .Wayne Zhao, Kun Zhou, Junyi Li, Tang Tianyi, Zican Dong, Yupeng Hou, Beichen Zhang, Yingqian Min, Junjie Zhang, Peiyu Liu, Xiaolei Wang, Yifan Du, Chen Yang, Yushuo Chen, Zhipeng Chen, Jinhao Jiang, Ruiyang Ren, Yifan Li, Xinyu Tang, and Ji-Rong Wen. A survey of large language models. Frontiers of Computer Science , 20, 05 2026. doi: 10.1007/s11704-026-60308-3. Ziqian Zhong and Jacob Andreas. Algorithmic capabilities of random transformers. In Advances in Neural Information Processing Systems , 2024. 31
