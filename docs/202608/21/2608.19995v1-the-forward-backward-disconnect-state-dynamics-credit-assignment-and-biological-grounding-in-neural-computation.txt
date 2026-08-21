@@ -1,0 +1,1006 @@
+Title: The Forward-Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation
+
+URL Source: https://arxiv.org/pdf/2608.19995v1
+
+Published Time: Fri, 21 Aug 2026 01:00:40 GMT
+
+Number of Pages: 53
+
+Markdown Content:
+## The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 
+
+HADI AL MUBASHER, Department of Electrical and Computer Engineering, Maroun Semaan Faculty of Engineering and Architecture, American University of Beirut, Lebanon 
+
+MARIETTE AWAD, Department of Electrical and Computer Engineering, Maroun Semaan Faculty of Engineering and Architecture, American University of Beirut, Lebanon 
+
+A recurring pattern in neural computation is the reintroduction of dynamical and biological structure into models that were originally simplified for scalable optimization. Early feedforward networks, from McCulloch–Pitts units through the perceptron and its multilayer descendants, reduced biological neurons to threshold or rate-like summation units. That abstraction proved structurally compatible with global-gradient training at scale. Since then, the forward side of neural computation has diversified: modern architectures carry state through recurrent updates, retrieve from long contexts through attention and associative memory, compress histories through structured state-space dynamics, evolve along continuous-time trajectories, settle to implicit equilibria, and communicate through sparse event-driven spikes. Training has diversified less. The mechanisms that make these systems scalable remain concentrated around backpropagation, backpropagation through time, adjoint methods, implicit differentiation, and surrogate-gradient variants. This survey names the resulting asymmetry between diversified forward dynamics and concentrated credit assignment the forward–backward disconnect , and develops a taxonomy for analyzing it across neural model families. The taxonomy organizes models along three coupled axes: state-dynamics structure, credit-assignment mechanism, and biological grounding. Biological grounding is split into separate forward and learning dimensions because a model may preserve biologically motivated dynamics while relying on a non-biological training rule. The unit of analysis is therefore the architecture–learning configuration rather than the architecture name alone: the same forward operator can occupy different taxonomic positions depending on whether it is trained by global gradients, approximate gradients, local plasticity, or energy-based objectives. Across static, recurrent, attention-based, state-space, continuous-time, implicit, spiking, biologically plausible, and neuromorphic families, the taxonomy reveals a consistent pattern: forward computation has diversified across state-dynamics classes, while the highest demonstrated scales remain concentrated in global or closely gradient-derived and error-propagation mechanisms. Biology serves as a diagnostic constraint rather than as metaphor, exposing which mechanisms are preserved, discarded, or replaced by engineering substitutes. Our synthesis suggests that closing the disconnect requires configuration-level alignment among state dynamics, credit assignment, and computational substrate. CCS Concepts: • Computing methodologies → Machine learning .Additional Key Words and Phrases: survey, neural networks, dynamical systems, credit assignment, biologically plausible learning, neuromorphic computing 
+
+ACM Reference Format: 
+
+Hadi Al Mubasher and Mariette Awad. 2026. The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation. ACM Comput. Surv. 1, 1 (August 2026), 34 pages. https://doi.org/10.1145/nnnnnnn.nnnnnnn 
+
+Authors’ Contact Information: Hadi Al Mubasher, hma154@aub.edu.lb, Department of Electrical and Computer Engineering, Maroun Semaan Faculty of Engineering and Architecture, American University of Beirut, Beirut, Lebanon; Mariette Awad, mariette.awad@aub.edu.lb, Department of Electrical and Computer Engineering, Maroun Semaan Faculty of Engineering and Architecture, American University of Beirut, Beirut, Lebanon. 2026. Manuscript submitted to ACM Manuscript submitted to ACM 1arXiv:2608.19995v1 [cs.NE] 20 Aug 2026 2 Al Mubasher et al. 
+
+1 Introduction 
+
+A central simplification behind modern deep learning is that neural computation can be made scalable by treating a network as a differentiable input–output map, an abstraction that allowed neural networks to scale across vision, language, speech, and scientific modeling [37, 68]. The forward side of neural computation has since moved beyond this simplification: modern architectures compute through recurrent hidden states, attention-based retrieval, structured state-space evolution, continuous-time trajectories, implicit equilibria, and event-driven spikes. The learning side has changed less; across many of these families, the mechanism that makes the model trainable remains backpropagation, backpropagation through time, adjoint differentiation, implicit differentiation, or a surrogate-gradient variant. This survey names the resulting asymmetry the forward–backward disconnect and treats it as a structural mismatch among three objects usually studied separately: the dynamics used to compute, the learning rule used to assign credit, and the hardware substrate on which both are implemented. The static abstraction remains the baseline from which the taxonomy departs: 
+
+y = 𝑓 𝜃 (x), (1) with x the input, y the output, and 𝜃 the learnable parameters. This survey uses static in the dynamical-systems sense: a memoryless input–output map with no persistent internal state carried across evaluations. Dynamical correspondingly refers to a computation whose internal state evolves under a state-transition rule and influences future outputs. Feedforward networks (Multilayer Perceptron (MLP), Convolutional Neural Network (CNN), Residual Network (ResNet)) are static in this sense; recurrent, continuous-time, spiking, and implicit-equilibrium models are dynamical. The usage differs from ML conventions in which “static” may refer to a fixed computation graph as opposed to define-by-run execution, or to parameters held frozen during inference or fine-tuning. Neural-network history is a gradual reintroduction of dynamical structure that the static abstraction removed. The earliest models, from McCulloch and Pitts [84] through Rosenblatt’s perceptron [104], bridged biological inspiration and mathematical computation but discarded the membrane-potential dynamics, recurrent interaction, and spike-based signaling of real neural systems. Successive developments restored these features unevenly: Recurrent Neural Networks (RNNs) with discrete-time recurrence [25]; Long Short-Term Memorys (LSTMs) and Gated Recurrent Units (GRUs) with gated memory [16, 51]; Spiking Neural Networks (SNNs) with event-driven communication [77]; Neural Ordinary Differential Equations (NODEs) with continuous trajectories [15]; structured State-Space Models (SSMs) with explicit state evolution for long-range sequence modeling [38, 40]. In parallel, biologically motivated learning rules (Hebbian plasticity, Spike-Timing-Dependent Plasticity (STDP), predictive coding, feedback alignment, equilibrium propagation) questioned whether backpropagation is the only plausible credit-assignment mechanism for deep networks [12, 47, 72, 102, 108]. Figure 1 arranges these milestones on a three-track timeline: the architectural track shows a dense post-2015 cluster (ResNet, Transformer, Neural ODE, DEQ, Modern Hopfield, S4, Mamba, xLSTM); the hardware track shows a parallel substrate cluster (Tensor Processing Unit (TPU), Loihi, Loihi 2, BrainScaleS-2); the learning-rule track shows only sparse alternatives (feedback alignment, equilibrium propagation, Forward-Forward [48]). This chronological asymmetry complements the categorical view of Figure 2. The objective of this survey is taxonomic reconstruction rather than chronological history. Model families are classified along two coupled axes: the form of state dynamics (no persistent state, discrete-time recurrence, continuous-time trajectories, implicit fixed-point states, or hybrid event-driven dynamics) and the learning or credit-assignment mechanism (global supervised gradients, approximate or implicit gradients, local plasticity, energy-based objectives, 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 3                       
+
+> scale change
+> Era I: 1943–2010 Era II: 2010–2026 (zoomed scale)
+> Architectures Learning rules
+> 1950 1960 1970 1980 1990 2000 2010 2015 2020 2026 McCulloch– Pitts Perceptron Neocognitron Hopfield RNN SNN LSTM CNN/LeNet ResNet Neural ODE S4 Transformer Modern Hopfield xLSTM DEQ Mamba Hebbian Backpropagation Contrastive Divergence STDP Feedback Alignment Equilibrium Propagation Forward-Forward
+> Hardware substrates
+> Mead TrueNorth SpiNNaker TPU Loihi Loihi 2 BrainScaleS-2
+> Biological grounding: None or historical Funct. analogy (fwd) / Weak (learn) Architectural (fwd) Local or algorithmic (learn) Mech. plausibility (fwd) / Mech. plasticity (learn)
+> Hardware substrates: (distinct uniform color; no biological-grounding tier)
+
+Fig. 1. Timeline of selected architectural, learning-rule, and hardware-substrate milestones in neural computation, 1943–2026. Marker colors encode biological grounding under the split-axis scheme of Section 3.3; hardware uses a distinct gold marker because substrates do not map onto grounding tiers. The post-2010 segment is horizontally zoomed to expose the greater density of recent milestones. The figure provides illustrative historical orientation rather than quantitative evidence; Figure 2 and Section 11.1 establish the forward–backward asymmetry categorically. 
+
+or unsupervised and generative learning). Biological grounding overlays both axes because it depends jointly on the forward architecture and the learning rule. A model family is included when it instantiates nontrivial state dynamics or is substantively grounded in neuroscience in a way that constrains design rather than merely motivates by analogy; the full scope rationale is given in Sections 2.4 and 3.5. Two networks with identical forward dynamics can occupy completely different positions in this taxonomy depending only on how they are trained: the joint axes of forward dynamics and credit assignment turn out to be more loosely coupled than the joint axes of biological dynamics and synaptic plasticity in the systems that motivated neural networks in the first place. The disconnect is not held in place by mathematical preference alone; it is materially reinforced by the compute substrate. Mainstream accelerators remain disproportionately optimized for dense batched tensor operations, whereas sparse asynchronous local updates typically achieve poorer utilization and less favorable memory behavior, exemplifying the hardware lottery of [53] in which the prevailing learning rule is the one whose computational pattern best matches the available substrate. Section 10 returns to this as the substrate side of the disconnect. The disconnect appears repeatedly across the survey. Spiking networks restore membrane-potential dynamics and event-driven communication, but their scalable variants rely on surrogate gradients rather than mechanistic plasticity; continuous-time and implicit models change the forward state representation but recover gradients through adjoint or implicit-differentiation machinery; neuromorphic hardware aligns naturally with sparse event-driven computation 
+
+Manuscript submitted to ACM 4 Al Mubasher et al. but does not by itself supply scalable credit assignment. Throughout, biology is treated as a discussant rather than metaphor: at each family we ask what computational problem biology solves, what the artificial model preserves, and what it ignores. This commitment shapes the split-axis biological-grounding scheme of Section 3.3. This survey makes four contributions. First, it organizes neural model families by state-dynamics structure rather than by architecture name alone. Second, it introduces a credit-assignment axis that separates global gradients, approximate or implicit gradients, local plasticity, and energy-based objectives. Third, it splits biological grounding into forward and learning dimensions, allowing cases such as surrogate-gradient and STDP-trained SNNs to be distinguished. Fourth, it connects the algorithmic taxonomy to the substrate question, arguing that closing the forward–backward disconnect likely requires architecture–learning–hardware co-design. The survey is organized in three parts. Sections 2 and 3 establish the biological and dynamical vocabulary and the joint state-dynamics/credit-assignment taxonomy with split biological-grounding axes. Sections 4–8 traverse the taxonomy by column: static feedforward, discrete-time recurrent, attention and structured state-space, continuous-time recurrent, and hybrid event-driven systems. Sections 9 and 10 turn to biologically plausible learning and the neuromorphic substrate. Sections 11 and 12 synthesize open problems and conclude. 
+
+2 Biological and Dynamical Foundations 
+
+Neural computation, both biological and artificial, can be characterized by the form of its state dynamics, and the taxonomy of Section 3 rests on this view. We use state in the dynamical-systems sense throughout: the set of variables that, together with the present input, determines future evolution without requiring the full past history. In neural models, this may include membrane voltage, channel-gating variables, synaptic conductances, adaptation traces, hidden vectors, or equilibrium variables. Notation conventions: x denotes inputs (consistent with Eq. (1)), h hidden state variables in explicit-time models, and z latent or implicit-state representations. At the single-neuron level, biophysical state variables retain their conventional names ( 𝑉 for membrane potential, gating variables, conductances). 
+
+2.1 Biological Neurons and the Limits of the Point-Neuron Abstraction 
+
+A biological neuron consists of dendrites, soma, and axon: presynaptic spikes trigger neurotransmitter release, post-synaptic currents integrate across the dendritic tree, and the soma with axon initial segment determines whether integrated activity reaches threshold for an action potential [22, 35]. At the biophysical level the neuron is a dynamical system whose membrane acts as a capacitor driven by ionic and synaptic currents; the Hodgkin–Huxley model [52] captures this as coupled differential equations in which membrane potential and channel-gating variables co-evolve. Most artificial networks reduce this to a point-neuron abstraction, collapsing synaptic integration to a weighted sum and producing an output through a nonlinear activation. The reduction makes large-scale learning tractable but discards the spatial, temporal, and biophysical state variables that make biological neurons dynamical systems. The most common reduced model that preserves temporal state is the Leaky Integrate-and-Fire (LIF) neuron: 
+
+𝜏 𝑚 
+
+𝑑𝑉 (𝑡 )
+
+𝑑𝑡 = − 𝑉 (𝑡 ) − 𝐸 𝐿 
+
+ + 𝑅 𝑚 𝐼 (𝑡 ), 𝑉 (𝑡 − ) ≥ 𝑉 th ⇒ spike , 𝑉 (𝑡 +) ← 𝑉 reset , (2) which combines continuous subthreshold integration with a threshold-and-reset event [34, 35, 65]. LIF models are hybrid and event-driven: subthreshold state evolves continuously while communication and reset occur at discrete spike events [77]. The point-neuron abstraction is itself incomplete: cortical pyramidal neurons process inputs across extended dendritic trees with local nonlinearities and compartment-specific mechanisms that substantially increase single-neuron 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 5computational capacity [11, 66, 74, 99, 114], and together with membrane-potential dynamics and threshold-triggered spike events these form the structural basis of the Hybrid event-driven state-dynamics class of Section 3.1. 
+
+2.2 Rate, Temporal, and Population Coding 
+
+Three coding schemes are relevant to the taxonomy; they are not mutually exclusive, but each corresponds to a different computational assumption. Rate coding assumes information is represented by firing rate: for a spike train 
+
+𝑠 (𝑡 ) = Í𝑓 𝛿 (𝑡 − 𝑡 (𝑓 ) ), the rate over a window of length Δ is 𝑟 Δ (𝑡 ) = Δ−1 ∫ 𝑡 𝑡 −Δ 𝑠 (𝜏 ) 𝑑𝜏 [1], and the scalar activation of an artificial unit can be read as a rate-like abstraction. Temporal coding assumes information is carried also by when spikes occur; cortical neurons can produce reliable spike timing across repeated presentations [80], with information in first-spike latency, synchrony, and interspike intervals [95], and this scheme motivates SNNs [77]. Population coding 
+
+assumes information is represented collectively by neurons with broad overlapping tuning [33] and is implicit whenever a model represents state as a high-dimensional vector. The coding scheme constrains which learning rules can be defined locally: Hebbian plasticity treats co-activity as the primitive relation, and STDP refines this by making synaptic change depend on relative spike timing [12, 18, 47]; these rules are meaningful only relative to the temporal structure retained by the forward model. 
+
+2.3 Neural Computation as State Evolution 
+
+A biological or artificial neural system can be described as a system whose internal state h(𝑡 ) evolves under an input-driven rule: 
+
+¤h(𝑡 ) = 𝐹  h(𝑡 ), x(𝑡 ); 𝜃 𝐹 
+
+, y(𝑡 ) = 𝐺  h(𝑡 ); 𝜃 𝐺 
+
+, (3) with x(𝑡 ) the input, h(𝑡 ) the hidden state, y(𝑡 ) the output, 𝐹 the dynamics, 𝐺 the output map, and 𝜃 𝐹 , 𝜃 𝐺 parameters. In a LIF neuron, h(𝑡 ) is the membrane potential 𝑉 (𝑡 ), 𝐹 is the right-hand side of Eq. (2), and the output is a spike emitted at threshold crossing. In a continuous-time artificial model such as a Neural ODE, h(𝑡 ) is a hidden vector and 𝐹 is a learned vector field. Discrete-time recurrent models have the analogous form 
+
+h𝑡 +1 = 𝐹  h𝑡 , x𝑡 ; 𝜃 𝐹 
+
+, y𝑡 = 𝐺  h𝑡 ; 𝜃 𝐺 
+
+. (4) A static feedforward network is the degenerate case with no persistent state, reducing to the memoryless map y = 𝑓 𝜃 (x)
+
+of Eq. (1). Hybrid event-driven systems combine continuous evolution with discrete jumps or resets. Implicit-state models define their latent representation as the solution of a fixed-point equation 
+
+z★ = 𝐹 (z★, x; 𝜃 𝐹 ), (5) rather than as the result of explicit time stepping. The state-dynamics axis of Section 3 distinguishes static, discrete-time, continuous-time, implicit, and hybrid event-driven computation; the learning axis tracks the credit-assignment mechanism that attributes changes in an objective, reward, or prediction error to internal variables and parameters. These axes are coupled: the choice of dynamics determines which gradients, adjoints, surrogate derivatives, or local traces are available, while the available learning rule constrains which dynamics can be trained at scale. This coupling is the technical basis of the forward–backward disconnect. 
+
+> Manuscript submitted to ACM
+
+6 Al Mubasher et al. 
+
+2.4 Joint Scope: Dynamics and Biological Grounding 
+
+The scope statement of Section 1 admits a model family if it instantiates a nontrivial form of state dynamics or is substantively grounded in neuroscience. These criteria are treated jointly because, in biological systems, dynamics and mechanism are inseparable: membrane potentials evolve according to differential equations because ion channels and synapses have physical time constants; spike-based communication is event-driven because action potentials are threshold-triggered nonlinear events; dendritic processing is state-dependent because signals propagate through spatially extended active compartments. Surveys organized only around biological inspiration underemphasize engineering-driven dynamical architectures such as structured SSMs, while surveys organized only around dynamical systems underemphasize predictive coding, Hierarchical Temporal Memory, and local plasticity; the joint view places these families in a common space and treats biological grounding both as a scope condition and as a diagnostic that distinguishes mathematical choices with biological consequences from those that are merely convenient abstractions. The scope is fixed by an architecture-independent inclusion rule: a model family is admitted if it satisfies at least one of (i) its internal computation instantiates a nontrivial state-evolution mechanism central to the architecture, in the sense of Section 2.3, or (ii) a biological mechanism materially constrains its architecture or learning rule, in the sense of the forward or learning grounding tiers of Section 3.3. Physics-Informed Neural Networks (PINNs) are the principal borderline case: the network is a static coordinate-to-field map, but the dynamics are encoded into the training objective (Eq. (7)), a mechanism that recurs with energy-based objectives in Section 9. Each model-family section that follows asks three biology-as-discussant questions: what computational problem does biology solve, which features of that solution does the artificial family preserve, and which does it omit and at what compensating cost. 
+
+3 Taxonomy and Related Survey Positioning 
+
+Section 2 established the dynamical-systems vocabulary in which neural models can be uniformly described as state-evolution systems. This section turns that vocabulary into a taxonomy, populates it with the model families covered by the rest of the survey, and positions the present work against existing reviews of overlapping territory. 
+
+3.1 Taxonomy by State-Dynamics Structure 
+
+The horizontal axis of the taxonomy partitions neural models by the form of their internal state evolution, following directly from the state-evolution descriptions in Eqs. (3)–(5). Five classes are distinguished. 
+
+Static models implement memoryless input–output maps y = 𝑓 𝜃 (x) with no persistent internal state across evaluations, recovering Eq. (1). Discrete-time / sequence models operate over a discrete time or position index, either through explicit recurrence with a hidden state h𝑡 updated by a difference equation (RNN, LSTM, GRU) or through a sequence-level computation that admits a recurrent interpretation (Transformer at inference, structured state-space models at training and inference). Continuous-time models describe the state h(𝑡 ) as a trajectory governed by differential equations. 
+
+Implicit-state models define the latent representation z★ as the solution of a fixed-point equation. Hybrid event-driven 
+
+models combine continuous subthreshold state evolution with discrete events such as spikes or resets. These five classes are not arbitrary partitions of a continuum. Each corresponds to a qualitatively distinct mathematical object and places different demands on the credit-assignment mechanism. 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 7
+
+3.2 Learning-Rule and Credit-Assignment Axis 
+
+The vertical axis tracks the mechanism by which model parameters are adjusted given training signals. Four categories are sufficient for the model families covered in this survey. 
+
+Global gradient mechanisms use backpropagation [106] or its temporal extension Backpropagation Through Time (BPTT) to compute exact gradients of a global objective. Approximate or implicit gradient mechanisms cover two related departures: approximate variants that compute an inexact but useful gradient signal (feedback alignment [72], target propagation, and surrogate gradients used in spiking networks), and implicit variants that recover gradients through non-standard machinery, exact under their defining conditions or limits rather than through layered backpropagation (equilibrium propagation [108] and adjoint methods used in continuous-time models). What unites the row is that none of these methods executes a standard forward–backward graph traversal with exact local derivatives; each replaces that operation with either an approximation or an alternative exact-under-conditions procedure. Local plasticity rules update synaptic weights from variables available at the synapse: Hebbian learning [47], spike-timing-dependent plasticity [12, 18], and dendrite-local rules. Energy/unsupervised objectives define learning through energy minimization or local goodness functions: contrastive divergence in restricted Boltzmann machines, the unsupervised loss in Forward-Forward [48]. The four-row primary is a compact projection of a multi-dimensional structure. Five secondary attributes separate rows that the primary label conflates: gradient relation (exact / approximate / non-gradient), update scope (synapse-local vs. requiring information about other weights or activations), temporal requirement (whether the rule presupposes temporal structure such as spike timing, two-phase relaxation, or unrolled sequences), objective source (externally supervised, internally derived from a goodness or energy function, or unsupervised), and update timing (online, between two forward passes, or once after a full forward–backward traversal). The four-row primary is retained for compactness of exposition and Figure 2; the secondary attributes make the heterogeneity explicit without requiring the compact primary to encode all dimensions simultaneously, and Supplementary Section S3 reports the per-configuration ledger that generates Figure 2’s counts. Table 1 instantiates these five secondary dimensions for representative mechanisms, so a reader can locate any new learning rule along the same coordinates rather than into the four-row primary alone. Within each of these four categories, the credit-assignment problem itself has two distinguishable sub-problems. 
+
+Spatial credit assignment attributes the change in a loss to parameters across the depth or width of the forward graph at a single time. Temporal credit assignment attributes the change in a loss to parameters across time, where the same parameters affect the output at many later steps. Static feedforward models face only the spatial problem. Discrete-time recurrent and continuous-time models face both, but BPTT reduces temporal credit assignment to spatial credit assignment by unrolling time into a layered graph with tied weights, and this reduction is exactly where the biological implausibility peaks: biological systems do not appear to retain and replay a complete ordered computational graph of prior activations for exact reverse-mode differentiation in the manner required by BPTT. Hybrid event-driven spiking models face both problems simultaneously, with the additional complication of non-differentiable spike events. The biologically plausible learning rules surveyed in Section 9 are best read as alternative solutions to one or both of these sub-problems: in particular, alternatives that do not unroll time into space. The two axes are coupled. The form of the forward dynamics restricts the gradient operators that are available: continuous-time models admit adjoint methods, fixed-point models admit implicit differentiation, hybrid spiking models require surrogates or local rules. Conversely, the learning rule restricts which dynamics can be trained at scale. 
+
+> Manuscript submitted to ACM
+
+8 Al Mubasher et al. 
+
+Table 1. Secondary credit-assignment dimensions applied to representative learning mechanisms. These attributes are descriptive coordinates rather than additional mutually exclusive classes; individual variants may differ. The table instantiates the multidimen-sional structure of the backward axis introduced above, so a new architecture–learning configuration can be located along the same coordinates.                              
+
+> Mechanism Gradient relation Update scope Temporal requirement Objective source Update timing
+> Backpropagation [106] Exact Global / non-local None (static graph) Global supervised After forward pass BPTT [119] Exact Global / non-local Unrolled sequence Global supervised After full sequence FA / DFA / PFA [71, 72, 91] Approximate Broadcast error via random or learned matrices None in feedforward case Global supervised Feedback pass; DFA partly parallel Synthetic gradients [57] Approximate (predicted) Module-local predictor; target derived from downstream gradient Optional recurrent state Global supervised Asynchronous Adjoint / implicit diff. [5, 15] Exact under solver / equilibrium conditions Solver / global linear solve at equilibrium Trajectory or fixed point Global objective Backward solve after forward solve Surrogate-gradient SNN [90] Approximate derivative Global error propagation through smoothed spikes Spike-time trajectory Global supervised Backward through temporal graph Equilibrium propagation [108] / predictive coding [120] Exact only in specified limits; approximate otherwise Local update after network relaxation Two-phase / iterative inference Supervised + energy/error Between/after relaxation phases Hebbian / STDP [12, 47] Non-gradient Synapse-local Co-activity or relative spike timing Local or unsupervised Online Three-factor / e-prop [9, 28] Variant-dependent: non-gradient to gradient-inspired approximate Local eligibility trace
+
++ 
+
+> modulatory or broadcast signal Eligibility traces over time Supervised or reward-modulated Online Forward-Forward [48] Local-objective gradient Layer-local goodness function Two forward phases (positive / negative) Local goodness objective Between forward passes
+
+Figure 2 is organized as a bipartite flow in which each combination of a state-dynamics class (source) and a credit-assignment mechanism (target) defines one position in the joint taxonomy, and the same forward architecture can occupy different combinations depending only on how it is trained. A spiking network trained with surrogate gradients and the same spiking architecture trained with STDP enter the Approximate or implicit gradient and Local plasticity 
+
+targets respectively; an MLP trained by backpropagation and by Forward-Forward likewise enter different targets. Treating such cases as identical entries would conceal the credit-assignment asymmetry the taxonomy is designed to expose. The atomic unit of classification in this survey is therefore the architecture–learning configuration rather than the architecture name in isolation. A model family appears in more than one taxonomy combination when distinct training mechanisms substantively alter its credit-assignment behavior, and a model-agnostic learning rule (feedback alignment, Forward-Forward, equilibrium propagation, predictive coding) is placed in the taxonomy only after specifying the forward architecture on which it is evaluated. The same commitment extends to the biological-grounding axis introduced in Section 3.3, where forward grounding and learning grounding are assessed separately for each configuration. Place-ment decisions for ambiguous configurations (modern Hopfield, predictive-coding variants, equilibrium propagation, Forward-Forward, the surrogate-gradient and STDP-trained spiking variants) are documented with their rationale in the supplementary material. 
+
+3.3 Biological Grounding as a Categorical Axis 
+
+Biological grounding is treated categorically and, per the architecture–learning configuration unit of Section 3.2, applied independently to the forward operator and to the credit-assignment rule. The two axes share an ordinal structure of four tiers each, in increasing order of biological constraint. 
+
+Manuscript submitted to ACM The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 9The forward-grounding axis classifies the architecture of the forward computation: 
+
+• None or historical inspiration : biology either did not motivate the model or motivated it historically without con-straining the modern design. Examples: structured SSMs, Deep Equilibrium Models (DEQs), the MLP, the modern CNN. 
+
+• Functional analogy : the model resembles a biological process at a functional level but the resemblance is post-hoc, and the forward operator would have been adopted independently for engineering reasons. Examples: RNNs as analogue to recurrent cortical circuits; modern Hopfield as attractor analogue to attention. 
+
+• Architectural constraint : a specific biological structure from Section 2.1 or 2.2 constrains the architecture in a way the design would not otherwise adopt. Examples: the Neocognitron’s simple/complex cell alternation; classical Hopfield networks. 
+
+• Mechanistic plausibility : the unit-level computation is tied to biophysical mechanisms (membrane-potential dynamics, threshold-triggered spikes, dendritic compartments). Example: LIF-based spiking neural networks. The learning-grounding axis classifies the credit-assignment rule: 
+
+• None : no biological motivation. Examples: backpropagation, BPTT. 
+
+• Weak : loose biological motivation without locality or empirical-plasticity grounding. Example: feedback alignment. 
+
+• Local or algorithmic : the rule is local in synaptic weights or biologically motivated through co-activity but is not derived from empirical plasticity measurements. Examples: contrastive divergence, equilibrium propagation, predictive-coding variants, Forward-Forward (layerwise-local goodness objective), Hebbian storage in classical Hopfield networks, dendrite-local Hebbian permanence updates in HTM. 
+
+• Mechanistic plasticity : the rule is directly grounded in measured synaptic plasticity. Example: STDP. The principal tier-boundary distinctions: on the forward axis, Architectural constraint requires biology to rule out alternative design choices (the Neocognitron’s simple/complex cell alternation), distinguishing it from Functional analogy (the RNN’s recurrence, which would have been adopted independently for sequence modeling). On the learning axis, Mechanistic plasticity requires the rule itself to be empirically observed plasticity rather than a locally-consistent algorithmic substitute. Table 3 summarizes the principal model families and their grounding assignments; the complete configuration-level ledger is in Supplementary Section S3. Figure 2 presents the joint taxonomy as an alluvial flow between forward state-dynamics classes (left) and credit-assignment mechanisms (right), with node heights and ribbon widths proportional to configuration counts. Table 3 summarizes the principal families; Supplementary Section S3 gives the full configuration-level ledger. The forward side distributes across five classes with node heights ranging from 2 to 14, and every forward class sends at least one ribbon somewhere on the right. The right side has a different shape: Global gradient is the largest single credit-assignment category, accounting for half of the audited configurations, receives ribbons from four of the five forward classes, and is followed by Approximate or implicit gradient as the second-largest category. This many-to-one bottleneck between the forward fan and the backward funnel is the forward–backward disconnect introduced in Section 1 and developed further in Section 9. A finer mechanism-level decomposition reported in Supplementary Section S3 preserves the qualitative asymmetry: the Approximate or implicit gradient row fragments across several individually small mechanisms (synthetic gradients, random-feedback local online learning, adjoint sensitivity, implicit differentiation, predictive-coding approximations, 
+
+> Manuscript submitted to ACM
+
+10 Al Mubasher et al. 
+
+State dynamics (forward) Credit assignment (backward) 
+
+Static 
+
+> 6 configs.
+
+Discrete-time / sequence 
+
+> 14 configs.
+
+Continuous-time 
+
+> 6 configs.
+
+Implicit (fixed-point) 
+
+> 4 configs.
+
+Hybrid event-driven 
+
+> 2 configs.
+
+Global gradient 
+
+> 16 configs.
+
+Approximate or implicit gradient 
+
+> 7 configs.
+
+Local plasticity 
+
+> 6 configs.
+
+Energy / unsupervised 
+
+> 3 configs.
+
+Fig. 2. Joint taxonomy of neural computation as an alluvial flow. Each architecture–learning configuration is one unit of flow from a forward state-dynamics class (left column) to a credit-assignment mechanism (right column). Node heights and ribbon widths are proportional to configuration counts; ribbon colors identify the source class. Table 3 lists model families and grounding assignments; Supplementary Section S3 provides the complete configuration-level ledger. Global gradient is the largest single credit-assignment category (16/32), followed by Approximate or implicit gradient (7/32), and it receives configurations from four of the five forward classes: the categorical form of the forward–backward disconnect introduced in Section 1. Table 2. Configuration counts underlying Figure 2, with the model families that populate each cell. Cell entries follow the pattern 
+
+count: family list (C-IDs referencing the per-configuration ledger of Supplementary Section S3) . Row and column totals match the node heights of Figure 2 exactly.                           
+
+> Forward class Global gradient Approximate or implicit gradient Local plasticity Energy / unsupervised Total
+> Static 4: MLP, CNN, ResNet, PINN (C01–C04) 01: Neocognitron (C05) 1: MLP + Forward-Forward (C06) 6Discrete 8: RNN, LSTM, GRU, Transformer, S4, Mamba, RWKV, xLSTM (C07–C14) 2: RNN + synth. grad., RNN + RFLO (C15, C16) 2: classical Hopfield, HTM (C17, C32) 2: RBM, DBN (C18, C19) 14 Continuous 3: CTRNN, Liquid TC, Liquid closed-form (C20–C22) 1: Neural ODE (C23) 2: PC recurrent, CT-RNN + reward-mod. Hebb. (C24, C25) 06Implicit 1: modern Hopfield (C26) 3: DEQ, PC local-error, PC BP-equiv. limit (C27–C29) 004Hybrid 01: surrogate-gradient LIF SNN (C30) 1: STDP-trained LIF SNN (C31) 02
+> Total 16 76332
+
+and surrogate gradients), whereas ordinary reverse-mode backpropagation remains the largest single mechanism in the survey. 
+
+Manuscript submitted to ACM The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 11 
+
+Table 3. Model families covered in this survey. Column definitions follow Sections 3.1–3.3. Biological grounding is split into a forward axis and a learning axis, applied independently to each architecture–learning configuration. Configurations whose placement required adjudication (modern Hopfield, predictive-coding variants, equilibrium propagation, Forward-Forward, surrogate-gradient and STDP-trained spiking variants) are documented in the supplementary material. 
+
+> Family  Representative models  Time repr.  State variable  Communication  Learning rule  Forward gnd.  Learning gnd.  Scalability bottleneck
+> Static feedforward  MLP, CNN, ResNet [46, 69, 106]  Static  None  Dense real-valued  BP  None/Hist.  None  Memory cost of activations Static, bio-inspired  Neocognitron [30]  Static  None  Dense real-valued  Local Hebbian  Arch. constr.  Local/alg.  Depth, no global gradient Static, physics-constrained  PINN [100]  Static  None  Dense real-valued  BP + PDE residual  None/Hist.  None  PDE residual conditioning Discrete recurrent  RNN, LSTM, GRU [16, 25, 51]  Discrete  Hidden state  Dense real-valued  BPTT  Funct. analogy  None  Vanishing gradients, BPTT Classical Hopfield  Hopfield 1982 [55]  Discrete (fixed-pt)  State vector  Dense real-valued  Hebbian storage  Arch. constr.  Local/alg.  Capacity  ≈ 0.14 𝑁  [3] Modern Hopfield  Ramsauer 2021 [101]  Implicit / fixed-pt  State vector  Dense real-valued  End-to-end BP  Funct. analogy  None  Attention-like retrieval cost Attention-based  Transformer [117]  Discrete (pos.)  Key–value cache  Dense real-valued  BP  None/Hist.  None  Quadratic attn. cost State-space sequence  S4, Mamba, RWKV, xLSTM [8, 38, 40, 98] Discrete;  cont.-time param. Latent SSM state  Dense real-valued  BP  None/Hist.  None  State-update parallelism Continuous-time recurrent  CTRNN, Liquid NN [31, 42]  Continuous  Cont. trajectory  Dense real-valued  Solver BP / BPTT  Funct. analogy  None  Solver cost, stiffness Continuous-depth  Neural ODE [15]  Continuous  Cont. trajectory  Dense real-valued  Adjoint / solver BP  None/Hist.  None  Solver cost, stiffness Reservoir / liquid-state  ESN, LSM [58, 78]  Discrete (ESN) / hybrid event-driven (LSM) Reservoir state  Cont. or spike  Readout-only  Funct. analogy  None  Fixed-reservoir expressivity Fixed-point / implicit  DEQ [5]  Implicit  Equilibrium state  Dense real-valued  Implicit diff.  None/Hist.  None  Solver convergence Surrogate-grad SNN  LIF networks [77, 90]  Hybrid event-driv.  Membrane potential  Sparse binary spikes  Surrogate gradient  Mech. plaus.  Weak  Non-diff. spikes STDP-trained SNN  LIF + STDP [12, 82]  Hybrid event-driv.  Membrane potential  Sparse binary spikes  Spike-timing-dep.  Mech. plaus.  Mech. plast.  Scaling at depth Predictive coding / AIF  PC, FEP [29, 88, 102, 120]  Discrete / cont.  Local error + state  Dense real-valued  Local error min.  Arch. / Funct.  Local/alg.  Convergence, scaling Hierarchical Temporal Mem-ory HTM, Thousand Brains [44, 45]  Discrete event-dr.  Sparse distrib. repr.  Sparse binary  Dendrite-local Hebbian  Arch. constr.  Local/alg.  No global gradient Energy-based generative  RBM, DBN [49, 50]  Discrete  Visible + hidden units  Dense real-valued  Contrastive divergence  None/Hist.  Local/alg.  Sampling cost Static goodness-based  Forward-Forward [48]  Static  None  Dense real-valued  Layerwise goodness objective  None/Hist.  Local/alg.  Layerwise objective general-ity
+
+Manuscript submitted to ACM 12 Al Mubasher et al. 
+
+3.4 Comparison with Existing Surveys 
+
+Existing surveys (Table 4) cluster around three poles: the learning axis [73, 75, 93, 94, 107, 109], the spiking–neuromorphic column [14, 63, 83, 103, 105, 110, 116], and continuous-time differential-equation models [124], with Hassabis et al. [43] and Karniadakis et al. [60] the broader exceptions. Each covers one or two combinations of Figure 2 in depth and leaves the rest aside. The present survey is positioned across the joint state-dynamics and learning axes to make the disconnect visible across families that single-axis surveys treat separately. 
+
+Table 4. Coverage of recent surveys against this paper’s model-family categories. •: substantive; ◦: partial; —: out of scope. The distinguishing contribution of the current survey is not broader coverage alone but the specific joint decomposition it applies: state dynamics × credit assignment × biological grounding × substrate. This joint decomposition is what makes the forward–backward disconnect visible as a categorical pattern rather than as a scattered observation across independently organized reviews.                                                                                                                                            
+
+> Survey Venue, Year Static Discrete / seq. Attn / SSM Cont. / Implicit Spiking / hybrid Bio learn. Neuro-morph.
+> Hassabis et al. [43] Neuron , 2017 ◦◦——◦◦—Tavanaei et al. [116] Neural Netw. , 2019 ————•◦◦
+> Roy et al. [105] Nature , 2019 ————•◦•
+> Lillicrap et al. [73] Nat. Rev. Neurosci. , 2020 —————•—Karniadakis et al. [60] Nat. Rev. Phys. , 2021 •——◦———Schuman et al. [110] Nat. Comput. Sci. , 2022 ————•◦•
+> Rathi et al. [103] ACM CSUR , 2023 ————•◦•
+> Ororbia [94] arXiv, 2023 —◦——◦•—Schmidgall et al. [109] APL Mach. Learn. , 2024 —◦——◦•—Ororbia et al. [93] arXiv, 2024 ◦◦—◦◦•—Lv et al. [75] arXiv, 2024 ◦◦——◦•◦
+> Kudithipudi et al. [63] Nature , 2025 ————•◦•
+> Zhang et al. [124] PAKDD, 2025 ———•———Mazurek et al. [83] Patterns , 2025 ————••◦
+> Salvatori et al. [107] Neural Netw. , 2025/2026 —————•—Caviglia et al. [14] arXiv, 2026 ————••◦
+> Current survey This work •••••••
+
+3.5 Literature Procedure and Scope Boundaries 
+
+Literature was identified through ACM Digital Library, IEEE Xplore, Scopus, arXiv, and Google Scholar with citation chaining from foundational works, covering high-impact developments through 2026 (last comprehensive search June 2026). Supplementary Section S1 documents the full procedure: databases, temporal windows, Boolean search strings grouped by taxonomy axis, inclusion/exclusion criteria, adjudication rule (Sections 3.1–3.3 are authoritative), and procedural limitations. The atomic unit of classification is the architecture–learning configuration of Section 3.2; placement rationales for ambiguous cases are documented in the supplementary material. Several active research programs sit outside scope: graph neural networks, Kolmogorov–Arnold networks, and GFlowNets are organized by structural inductive biases orthogonal to state-evolution form; diffusion models, variational autoencoders, and generative adversarial networks by generative objective rather than dynamics or neuroscience grounding; capsule networks, Neural Turing Machines, Differentiable Neural Computers, and world models by memory or environment-interaction objectives lying outside the state-dynamics taxonomy. None of these exclusions is a judgment about importance. The configuration counts should be read carefully. They are descriptive of the audited representative set and not estimates of literature prevalence; coverage is conditioned on the search cutoff, indexing sources, scope rule, and classification criteria documented in Supplementary Section S1. The taxonomy is intended as a reproducible analytical projection rather than an exhaustive census of neural-computation research, and the mechanism-level sensitivity analysis of Supplementary Section S3 tests whether the qualitative asymmetry survives a finer decomposition of the backward axis. 
+
+Operational classification protocol. To classify a new architecture–learning configuration under this taxonomy, we first identify the state variable and the mathematical rule by which it evolves, fixing the forward state-dynamics class 
+
+Manuscript submitted to ACM The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 13 of Section 3.1. We then identify the mechanism that updates the parameters shaping those dynamics, fixing the primary credit-assignment class of Section 3.2; distinct learning rules applied to the same forward operator are treated as distinct configurations, and the five secondary dimensions of Table 1 locate the mechanism within its primary class. Forward and learning biological grounding are then assigned independently using the tier definitions of Section 3.3. Where more than one interpretation is defensible, the defining computational mechanism determines the primary placement and the alternative reading is recorded explicitly rather than creating an additional primary class. Readout-only training of fixed reservoirs is not counted as a configuration because the trained parameters do not shape the forward recurrent dynamics. 
+
+4 Static Feedforward Input-Output Mappings 
+
+The Static class contains memoryless input-output maps of the form y = 𝑓 𝜃 (x) from Eq. (1), in which no persistent internal state is carried across input examples. The class is dominated by Global gradient training, and the forward– backward disconnect is not yet diagnostic here because the forward dynamics are trivial; the class matters mainly as the baseline against which later sections measure departures along the state-dynamics axis. 
+
+4.1 Perceptrons and Multilayer Networks 
+
+The perceptron [104] computes y = 𝜎 (𝑊 x + b). Its MLP generalization [106] composes the same affine-plus-nonlinearity map across layers, with the final-layer activation taken as the output, and is trained by backpropagation. In the state-evolution notation of Section 2.3, the layer index is analogous to a discrete time index, but no state is carried across input examples; this is what we mean by static . The MLP sits in the Global gradient row at biological grounding None or historical inspiration : the perceptron’s original motivation referenced information storage in the brain, but the resulting model retains essentially none of the temporal or biophysical structure of biological neurons identified in Section 2. The principal scalability bottleneck is the memory cost of storing per-layer activations for the backward pass. 
+
+4.2 Convolutional Architectures: Neocognitron, CNN, ResNet 
+
+Convolutional architectures replace dense weight matrices with weight-shared local operators of the form h(ℓ+1) =
+
+𝜎 (𝑊 (ℓ ) ∗ h(ℓ ) + b(ℓ ) ), with ∗ denoting convolution. Three families share this template but occupy different positions in Figure 2. The Neocognitron [30] predates the modern CNN and derives its hierarchical simple/complex cell alternation from the receptive-field organization of cat primary visual cortex, trained by a local unsupervised competitive rule rather than by global backpropagation. It sits in the Local plasticity row at Architectural constraint because its alternation directly mirrors a structural feature of visual cortex; depth is the price of this constraint, since the absence of a global gradient prevents scaling to backpropagation-trained CNN depths. The modern CNN [69] retains the convolutional structure but is trained by backpropagation, moving into the Global gradient row at None or historical inspiration : the inductive bias was originally cortex-motivated, but the modern justification is statistical (translation equivariance, parameter sharing) rather than neurobiological. ResNet [46] adds an identity skip connection, 
+
+h(ℓ+1) = h(ℓ ) + 𝑓  h(ℓ ) ; 𝜃 (ℓ ) , (6) which formally identifies the layer update with a discrete Euler step of ¤h(𝑡 ) = 𝑓 (h(𝑡 ); 𝜃 (𝑡 )) . The static taxonomy combination containing ResNet is therefore structurally adjacent to the continuous-time column, the basis for the 
+
+> Manuscript submitted to ACM
+
+14 Al Mubasher et al. Neural ODE reading developed in Section 7, although ResNet itself remains a finite-layer static map at training and inference time. Biological grounding is None or historical inspiration .
+
+4.3 Physics-Informed Neural Networks 
+
+PINNs [60, 100] are static feedforward networks trained to approximate solutions of ordinary or partial differential equations. The network 𝑢 𝜃 (x, 𝑡 ) is treated as an ansatz for the solution 𝑢 (x, 𝑡 ), and the training objective combines a data term with a residual term that penalizes violation of the governing equation: 
+
+L( 𝜃 ) = Ldata (𝜃 ) + 𝜆 Lresidual (𝜃 ), Lresidual (𝜃 ) = 1
+
+𝑁 𝑟 𝑁 𝑟 ∑︁ 
+
+> 𝑖 =1
+
+D 𝑢 𝜃 (x𝑖 , 𝑡 𝑖 ) 2, (7) with D the differential operator defining the Partial Differential Equation (PDE), the residual evaluated at collocation points (x𝑖 , 𝑡 𝑖 ), and 𝜆 balancing the two terms. Derivatives required by D are computed by automatic differentiation through the network itself. The taxonomic placement of PINNs is informative. The task is dynamical because 𝑢 (x, 𝑡 ) solves a differential equation that describes physical evolution, but the model is a static feedforward map from coordinates to field values, with no persistent internal state and no recurrence. Dynamics enter only through the loss. A static model can therefore solve a dynamical problem, provided the dynamics are encoded into the training objective rather than into the state evolution. The cost is paid elsewhere: PINN training requires careful balancing of 𝜆 , is sensitive to the conditioning of the residual loss, and tends to struggle with stiff or multi-scale problems [60]. Biological grounding is None or historical inspiration .
+
+4.4 Section Synthesis 
+
+The Static class is dominated by Global gradient training, with the Neocognitron (Local plasticity, Architectural constraint )and Forward-Forward (Energy/unsupervised) as exceptions. Two structural moves of later sections originate here: the ResNet skip connection (Eq. (6)) is the discrete Euler step that Neural ODEs lift to a continuous-time vector field (Section 7), and the PINN residual loss (Eq. (7)) is the engineering precedent for encoding dynamical constraints into a non-dynamical model, an idea that returns with energy-based objectives in Section 9. Biologically the class is shallow: convolutional weight sharing is a translation-invariance prior rather than a derivation from cortical column organization, with the Neocognitron the exception that makes the simple/complex cell borrowing literal. 
+
+5 Discrete-Time Recurrent Dynamics 
+
+Model families with an explicit hidden state h𝑡 updated by a difference equation occupy the Discrete-time class, recovering Eq. (4). The introduction of state changes what learning has to do: a static network’s backward pass credit-assigns across layers, but a recurrent network’s backward pass must credit-assign across time. This is where the forward–backward disconnect first becomes visible. Transformer and structured SSMs share this class. Modern Hopfield is treated alongside them in Section 6 because it provides the associative-memory interpretation of attention, despite belonging to the Implicit class. 
+
+5.1 Classical Recurrent Neural Networks 
+
+The simple RNN [25] computes 
+
+h𝑡 = 𝜎  𝑊 ℎ h𝑡 −1 + 𝑊 𝑥 x𝑡 + b, y𝑡 = 𝑊 𝑦 h𝑡 + b𝑦 , (8) 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 15 where h𝑡 ∈ R𝑑 is the hidden state at step 𝑡 , 𝑊 ℎ,𝑊 𝑥 ,𝑊 𝑦 are learnable weight matrices, and 𝜎 is an element-wise nonlinearity. Eq. (8) is the discrete-time analogue of the continuous-time state-evolution equation Eq. (3), with the same parameter set 𝜃 𝐹 = {𝑊 ℎ,𝑊 𝑥 , b} reused at every time step. Parameter sharing across time is a real but loose biological analogy: a single recurrent operator applied repeatedly mirrors the temporal homogeneity of cortical circuits at a functional level. Under the split-axis grounding scheme of Section 3.3, the RNN’s forward grounding is Functional analogy rather than Architectural constraint : the recurrent operator would have been adopted independently for sequence modeling, so biology does not rule out alternative design choices the way the Neocognitron’s specific simple/complex alternation does. The learning grounding is None because the rule is BPTT. The units themselves remain point neurons rather than biophysical models, omitting membrane dynamics, dendritic integration, multiple time constants, and neuromodulation. RNNs are trained by BPTT [119], which unrolls the recurrence into a layered graph with tied weights and applies backpropagation. The resulting gradient is exact but its magnitude depends on a product of Jacobians of 𝜎 and 𝑊 ℎ across time steps, and tends to vanish or explode as sequence length grows, with the largest singular value of 𝑊 ℎ controlling which regime is reached [10, 96]. The vanishing-gradient regime makes long-range temporal credit assignment effectively impossible without architectural intervention; the exploding regime can be mitigated by gradient clipping. The RNN sits cleanly in the Global gradient category but reveals the first tension the survey develops: a learning rule exact in principle becomes hard to apply once the forward computation is dynamical. 
+
+5.2 Gated Recurrence: LSTM and GRU 
+
+Gated recurrent architectures address the vanishing-gradient problem by introducing additional state variables and multiplicative gates that regulate information flow. The LSTM [51] maintains a cell state c𝑡 alongside the hidden state 
+
+h𝑡 , and computes three sigmoid gates f𝑡 , i𝑡 , o𝑡 = 𝜎 𝑔 (𝑊 𝑓 ,𝑖,𝑜 [h𝑡 −1, x𝑡 ] + b𝑓 ,𝑖,𝑜 ) from the concatenation [h𝑡 −1, x𝑡 ] to control forgetting, input integration, and output. The analytically relevant piece is the cell-state additive update, 
+
+c𝑡 = f𝑡 ⊙ c𝑡 −1 + i𝑡 ⊙ ˜c𝑡 , (9) where ˜ c𝑡 = tanh (𝑊 𝑐 [h𝑡 −1, x𝑡 ] + b𝑐 ) is the candidate update, ⊙ is element-wise multiplication, and the hidden state is read out as h𝑡 = o𝑡 ⊙ tanh (c𝑡 ). The GRU [16] collapses the cell state into the hidden state and uses two gates (reset and update), giving a more compact recurrence with comparable empirical performance. The dynamical-systems interpretation of the gates is the relevant content for the taxonomy. Without gating, Eq. (8) has a contracting or expanding Jacobian determined by 𝜎 ′ (·) 𝑊 ℎ , producing the vanishing or exploding gradient regimes [96]. The LSTM cell-state update admits a Jacobian whose diagonal is dominated by the forget-gate values f𝑡 , so when these values are near one the gradient passes through essentially unattenuated. Gating is thus best read as a learned modulation of the recurrent Jacobian that keeps the trained dynamics close to a stable but information-preserving regime, anticipating the Jacobian-stability arguments of Section 7. Biologically, gating is functionally analogous to multiplicative modulation by neuromodulators or shunting inhibi-tion, though the mapping is qualitative rather than constraint-derived: the artificial gate is a learned scalar applied uniformly across a hidden dimension and omits spatial neurotransmitter release, receptor chemistry, and time-varying neuromodulator availability. LSTMs and GRUs accordingly sit at Functional analogy on the forward axis and None on the learning axis. 
+
+> Manuscript submitted to ACM
+
+16 Al Mubasher et al. 
+
+> ℎ1
+> ℎ2
+> (a) Point attractor
+> stable fixed point (memory storage)
+> ℎ1
+> ℎ2
+> (b) Line attractor
+> one-parameter family of stable states (graded integration)
+> ℎ1
+> ℎ2
+> (c) Saddle point
+> unstable fixed point (decision boundary)
+
+Fig. 3. Three canonical dynamical objects recovered in trained RNN state spaces by the fixed-point reverse-engineering technique of [115]. Solid black dots mark fixed points; arrows indicate the local flow of the dynamics in a 2D projection (ℎ1, ℎ 2 ) of the hidden state. A point attractor (a) implements memory storage. A line attractor (b) implements graded integration along a one-parameter family of stable states and is the canonical mechanism for context-dependent decision making in trained RNNs and in prefrontal cortex [81]. A saddle point (c) separates basins of attraction (dashed separatrices) and implements a decision boundary between two stored states. Across populations of trained networks the precise weights differ but the topology of these objects is conserved [79]. 
+
+5.3 Classical Hopfield Networks 
+
+The classical Hopfield network [55] is a fully connected recurrent network of binary or bipolar units evolved by the asynchronous update ℎ𝑖,𝑡 +1 = sgn (Í𝑗 𝑊 𝑖 𝑗 ℎ𝑗,𝑡 − 𝜃 𝑖 ) with a symmetric weight matrix 𝑊 𝑖 𝑗 = 𝑊 𝑗𝑖 and zero self-couplings. The defining property is that this dynamics is a gradient descent on the Lyapunov energy 
+
+𝐸 (h) = − 12∑︁ 𝑖,𝑗 
+
+𝑊 𝑖 𝑗 ℎ𝑖 ℎ𝑗 +∑︁ 
+
+> 𝑖
+
+𝜃 𝑖 ℎ𝑖 , (10) guaranteeing convergence to one of a finite set of fixed-point attractors. Memories are encoded as the stable patterns of 
+
+𝐸 , and recall is implemented by initializing the network with a corrupted version of a stored pattern and letting the dynamics relax to the nearest attractor. Learning is Hebbian: the storage rule is 𝑊 𝑖 𝑗 ∝ Í𝜇 𝜉 𝜇 𝑖 𝜉 𝜇 𝑗 for a set of patterns {𝜉 𝜇 }, a single-shot local plasticity update rather than BPTT. This places classical Hopfield in the Local plasticity category at biological grounding Architectural constraint : attractor dynamics over a symmetric weight matrix is a structural commitment derived from associative-memory biology that the model would not otherwise adopt. The principal limitation is capacity (only 𝑂 (𝑁 ) patterns for 
+
+𝑁 units before retrieval breaks down, with a spurious-state landscape), substantially relaxed by the modern Hopfield reformulation [101] treated with attention and structured SSMs in Section 6. 
+
+5.4 Trained RNNs as Dynamical Systems 
+
+A line of work beginning with Sussillo and Barak [115] treats a trained recurrence as a dynamical system rather than as a black-box function approximator: candidate fixed points are located by minimizing 𝑞 (h) = 12 ∥𝐹 (h, x; 𝜃 𝐹 ) − h∥2, and the Jacobian 𝜕𝐹 /𝜕 h at each candidate determines local stability and direction structure. Applied to bit-flip-flop storage, sine-wave generation, and context-dependent decision making [81, 115], the procedure recovers the small repertoire of low-dimensional dynamical objects shown in Figure 3. Across populations of trained networks the precise recurrent weights differ widely but the topology of the fixed-point structure is conserved [79]: networks trained on the same task converge to dynamically equivalent solutions. This universality empirically supports treating RNNs as dynamical systems rather than opaque function approximators, 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 17 which is the premise of the taxonomy in Section 3, and foreshadows the Jacobian-based stability analyses of the continuous-time models in Section 7. Trained RNNs have also been used as models of prefrontal cortex performing context-dependent integration [81], which is why the RNN entry sits at Functional analogy in Figure 2: the same recurrent operator is applied at every time step in a way that matches the temporal homogeneity assumed in computational neuroscience models, while omitting slow currents, dendritic compartments, and short-term synaptic dynamics. 
+
+5.5 Section Synthesis 
+
+The Discrete-time class spans all four credit-assignment categories: Global gradient (RNN, LSTM, GRU trained by BPTT); Approximate or implicit gradient (RNN with synthetic gradients [57] and with RFLO random-feedback local online learning [89]); Local plasticity (classical Hopfield and hierarchical temporal memory with dendrite-local Hebbian rules); and Energy/unsupervised (restricted Boltzmann machines and deep belief networks trained by contrastive divergence). This is the first class in the traversal where the forward–backward disconnect becomes diagnostic: the same forward architecture supports radically different credit-assignment mechanisms, and the choice of mechanism rather than the forward dynamics determines whether the model scales. The trained-RNN dynamical-systems literature shows that successfully trained recurrent networks converge to a small repertoire of low-dimensional dynamical objects (point attractors, line attractors, slow manifolds) analyzable quantitatively; the same vocabulary that describes a LIF neuron and a Neural ODE also describes what trained RNNs actually do. Across the column, stronger biological preservation correlates with weaker conventional engineering scalability: the RNN preserves only recurrent-loop topology (omitting membrane dynamics, dendrites, and neuromodu-lation) and is compensated by BPTT; LSTMs and GRUs add the functional analogue of multiplicative neuromodulation via learned scalar gates; the classical Hopfield network preserves attractor dynamics and Hebbian storage but pays a capacity ceiling at 𝑂 (𝑁 ) patterns. 
+
+6 Attention, Modern Hopfield, and Structured State-Space Models 
+
+Attention, modern Hopfield retrieval, and structured SSMs are treated together in this section because they provide three related mechanisms for sequence memory: direct content-based retrieval, associative-memory retrieval, and compressed recurrent state evolution. They are not the same architecture, but recent equivalence results expose formal bridges among them. Modern Hopfield retrieval recovers softmax self-attention under a specific single-step update when the inverse-temperature parameter is set to 𝛽 = 1/√𝑑 𝑘 [101], and structured state-space duality connects a class of SSMs with structured-masked attention and linear-attention-like recurrences [19, 61]. Modern Hopfield retrieval belongs to the Implicit class; its associative-memory interpretation is the analytical bridge that connects attention to the engineered sequence models of this class, which motivates its inclusion here. 
+
+6.1 Self-Attention as Content-Dependent Retrieval 
+
+Attention implements a soft read from a memory whose contents are themselves a function of the input sequence. Introduced by Bahdanau et al. [4] as an additive soft alignment for translation and reformulated as scaled dot product by Vaswani et al. [117], Attention (𝑄, 𝐾, 𝑉 ) = softmax 
+
+ 𝑄𝐾 ⊤
+
+√𝑑 𝑘 
+
+
+
+𝑉 , (11) Eq. (11) is the canonical differentiable key-value retrieval object: each query draws a convex combination of value rows weighted by query-key similarity. During parallel training, no persistent dynamical state is carried between positions; 
+
+> Manuscript submitted to ACM
+
+18 Al Mubasher et al. autoregressive inference introduces a key-value cache that functions as an expanding external state. Forward grounding is None or historical inspiration and learning grounding is None . The conventional scalability bottleneck is quadratic dependence of 𝑄𝐾 ⊤ on sequence length, although activation memory can be reduced to linear via tiled exact-attention implementations such as FlashAttention-3 [112]. 
+
+6.2 Modern Hopfield Retrieval 
+
+The associative-memory reading of attention is made precise by the continuous modern Hopfield network of Ramsauer et al. [101]. Earlier dense associative memories [23, 62] replaced the quadratic energy of the classical Hopfield network [55] with polynomial and exponential interaction functions, raising the storage capacity from 𝑂 (𝑁 ) patterns to 𝑂 (𝑑 𝑛 −1)
+
+and 2 𝑑 /2 respectively for 𝑁 patterns of dimension 𝑑 . The continuous version of [101] adopts the log-sum-exp energy 
+
+𝐸 (𝝃 ) = − lse (𝛽, 𝑋 ⊤𝝃 ) + 12 𝝃 ⊤𝝃 + 𝛽 −1 log 𝑁 + 12 𝑀 2, (12) where 𝑋 = (x1, . . . , x𝑁 ) collects stored patterns, 𝝃 is the network state, and 𝑀 = max 𝑖 ∥x𝑖 ∥. The Concave-Convex Procedure on 𝐸 yields the single-step update 𝝃 new = 𝑋 ·softmax (𝛽𝑋 ⊤𝝃 ), and the resulting storage capacity is exponential in the pattern dimension under the separation assumptions of Ramsauer et al. [101]. Identifying 𝑋 = 𝐾 , 𝝃 = 𝑄 , 𝑉 = 𝑋𝑊 𝑉 and projecting through value weights gives the attention-equivalence theorem of Ramsauer et al. (their Eq. 10): at 𝛽 = 1/√𝑑 𝑘 , one Hopfield update step is exactly one attention layer in the form of Eq. (11), and the same step achieves single-step retrieval with error that is exponentially small in the pattern-separation margin. The forward grounding is Functional analogy because the attractor-and-energy interpretation is the structural analogue to cortical associative memory at a functional level rather than a constraint-derived adoption of a specific biological mechanism, and the learning grounding is None when modern Hopfield is embedded as a layer in an end-to-end backpropagation-trained network. The Energy Transformer [54] makes the unification constructive by reformulating the transformer block as gradient descent on a single engineered Hopfield-style energy. 
+
+6.3 Structured State-Space Models 
+
+Structured SSMs treat the sequence as the output of a linear (or selectively-parameterized) state-space system. The continuous-time form h′ (𝑡 ) = 𝐴 h(𝑡 ) + 𝐵 x(𝑡 ), y(𝑡 ) = 𝐶 h(𝑡 ) is discretized through a bilinear or zero-order-hold rule, giving a recurrence h𝑡 = ¯𝐴 h𝑡 −1 + ¯𝐵 x𝑡 . The HiPPO framework [39] chooses 𝐴 so that the hidden state maintains an online compression of the input history onto an orthogonal-polynomial basis; this initialization underlies S4 [40], which combines a diagonal-plus-low-rank decomposition of 𝐴 with a parallelizable convolutional view and achieves long-context performance on tasks where Transformer-class models fail (Path-X at length 16,384). S5 [113] simplifies the construction to a diagonalized multi-input multi-output SSM with a parallel scan. Mamba [38] breaks linear time-invariance by making 𝐵 , 𝐶 , and the discretization step Δ input-dependent, matching Transformer-class language-modeling performance up to the 3B-parameter scale, although pure-SSM variants lag the Transformer on copying and in-context retrieval [118]. State-space duality [19] establishes that structured SSMs are equivalent to semiseparable matrices, that linear attention generalizes to structured-masked attention, and that the intersection admits both an SSM-like recurrent form and an attention-like quadratic form, reducing Mamba-2 at scalar-times-identity state transition to causal linear attention [61]. RWKV [98] and xLSTM [8] occupy the same neighborhood, the former with a linear time-mixing operator (0.1B–14B parameters), the latter with matrix-memory and scalar-memory variants whose update mirrors fast-weight memory. The forward grounding for all structured SSMs is None or historical inspiration (control-theoretic system identification, 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 19 not biological computation); the learning grounding is None . The scalability bottleneck is state-update parallelism on target hardware, and pure-SSM architectures so far underperform on tasks requiring explicit long-context retrieval [118]. 
+
+6.4 Section Synthesis 
+
+The three families do not collapse into a single architecture, but they occupy a common analytical neighborhood: all three address long-range sequence dependence by controlling how past information is stored, retrieved, or compressed. Modern Hopfield gives an associative-memory interpretation of softmax attention; linear attention shows that certain attention mechanisms admit an equivalent recurrent form [61]; and structured state-space duality shows that particular SSMs and structured-masked attention share a semiseparable representation [19]. The common thread is therefore not identity but a set of formal bridges between retrieval, recurrence, and compressed state, each holding only under the specific regime conditions stated by its source result. In biological terms, Modern Hopfield preserves more of the cortical solution to content-addressable recall than the other two families by retaining a continuous attractor with an energy landscape under which retrieval is a single gradient step. Attention preserves the soft, content-addressable interface but discards the energy landscape, replacing it with a learnable feed-forward read. Structured SSMs preserve neither and compress the sequence into a recurrent state through engineering-derived transition operators. The omissions across all three families are compensated by gradient-trainability and parallelism, which enable scaling beyond what biologically grounded alternatives have so far reached. 
+
+7 Continuous-Time and Implicit Neural Dynamics 
+
+Continuous-time and implicit models define forward computation as the solution of a dynamical or equilibrium problem rather than the output of a finite stack of layers: a continuous-time trajectory in CTRNNs, Neural ODEs, and Liquid Neural Networks, or a fixed point in Deep Equilibrium Models. The shared issue is not primarily biological plausibility but state representation, and the analytical interest of the column is the way credit assignment is recovered through solver-defined dynamics rather than through a stored layerwise computation graph. The internal label solver-defined neural computation captures this shift. 
+
+7.1 Continuous-Time State Evolution: CTRNNs, Neural ODEs, and Liquid Networks 
+
+Continuous-time recurrent networks evolve a hidden state according to the leaky-integrator equation 
+
+𝜏 𝑖 
+
+𝑑ℎ 𝑖 
+
+𝑑𝑡 = −ℎ𝑖 +∑︁ 
+
+> 𝑗
+
+𝑊 𝑖 𝑗 𝜎 (ℎ𝑗 ) + 𝑥 𝑖 (𝑡 ), (13) with time constants 𝜏 𝑖 , weights 𝑊 𝑖 𝑗 , pointwise nonlinearity 𝜎 , and input 𝑥 𝑖 (𝑡 ). Funahashi and Nakamura [31] proved that such networks can approximate any finite-time trajectory of an arbitrary 𝑛 -dimensional dynamical system given enough hidden units and appropriate parameters. Chen et al. [15] reformulated this as the Neural ODE, 
+
+𝑑 h(𝑡 )
+
+𝑑𝑡 = 𝑓 (h(𝑡 ), 𝑡, 𝜃 ), (14) with 𝑓 a learnable network and h(𝑡 1) computed from h(𝑡 0) by a numerical solver. The construction is the continuous-depth limit of a ResNet: the residual update of Eq. (6) becomes Eq. (14) as the step size shrinks to zero. Well-posedness 
+
+> Manuscript submitted to ACM
+
+20 Al Mubasher et al. is usually guaranteed when 𝑓 is Lipschitz continuous, though numerical behavior still depends on solver tolerance and stiffness. Liquid Time-Constant networks [42] couple the effective time constant to state and input, 
+
+𝑑 h(𝑡 )
+
+𝑑𝑡 = −
+
+ 1
+
+𝜏 + 𝑓 (h, x, 𝑡, 𝜃 )
+
+
+
+h(𝑡 ) + 𝑓 (h, x, 𝑡, 𝜃 ) ⊙ 𝐴, (15) with bounded 𝑓 and constant 𝐴 ; state and time constant remain bounded on any finite interval, and a universality result establishes greater expressivity than CTRNNs and Neural ODEs sharing the same 𝑓 . The closed-form variant [41] replaces the numerical solver with an analytical approximation for at least an order of magnitude speedup on continuous-control benchmarks; a 19-neuron variant derived from the C. elegans connectome [67] learns end-to-end visual lane-keeping, though the biological motivation is functional-analogy at the single-neuron level. Forward grounding is Functional analogy for CTRNNs and Liquid networks and None or historical inspiration for Neural ODEs; learning grounding is uniformly None .
+
+7.2 Non-Unrolled Credit Assignment: Adjoint and Implicit Differentiation 
+
+Continuous and implicit models do not eliminate global credit assignment: they replace stored backpropagation through a finite graph with gradients recovered through solver-defined dynamics. For the Neural ODE, Chen et al. [15] introduce an adjoint backward ODE for the state-gradient a(𝑡 ) = 𝜕𝐿 /𝜕 h(𝑡 ), giving memory cost constant in solver steps. The property is regime-dependent: Gholami et al. [36] showed reverse-time reconstruction can be numerically inconsistent with the forward solve under common activations, and restoring accuracy by checkpointing requires 𝑂 (𝐿 ) memory. Deep Equilibrium Models [5] take the construction to the fixed-point regime, with forward computation defined as the solution of 
+
+z★ = 𝑓 𝜃 (z★, x), (16) found by root-finding (Broyden or Anderson acceleration). The backward pass uses implicit differentiation: the implicit function theorem at the fixed point yields the parameter gradient as a single linear solve through (𝐼 − 𝜕𝑓 /𝜕 z★), requiring only vector-Jacobian products, and activation memory is independent of effective depth (on WikiText-103, 172M-parameter DEQ-Transformer matches Transformer-XL perplexity at roughly one-third the activation memory [5]). Equivalence to a weight-tied infinite-depth network holds under the convergence assumption that Eq. (16) admits a unique fixed point. The Neural ODE adjoint and DEQ implicit differentiation are distinct machinery, but scalability for both depends on numerical stability rather than expressivity alone: adjoint accuracy degrades under stiffness, and the conditioning of the equilibrium Jacobian governs the noise floor of DEQ gradients; explicit Jacobian regularization [6] recovers a constant-memory DEQ at approximately ResNet-101 speed and accuracy. 
+
+7.3 Section Synthesis 
+
+Continuous-time and implicit models change the state representation of neural computation but not its dominant credit-assignment mechanism. Forward computation moves from a finite stack of layers to the solution of a dynamical or equilibrium problem, gradients are recovered through solver-defined dynamics, and the conditioning of those backward equations becomes the operative scalability constraint in place of the memory and depth constraints of the Discrete-time class. Biologically, Neural ODEs, CTRNNs, and Liquid networks preserve continuous state evolution at the single-unit level; Deep Equilibrium Models preserve attractor-style fixed-point computation at the population 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 21 level. Continuous-attractor models of grid cells [13] furnish a parallel rather than an equivalence: stable biological state maintenance also depends on delicate dynamical conditions, similar in spirit to the Jacobian-conditioning constraint of implicit-differentiation backward passes. Forward grounding spans Functional analogy and None or historical inspiration ;learning grounding is uniformly None .
+
+8 Hybrid Event-Driven Systems 
+
+Hybrid event-driven systems constitute the Hybrid class and provide the strongest forward biological grounding in the survey: spiking neural networks restore membrane-potential dynamics, threshold-triggered discrete spikes, sparse binary communication, and temporal coding, placing the forward axis at Mechanistic plausibility . The learning axis, however, splits sharply between surrogate-gradient training (which drives most current scaling but relies on a smoothed backward approximation) and biologically observed local plasticity (mechanistic learning grounding at smaller demonstrated scale). This class does not resolve the forward–backward disconnect; it makes the disconnect most directly visible. 
+
+8.1 Spiking Forward Dynamics 
+
+The third-generation framework of Maass [77] organizes neural-network computation into spiking networks that compute through discrete spike timing, distinguished from first-generation binary-output perceptrons and second-generation continuous-output gradient-trained units; spiking networks under temporal coding can simulate arbitrary feedforward sigmoidal networks of comparable size. The forward computation of a spiking network is dominated by integrate-fire-reset dynamics at the single-neuron level: a LIF neuron maintains a continuous subthreshold membrane potential and emits a discrete spike 𝑆 = Θ(𝑉 − 𝜗 ) at threshold crossing, followed by reset. These three primitives (continuous subthreshold integration, threshold-triggered binary event emission, instantaneous reset) restore four properties absent from the model families of Sections 4–7: continuous-time membrane state, all-or-none communication, sparse binary coding, and temporal coding in which spike timing carries information beyond firing rate [116, 122]. The placement at Mechanistic plausibility on the forward axis applies at the single-neuron level. The LIF model and threshold dynamics are biophysically motivated reductions of the Hodgkin-Huxley equations of Section 2.1, but population-level phenomena such as excitation-inhibition balance, dendritic integration, and neuromodulation remain idealized in standard SNN architectures. Energy and communication advantages of event-driven computation are deferred to the substrate discussion of Section 10. 
+
+8.2 Training Spiking Networks: Surrogate Gradients and Local Plasticity 
+
+The same spiking forward architecture admits two qualitatively different training regimes that split sharply on the learning-grounding axis. The dominant approach for scaling SNNs to large tasks is the surrogate-gradient method of Neftci, Mostafa, and Zenke [90]. The forward pass preserves the non-differentiable spike 𝑆 = Θ(𝑉 − 𝜗 ), whose derivative is zero almost everywhere and ill-defined at threshold and therefore blocks standard gradient propagation. The backward pass substitutes the spike’s derivative with a smooth surrogate, 
+
+𝜕𝑆 𝜕𝑉 −→ 𝜎 ′ (𝑉 − 𝜗 ), (17) 
+
+> Manuscript submitted to ACM
+
+22 Al Mubasher et al. where 𝜎 ′ is a sigmoid, fast-sigmoid, triangular, or super-spike-style derivative. Training is gradient descent on what Neftci et al. describe as a virtual surrogate loss [90]: the backward pass computes the gradient of the smoothed surrogate training system, not the true derivative of the original spike discontinuity, and the forward computation remains spiking. Specific choices of 𝜎 ′ exist but do not change the taxonomic placement, since all remain global gradient methods applied through a smoothed backward approximation. Surrogate-gradient training has driven the scaling of directly-trained spiking networks to ImageNet-class benchmarks. The spike-element-wise residual construction of Fang et al. [27] enabled directly-trained SNNs with more than 100 layers, and Spikformer [126] reaches 74.81% top-1 accuracy on ImageNet at 66.3M parameters with 4 time steps, comparable in scale to second-generation ImageNet baselines. QKFormer [125] extends this line further, reaching 85.65% top-1 on ImageNet-1k at 64.96M parameters through spiking Q–K token attention, comparable to modest ANN Transformers of similar scale. Because the surrogate derivative has a weak biological motivation through smoothed or stochastic-threshold interpretations, but the optimization mechanism remains global, the learning grounding is Weak 
+
+rather than None on the split-axis scheme of Section 3.3. Biologically observed local plasticity provides the contrasting case. Spike-timing-dependent plasticity, first demon-strated by Markram et al. [82] and characterized by Bi and Poo [12] in cultured hippocampal neurons, updates synaptic strength based on the precise relative timing of pre- and post-synaptic spikes: presynaptic activation followed by postsynaptic spiking within roughly 20 ms induces long-term potentiation, the reverse order induces depression, and the rule depends only on local state at the synapse without a global error signal. Diehl and Cook [24] applied STDP to MNIST digit recognition in an unsupervised LIF network with lateral inhibition and adaptive thresholds, reaching 95% accuracy with 6,400 excitatory neurons. Under current evidence, biologically local spiking learning rules have not yet demonstrated the same scaling profile, in combined scale, task breadth, and accuracy, as surrogate-gradient or backpropagation-trained systems. STDP-trained SNNs therefore sit at Mechanistic plasticity on the learning axis, the opposite tier from surrogate-gradient SNNs on the same forward architecture. 
+
+8.3 Section Synthesis 
+
+The hybrid event-driven column achieves the highest forward biological grounding in the survey ( Mechanistic plausibil-ity ) but exhibits the widest split on the learning axis: the same LIF architecture appears with Weak learning grounding under surrogate gradients and Mechanistic plasticity under STDP. Biologically, the computational problem these families target is temporally extended sensorimotor and cognitive computation under tight communication constraints, addressed by cortex through sparse spike events, continuous membrane integration, local plasticity, and timing-sensitive synapses. SNNs preserve spikes, thresholds, membrane state, and, in the STDP variant, local plasticity; they omit dendritic complexity, neuromodulation, multi-compartment computation, and the large-scale cortical learning organization that supports biological credit assignment. Section 9 takes up biologically plausible learning rules and Section 10 takes up the neuromorphic substrate. 
+
+9 Biologically Plausible Learning and Credit Assignment 
+
+Sections 4 through 8 traverse the taxonomy along the forward-dynamics axis. This section turns to the learning axis and asks the symmetric question: given the diversification of forward dynamics documented in the preceding sections, what alternatives to backpropagation exist for credit assignment, and do they close the forward–backward disconnect? Biologically plausible learning rules each relax one or more assumptions of backpropagation, but each relaxation usually trades away some combination of scalability, task performance, depth, or generality. The disconnect persists not because 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 23 alternatives are absent but because no alternative currently matches backpropagation’s combined scalability, generality, and hardware alignment. 
+
+9.1 The Biological Credit-Assignment Problem 
+
+Backpropagation [106] is the engineering baseline against which biologically plausible alternatives are measured, and its structural incompatibilities with cortical computation were articulated as early as Crick [17]. Whittington and Bogacz [121] enumerate three canonical problems: the lack of a biologically local error representation, since each weight update depends on an error signal computed through downstream pathways rather than on variables directly available at the synapse; the symmetry of forward and backward weights, the weight-transport problem of [17], since backpropagation transports error using the transpose of the forward weight matrix; and the unrealistic neuron models, since cortical neurons spike and the derivative of a spike is not well-defined. Three further constraints relevant to deep-learning practice complete the set of assumptions the alternatives in this section relax: update locking [57], since the backward pass cannot begin until the forward pass completes; stored activations, since the full forward state must be retained for the backward computation; and temporal unrolling [119], since backpropagation through time requires the network state to be unrolled across the input sequence. Synaptic locality, in the sense that updates depend only on signals available at the synapse, is the binding biological constraint. The configurations surveyed below relax these constraints to varying degrees, summarized in Table 5. 
+
+9.2 Approximate-Gradient Alternatives 
+
+Feedback alignment [72] replaces the transpose of the forward weights in the backward pass with a fixed random matrix 𝐵 ; forward weights adapt so that the pseudo-gradient aligns sufficiently with the true gradient to support learning, relaxing weight transport. The direct variant [91] projects the output error to each hidden layer in parallel through independent fixed random matrices, additionally relaxing update locking. Target propagation [70] dispenses with gradient propagation altogether, assigning each layer a target activation propagated backward through learned approximate inverses. These relaxations do not preserve backpropagation’s scaling: Bartunov et al. [7] report target-propagation failure at ImageNet and feedback alignment reaching roughly one-quarter of BP top-1 accuracy on the same task, with the gap concentrated in convolutional and deep architectures. Methods that reintroduce weaker forms of weight symmetry close much of the gap. Weight Mirror and Kolen–Pollack learning [2] adjust dynamic feedback weights and approach BP on ImageNet: ResNet-50 top-1 error is 23.4% for Weight Mirror and 23.9% for Kolen–Pollack versus 22.9% for BP (within roughly one percentage point), substantially outperforming plain feedback alignment. Product Feedback Alignment [71] reaches 68.46% (PFA) and 69.30% (PFA-o) top-1 accuracy on ResNet-18 ImageNet versus 69.69% for BP, closing the gap to under half a percentage point without explicit weight symmetry. These results place the highest demonstrated scales of biologically-motivated learning in the family of error-broadcast approximate-gradient rules rather than in strictly local plasticity, and support the abstract’s careful wording that the highest scales concentrate in global or closely gradient-derived and error-propagation mechanisms. 
+
+9.3 Energy-Based and Inference-Based Learning 
+
+Equilibrium propagation [108] casts learning as a contrastive update between two equilibria of an energy-based network: a free phase relaxes to s★ 
+
+> free
+
+minimizing 𝐸 , a nudged phase weakly clamping the output toward the target relaxes to 
+
+s★ 
+
+> 𝛽
+
+under 𝐹 = 𝐸 + 𝛽ℓ . Scellier and Bengio prove the resulting contrastive Hebbian update, using only local state, performs gradient descent equivalent to recurrent backpropagation in the infinitesimal-nudging limit. Symmetric ±𝛽 
+
+> Manuscript submitted to ACM
+
+24 Al Mubasher et al. nudging reduces estimator bias; Laborieux et al. [64] reduced CIFAR-10 test error to 11 .7%, with extensions approaching backpropagation on downsampled ImageNet. Costs are the iterative equilibrium-settling cost and the strict energy-based architectural restriction. Predictive coding [102] provides the complementary mechanism: each layer maintains activity and prediction-error neurons; error neurons compute residuals 𝜖 𝑖 = (𝑥 𝑖 − 𝜇 𝑖 )/ Σ𝑖 using the top-down prediction 𝜇 𝑖 , and synaptic updates depend only on presynaptic activity and postsynaptic error. Whittington and Bogacz [120] prove this local Hebbian update produces gradients equivalent to backpropagation under unit variances and output-layer-dominant limit assumptions; Millidge et al. [88] extend the equivalence to arbitrary computation graphs but under a fixed-prediction assumption that further constrains biological plausibility. Contrastive divergence [49] trains restricted Boltzmann machines through short Gibbs sampling chains, historically central to deep generative learning before end-to-end gradient methods became dominant. The learning grounding for this subsection ranges from Approximate or implicit gradient (equilibrium propagation, predictive coding under the equivalence regime) to Local/algorithmic (contrastive divergence). 
+
+9.4 Local Plasticity Beyond Spiking STDP 
+
+Spike-timing-dependent plasticity was treated in Section 8 as the local-plasticity configuration of spiking networks; broader local-plasticity mechanisms beyond pairwise spike timing also span this row. Hebbian learning [47] provides the elementary local rule Δ𝑤 𝑖 𝑗 ∝ 𝑥 𝑖 𝑥 𝑗 , with Oja’s rule and related stabilization mechanisms adding multiplicative decay to bound the weights. Three-factor learning rules [28] generalize Hebbian learning by gating the synaptic update with a global neuromodulatory signal and a synaptic eligibility trace, enabling reward- and error-modulated learning without a backward-propagated gradient. Miconi [87] instantiates this scheme in continuous-time recurrent networks, showing that reward-modulated Hebbian plasticity can reproduce neural dynamics observed in cognitive tasks. More recently, Dendritic Localized Learning [76] extends the direction to modern architectures with a spatially and temporally local, dendrite-inspired plasticity rule that trains ANNs, CNNs, ResNets, and Transformers competitively on CIFAR-10, CIFAR-100, and small ImageNet subsets, addressing multiple biological objections to backpropagation simultaneously, though not yet at full ImageNet-1k scale. Hierarchical temporal memory [44, 45] is the framework-level extreme of local-plasticity learning: a cortical-column-inspired architecture using sparse distributed binary representations and dendrite-local Hebbian-style learning, with temporal sequence memory provided by context-dependent activation rather than recurrent gradient flow. It is not a learning rule attached to a standard architecture but a framework with its own forward dynamics and local learning rules, sitting at Local or algorithmic on the learning axis: the permanence-update rule is Hebbian-like in form but is an algorithmic abstraction rather than a directly measured plasticity mechanism. E-prop [9] is the strongest counterexample in the temporal–local corner. Applied to recurrent networks of leaky integrate-and-fire neurons with spike-frequency adaptation, e-prop replaces the offline unrolling of BPTT with per-synapse eligibility traces that maintain, at each synapse, a running mechanistic memory of pre–post coincidence; a neuron-specific broadcast learning signal from the output is then combined with the trace to produce a weight update online. The eligibility-trace component is synapse-local and removes backward propagation through time, while the update still depends on a neuron-specific broadcast learning signal; the important achievement is online learning without BPTT, not complete spatial locality. Bellec et al. demonstrate e-prop on TIMIT phoneme recognition, a delayed evidence-accumulation task modeled after rodent linear-track experiments, and Atari reinforcement learning (Pong and Fishing Derby), in each case narrowing but not closing the gap to BPTT. The demonstrated scale remains below 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 25 full ImageNet-1k and GPT-class benchmarks, and no e-prop-trained recurrent network has yet matched a mainstream Transformer on language modeling. The instructive lesson is precisely this decomposition: eligibility traces are the biologically identified mechanism for local temporal credit assignment, while the residual dependence on a top-down broadcast identifies the coordinate on which further work is needed. Synthetic gradients and decoupled neural interfaces [57] target update locking, one of the six backpropagation assumptions of Section 9.1, rather than weight transport or global error. A small auxiliary network at each layer predicts the downstream gradient from the layer’s own activations, allowing modules to update asynchronously without waiting for a full backward pass; the synthetic-gradient predictor is itself trained by minimizing the distance to the true gradient once it becomes available. Under the strict biological criterion of Section 9.1 the mechanism is only weakly plausible, because each auxiliary predictor is itself a small backpropagation-trained network, but it is the operative example of a module-local, asynchronous training procedure and the reference construction for later work on decoupled and pipelined training. Jaderberg et al. demonstrated the method on feedforward and small recurrent networks; the original paper does not establish a general depth-dependent bias law, and reproducible scale-up to modern deep architectures remains limited. 
+
+Table 5. Backpropagation assumptions relaxed by each biologically plausible learning family. R = relaxed; P = partially relaxed; – = preserved. Global error is marked P for energy- and inference-based methods where an output-layer error drives the relaxation but is not globally broadcast. Temporal unrolling is preserved trivially for contrastive divergence since restricted Boltzmann machines have no temporal dimension.                                                                         
+
+> Family Weight transport Global error Update locking Exact gradient Stored activations Temporal unrolling Main cost Feedback alignment [72] R––P––Degrades on deep ImageNet Direct feedback alignment [91] R–RP––Conv/deep accuracy gap Target propagation [70] RPPR––Fails on ImageNet Equilibrium propagation [108] RPRPRREquilibrium settling cost Predictive coding [120] RPPPRPIterative relaxation cost Contrastive divergence [49] RRRRR–Gibbs sampling cost Three-factor / eligibility [28] RPRRRPNo deep credit assignment e-prop [9] RPRPRRSmall-to-mid-scale demonstrations Synthetic gradients [57] ––RPR–Limited deep-scale evidence HTM / dendrite-local [44] RRRRRRSmall-scale demonstrations
+
+9.5 Section Synthesis 
+
+The alternatives divide into two kinds. Learning-rule replacements target an existing forward architecture: feedback alignment, target propagation, synthetic gradients, equilibrium propagation, predictive coding, and e-prop each modify only the backward mechanism, preserving compatibility with mainstream practice while relaxing biological constraints only partially. Frameworks whose learning rule is tied to an alternative forward model include hierarchical temporal memory (local-plasticity) and restricted Boltzmann machines (energy-based); these strengthen biological grounding but have not matched the scale or task breadth of global-gradient systems. Table 5 makes the pattern explicit: no family relaxes the full set of backpropagation assumptions while preserving deep-learning scalability and generality. Section 10 turns to the substrate question, where the algorithmic gap documented here has a material counterpart. 
+
+10 Neuromorphic Hardware 
+
+The preceding sections established the forward–backward disconnect at the algorithmic level: forward dynamics have diversified along the taxonomy of Sections 4 through 8, but the learning-side alternatives surveyed in Section 9 have not closed the gap. The compute substrate determines which learning rules and state dynamics are computationally natural. 
+
+> Manuscript submitted to ACM
+
+26 Al Mubasher et al. Neuromorphic hardware changes the substrate contract relative to Graphics Processing Unit (GPU)/TPU fabrics but cannot by itself supply a scalable, biologically plausible credit-assignment rule. 
+
+10.1 The Hardware Lottery and Dense Gradient Substrates 
+
+The hardware lottery of Hooker [53] holds that a research idea’s success depends as much on the hardware available to test it as on its merit; applied to the algorithmic disconnect, this becomes a substrate-level claim that backpropagation is dominant in part because it is hardware-compatible. The dense-multiply-accumulate substrate that mainstream deep learning runs on, exemplified by the systolic-array architecture of the tensor processing unit [59], is purpose-built for matrix multiplication at high arithmetic intensity. The match with backpropagation is multidimensional: dense matmul is hardware-optimal, batch-parallel dataflow supplies global synchronization, high memory bandwidth makes stored activations tolerable, and batched training amortizes per-sample overhead. Biologically plausible learning rules typically achieve poorer utilization on the same substrate, since sparse asynchronous events, per-unit local state, and online updates map less favorably onto its dataflow, cache hierarchy, and enforced memory–arithmetic separation. 
+
+10.2 Neuromorphic Computing Principles 
+
+Neuromorphic computing, introduced by Mead [85], imposes a different computational contract from the von Neumann model on which GPUs are built. The defining property [56] is co-location of memory and processing: synaptic state lives near or inside the computing element. Recent reviews [105, 110] consolidate the operating principles: event-driven rather than clock-synchronous arithmetic; sparse, asynchronous, binary spike-based communication; per-neuron and per-synapse local state; online and continual operation without separate training and inference phases; and algorithm– hardware co-design. Representative platforms span digital–analog and on-chip-learning axes: TrueNorth [86] (fully digital, no on-chip learning), Loihi [20] and Loihi 2 [92] (programmable on-chip plasticity; Loihi 2 adds stateful spiking neurons), SpiNNaker [32] (massively parallel ARM cores optimized for spike routing), BrainScaleS-2 [97] (mixed-signal, hybrid on-chip plasticity). 
+
+10.3 Substrate Alignment and Remaining Bottlenecks 
+
+Figure 4 maps the two substrates side by side as the operating contracts they impose. The left column lists the structural primitives that the GPU/TPU substrate handles natively, and the right column lists those that the neuromorphic substrate handles natively. Each column delivers a substrate-aligned outcome: backpropagation training scales on the left, event-driven inference scales on the right. The current bridge between the two is empirical and asymmetric: large spiking systems are typically trained off-chip on GPUs with surrogate gradients and deployed on neuromorphic hardware for inference [26]. The missing bridge is the converse, a substrate-aligned learning rule competitive with backpropagation at deep-network scale, which Section 9 found absent. The forward-side gains are well documented. The original Loihi report [20] demonstrates more than three orders of magnitude better energy-delay product than conventional solvers on LASSO sparse-coding workloads; the Loihi survey [21] reports up to five orders of magnitude advantage in time-to-solution and six in energy consumption on the largest single-chip locally competitive sparse-coding workload (around 10 5 unknowns) relative to a CPU FISTA implementation. Local state dynamics map onto per-neuron state variables, online plasticity is implementable natively, and event-driven sensor processing integrates without conversion overhead. The learning-side limitations are not removed by the change of substrate. Deep credit assignment has no substrate-level mechanism beyond the local plasticity rules of Section 9; global objectives still require either backpropagation 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 27    
+
+> Dense-gradient path Event-driven path
+> GPU / TPU substrate
+> Dense tensors
+> Stored activations Batch synchronization Global gradient transport
+> Neuromorphic substrate
+> Sparse events
+> Local state Online updates Memory near compute Backpropagation training scales Event-driven inference scales
+> global gradient sparse, local
+> off-chip surrogate-gradient training, on-chip event-driven deployment
+> Missing bridge
+> Scalable local credit assignment
+> (no substrate-aligned learning rule surveyed in Section 9 closes this gap)
+
+Fig. 4. Substrate reconnection map. The dense-gradient path on the left (GPU/TPU; backpropagation training scales) and the event-driven path on the right (neuromorphic; event-driven inference scales) currently bridge only empirically (dashed gray): training runs off-chip with surrogate gradients on GPUs and deploys on neuromorphic hardware for inference. The missing bridge (dashed red) is a substrate-aligned learning rule competitive with backpropagation at deep-network scale, which Section 9 found absent. Neuromorphic hardware removes the substrate penalty for event-driven forward computation but does not supply the missing rule. 
+
+(unnatural on neuromorphic substrates) or an alternative learning rule with the scalability properties Section 9 found absent. Training of large SNNs consequently runs off-chip on GPUs through surrogate-gradient backpropagation [26], so substrate alignment applies to inference rather than training. Conversion of backpropagation-trained networks to spike-encoded inference is feasible: early methods needed long latency windows (order two-to-three thousand time steps for ImageNet-class inference [111]), but recent conversion methods have narrowed this gap substantially, with SpikeZIP-TF [123] achieving 83.82% ImageNet-1k top-1 accuracy through exact ANN-to-SNN equivalence at approximately 8 time steps for CNN structures and comparable low-latency extensions to Transformer-based SNNs. The most recent authoritative assessment [63] flags four ecosystem bottlenecks: low-level software toolchains, hardware-dependent algorithms, absent community consensus on performance metrics, and largely absent formal complexity arguments for neuromorphic advantage. 
+
+10.4 Section Synthesis 
+
+The substrate contract is asymmetric and must be stated carefully: neuromorphic energy efficiency is real but workload-specific, conditioned on sparsity; on-chip learning is supported on Loihi and BrainScaleS-2 [20, 97] but is restricted to local plasticity variants rather than backpropagation equivalents. Hardware removes the substrate penalty for local and event-driven computation but does not by itself produce a scalable global credit-assignment rule. Section 11 treats dynamics, learning rule, and substrate as three coupled levers. 
+
+11 Cross-Family Synthesis and Open Problems 
+
+Read across the traversal, the taxonomy exposes structural patterns and open problems not visible from any single family. 
+
+> Manuscript submitted to ACM
+
+28 Al Mubasher et al. 
+
+11.1 What the Taxonomy Reveals 
+
+Figure 2, Table 3, and the count matrix in Table 2 expose three patterns that no single family makes visible. 
+
+First , forward dynamics diversify across the five mathematically distinct classes defined by the taxonomy: Static, Discrete-time/sequence, Continuous-time, Implicit, and Hybrid event-driven. Attention and structured state-space models populate the Discrete-time/sequence class, while modern Hopfield retrieval and DEQs illustrate distinct forms of the Implicit class. Every forward class in Figure 2 is populated. 
+
+Second , the learning side has a different distribution. Categorically, Global gradient is the largest single row (16 of 32), followed by Approximate or implicit gradient (7 of 32). The mechanism-level decomposition of Supplementary Section S3 confirms the concentration under a finer partition: ordinary reverse-mode backpropagation alone accounts for ten configurations, while the Approximate/implicit category fragments across seven individually represented mechanisms. Independently, the scaling evidence of Section 9 and Supplementary Section S4 shows that the highest demonstrated scales remain concentrated in global or closely gradient-derived and error-propagation mechanisms, even after the recent Weight Mirror, Kolen–Pollack, Product Feedback Alignment, e-prop, and Dendritic Localized Learning results considered in this survey. 
+
+Third , biological grounding is not inherited automatically from the forward architecture. Surrogate-gradient and STDP-trained spiking networks share the same LIF forward operator at Mechanistic plausibility on the forward axis but occupy opposite tiers on the learning axis ( Weak versus Mechanistic plasticity ). The split-axis scheme of Section 3.3 is what makes this independence visible: forward grounding and learning grounding move separately, and the same architecture–learning configuration is the correct unit of analysis rather than the architecture name alone. 
+
+11.2 Credit Assignment Beyond Backpropagation 
+
+The central open problem is a scalable local credit-assignment rule. No alternative surveyed in Section 9 relaxes the six assumptions of Section 9.1 while preserving scalability, task breadth, and hardware compatibility; Table 5 shows every family pays a cost in scale, depth, or generality. Credit assignment has two sub-problems: spatial (across depth at a single time) and temporal (across time). BPTT reduces temporal to spatial by unrolling time, and Section 9 relaxations address mostly the spatial sub-problem; the temporal sub-problem is where the gap is widest. The scaling component is empirically falsifiable: a strictly local or mechanistic-plasticity rule reaching backpropagation-parity performance at full ImageNet-1k or GPT-class language-model scale under comparable training compute would revise it (Supplementary Section S4 states the operational criterion). 
+
+11.3 Dynamics, Time, and Biological Structure 
+
+Recurrent, continuous-time, and spiking models make time explicit in the forward pass, but their credit-assignment machinery (BPTT, adjoint methods, surrogate-gradient training) all remain globally synchronized procedures that unroll or solver-trace time before gradients flow. Eligibility traces in three-factor learning [28] and e-prop [9] furnish a biologically plausible mechanism (local transient memory holding pre-post coincidence until a modulatory signal arrives), and e-prop attacks temporal credit assignment in recurrent spiking networks without BPTT at scale below deep-learning benchmarks. Forward computation is also limited at the single-neuron level: dendritic structure [11, 66, 99] is a candidate substrate for compartment-local teaching signals without a global backward broadcast. 
+
+> Manuscript submitted to ACM
+
+The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 29 
+
+11.4 Benchmarking and a Research Agenda for Configuration-Level Co-Design 
+
+Current evaluation conventions emphasize task accuracy and parameter scale but rarely separate state dynamics, learning locality, temporal credit assignment, and substrate cost. Cross-family comparisons should therefore report these dimensions jointly rather than treating accuracy on dense hardware as sufficient evidence of configuration-level scalability. The synthesis above implies four research priorities that would together address combinations and capabilities that remain underrepresented across the taxonomy and substrate analysis: (i) a scalable local credit-assignment rule that addresses both spatial and temporal sub-problems without unrolling time into space; (ii) learning mechanisms that exploit dendritic and compartmental structure, providing compartment-specific teaching signals without global backward broadcast; (iii) substrate-aligned on-chip deep learning that trains, and not only deploys, non-trivial models on neuromorphic hardware; and (iv) configuration-level benchmarks that jointly report accuracy, locality, temporal behavior, memory, and energy cost so that architecture–learning–substrate combinations can be compared against one another rather than only against dense-substrate baselines. These are the research implications of the survey rather than observed findings; each names a joint state-dynamics/credit-assignment/substrate combination for which the taxonomy exposes a gap. The sparse-region audit in Supplementary Section S5 further cautions against interpreting every empty cell as a research gap: three of four initially flagged combinations were occupied after configuration-level reclassification, while continuous-time non-equilibrium dynamics paired with energy or unsupervised learning remained near-empty. 
+
+12 Conclusion 
+
+Forward neural computation diversifies across five state-dynamics classes: Static, Discrete-time/sequence, Continuous-time, Implicit, and Hybrid event-driven. Scalable credit assignment does not distribute in the same way. Figure 2 shows five populated forward classes feeding a more concentrated backward distribution: Global gradient is the largest single category (16 of 32 configurations), Approximate or implicit gradient the second (7 of 32). The finer mechanism-level decomposition of Supplementary Section S3 confirms the concentration: ordinary reverse-mode backpropagation alone accounts for ten configurations, while the Approximate/implicit category fragments across seven individually represented mechanisms. Figure 1 provides the complementary historical orientation. The joint taxonomy organizes neural computation along coupled state-dynamics and credit-assignment axes, with biological grounding assigned independently to the forward operator and the learning rule. Its atomic unit is the architecture–learning configuration rather than the architecture name in isolation: the same forward dynamics occupies different taxonomic positions depending on how credit is assigned. Biology functions as a diagnostic constraint, identi-fying which mechanisms a configuration preserves, which it discards, and which engineering substitutes compensate for the omissions. Surrogate-gradient and STDP-trained spiking networks share the same strongly grounded forward operator but occupy opposite tiers on the learning axis. Alternatives to backpropagation exist. Recent results span error-broadcast approximate-gradient mechanisms (Weight Mirror, Kolen–Pollack, Product Feedback Alignment) and more local alternatives based on eligibility traces or dendritic plasticity (e-prop, Dendritic Localized Learning), but no single configuration yet combines locality, temporal credit assignment, task breadth, scalability, and substrate alignment. Hardware alignment removes the substrate penalty for sparse event-driven computation without supplying a scalable learning rule. Closing the disconnect therefore likely requires configuration-level co-design in which state dynamics, credit assignment, and computational substrate are 
+
+> Manuscript submitted to ACM
+
+30 Al Mubasher et al. treated as a joint design object rather than optimized independently. Whether such configurations can match the scalability of contemporary global-gradient systems remains an open empirical question. 
+
+References 
+
+[1] Edgar D. Adrian. 1926. The Impulses Produced by Sensory Nerve Endings: Part I. The Journal of Physiology 61, 1 (1926), 49–72. doi:10.1113/jphysiol. 1926.sp002273 [2] Mohamed Akrout, Collin Wilson, Peter C. Humphreys, Timothy Lillicrap, and Douglas B. Tweed. 2019. Deep Learning without Weight Transport. In Advances in Neural Information Processing Systems , Vol. 32. 974–982. [3] Daniel J. Amit, Hanoch Gutfreund, and Haim Sompolinsky. 1985. Storing Infinite Numbers of Patterns in a Spin-Glass Model of Neural Networks. 
+
+Physical Review Letters 55, 14 (1985), 1530–1533. doi:10.1103/PhysRevLett.55.1530 [4] Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio. 2015. Neural Machine Translation by Jointly Learning to Align and Translate. In 
+
+International Conference on Learning Representations (ICLR) . arXiv:1409.0473 https://arxiv.org/abs/1409.0473 [5] Shaojie Bai, J. Zico Kolter, and Vladlen Koltun. 2019. Deep Equilibrium Models. In Advances in Neural Information Processing Systems (NeurIPS) ,Vol. 32. [6] Shaojie Bai, Vladlen Koltun, and J. Zico Kolter. 2021. Stabilizing Equilibrium Models by Jacobian Regularization. In International Conference on Machine Learning (ICML) . 554–565. arXiv:2106.14342 https://arxiv.org/abs/2106.14342 [7] Sergey Bartunov, Adam Santoro, Blake A. Richards, Luke Marris, Geoffrey E. Hinton, and Timothy P. Lillicrap. 2018. Assessing the Scalabil-ity of Biologically-Motivated Deep Learning Algorithms and Architectures. In Advances in Neural Information Processing Systems (NeurIPS) .arXiv:1807.04587 https://arxiv.org/abs/1807.04587 [8] Maximilian Beck, Korbinian Pöppel, Markus Spanring, Andreas Auer, Oleksandra Prudnikova, Michael Kopp, Günter Klambauer, Johannes Brandstetter, and Sepp Hochreiter. 2024. xLSTM: Extended Long Short-Term Memory. arXiv preprint arXiv:2405.04517 (2024). doi:10.48550/arXiv. 2405.04517 [9] Guillaume Bellec, Franz Scherr, Anand Subramoney, Elias Hajek, Darjan Salaj, Robert Legenstein, and Wolfgang Maass. 2020. A Solution to the Learning Dilemma for Recurrent Networks of Spiking Neurons. Nature Communications 11, 1 (2020), 3625. doi:10.1038/s41467-020-17236-y [10] Yoshua Bengio, Patrice Simard, and Paolo Frasconi. 1994. Learning Long-Term Dependencies with Gradient Descent Is Difficult. IEEE Transactions on Neural Networks 5, 2 (1994), 157–166. doi:10.1109/72.279181 [11] David Beniaguev, Idan Segev, and Michael London. 2021. Single Cortical Neurons as Deep Artificial Neural Networks. Neuron 109, 17 (2021), 2727–2739. doi:10.1016/j.neuron.2021.07.002 [12] Guo-qiang Bi and Mu-ming Poo. 1998. Synaptic Modifications in Cultured Hippocampal Neurons: Dependence on Spike Timing, Synaptic Strength, and Postsynaptic Cell Type. Journal of Neuroscience 18, 24 (1998), 10464–10472. doi:10.1523/JNEUROSCI.18-24-10464.1998 [13] Yoram Burak and Ila R. Fiete. 2009. Accurate Path Integration in Continuous Attractor Network Models of Grid Cells. PLoS Computational Biology 
+
+5, 2 (2009), e1000291. doi:10.1371/journal.pcbi.1000291 [14] Alessio Caviglia, Filippo Marostica, Roberta Bardini, Alessandro Savino, and Stefano Di Carlo. 2026. NeuroTrain: Surveying Local Learning Rules for Spiking Neural Networks with an Open Benchmarking Framework. arXiv preprint arXiv:2605.15058 (2026). doi:10.48550/arXiv.2605.15058 [15] Ricky T. Q. Chen, Yulia Rubanova, Jesse Bettencourt, and David K. Duvenaud. 2018. Neural Ordinary Differential Equations. In Advances in Neural Information Processing Systems (NeurIPS) , Vol. 31. 6571–6583. [16] Kyunghyun Cho, Bart van Merriënboer, Caglar Gulcehre, Dzmitry Bahdanau, Fethi Bougares, Holger Schwenk, and Yoshua Bengio. 2014. Learning Phrase Representations Using RNN Encoder–Decoder for Statistical Machine Translation. In Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP) . 1724–1734. doi:10.3115/v1/D14-1179 [17] Francis Crick. 1989. The Recent Excitement About Neural Networks. Nature 337, 6203 (1989), 129–132. doi:10.1038/337129a0 [18] Yang Dan and Mu-ming Poo. 2004. Spike Timing-Dependent Plasticity of Neural Circuits. Neuron 44, 1 (2004), 23–30. doi:10.1016/j.neuron.2004.09.007 [19] Tri Dao and Albert Gu. 2024. Transformers are SSMs: Generalized Models and Efficient Algorithms Through Structured State Space Duality. In 
+
+International Conference on Machine Learning (ICML) . arXiv:2405.21060 https://arxiv.org/abs/2405.21060 [20] Mike Davies, Narayan Srinivasa, Tsung-Han Lin, Gautham Chinya, Yongqiang Cao, Sri Harsha Choday, Georgios Dimou, Prasad Joshi, Nabil Imam, Shweta Jain, et al. 2018. Loihi: A Neuromorphic Manycore Processor with On-Chip Learning. IEEE Micro 38, 1 (2018), 82–99. doi:10.1109/MM.2018. 112130359 [21] Mike Davies, Andreas Wild, Garrick Orchard, Yulia Sandamirskaya, Gabriel A. Fonseca Guerra, Prasad Joshi, Philipp Plank, and Sumedh R. Risbud. 2021. Advancing Neuromorphic Computing with Loihi: A Survey of Results and Outlook. Proc. IEEE 109, 5 (2021), 911–934. doi:10.1109/JPROC. 2021.3067593 [22] Peter Dayan and Laurence F. Abbott. 2001. Theoretical Neuroscience: Computational and Mathematical Modeling of Neural Systems . MIT Press, Cambridge, MA. [23] Mete Demircigil, Judith Heusel, Matthias Löwe, Sven Upgang, and Franck Vermet. 2017. On a Model of Associative Memory with Huge Storage Capacity. Journal of Statistical Physics 168, 2 (2017), 288–299. doi:10.1007/s10955-017-1806-y Manuscript submitted to ACM The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 31 
+
+[24] Peter U. Diehl and Matthew Cook. 2015. Unsupervised Learning of Digit Recognition Using Spike-Timing-Dependent Plasticity. Frontiers in Computational Neuroscience 9 (2015), 99. doi:10.3389/fncom.2015.00099 [25] Jeffrey L. Elman. 1990. Finding Structure in Time. Cognitive Science 14, 2 (1990), 179–211. doi:10.1207/s15516709cog1402_1 [26] Jason K. Eshraghian, Max Ward, Emre Neftci, Xinxin Wang, Gregor Lenz, Girish Dwivedi, Mohammed Bennamoun, Doo Seok Jeong, and Wei D. Lu. 2023. Training Spiking Neural Networks Using Lessons from Deep Learning. Proc. IEEE 111, 9 (2023), 1016–1054. doi:10.1109/JPROC.2023.3308088 [27] Wei Fang, Zhaofei Yu, Yanqi Chen, Timothée Masquelier, Tiejun Huang, and Yonghong Tian. 2021. Deep Residual Learning in Spiking Neural Networks. In Advances in Neural Information Processing Systems (NeurIPS) . arXiv:2102.04159 https://arxiv.org/abs/2102.04159 [28] Nicolas Frémaux and Wulfram Gerstner. 2016. Neuromodulated Spike-Timing-Dependent Plasticity, and Theory of Three-Factor Learning Rules. 
+
+Frontiers in Neural Circuits 9 (2016), 85. doi:10.3389/fncir.2015.00085 [29] Karl Friston. 2010. The Free-Energy Principle: A Unified Brain Theory? Nature Reviews Neuroscience 11, 2 (2010), 127–138. doi:10.1038/nrn2787 [30] Kunihiko Fukushima. 1980. Neocognitron: A Self-Organizing Neural Network Model for a Mechanism of Pattern Recognition Unaffected by Shift in Position. Biological Cybernetics 36, 4 (1980), 193–202. doi:10.1007/BF00344251 [31] Ken-ichi Funahashi and Yuichi Nakamura. 1993. Approximation of Dynamical Systems by Continuous Time Recurrent Neural Networks. Neural Networks 6, 6 (1993), 801–806. doi:10.1016/S0893-6080(05)80125-X [32] Steve B. Furber, Francesco Galluppi, Steve Temple, and Luis A. Plana. 2014. The SpiNNaker Project. Proc. IEEE 102, 5 (2014), 652–665. doi:10.1109/ JPROC.2014.2304638 [33] Apostolos P. Georgopoulos, Andrew B. Schwartz, and Ronald E. Kettner. 1986. Neuronal Population Coding of Movement Direction. Science 233, 4771 (1986), 1416–1419. doi:10.1126/science.3749885 [34] Wulfram Gerstner and Werner M. Kistler. 2002. Spiking Neuron Models: Single Neurons, Populations, Plasticity . Cambridge University Press, Cambridge, UK. [35] Wulfram Gerstner, Werner M. Kistler, Richard Naud, and Liam Paninski. 2014. Neuronal Dynamics: From Single Neurons to Networks and Models of Cognition . Cambridge University Press, Cambridge, UK. [36] Amir Gholami, Kurt Keutzer, and George Biros. 2019. ANODE: Unconditionally Accurate Memory-Efficient Gradients for Neural ODEs. In 
+
+International Joint Conference on Artificial Intelligence (IJCAI) . 730–736. arXiv:1902.10298 https://arxiv.org/abs/1902.10298 [37] Ian Goodfellow, Yoshua Bengio, and Aaron Courville. 2016. Deep Learning . MIT Press, Cambridge, MA. [38] Albert Gu and Tri Dao. 2023. Mamba: Linear-Time Sequence Modeling with Selective State Spaces. arXiv preprint arXiv:2312.00752 (2023). doi:10.48550/arXiv.2312.00752 [39] Albert Gu, Tri Dao, Stefano Ermon, Atri Rudra, and Christopher Ré. 2020. HiPPO: Recurrent Memory with Optimal Polynomial Projections. In 
+
+Advances in Neural Information Processing Systems (NeurIPS) . arXiv:2008.07669 https://arxiv.org/abs/2008.07669 [40] Albert Gu, Karan Goel, and Christopher Ré. 2022. Efficiently Modeling Long Sequences with Structured State Spaces. In International Conference on Learning Representations (ICLR) .[41] Ramin Hasani, Mathias Lechner, Alexander Amini, Lucas Liebenwein, Aaron Ray, Max Tschaikowski, Gerald Teschl, and Daniela Rus. 2022. Closed-form Continuous-time Neural Networks. Nature Machine Intelligence 4, 11 (2022), 992–1003. doi:10.1038/s42256-022-00556-7 [42] Ramin Hasani, Mathias Lechner, Alexander Amini, Daniela Rus, and Radu Grosu. 2021. Liquid Time-Constant Networks. Proceedings of the AAAI Conference on Artificial Intelligence 35, 9 (2021), 7657–7666. doi:10.1609/aaai.v35i9.16936 [43] Demis Hassabis, Dharshan Kumaran, Christopher Summerfield, and Matthew Botvinick. 2017. Neuroscience-Inspired Artificial Intelligence. Neuron 
+
+95, 2 (2017), 245–258. doi:10.1016/j.neuron.2017.06.011 [44] Jeff Hawkins and Subutai Ahmad. 2016. Why Neurons Have Thousands of Synapses, a Theory of Sequence Memory in Neocortex. Frontiers in Neural Circuits 10 (2016), 23. doi:10.3389/fncir.2016.00023 [45] Jeff Hawkins, Marcus Lewis, Mirko Klukas, Scott Purdy, and Subutai Ahmad. 2019. A Framework for Intelligence and Cortical Function Based on Grid Cells in the Neocortex. Frontiers in Neural Circuits 12 (2019), 121. doi:10.3389/fncir.2018.00121 [46] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. 2016. Deep Residual Learning for Image Recognition. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) . 770–778. doi:10.1109/CVPR.2016.90 [47] Donald O. Hebb. 1949. The Organization of Behavior: A Neuropsychological Theory . Wiley, New York. [48] Geoffrey Hinton. 2022. The Forward-Forward Algorithm: Some Preliminary Investigations. arXiv preprint arXiv:2212.13345 (2022). doi:10.48550/ arXiv.2212.13345 [49] Geoffrey E. Hinton. 2002. Training Products of Experts by Minimizing Contrastive Divergence. Neural Computation 14, 8 (2002), 1771–1800. doi:10.1162/089976602760128018 [50] Geoffrey E. Hinton, Simon Osindero, and Yee-Whye Teh. 2006. A Fast Learning Algorithm for Deep Belief Nets. Neural Computation 18, 7 (2006), 1527–1554. doi:10.1162/neco.2006.18.7.1527 [51] Sepp Hochreiter and Jürgen Schmidhuber. 1997. Long Short-Term Memory. Neural Computation 9, 8 (1997), 1735–1780. doi:10.1162/neco.1997.9.8.1735 [52] Alan L. Hodgkin and Andrew F. Huxley. 1952. A Quantitative Description of Membrane Current and Its Application to Conduction and Excitation in Nerve. The Journal of Physiology 117, 4 (1952), 500–544. doi:10.1113/jphysiol.1952.sp004764 [53] Sara Hooker. 2021. The Hardware Lottery. Commun. ACM 64, 12 (2021), 58–65. doi:10.1145/3467017 [54] Benjamin Hoover, Yuchen Liang, Bao Pham, Rameswar Panda, Hendrik Strobelt, Duen Horng Chau, Mohammed J. Zaki, and Dmitry Krotov. 2023. Energy Transformer. In Advances in Neural Information Processing Systems (NeurIPS) . arXiv:2302.07253 https://arxiv.org/abs/2302.07253 Manuscript submitted to ACM 32 Al Mubasher et al. 
+
+[55] John J. Hopfield. 1982. Neural Networks and Physical Systems with Emergent Collective Computational Abilities. Proceedings of the National Academy of Sciences of the United States of America 79, 8 (1982), 2554–2558. doi:10.1073/pnas.79.8.2554 [56] Giacomo Indiveri and Shih-Chii Liu. 2015. Memory and Information Processing in Neuromorphic Systems. Proc. IEEE 103, 8 (2015), 1379–1397. doi:10.1109/JPROC.2015.2444094 [57] Max Jaderberg, Wojciech Marian Czarnecki, Simon Osindero, Oriol Vinyals, Alex Graves, David Silver, and Koray Kavukcuoglu. 2017. Decoupled Neural Interfaces using Synthetic Gradients. In International Conference on Machine Learning (ICML) . 1627–1635. arXiv:1608.05343 https: //arxiv.org/abs/1608.05343 [58] Herbert Jaeger. 2001. The “Echo State” Approach to Analysing and Training Recurrent Neural Networks. GMD Report 148, German National Research Center for Information Technology (2001). [59] Norman P. Jouppi, Cliff Young, Nishant Patil, David Patterson, Gaurav Agrawal, Raminder Bajwa, Sarah Bates, Suresh Bhatia, Nan Boden, Al Borchers, et al. 2017. In-Datacenter Performance Analysis of a Tensor Processing Unit. In Proceedings of the 44th Annual International Symposium on Computer Architecture (ISCA) . Association for Computing Machinery, 1–12. doi:10.1145/3079856.3080246 [60] George E. Karniadakis, Ioannis G. Kevrekidis, Lu Lu, Paris Perdikaris, Sifan Wang, and Liu Yang. 2021. Physics-Informed Machine Learning. Nature Reviews Physics 3, 6 (2021), 422–440. doi:10.1038/s42254-021-00314-5 [61] Angelos Katharopoulos, Apoorv Vyas, Nikolaos Pappas, and François Fleuret. 2020. Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention. In International Conference on Machine Learning (ICML) . 5156–5165. arXiv:2006.16236 https://arxiv.org/abs/2006.16236 [62] Dmitry Krotov and John J. Hopfield. 2016. Dense Associative Memory for Pattern Recognition. In Advances in Neural Information Processing Systems (NeurIPS) . 1172–1180. arXiv:1606.01164 https://arxiv.org/abs/1606.01164 [63] Dhireesha Kudithipudi, Catherine Schuman, Craig M. Vineyard, Tej Pandit, Cory Merkel, Rajkumar Kubendran, James B. Aimone, Garrick Orchard, Christian Mayr, Ryad Benosman, Joe Hays, Cliff Young, Chiara Bartolozzi, Amitava Majumdar, Suma George Cardwell, Melika Payvand, Sonia Buckley, Shruti Kulkarni, Hector A. Gonzalez, Gert Cauwenberghs, Chetan Singh Thakur, Anand Subramoney, and Steve Furber. 2025. Neuromorphic Computing at Scale. Nature 637, 8047 (2025), 801–812. doi:10.1038/s41586-024-08253-8 [64] Axel Laborieux, Maxence Ernoult, Benjamin Scellier, Yoshua Bengio, Julie Grollier, and Damien Querlioz. 2021. Scaling Equilibrium Propagation to Deep ConvNets by Drastically Reducing Its Gradient Estimator Bias. Frontiers in Neuroscience 15 (2021), 633674. doi:10.3389/fnins.2021.633674 [65] Louis Lapicque. 1907. Recherches Quantitatives sur l’Excitation Électrique des Nerfs Traitée Comme une Polarisation. Journal de Physiologie et de Pathologie Générale 9 (1907), 620–635. [66] Matthew Larkum. 2013. A Cellular Mechanism for Cortical Associations: An Organizing Principle for the Cerebral Cortex. Trends in Neurosciences 
+
+36, 3 (2013), 141–151. doi:10.1016/j.tins.2012.11.006 [67] Mathias Lechner, Ramin Hasani, Alexander Amini, Thomas A. Henzinger, Daniela Rus, and Radu Grosu. 2020. Neural Circuit Policies Enabling Auditable Autonomy. Nature Machine Intelligence 2, 10 (2020), 642–652. doi:10.1038/s42256-020-00237-3 [68] Yann LeCun, Yoshua Bengio, and Geoffrey Hinton. 2015. Deep Learning. Nature 521, 7553 (2015), 436–444. doi:10.1038/nature14539 [69] Yann LeCun, Léon Bottou, Yoshua Bengio, and Patrick Haffner. 1998. Gradient-Based Learning Applied to Document Recognition. Proc. IEEE 86, 11 (1998), 2278–2324. doi:10.1109/5.726791 [70] Dong-Hyun Lee, Saizheng Zhang, Asja Fischer, and Yoshua Bengio. 2015. Difference Target Propagation. In European Conference on Machine Learning and Principles and Practice of Knowledge Discovery in Databases (ECML PKDD) . 498–515. doi:10.1007/978-3-319-23528-8_31 [71] Ji-An Li and Marcus K. Benna. 2024. Deep Learning without Weight Symmetry. arXiv preprint arXiv:2405.20594 (2024). [72] Timothy P. Lillicrap, Daniel Cownden, Douglas B. Tweed, and Colin J. Akerman. 2016. Random Synaptic Feedback Weights Support Error Backpropagation for Deep Learning. Nature Communications 7 (2016), 13276. doi:10.1038/ncomms13276 [73] Timothy P. Lillicrap, Adam Santoro, Luke Marris, Colin J. Akerman, and Geoffrey Hinton. 2020. Backpropagation and the Brain. Nature Reviews Neuroscience 21, 6 (2020), 335–346. doi:10.1038/s41583-020-0277-3 [74] Michael London and Michael Häusser. 2005. Dendritic Computation. Annual Review of Neuroscience 28 (2005), 503–532. doi:10.1146/annurev.neuro. 28.061604.135703 [75] Changze Lv, Yufei Gu, Zhengkang Guo, Zhibo Xu, Yixin Wu, Feiran Zhang, Tianyuan Shi, Zhenghua Wang, Ruicheng Yin, Yu Shang, Siqi Zhong, Xiaohua Wang, Muling Wu, Wenhao Liu, Tianlong Li, Jianhao Zhu, Cenyuan Zhang, Zixuan Ling, and Xiaoqing Zheng. 2024. Towards Biologically Plausible Computing: A Comprehensive Comparison. arXiv preprint arXiv:2406.16062 (2024). doi:10.48550/arXiv.2406.16062 [76] Changze Lv, Jingwen Xu, Yiyang Lu, Xiaohua Wang, Zhenghua Wang, Zhibo Xu, Di Yu, Xin Du, Xiaoqing Zheng, and Xuanjing Huang. 2025. Dendritic Localized Learning: Toward Biologically Plausible Algorithm. In Proceedings of the 42nd International Conference on Machine Learning (Proceedings of Machine Learning Research, Vol. 267) . 41682–41700. [77] Wolfgang Maass. 1997. Networks of Spiking Neurons: The Third Generation of Neural Network Models. Neural Networks 10, 9 (1997), 1659–1671. doi:10.1016/S0893-6080(97)00011-7 [78] Wolfgang Maass, Thomas Natschläger, and Henry Markram. 2002. Real-Time Computing without Stable States: A New Framework for Neural Computation Based on Perturbations. Neural Computation 14, 11 (2002), 2531–2560. doi:10.1162/089976602760407955 [79] Niru Maheswaranathan, Alex H. Williams, Matthew D. Golub, Surya Ganguli, and David Sussillo. 2019. Universality and Individuality in Neural Dynamics Across Large Populations of Recurrent Networks. In Advances in Neural Information Processing Systems (NeurIPS) , Vol. 32. [80] Zachary F. Mainen and Terrence J. Sejnowski. 1995. Reliability of Spike Timing in Neocortical Neurons. Science 268, 5216 (1995), 1503–1506. doi:10.1126/science.7770778 Manuscript submitted to ACM The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation 33 
+
+[81] Valerio Mante, David Sussillo, Krishna V. Shenoy, and William T. Newsome. 2013. Context-Dependent Computation by Recurrent Dynamics in Prefrontal Cortex. Nature 503, 7474 (2013), 78–84. doi:10.1038/nature12742 [82] Henry Markram, Joachim Lübke, Michael Frotscher, and Bert Sakmann. 1997. Regulation of synaptic efficacy by coincidence of postsynaptic APs and EPSPs. Science 275, 5297 (1997), 213–215. [83] Szymon Mazurek, Jakub Caputa, Jan K. Argasiński, and Maciej Wielgosz. 2025. Three-Factor Learning in Spiking Neural Networks: An Overview of Methods and Trends from a Machine Learning Perspective. Patterns 6, 12 (2025), 101414. doi:10.1016/j.patter.2025.101414 [84] Warren S. McCulloch and Walter Pitts. 1943. A Logical Calculus of the Ideas Immanent in Nervous Activity. The Bulletin of Mathematical Biophysics 
+
+5, 4 (1943), 115–133. doi:10.1007/BF02478259 [85] Carver Mead. 1990. Neuromorphic Electronic Systems. Proc. IEEE 78, 10 (1990), 1629–1636. doi:10.1109/5.58356 [86] Paul A. Merolla, John V. Arthur, Rodrigo Alvarez-Icaza, Andrew S. Cassidy, Jun Sawada, Filipp Akopyan, Bryan L. Jackson, Nabil Imam, Chen Guo, Yutaka Nakamura, et al. 2014. A Million Spiking-Neuron Integrated Circuit with a Scalable Communication Network and Interface. Science 345, 6197 (2014), 668–673. doi:10.1126/science.1254642 [87] Thomas Miconi. 2017. Biologically Plausible Learning in Recurrent Neural Networks Reproduces Neural Dynamics Observed during Cognitive Tasks. eLife 6 (2017), e20899. doi:10.7554/eLife.20899 [88] Beren Millidge, Alexander Tschantz, and Christopher L. Buckley. 2022. Predictive Coding Approximates Backprop along Arbitrary Computation Graphs. Neural Computation 34, 6 (2022), 1329–1368. [89] James M. Murray. 2019. Local Online Learning in Recurrent Networks with Random Feedback. eLife 8 (2019), e43299. doi:10.7554/eLife.43299 [90] Emre O. Neftci, Hesham Mostafa, and Friedemann Zenke. 2019. Surrogate Gradient Learning in Spiking Neural Networks: Bringing the Power of Gradient-Based Optimization to Spiking Neural Networks. IEEE Signal Processing Magazine 36, 6 (2019), 51–63. doi:10.1109/MSP.2019.2931595 [91] Arild Nøkland. 2016. Direct Feedback Alignment Provides Learning in Deep Neural Networks. In Advances in Neural Information Processing Systems (NeurIPS) . arXiv:1609.01596 https://arxiv.org/abs/1609.01596 [92] Garrick Orchard, E. Paxon Frady, Daniel Ben Dayan Rubin, Sophia Sanborn, Sumit Bam Shrestha, Friedrich T. Sommer, and Mike Davies. 2021. Efficient Neuromorphic Signal Processing with Loihi 2. In IEEE Workshop on Signal Processing Systems (SiPS) . IEEE, 254–259. arXiv:2111.03746 doi:10.1109/SiPS52927.2021.00053 [93] Alexander Ororbia, Ankur Mali, Adam Kohan, Beren Millidge, and Tommaso Salvatori. 2024. A Review of Neuroscience-Inspired Machine Learning. 
+
+arXiv preprint arXiv:2403.18929 (2024). doi:10.48550/arXiv.2403.18929 [94] Alexander G. Ororbia. 2023. Brain-Inspired Machine Intelligence: A Survey of Neurobiologically-Plausible Credit Assignment. arXiv:2312.09257 
+
+(2023). [95] Stefano Panzeri, Nicolas Brunel, Nikos K. Logothetis, and Christoph Kayser. 2010. Sensory Neural Codes Using Multiplexed Temporal Scales. 
+
+Trends in Neurosciences 33, 3 (2010), 111–120. doi:10.1016/j.tins.2009.12.001 [96] Razvan Pascanu, Tomas Mikolov, and Yoshua Bengio. 2013. On the Difficulty of Training Recurrent Neural Networks. In Proceedings of the 30th International Conference on Machine Learning (ICML) (Proceedings of Machine Learning Research, Vol. 28) . 1310–1318. [97] Christian Pehle, Sebastian Billaudelle, Benjamin Cramer, Jakob Kaiser, Korbinian Schreiber, Yannik Stradmann, Johannes Weis, Aron Leibfried, Eric Müller, and Johannes Schemmel. 2022. The BrainScaleS-2 Accelerated Neuromorphic System with Hybrid Plasticity. Frontiers in Neuroscience 16 (2022), 795876. doi:10.3389/fnins.2022.795876 [98] Bo Peng, Eric Alcaide, Quentin Anthony, Alon Albalak, Samuel Arcadinho, Stella Biderman, Huanqi Cao, Xin Cheng, Michael Chung, Matteo Grella, et al. 2023. RWKV: Reinventing RNNs for the Transformer Era. In Findings of the Association for Computational Linguistics: EMNLP .doi:10.18653/v1/2023.findings-emnlp.936 [99] Panayiota Poirazi, Terrence Brannon, and Bartlett W. Mel. 2003. Pyramidal Neuron as Two-Layer Neural Network. Neuron 37, 6 (2003), 989–999. doi:10.1016/S0896-6273(03)00149-1 [100] Maziar Raissi, Paris Perdikaris, and George E. Karniadakis. 2019. Physics-Informed Neural Networks: A Deep Learning Framework for Solving Forward and Inverse Problems Involving Nonlinear Partial Differential Equations. J. Comput. Phys. 378 (2019), 686–707. doi:10.1016/j.jcp.2018.10.045 [101] Hubert Ramsauer, Bernhard Schäfl, Johannes Lehner, Philipp Seidl, Michael Widrich, Thomas Adler, Lukas Gruber, Markus Holzleitner, Milena Pavlović, Geir Kjetil Sandve, Victor Greiff, David Kreil, Michael Kopp, Günter Klambauer, Johannes Brandstetter, and Sepp Hochreiter. 2021. Hopfield Networks Is All You Need. In International Conference on Learning Representations (ICLR) .[102] Rajesh P. N. Rao and Dana H. Ballard. 1999. Predictive Coding in the Visual Cortex: A Functional Interpretation of Some Extra-Classical Receptive-Field Effects. Nature Neuroscience 2, 1 (1999), 79–87. doi:10.1038/4580 [103] Nitin Rathi, Indranil Chakraborty, Adarsh Kosta, Abhronil Sengupta, Aayush Ankit, Priyadarshini Panda, and Kaushik Roy. 2023. Exploring Neuromorphic Computing Based on Spiking Neural Networks: Algorithms to Hardware. Comput. Surveys 55, 12 (2023), 1–49. doi:10.1145/3571155 [104] Frank Rosenblatt. 1958. The Perceptron: A Probabilistic Model for Information Storage and Organization in the Brain. Psychological Review 65, 6 (1958), 386–408. doi:10.1037/h0042519 [105] Kaushik Roy, Akhilesh Jaiswal, and Priyadarshini Panda. 2019. Towards Spike-Based Machine Intelligence with Neuromorphic Computing. Nature 
+
+575, 7784 (2019), 607–617. doi:10.1038/s41586-019-1677-2 [106] David E. Rumelhart, Geoffrey E. Hinton, and Ronald J. Williams. 1986. Learning Representations by Back-Propagating Errors. Nature 323, 6088 (1986), 533–536. doi:10.1038/323533a0 Manuscript submitted to ACM 34 Al Mubasher et al. 
+
+[107] Tommaso Salvatori, Ankur Mali, Christopher L. Buckley, Thomas Lukasiewicz, Rajesh P. N. Rao, Karl Friston, and Alexander Ororbia. 2026. A Survey on Neuro-Mimetic Deep Learning via Predictive Coding. Neural Networks 195 (2026), 108161. doi:10.1016/j.neunet.2025.108161 [108] Benjamin Scellier and Yoshua Bengio. 2017. Equilibrium Propagation: Bridging the Gap between Energy-Based Models and Backpropagation. 
+
+Frontiers in Computational Neuroscience 11 (2017), 24. doi:10.3389/fncom.2017.00024 [109] Samuel Schmidgall, Rojin Ziaei, Jascha Achterberg, Thomas Miconi, Louis Kirsch, S. Pardis Hajiseyedrazi, and Jason Eshraghian. 2024. Brain-Inspired Learning in Artificial Neural Networks: A Review. APL Machine Learning 2, 2 (2024), 021501. doi:10.1063/5.0186054 [110] Catherine D. Schuman, Shruti R. Kulkarni, Maryam Parsa, J. Parker Mitchell, Prasanna Date, and Bill Kay. 2022. Opportunities for Neuromorphic Computing Algorithms and Applications. Nature Computational Science 2, 1 (2022), 10–19. doi:10.1038/s43588-021-00184-y [111] Abhronil Sengupta, Yuting Ye, Robert Wang, Chiao Liu, and Kaushik Roy. 2019. Going Deeper in Spiking Neural Networks: VGG and Residual Architectures. Frontiers in Neuroscience 13 (2019), 95. doi:10.3389/fnins.2019.00095 [112] Jay Shah, Ganesh Bikshandi, Ying Zhang, Vijay Thakkar, Pradeep Ramani, and Tri Dao. 2024. FlashAttention-3: Fast and Accurate Attention with Asynchrony and Low-Precision. In Advances in Neural Information Processing Systems (NeurIPS) . arXiv:2407.08608 https://arxiv.org/abs/2407.08608 [113] Jimmy T. H. Smith, Andrew Warrington, and Scott W. Linderman. 2023. Simplified State Space Layers for Sequence Modeling. In International Conference on Learning Representations (ICLR) . arXiv:2208.04933 https://arxiv.org/abs/2208.04933 [114] Greg J. Stuart and Nelson Spruston. 2015. Dendritic Integration: 60 Years of Progress. Nature Neuroscience 18, 12 (2015), 1713–1721. doi:10.1038/nn. 4157 [115] David Sussillo and Omri Barak. 2013. Opening the Black Box: Low-Dimensional Dynamics in High-Dimensional Recurrent Neural Networks. 
+
+Neural Computation 25, 3 (2013), 626–649. doi:10.1162/NECO_a_00409 [116] Amirhossein Tavanaei, Masoud Ghodrati, Saeed Reza Kheradpisheh, Timothée Masquelier, and Anthony Maida. 2019. Deep Learning in Spiking Neural Networks. Neural Networks 111 (2019), 47–63. doi:10.1016/j.neunet.2018.12.002 [117] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, and Illia Polosukhin. 2017. Attention Is All You Need. In Advances in Neural Information Processing Systems (NeurIPS) , Vol. 30. 5998–6008. [118] Roger Waleffe, Wonmin Byeon, Duncan Riach, Brandon Norick, Vijay Korthikanti, Tri Dao, Samyam Rajbhandari, Gregory Maino, et al. 2024. An Empirical Study of Mamba-based Language Models. arXiv preprint arXiv:2406.07887 (2024). arXiv:2406.07887 https://arxiv.org/abs/2406.07887 [119] Paul J. Werbos. 1990. Backpropagation Through Time: What It Does and How to Do It. Proc. IEEE 78, 10 (1990), 1550–1560. doi:10.1109/5.58337 [120] James C. R. Whittington and Rafal Bogacz. 2017. An Approximation of the Error Backpropagation Algorithm in a Predictive Coding Network with Local Hebbian Synaptic Plasticity. Neural Computation 29, 5 (2017), 1229–1262. [121] James C. R. Whittington and Rafal Bogacz. 2019. Theories of Error Back-Propagation in the Brain. Trends in Cognitive Sciences 23, 3 (2019), 235–250. doi:10.1016/j.tics.2018.12.005 [122] Kashu Yamazaki, Viet-Khoa Vo-Ho, Darshan Bulsara, and Ngan Le. 2022. Spiking Neural Networks and Their Applications: A Review. Brain Sciences 12, 7 (2022), 863. doi:10.3390/brainsci12070863 [123] Kang You, Zekai Xu, Chen Nie, Zhijie Deng, Qinghai Guo, Xiang Wang, and Zhezhi He. 2024. SpikeZIP-TF: Conversion is All You Need for Transformer-based SNN. In Proceedings of the 41st International Conference on Machine Learning .[124] Bochao Zhang, Mohsenul Murshed, Zihan Cheng, and Wei Luo. 2025. A Survey on Neural Ordinary Differential Equations. In Pacific-Asia Conference on Knowledge Discovery and Data Mining (PAKDD), LNCS 15873 . doi:10.1007/978-981-96-8183-9_27 [125] Chenlin Zhou, Han Zhang, Zhaokun Zhou, Liutao Yu, Liwei Huang, Xiaopeng Fan, Li Yuan, Zhengyu Ma, Huihui Zhou, and Yonghong Tian. 2024. QKFormer: Hierarchical Spiking Transformer using Q-K Attention. In Advances in Neural Information Processing Systems , Vol. 37. [126] Zhaokun Zhou, Yuesheng Zhu, Chao He, Yaowei Wang, Shuicheng Yan, Yonghong Tian, and Li Yuan. 2023. Spikformer: When Spiking Neural Network Meets Transformer. In International Conference on Learning Representations (ICLR) . arXiv:2209.15425 https://arxiv.org/abs/2209.15425 Manuscript submitted to ACM Online Appendix — The Forward–Backward Disconnect 1
+
+# Online Appendix 
+
+## The Forward–Backward Disconnect: State Dynamics, Credit Assignment, and Biological Grounding in Neural Computation Hadi Al Mubasher Mariette Awad 
+
+> American University of Beirut
+
+Status of this document. This document is the electronic supplement to the main manuscript. It contains methodological detail (literature search procedure, adjudication rationales for ambiguous configurations, and the per-configuration ledger that generates Figure 2 of the main text) together with two evidence audits supporting the survey’s scaling claims. 
+
+Content. This appendix documents the literature search procedure, the placement decisions for architecture–learning configurations whose taxonomy placement required adjudication, the per-configuration ledger reconciling Figure 2 of the main text, the empirical-evidence base underlying the scaling claim of Section S4, and the audit of apparently sparse regions of the joint taxonomy. Section references prefixed with “S” refer to this document; unprefixed section references refer to the main manuscript. 
+
+## S1 Literature Search Procedure 
+
+The procedure summarized in Section 3.5 of the main manuscript is documented below in its opera-tional form: the databases queried, the temporal windows of the search, the Boolean search strings grouped by axis of the taxonomy, the inclusion and exclusion criteria, the adjudication rule for ambiguous classifications, and the limitations the procedure imposes on the survey’s coverage. 
+
+S1.1 Databases 
+
+• ACM Digital Library • IEEE Xplore • Scopus • arXiv • Google Scholar (used primarily for citation chaining from results obtained in the preceding databases) 
+
+S1.2 Search windows 
+
+Three overlapping windows were used: • Foundational: no lower bound; works that established a model family or learning rule covered by the taxonomy. • Representative: 2010–2025; canonical works that define a family’s modern form. • Recent high-impact: 2020–2026; developments that have reshaped the field’s current trajectory. Online Appendix — The Forward–Backward Disconnect 2
+
+S1.3 Search strings 
+
+Boolean search strings, grouped by the axis of the taxonomy they target. Strings were applied with appropriate field restrictions (title, abstract, keywords) on each database. Synonyms within parentheses were used as disjunctions. • State-dynamics terms. (“recurrent neural network” OR “hidden state”) AND (“state-space model” OR “selective state-space” OR “structured state-space”); (“neural ordinary differential equation” OR “Neural ODE” OR “continuous-time neural network” OR “liquid time-constant”); (“deep equilibrium model” OR “fixed-point network” OR “implicit layer”); (“Hopfield network” OR “dense associative memory” OR “modern Hopfield”); (“spiking neural network” OR “leaky integrate-and-fire” OR “LIF neuron” OR “event-driven neural”). • Credit-assignment and learning-rule terms. (“backpropagation” OR “backpropagation through time” OR “BPTT”); (“feedback alignment” OR “direct feedback alignment” OR “sign-symmetry” OR “target propagation”); (“weight mirror” OR “Kolen-Pollack” OR “product feedback align-ment”); (“equilibrium propagation”); (“predictive coding” AND (“error backpropagation” OR “local Hebbian” OR “free-energy” OR “prospective configuration”)); (“Forward-Forward” OR “forward-forward algorithm”); (“surrogate gradient” AND “spiking”); (“e-prop” OR “eligibility propaga-tion”); (“synthetic gradient” OR “decoupled neural interface”); (“three-factor learning rule” OR “reward-modulated Hebbian” OR “eligibility trace”). • Biological-plausibility terms. (“biologically plausible” OR “biologically constrained” OR “brain-inspired”) AND (“credit assignment” OR “learning rule” OR “synaptic plasticity”); (“spike-timing-dependent plasticity” OR “STDP”); (“dendritic computation” OR “compartmental neuron”); (“neu-romodulation” OR “three-factor plasticity”); (“cortical microcircuit” AND (“predictive coding” OR “hierarchical inference”)). • Neuromorphic and hardware terms. (“neuromorphic computing” OR “neuromorphic proces-sor” OR “neuromorphic hardware”); (“Loihi” OR “TrueNorth” OR “SpiNNaker” OR “BrainScaleS” OR “Akida” OR “Tianjic”); (“on-chip learning” OR “on-chip plasticity” OR “in-memory comput-ing” AND “synaptic”); (“hardware lottery” OR “algorithm-hardware co-design”). 
+
+S1.4 Last-search date 
+
+Last comprehensive search: June 2026. Citation chaining and venue-publication-status verification (for arXiv preprints, conference papers awaiting final venue, and recent 2024–2026 publications) was repeated immediately before manuscript submission. 
+
+S1.5 Inclusion criteria 
+
+A work is included in the survey when it satisfies all of the following: 1. It meets one of the two scope criteria stated in Section 3.5 of the main manuscript: it instantiates a nontrivial form of state dynamics in the forward computation, or it is substantively grounded in neuroscience at the architectural or learning-rule level. 2. It admits classification under the formal definitions of state-dynamics structure (main manuscript Section 3.1), credit-assignment mechanism (main manuscript Section 3.2), and biological ground-ing (main manuscript Section 3.3). 3. It either defines or instantiates an architecture–learning configuration in the sense of main manuscript Section 3.2 (foundational paragraph). Online Appendix — The Forward–Backward Disconnect 3
+
+S1.6 Exclusion criteria 
+
+A work is excluded when it falls outside the joint state-dynamics and credit-assignment axes; the model families excluded on this basis are listed in Section 3.5 of the main manuscript, with the rationale for each exclusion. 
+
+S1.7 Classification adjudication 
+
+The formal definitions in Sections 3.1–3.3 of the main manuscript are authoritative for classification. Configurations whose initial placement was ambiguous are documented in Section S2 below, with the rationale for the final placement. 
+
+S1.8 Limitations of the procedure 
+
+The procedure carries the standard limitations of database-driven survey work: • Language and indexing bias. English-language works indexed in the databases listed above are over-represented. • Taxonomy-induced selection bias. Works that do not fit the two-axis taxonomy are under-represented or excluded, even when they may be substantively relevant to neural computation. This is a deliberate consequence of the scope choice. • Recency bias. The high-impact window prioritizes 2020–2026 developments, which may overstate the importance of recent work relative to its eventual standing. 
+
+S1.9 Preprint policy 
+
+arXiv and bioRxiv preprints are included on the same footing as peer-reviewed publications when they either (i) introduce or first characterize a model family that later became a stable object of study in the taxonomy, or (ii) report the strongest available scaling evidence for a family within the search window and had no subsequent peer-reviewed superseding version at the cutoff. Preprint entries are cited with the arXiv identifier and year; the survey does not treat preprint status as a quality gate but does flag preprint-only evidence explicitly in the accompanying prose whenever it anchors a scaling or performance claim. 
+
+S1.10 Family selection 
+
+Model families included in the model-family table in Section 3.3 of the main manuscript are selected by three complementary criteria: (i) representativeness of one or more state-dynamics classes defined in Section 3.1, (ii) representativeness of one or more credit-assignment classes defined in Section 3.2, and (iii) sufficient primary-literature coverage that a stable placement in the joint taxonomy can be defended from the sources rather than inferred. Emerging families with insufficient primary evidence to fix a placement are noted in the prose but not included as separate rows. Multiple representative papers per family are cited when needed to fix the placement. 
+
+S1.11 Configuration-counting rule 
+
+A counted configuration in Figure 2 of the main manuscript, and equivalently a row of the ledger in Section S3, requires a concrete architecture–learning pairing supported by primary evidence: the paper must define both the forward architecture (state-dynamics class) and the learning rule Online Appendix — The Forward–Backward Disconnect 4
+
+(credit-assignment class) used to train it, and the pair must fit the joint taxonomy without requiring a re-derivation of either component. Conceptual papers, equivalence proofs, and re-interpretations of existing training pipelines support classification of already-counted configurations but do not by themselves create new ledger rows; a paper showing that predictive coding recovers backpropagation under specific assumptions, for example, refines the placement of an existing predictive-coding configuration but does not add a new row unless it also demonstrates a distinct concrete pairing. Counts therefore describe the audited representative set that anchors the taxonomy rather than the prevalence of each combination in the literature; readers interested in prevalence should consult the individual sections of the main manuscript for cited representatives. 
+
+## S2 Architecture–Learning Configuration Audit 
+
+Configurations whose initial taxonomy placement required adjudication are recorded below, each with its state-dynamics class (per Section 3.1 of the main manuscript), credit-assignment row (per Section 3.2), forward grounding tier (per Section 3.3), learning grounding tier (per Section 3.3), and the rationale that anchors the placement. Configurations whose primary classification remains contested are recorded with a dual reading: a primary commitment and a secondary alternative. 
+
+S2.1 Modern Hopfield retrieval in end-to-end trained networks 
+
+Reference. Ramsauer et al., “Hopfield Networks is All You Need,” ICLR 2021. 
+
+Placement. 
+
+• State-dynamics class: Implicit / fixed-point (one-step retrieval in practice; the underlying dy-namics admit a continuous-state energy with attractor fixed points). • Credit-assignment row: Global gradient. • Forward grounding: Functional analogy (primary). Historical inspiration is also defensible; architectural constraint is rejected under the strict criterion. • Learning grounding: None. 
+
+Rationale. The modern Hopfield update is mathematically equivalent to transformer self-attention under the inverse-temperature setting β = 1 /√dk (verified against the original paper; the equiv-alence is exact and single-step). Because the resulting layer is identical to a mainstream design that was not adopted on biological grounds, biology does not rule out alternatives in the sense required by the strict architectural-constraint criterion of Section 3.3 of the main manuscript. The associative-memory framing is post-hoc relative to the modern continuous-state formulation; explicit biologically plausible variants appear later in the program (Krotov & Hopfield, “Large associative memory problem in neurobiology and machine learning,” ICLR 2021), reinforcing that the original modern formulation’s biological grounding is functional rather than constraint-derived. 
+
+S2.2 Classical Hopfield network with Hebbian one-shot storage 
+
+Reference. Hopfield, “Neural networks and physical systems with emergent collective computa-tional abilities,” PNAS 79(8):2554–2558, 1982. 
+
+Placement. 
+
+• State-dynamics class: Discrete-time recurrence with fixed-point function (asynchronous binary updates converging to attractor states). Online Appendix — The Forward–Backward Disconnect 5
+
+• Credit-assignment row: Local plasticity. • Forward grounding: Architectural constraint. • Learning grounding: Local or algorithmic. 
+
+Rationale. Storage is the outer-product Hebbian rule, satisfying the synapse-local update crite-rion. Symmetric recurrent connectivity and attractor architecture are derived from the collective biological account in the 1982 paper, and the symmetric-weight constraint is a substantive struc-tural commitment rather than an engineering convenience. Critical storage load αc ≈ 0.138 (Amit, Gutfreund & Sompolinsky, Phys. Rev. Lett. 1985) is the capacity ceiling that motivates the modern dense formulations. 
+
+S2.3 Predictive coding: four variants 
+
+Predictive coding is not a single configuration but a family with distinguishable variants that disagree on at least one taxonomy axis. Each variant is classified separately below. 
+
+S2.3.1 Recurrent-inference variant 
+
+Reference. Rao & Ballard, “Predictive coding in the visual cortex,” Nature Neuroscience 2(1):79– 87, 1999. 
+
+Placement. Continuous-time (primary; implicit / fixed-point reading available); Local plasticity; Architectural constraint; Local or algorithmic. 
+
+Rationale. The model posits feedback connections carrying predictions of lower-level activity and feedforward connections carrying residual errors, an architecture motivated by cortical anatomy and explaining extra-classical receptive-field effects. Inference is a relaxation dynamic minimizing squared prediction error; learning adjusts the generative weight matrix via locally available errors. The forward architecture qualifies as architectural constraint because the predict-down/error-up wiring is dictated by the cortical hypothesis rather than chosen for performance. 
+
+S2.3.2 Energy-based (free-energy) variant 
+
+References. Friston, “A theory of cortical responses,” Phil. Trans. R. Soc. B 360(1456):815–836, 2005; Friston, “The free-energy principle: a unified brain theory?,” Nature Reviews Neuroscience 11(2):127–138, 2010; Friston & Kiebel, “Predictive coding under the free-energy principle,” Phil. Trans. R. Soc. B 364(1521):1211–1221, 2009. 
+
+Placement. Continuous-time / implicit fixed-point; Energy or unsupervised; Architectural con-straint; Local or algorithmic. 
+
+Rationale. The free-energy formulation casts perception and learning as descent on a single variational free-energy functional, which is the canonical energy-based reading. The hierarchical message-passing microcircuit (prediction units, error units, precision weighting) maps onto biolog-ically realistic cortical microcircuitry; precision corresponds to synaptic gain. The energy row is the most faithful for this variant because the objective is an explicit (free-)energy functional rather than an exact global gradient. Some authors treat this variant as functionally equivalent to the recurrent-inference variant above; the audit retains the distinction because the energy/variational formalism and the receptive-field instantiation make different commitments. Online Appendix — The Forward–Backward Disconnect 6
+
+S2.3.3 Local-error (Hebbian-approximation) variant 
+
+Reference. Whittington & Bogacz, “An Approximation of the Error Backpropagation Algorithm in a Predictive Coding Network with Local Hebbian Synaptic Plasticity,” Neural Computation 29(5):1229–1262, 2017. 
+
+Placement. Implicit / fixed-point; Approximate or implicit gradient; Functional analogy; Local or algorithmic (with a mechanistic-plasticity reading available). 
+
+Rationale. Value nodes relax to an equilibrium of the inference dynamics before weight updates, and for certain parameter regimes the resulting weight change converges to the backpropagation update. The stated aim is to show cortical networks with simple local Hebbian plasticity can approximate error backpropagation, performing supervised learning autonomously with synapse-local information. The forward architecture is a layered predictive-coding network motivated by cortical hierarchy but used here as a means to approximate backpropagation; this defeats the strict architectural-constraint test and places forward grounding at functional analogy. 
+
+S2.3.4 Backpropagation-equivalent limit variant 
+
+References. Millidge, Tschantz & Buckley, “Predictive Coding Approximates Backprop along Arbitrary Computation Graphs,” Neural Computation 34(6):1329–1368, 2022; Song, Lukasiewicz, Xu & Bogacz, “Can the brain do backpropagation?—Exact implementation of backpropagation in predictive coding networks,” NeurIPS 2020; Song, Millidge, Salvatori, Lukasiewicz, Xu & Bogacz, “Inferring neural activity before plasticity as a foundation for learning beyond backpropagation,” Nature Neuroscience 27(2):348–358, 2024. 
+
+Placement. Implicit / fixed-point; Approximate or implicit gradient; Functional analogy; Local or algorithmic. 
+
+Rationale (contested classification, decided). The defining property of this variant is gradient equivalence to backpropagation along arbitrary computation graphs, demonstrated on SVHN/CIFAR-10/CIFAR-100 at roughly two orders of magnitude greater compute than direct backpropaga-tion. The local-update structure (each weight update uses local prediction errors) earns the local-algorithmic learning grounding, but mechanistic plausibility is not warranted because the architec-ture is a generic computation graph chosen to mirror an ANN rather than a biologically dictated structure. Song et al. 2024 strengthen the neuroscience interpretation through the prospective-configuration property, but this refines the rationale of the local-algorithmic tier rather than up-grading the classification to mechanistic plasticity. 
+
+S2.4 Equilibrium propagation 
+
+Reference. Scellier & Bengio, “Equilibrium Propagation: Bridging the Gap between Energy-Based Models and Backpropagation,” Frontiers in Computational Neuroscience 11:24, 2017. 
+
+Placement (dual reading). 
+
+• Primary: Continuous-time / Approximate or implicit gradient; Functional analogy; Local or algorithmic (mechanistic-plasticity reading on the learning axis is available). • Secondary: Implicit / Energy or unsupervised. Reading the state-dynamics class as fixed-point of the energy function (rather than continuous trajectory) and the credit-assignment row as energy-based learning is internally consistent but de-emphasizes the algorithm’s defining con-tribution. Online Appendix — The Forward–Backward Disconnect 7
+
+Rationale. The state evolves under a continuous-time gradient dynamics relaxing to an energy minimum; the two-phase free/nudged procedure estimates the loss gradient, with the gradient esti-mate exact in a particular limit and otherwise equivalent to recurrent backpropagation. The defining contribution is gradient estimation in a dynamical system, which motivates the primary placement in the approximate-gradient row. The second-phase weight change has been argued to correspond to a form of spike-timing-dependent plasticity, giving the learning grounding its mechanistic-plasticity reading. Symmetric weights are required. 
+
+S2.5 Forward-Forward (applied to MLP) 
+
+Reference. Hinton, “The Forward-Forward Algorithm: Some Preliminary Investigations,” NeurIPS 2022 presentation (arXiv:2212.13345). 
+
+Placement. Static (when applied to an MLP; the state-dynamics class is application-dependent and inherits from the host architecture); Energy or unsupervised; None or historical inspiration; Local or algorithmic. 
+
+Rationale. Each layer optimizes a local goodness function (sum of squared activations), raised for positive data and lowered for negative data, with no global error propagation. The stated motivation is the biological implausibility of backpropagation: there is no convincing evidence the cortex propagates error derivatives or stores activations for a backward pass, and the algorithm replaces the forward+backward pair with two forward passes using local goodness objectives. The motivation is therefore about the locality of the learning rule, not an architectural constraint, so forward grounding remains at None or historical while learning grounding sits at local or algorithmic. The row commitment to Energy or unsupervised is invariant across host architectures. 
+
+S2.6 Spiking neural network configurations 
+
+The leaky integrate-and-fire forward architecture, with continuous subthreshold membrane dynam-ics and discrete spike events, directly adopts biological substrates from Section 2.1 of the main manuscript and sits at mechanistic-plausibility forward grounding regardless of the learning method. On the learning axis, the same forward architecture admits two configurations that differ entirely from each other, providing the clearest illustration in the audit of the forward and learning grounding split. 
+
+S2.6.1 Surrogate-gradient SNN 
+
+Reference. Neftci, Mostafa & Zenke, “Surrogate Gradient Learning in Spiking Neural Networks,” IEEE Signal Processing Magazine 36(6):51–63, 2019. 
+
+Placement. Hybrid event-driven; Approximate or implicit gradient; Mechanistic plausibility; Weak. 
+
+Rationale. The non-differentiable spike threshold is replaced with a smooth surrogate derivative during the backward pass, enabling backpropagation through the unrolled spike train. The surrogate is selected for optimization convenience (typical choices include fast-sigmoid or boxcar derivatives around threshold), not because any biological mechanism dictates its shape; no specific synaptic-plasticity mechanism is invoked to justify the surrogate. The learning grounding is therefore Weak despite the strongly grounded forward dynamics. Online Appendix — The Forward–Backward Disconnect 8
+
+S2.6.2 STDP-trained SNN 
+
+References. Bi & Poo, “Synaptic modifications in cultured hippocampal neurons: dependence on spike timing, synaptic strength, and postsynaptic cell type,” J. Neuroscience 18(24):10464–10472, 1998; Markram, Lübke, Frotscher & Sakmann, “Regulation of synaptic efficacy by coincidence of postsynaptic APs and EPSPs,” Science 275:213–215, 1997. 
+
+Placement. Hybrid event-driven; Local plasticity; Mechanistic plausibility; Mechanistic plasticity. 
+
+Rationale. The learning rule is the empirically measured plasticity mechanism: pre-before-post spiking within a tens-of-millisecond window yields long-term potentiation, and the reverse yields depression, with weight change approximately exponential in the spike-time difference. Both for-ward and learning axes are anchored in biophysical measurement, satisfying the strict mechanistic-plasticity criterion. Limited evidence annotation. Deep STDP-only networks at modern scale remain thin: STDP-trained SNNs have not been demonstrated competitively beyond small and medium image benchmarks, and most deep SNN results at ImageNet scale use surrogate gradients or ANN-to-SNN conversion rather than pure STDP. 
+
+S2.7 Transformer 
+
+Reference. Vaswani et al., “Attention Is All You Need,” NeurIPS 2017. 
+
+Placement. Discrete-time / sequence (sequence-position indexing via positional encodings; no persistent hidden-state recurrence during parallel training); Global gradient; None or historical inspiration; None. 
+
+Rationale. Recurrence and convolution are dispensed with; sequence order is modeled through positional encodings and parallel self-attention. Neither the architecture nor the training method invokes a biological constraint. The autoregressive KV cache used at inference is an inference-time optimization rather than a separate configuration. 
+
+S2.8 Ambiguous-Classification Audit Table 
+
+Configurations with a dual reading (modern Hopfield, BP-equivalent predictive coding, equilibrium propagation) appear in the consolidated table below under their primary placement; the secondary reading is in the corresponding body subsection of Section S2. 
+
+## S3 Configuration Ledger for Figure 2 
+
+The following ledger enumerates every architecture–learning configuration counted in Figure 2 of the main manuscript. Each row records a unique configuration ID, the architecture, the learn-ing rule, the state-dynamics class (per Section 3.1 of the main manuscript), the credit-assignment row (Section 3.2), the forward and learning biological-grounding tiers (Section 3.3), and a compact evidence pointer. Aggregating the ledger yields exactly the ribbon widths and node heights of Fig-ure 2: 32 configurations distributed as Static 6, Discrete-time 14, Continuous-time 6, Implicit 4, Hybrid 2 on the forward axis, and Global-gradient 16, Approximate-or-implicit 7, Local 6, En-ergy/unsupervised 3 on the credit-assignment axis. Configurations flagged in Section S2 contribute to the ledger under their primary placement. 
+
+Reconciliation. Aggregating the ledger by forward class yields Static 6 (C01–C06), Discrete-time 14 (C07–C19, C32), Continuous-time 6 (C20–C25), Implicit 4 (C26–C29), Hybrid 2 (C30–C31), matching the left-column node heights of Figure 2. Aggregating by credit-assignment class yields Global gradient 16 (C01–C04, C07–C14, C20–C22, C26), Approximate/implicit 7 (C15, C16, C23, C27, C28, C29, C30), Local plasticity 6 (C05, C17, C24, C25, C31, C32), Energy/unsupervised 3 Online Appendix — The Forward–Backward Disconnect 9                                                
+
+> Configuration State-dynamics class Learning row Forward grounding Learning grounding
+> Modern Hopfield (end-to-end) Implicit /fixed-point Global gradient Functional analogy None Classical Hopfield (Heb-bian) Discrete (fixed-point fn.) Local plasticity Arch. con-straint Local or algorith-mic PC: recurrent inference Continuous-time /fixed-pt. Local plasticity Arch. con-straint Local/algorithmic PC: energy-based Continuous-time /fixed-pt. Energy/unsupervised Arch. con-straint Local/algorithmic PC: local-error Implicit /fixed-point Approx./implicit Funct. analogy Local/algorithmic PC: BP-equivalent limit Implicit /fixed-point Approx./implicit Funct. analogy Local/algorithmic Equilibrium propagation Continuous-time Approx./implicit Funct. analogy Local/algorithmic Forward-Forward (on MLP) Static Energy/unsupervised None/Hist. Local/algorithmic Surrogate-gradient SNN Hybrid event-driven Approx./implicit Mech. plausi-bility Weak STDP-trained SNN Hybrid event-driven Local plasticity Mech. plausi-bility Mech. plasticity Transformer Discrete / sequence Global gradient None/Hist. None
+> Detailed placement rationales for each row are provided in the corresponding body subsection of Section S2.
+
+(C06, C18, C19), matching the right-column node heights. Ribbon widths in Figure 2 correspond to cell counts of the joint (forward, credit) distribution and are recoverable from the ledger by grouping. Section S2 adjudicates a broader set of ambiguous cases than are counted here: some entries in that audit (modern Hopfield: C26; predictive coding in its BP-equivalent limit: C29) are counted rows of this ledger, while others (equilibrium propagation, additional predictive-coding variants) are adjudicated exemplars used to support classification decisions but are not themselves added as new counted configurations. Figure 2 uses the declared primary placements throughout; the alternative readings documented in Section S2 concern biological-grounding tier assignment or interpretive framing rather than state-dynamics/credit-assignment coordinates and therefore do not move ribbons in Figure 2. 
+
+Reservoir exclusion. Echo-state networks (ESN) and liquid state machines (LSM), which appear in the model-family table in Section 3.3 of the main manuscript, are omitted from the Figure 2 ledger because they train only a linear readout on top of a fixed random reservoir; the internal recurrent dynamics do not participate in credit assignment. A configuration counted in Figure 2 requires the learning rule to update parameters that shape the forward state dynamics, which excludes fixed-reservoir readout-only training on principled rather than incidental grounds. 
+
+Mechanism-level sensitivity of the backward axis. A reviewer concern is whether the Global-gradient dominance in Figure 2 is an artifact of bundling several distinct gradient proce-dures into one category. Table 1 decomposes the two largest backward categories by the specific credit-assignment mechanism each ledger row uses. Ordinary reverse-mode backpropagation alone accounts for 10 of 32 configurations, which is larger than the entire Approximate/implicit category (7 of 32). The Approximate/implicit category fragments across seven distinct mechanisms, each contributing exactly one configuration. Refining the backward axis by actual mechanism preserves the asymmetry: the visual dominance of Global gradient in Figure 2 is not a bundling artifact but reflects the concentration of audited configurations in a single canonical mechanism, while the Online Appendix — The Forward–Backward Disconnect 10 
+
+ID Architecture Learning rule Forward class Credit class Fwd. gnd. Learn. gnd. Evidence 
+
+C01 MLP Backpropagation Static Global grad. None/Hist. None [Rumelhart et al.(1986)] C02 CNN (LeNet, AlexNet) Backpropagation Static Global grad. None/Hist. None [LeCun et al.(1998), Krizhevsky et al.(2012)] C03 ResNet Backpropagation Static Global grad. None/Hist. None [He et al.(2016)] C04 PINN Backpropagation (with PDE-residual objective) Static Global grad. None/Hist. None [Raissi et al.(2019)] C05 Neocognitron Local competitive Hebbian Static Local plast. Arch. con-str. Local/alg. [Fukushima(1980)] C06 MLP + Forward-Forward Layerwise goodness Static Energy/unsup. None/Hist. Local/alg. [Hinton(2022)] C07 Simple RNN BPTT Discrete Global grad. Funct. analogy None [Elman(1990), Werbos(1990)] C08 LSTM BPTT Discrete Global grad. Funct. analogy None [Hochreiter and Schmidhuber(1997)] C09 GRU BPTT Discrete Global grad. Funct. analogy None [Cho et al.(2014)] C10 Transformer Backpropagation Discrete Global grad. None/Hist. None [Vaswani et al.(2017)] C11 S4 Backpropagation Discrete Global grad. None/Hist. None [Gu et al.(2022)] C12 Mamba Backpropagation Discrete Global grad. None/Hist. None [Gu and Dao(2023)] C13 RWKV Backpropagation Discrete Global grad. None/Hist. None [Peng et al.(2023)] C14 xLSTM Backpropagation Discrete Global grad. None/Hist. None [Beck et al.(2024)] C15 RNN + synthetic gradients Decoupled interface Discrete Approx./impl. Funct. analogy Weak [Jaderberg et al.(2017)] C16 RNN + random-feedback local on-line (RFLO) Local eligibility +random feedback Discrete Approx./impl. Funct. analogy Weak [Murray(2019)] C17 Classical Hopfield Hebbian storage Discrete Local plast. Arch. con-str. Local/alg. [Hopfield(1982), Amit et al.(1985)] C18 RBM Contrastive diver-gence Discrete Energy/unsup. None/Hist. Local/alg. [Hinton(2002)] C19 DBN Contrastive diver-gence Discrete Energy/unsup. None/Hist. Local/alg. [Hinton et al.(2006)] C32 HTM Dendrite-local Heb-bian Discrete Local plast. Arch. con-str. Local/alg. [Hawkins and Ahmad(2016), Hawkins et al.(2019)] C20 CTRNN Solver BP / BPTT Continuous Global grad. Funct. analogy None [Pearlmutter(1989)] C21 Liquid Time-Constant NN Solver BP Continuous Global grad. Funct. analogy None [Hasani et al.(2021)] C22 Liquid closed-form BPTT / reverse-mode through closed-form recur-rence Continuous Global grad. Funct. analogy None [Hasani et al.(2022)] C23 Neural ODE Adjoint method Continuous Approx./impl. None/Hist. None [Chen et al.(2018)] C24 PC: recurrent infer-ence Local error min. Continuous Local plast. Arch. con-str. Local/alg. [Rao and Ballard(1999)] C25 CT-RNN + reward-mod. Hebbian Reward-modulated Hebbian Continuous Local plast. Funct. analogy Local/alg. [Miconi(2017)] C26 Modern Hopfield End-to-end BP Implicit Global grad. Funct. analogy None [Ramsauer et al.(2021)] C27 DEQ Implicit differentia-tion Implicit Approx./impl. None/Hist. None [Bai et al.(2019)] C28 PC: local-error Approx. BP via lo-cal errors Implicit Approx./impl. Funct. analogy Local/alg. [Whittington and Bogacz(2017)] C29 PC: BP-equivalent limit Local errors, BP-equivalent Implicit Approx./impl. Funct. analogy Local/alg. [Millidge et al.(2022), Song et al.(2020)] C30 LIF SNN Surrogate gradient Hybrid Approx./impl. Mech. plaus. Weak [Neftci et al.(2019)] C31 LIF SNN STDP Hybrid Local plast. Mech. plaus. Mech. plast. [Bi and Poo(1998), Markram et al.(1997)] Online Appendix — The Forward–Backward Disconnect 11 
+
+alternatives are individually small even after being counted separately. Table 1: Mechanism-level decomposition of the two largest backward categories. Each mechanism is identified by the exact procedure it uses, and the count reports how many of the 32 ledger config-urations it accounts for. Global gradient (16 configurations total) is dominated by ordinary reverse-mode backpropagation (10); the Approximate/implicit category (7 configurations total) fragments across seven distinct mechanisms, each contributing exactly one configuration. 
+
+Backward category Mechanism Count Ledger IDs 
+
+Global gradient (16) Ordinary reverse-mode BP 10 C01–C04, C10–C14, C26 BPTT / reverse-mode through recurrence 4 C07–C09, C22 Solver BP / solver BPTT 2 C20–C21 Approximate/implicit (7) Synthetic gradients (DNI) 1 C15 Random-feedback local online (RFLO) 1 C16 Adjoint sensitivity 1 C23 Implicit differentiation 1 C27 Approx. BP via local errors (PC) 1 C28 Local errors, BP-equivalent limit (PC) 1 C29 Surrogate gradient 1 C30 
+
+## S4 Empirical Evidence for the Scaling Claim 
+
+The main manuscript states an evidence-bounded version of the scaling claim: the largest scales remain concentrated in global or closely gradient-derived and error-propagation mechanisms, while strictly local and mechanistic-plasticity rules remain substantially less scalable. This appendix records the strongest reported per-family results that anchor the claim, including recent counterex-amples that narrow but do not close the gap. The cutoff is the literature search date in Section S1 above. 
+
+Table 2: Empirical scaling evidence anchoring the main paper’s scaling claim: strongest reported per-family results at the search cutoff, and their comparison against mainstream backpropagation. 
+
+Family Largest reported result Comparison Reference 
+
+Feedback alignment (plain) Performs well on MNIST/CIFAR; significantly below BP on ImageNet Gap to BP large at Ima-geNet [Bartunov et al.(2018)] Sign-symmetry (FA variant) Approaches BP on ImageNet with ResNet-18/AlexNet Within a few percent of BP [Xiao et al.(2018)] Target propagation MNIST/CIFAR competitive; ImageNet substantially below BP No parity at ImageNet scale [Bartunov et al.(2018)] 
+
+continued on next page Online Appendix — The Forward–Backward Disconnect 12 
+
+Table 2 continued from previous page 
+
+Family Largest reported result Comparison Reference 
+
+Equilibrium propaga-tion 11.7% test error on CIFAR-10 with deep ConvNets; approaches BPTT to within roughly 0.6 percentage points; downsampled ImageNet 32 ×32 in subsequent work No full ImageNet-1k or LM result [Laborieux et al.(2021), Laborieux and Zenke(2022)] Weight Mirror (weight-symmetry relaxation) Learns dynamic feedback weights to align with forward weights; on ImageNet, ResNet-18 top-1 error 30.2% for Weight Mirror vs 30.1% for BP (within 0.1 pp), ResNet-50 top-1 error 23.4% for Weight Mirror vs 22.9% for BP (within 0.5 pp); the authors describe the result as “nearly matched backprop” and “learning ImageNet about as well as backprop does” Approximately matches BP on ResNet-18 and ResNet-50 ImageNet under the paper’s train-ing pipeline; substantially outperforms plain feedback alignment and sign-symmetry; still relies on error-broadcast machinery [Akrout et al.(2019)] Product Feedback Alignment (PFA) On ResNet-18 ImageNet: BP 69.69%, PFA 68.46%, PFA-o 69.30% top-1 accuracy; ap-proaches BP without explicit weight symmetry PFA-o within roughly 0.4 percentage points of BP at ResNet-18 scale, but no ResNet-50 or GPT-class demonstration reported [Li and Benna(2024)] Predictive coding Matches BP on small Con-vNets on CIFAR-10; recent reg-ularization extends to roughly 15-layer Tiny-ImageNet models approaching BP; BP-equivalent limit matches on SVHN/CIFAR at ≈ 100 × compute No full ImageNet-1k or LM result; large compute overhead [Salvatori et al.(2026), Qi et al.(2025), Millidge et al.(2022)] Forward-Forward (FF) First successful FF training on ImageNet (ASGE variant): Top-1 26.21%, Top-5 47.49% Standard ResNet-50 BP baseline: Top-1 76.21%, Top-5 92.97% (Bag-of-Tricks training) [Gong et al.(2025)]; baseline [He et al.(2018)] 
+
+continued on next page Online Appendix — The Forward–Backward Disconnect 13                          
+
+> Table 2 continued from previous page
+> Family Largest reported result Comparison Reference
+> Dendritic-local learn-ing DLL trains ANNs, CNNs, ResNet, and Transformers with a spatially and temporally local, dendrite-inspired plasticity rule; competitive with BP on the reported CIFAR-10, CIFAR-100, and small-ImageNet-subset benchmarks No full ImageNet-1k or GPT-class demonstra-tion; scale reported is be-low ResNet-50 ImageNet [Lv et al.(2025)] Directly trained SNN (surrogate gradient, spiking Transformer) QKFormer reaches 85.65% top-1 on ImageNet-1k at 64.96M pa-rameters (spiking self-attention with Q-K token attention) Comparable to modest ANN Transformers; still trained with surrogate-gradient back-propagation (not abi-ologically constrained learning rule) [Zhou et al.(2024)]
+
+Operational definitions used in the scaling claim 
+
+The scaling claim is bounded by the following operational definitions: • “Strictly local or mechanistic-plasticity rule” means one that does not propagate an error signal through the forward graph in any form, whether transported (BP), randomized (FA), aligned (Weight Mirror), or product-decomposed (PFA); Hebbian learning, STDP, dendritic local rules, and eligibility-trace rules with locally computed learning signals fall in this category. • “Error-broadcast approximate-gradient rule” means one that relaxes weight transport, update locking, or exact-gradient computation but still routes a global or layerwise error signal back to earlier layers. Feedback alignment, direct FA, sign-symmetric variants, Weight Mirror, and PFA fall in this category. • “Mainstream backpropagation” means standard backpropagation (through time when applicable) on a contemporary backbone (ResNet, Transformer, or comparable), trained with conventional optimizers. • “The frontier” is operationalized as full-resolution ImageNet-1k classification at ResNet-50 level, GPT-class autoregressive language modeling, or standard reinforcement-learning benchmarks at the scale reported in published baselines through the search cutoff date. 
+
+Falsifying threshold 
+
+The scaling claim as stated would be revised by a demonstration in which a strictly local or mechanistic-plasticity learning rule (i.e., one not relying on backpropagation-style error signals through the forward graph, whether transported or randomized) reaches backpropagation-parity Online Appendix — The Forward–Backward Disconnect 14 
+
+accuracy at full ImageNet-1k or at a GPT-class language model with comparable training com-pute. As of the search cutoff, no such demonstration has been published, though several works have narrowed the gap using approximate-gradient mechanisms that relax weight transport or update locking while retaining an error-signal broadcast. 
+
+## S5 Audit of Apparently Sparse Regions of the Joint Taxonomy 
+
+Four apparently sparse (state-dynamics, credit-assignment) combinations in Figure 2 could indicate research gaps, conceptual incompatibilities, or taxonomy limitations. This appendix audits each and records the determination. 
+
+S5.1 Implicit / Local plasticity 
+
+Determination: occupied, not a structural gap. The least-control principle [Meulemans et al.(2022)] provides a direct occupant by training equilibrium/implicit-state systems with a spatially and tem-porally local rule. Equilibrium propagation [Scellier and Bengio(2017)] is an adjacent ambiguous case; under the primary placement adopted in Section S2.4, it remains Continuous-time / Approx-imate or implicit gradient. 
+
+S5.2 Continuous-time / Energy or unsupervised 
+
+Determination: near-empty in the audited literature; candidate research gap. The audit found no clearly published work combining a true non-converging neural-ODE trajectory (in the style of Chen et al. 2018) with an energy-based or Forward-Forward-style unsupervised objective. Standard Neural ODEs use the adjoint method (approximate gradient row); energy-based methods typically operate on discrete-time recurrence or implicit fixed points. The continuous-time energy combination is flagged as a candidate research direction. 
+
+S5.3 Continuous-time / Local plasticity (excluding spiking with STDP) 
+
+Determination: occupied, not a gap, but limited evidence at scale. Miconi [Miconi(2017)] trains continuous-time rate recurrent networks with a reward-modulated Hebbian local rule (non-spiking, non-STDP). Hoerzer, Legenstein and Maass [Hoerzer et al.(2014)] demonstrate a related reward-modulated Hebbian rule in rate recurrent networks. Demonstrated scale is small (cognitive tasks at hundreds of units); the limitation is on scale rather than on existence. 
+
+S5.4 Static / Approximate or implicit gradient 
+
+Determination: occupied, not a gap. PEPITA [Dellaferrera and Kreiman(2022)] and Direct Feedback Alignment [Nøkland(2016)] are static feedforward networks trained with approximate or implicit gradients (a second forward pass with random feedback modulation in PEPITA; fixed random direct feedback in DFA). Both have demonstrated competitive performance on small to medium classification benchmarks. 
+
+Net finding 
+
+Three of the four flagged combinations are occupied once works are reclassified along the correct axis of the joint taxonomy. Only the continuous-time non-equilibrium plus energy/unsupervised combination remained near-empty in the audited literature. Online Appendix — The Forward–Backward Disconnect 15 
+
+## References 
+
+[Akrout et al.(2019)] Mohamed Akrout, Collin Wilson, Peter C. Humphreys, Timothy Lillicrap, and Douglas B. Tweed. 2019. Deep Learning without Weight Transport. In Advances in Neural Information Processing Systems , Vol. 32. 974–982. [Amit et al.(1985)] Daniel J. Amit, Hanoch Gutfreund, and Haim Sompolinsky. 1985. Storing Infi-nite Numbers of Patterns in a Spin-Glass Model of Neural Networks. Physical Review Letters 
+
+55, 14 (1985), 1530–1533. doi: 10.1103/PhysRevLett.55.1530 
+
+[Bai et al.(2019)] Shaojie Bai, J. Zico Kolter, and Vladlen Koltun. 2019. Deep Equilibrium Models. In Advances in Neural Information Processing Systems (NeurIPS) , Vol. 32. [Bartunov et al.(2018)] Sergey Bartunov, Adam Santoro, Blake A. Richards, Luke Marris, Geof-frey E. Hinton, and Timothy P. Lillicrap. 2018. Assessing the Scalability of Biologically-Motivated Deep Learning Algorithms and Architectures. In Advances in Neural Information Processing Systems (NeurIPS) . arXiv:1807.04587 https://arxiv.org/abs/1807.04587 
+
+[Beck et al.(2024)] Maximilian Beck, Korbinian Pöppel, Markus Spanring, Andreas Auer, Oleksan-dra Prudnikova, Michael Kopp, Günter Klambauer, Johannes Brandstetter, and Sepp Hochre-iter. 2024. xLSTM: Extended Long Short-Term Memory. arXiv preprint arXiv:2405.04517 
+
+(2024). doi: 10.48550/arXiv.2405.04517 
+
+[Bi and Poo(1998)] Guo-qiang Bi and Mu-ming Poo. 1998. Synaptic Modifications in Cultured Hippocampal Neurons: Dependence on Spike Timing, Synaptic Strength, and Postsynaptic Cell Type. Journal of Neuroscience 18, 24 (1998), 10464–10472. doi: 10.1523/JNEUROSCI. 18-24-10464.1998 
+
+[Chen et al.(2018)] Ricky T. Q. Chen, Yulia Rubanova, Jesse Bettencourt, and David K. Duvenaud. 2018. Neural Ordinary Differential Equations. In Advances in Neural Information Processing Systems (NeurIPS) , Vol. 31. 6571–6583. [Cho et al.(2014)] Kyunghyun Cho, Bart van Merriënboer, Caglar Gulcehre, Dzmitry Bahdanau, Fethi Bougares, Holger Schwenk, and Yoshua Bengio. 2014. Learning Phrase Representa-tions Using RNN Encoder–Decoder for Statistical Machine Translation. In Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP) . 1724–1734. doi: 10.3115/v1/D14-1179 
+
+[Dellaferrera and Kreiman(2022)] Giorgia Dellaferrera and Gabriel Kreiman. 2022. Error-Driven Input Modulation: Solving the Credit Assignment Problem Without a Backward Pass. In 
+
+Proceedings of the 39th International Conference on Machine Learning .[Elman(1990)] Jeffrey L. Elman. 1990. Finding Structure in Time. Cognitive Science 14, 2 (1990), 179–211. doi: 10.1207/s15516709cog1402_1 
+
+[Fukushima(1980)] Kunihiko Fukushima. 1980. Neocognitron: A Self-Organizing Neural Network Model for a Mechanism of Pattern Recognition Unaffected by Shift in Position. Biological Cybernetics 36, 4 (1980), 193–202. doi: 10.1007/BF00344251 
+
+[Gong et al.(2025)] Qingchun Gong, Robert Bogdan Staszewski, and Kai Xu. 2025. Adaptive Spatial Goodness Encoding: Advancing and Scaling Forward-Forward Learning Without Backpropa-gation. arXiv preprint arXiv:2509.12394 (2025). Online Appendix — The Forward–Backward Disconnect 16 
+
+[Gu and Dao(2023)] Albert Gu and Tri Dao. 2023. Mamba: Linear-Time Sequence Modeling with Selective State Spaces. arXiv preprint arXiv:2312.00752 (2023). doi: 10.48550/arXiv.2312. 00752 
+
+[Gu et al.(2022)] Albert Gu, Karan Goel, and Christopher Ré. 2022. Efficiently Modeling Long Se-quences with Structured State Spaces. In International Conference on Learning Representations (ICLR) .[Hasani et al.(2022)] Ramin Hasani, Mathias Lechner, Alexander Amini, Lucas Liebenwein, Aaron Ray, Max Tschaikowski, Gerald Teschl, and Daniela Rus. 2022. Closed-form Continuous-time Neural Networks. Nature Machine Intelligence 4, 11 (2022), 992–1003. doi: 10.1038/ s42256-022-00556-7 
+
+[Hasani et al.(2021)] Ramin Hasani, Mathias Lechner, Alexander Amini, Daniela Rus, and Radu Grosu. 2021. Liquid Time-Constant Networks. Proceedings of the AAAI Conference on Artifi-cial Intelligence 35, 9 (2021), 7657–7666. doi: 10.1609/aaai.v35i9.16936 
+
+[Hawkins and Ahmad(2016)] Jeff Hawkins and Subutai Ahmad. 2016. Why Neurons Have Thou-sands of Synapses, a Theory of Sequence Memory in Neocortex. Frontiers in Neural Circuits 
+
+10 (2016), 23. doi: 10.3389/fncir.2016.00023 
+
+[Hawkins et al.(2019)] Jeff Hawkins, Marcus Lewis, Mirko Klukas, Scott Purdy, and Subutai Ah-mad. 2019. A Framework for Intelligence and Cortical Function Based on Grid Cells in the Neocortex. Frontiers in Neural Circuits 12 (2019), 121. doi: 10.3389/fncir.2018.00121 
+
+[He et al.(2016)] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. 2016. Deep Residual Learning for Image Recognition. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) . 770–778. doi: 10.1109/CVPR.2016.90 
+
+[He et al.(2018)] Tong He, Zhi Zhang, Hang Zhang, Zhongyue Zhang, Junyuan Xie, and Mu Li. 2018. Bag of Tricks for Image Classification with Convolutional Neural Networks. arXiv preprint arXiv:1812.01187 (2018). [Hinton(2022)] Geoffrey Hinton. 2022. The Forward-Forward Algorithm: Some Preliminary Inves-tigations. arXiv preprint arXiv:2212.13345 (2022). doi: 10.48550/arXiv.2212.13345 
+
+[Hinton(2002)] Geoffrey E. Hinton. 2002. Training Products of Experts by Minimizing Contrastive Divergence. Neural Computation 14, 8 (2002), 1771–1800. doi: 10.1162/089976602760128018 
+
+[Hinton et al.(2006)] Geoffrey E. Hinton, Simon Osindero, and Yee-Whye Teh. 2006. A Fast Learning Algorithm for Deep Belief Nets. Neural Computation 18, 7 (2006), 1527–1554. doi: 10.1162/neco.2006.18.7.1527 
+
+[Hochreiter and Schmidhuber(1997)] Sepp Hochreiter and Jürgen Schmidhuber. 1997. Long Short-Term Memory. Neural Computation 9, 8 (1997), 1735–1780. doi: 10.1162/neco.1997.9.8.1735 
+
+[Hoerzer et al.(2014)] Gregor M. Hoerzer, Robert Legenstein, and Wolfgang Maass. 2014. Emer-gence of Complex Computational Structures from Chaotic Neural Networks through Reward-Modulated Hebbian Learning. Cerebral Cortex 24, 3 (2014), 677–690. doi: 10.1093/cercor/ bhs348 Online Appendix — The Forward–Backward Disconnect 17 
+
+[Hopfield(1982)] John J. Hopfield. 1982. Neural Networks and Physical Systems with Emergent Collective Computational Abilities. Proceedings of the National Academy of Sciences of the United States of America 79, 8 (1982), 2554–2558. doi: 10.1073/pnas.79.8.2554 
+
+[Jaderberg et al.(2017)] Max Jaderberg, Wojciech Marian Czarnecki, Simon Osindero, Oriol Vinyals, Alex Graves, David Silver, and Koray Kavukcuoglu. 2017. Decoupled Neural In-terfaces using Synthetic Gradients. In International Conference on Machine Learning (ICML) .1627–1635. arXiv:1608.05343 https://arxiv.org/abs/1608.05343 
+
+[Krizhevsky et al.(2012)] Alex Krizhevsky, Ilya Sutskever, and Geoffrey E. Hinton. 2012. ImageNet Classification with Deep Convolutional Neural Networks. In Advances in Neural Information Processing Systems , Vol. 25. 1097–1105. [Laborieux et al.(2021)] Axel Laborieux, Maxence Ernoult, Benjamin Scellier, Yoshua Bengio, Julie Grollier, and Damien Querlioz. 2021. Scaling Equilibrium Propagation to Deep ConvNets by Drastically Reducing Its Gradient Estimator Bias. Frontiers in Neuroscience 15 (2021), 633674. doi: 10.3389/fnins.2021.633674 
+
+[Laborieux and Zenke(2022)] Axel Laborieux and Friedemann Zenke. 2022. Holomorphic Equilib-rium Propagation Computes Exact Gradients Through Finite Size Oscillations. Advances in Neural Information Processing Systems 35 (2022), 12950–12963. [LeCun et al.(1998)] Yann LeCun, Léon Bottou, Yoshua Bengio, and Patrick Haffner. 1998. Gradient-Based Learning Applied to Document Recognition. Proc. IEEE 86, 11 (1998), 2278– 2324. doi: 10.1109/5.726791 
+
+[Li and Benna(2024)] Ji-An Li and Marcus K. Benna. 2024. Deep Learning without Weight Sym-metry. arXiv preprint arXiv:2405.20594 (2024). [Lv et al.(2025)] Changze Lv, Jingwen Xu, Yiyang Lu, Xiaohua Wang, Zhenghua Wang, Zhibo Xu, Di Yu, Xin Du, Xiaoqing Zheng, and Xuanjing Huang. 2025. Dendritic Localized Learning: Toward Biologically Plausible Algorithm. In Proceedings of the 42nd International Conference on Machine Learning (Proceedings of Machine Learning Research, Vol. 267) . 41682–41700. [Markram et al.(1997)] Henry Markram, Joachim Lübke, Michael Frotscher, and Bert Sakmann. 1997. Regulation of synaptic efficacy by coincidence of postsynaptic APs and EPSPs. Science 
+
+275, 5297 (1997), 213–215. [Meulemans et al.(2022)] Alexander Meulemans, Nicolas Zucchet, Seijin Kobayashi, Johannes von Oswald, and João Sacramento. 2022. The Least-Control Principle for Local Learning at Equi-librium. In Advances in Neural Information Processing Systems , Vol. 35. [Miconi(2017)] Thomas Miconi. 2017. Biologically Plausible Learning in Recurrent Neural Networks Reproduces Neural Dynamics Observed during Cognitive Tasks. eLife 6 (2017), e20899. doi: 10. 7554/eLife.20899 
+
+[Millidge et al.(2022)] Beren Millidge, Alexander Tschantz, and Christopher L. Buckley. 2022. Pre-dictive Coding Approximates Backprop along Arbitrary Computation Graphs. Neural Compu-tation 34, 6 (2022), 1329–1368. [Murray(2019)] James M. Murray. 2019. Local Online Learning in Recurrent Networks with Random Feedback. eLife 8 (2019), e43299. doi: 10.7554/eLife.43299 Online Appendix — The Forward–Backward Disconnect 18 
+
+[Neftci et al.(2019)] Emre O. Neftci, Hesham Mostafa, and Friedemann Zenke. 2019. Surrogate Gradient Learning in Spiking Neural Networks: Bringing the Power of Gradient-Based Opti-mization to Spiking Neural Networks. IEEE Signal Processing Magazine 36, 6 (2019), 51–63. doi: 10.1109/MSP.2019.2931595 
+
+[Nøkland(2016)] Arild Nøkland. 2016. Direct Feedback Alignment Provides Learning in Deep Neural Networks. In Advances in Neural Information Processing Systems (NeurIPS) . arXiv:1609.01596 
+
+https://arxiv.org/abs/1609.01596 
+
+[Pearlmutter(1989)] Barak A. Pearlmutter. 1989. Learning State Space Trajectories in Recurrent Neural Networks. Neural Computation 1, 2 (1989), 263–269. doi: 10.1162/neco.1989.1.2.263 
+
+[Peng et al.(2023)] Bo Peng, Eric Alcaide, Quentin Anthony, Alon Albalak, Samuel Arcadinho, Stella Biderman, Huanqi Cao, Xin Cheng, Michael Chung, Matteo Grella, et al. 2023. RWKV: Reinventing RNNs for the Transformer Era. In Findings of the Association for Computational Linguistics: EMNLP . doi: 10.18653/v1/2023.findings-emnlp.936 
+
+[Qi et al.(2025)] Chang Qi, Matteo Forasassi, Thomas Lukasiewicz, and Tommaso Salvatori. 2025. Towards the Training of Deeper Predictive Coding Neural Networks. arXiv preprint arXiv:2506.23800 (2025). [Raissi et al.(2019)] Maziar Raissi, Paris Perdikaris, and George E. Karniadakis. 2019. Physics-Informed Neural Networks: A Deep Learning Framework for Solving Forward and Inverse Problems Involving Nonlinear Partial Differential Equations. J. Comput. Phys. 378 (2019), 686–707. doi: 10.1016/j.jcp.2018.10.045 
+
+[Ramsauer et al.(2021)] Hubert Ramsauer, Bernhard Schäfl, Johannes Lehner, Philipp Seidl, Michael Widrich, Thomas Adler, Lukas Gruber, Markus Holzleitner, Milena Pavlović, Geir Kjetil Sandve, Victor Greiff, David Kreil, Michael Kopp, Günter Klambauer, Johannes Brandstetter, and Sepp Hochreiter. 2021. Hopfield Networks Is All You Need. In International Conference on Learning Representations (ICLR) .[Rao and Ballard(1999)] Rajesh P. N. Rao and Dana H. Ballard. 1999. Predictive Coding in the Visual Cortex: A Functional Interpretation of Some Extra-Classical Receptive-Field Effects. 
+
+Nature Neuroscience 2, 1 (1999), 79–87. doi: 10.1038/4580 
+
+[Rumelhart et al.(1986)] David E. Rumelhart, Geoffrey E. Hinton, and Ronald J. Williams. 1986. Learning Representations by Back-Propagating Errors. Nature 323, 6088 (1986), 533–536. doi: 10.1038/323533a0 
+
+[Salvatori et al.(2026)] Tommaso Salvatori, Ankur Mali, Christopher L. Buckley, Thomas Lukasiewicz, Rajesh P. N. Rao, Karl Friston, and Alexander Ororbia. 2026. A Survey on Neuro-Mimetic Deep Learning via Predictive Coding. Neural Networks 195 (2026), 108161. doi: 10.1016/j.neunet.2025.108161 
+
+[Scellier and Bengio(2017)] Benjamin Scellier and Yoshua Bengio. 2017. Equilibrium Propagation: Bridging the Gap between Energy-Based Models and Backpropagation. Frontiers in Compu-tational Neuroscience 11 (2017), 24. doi: 10.3389/fncom.2017.00024 
+
+[Song et al.(2020)] Yuhang Song, Thomas Lukasiewicz, Zhenghua Xu, and Rafal Bogacz. 2020. Can the Brain Do Backpropagation?—Exact Implementation of Backpropagation in Predictive Coding Networks. In Advances in Neural Information Processing Systems , Vol. 33. 22566– 22579. Online Appendix — The Forward–Backward Disconnect 19 
+
+[Vaswani et al.(2017)] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, and Illia Polosukhin. 2017. Attention Is All You Need. In 
+
+Advances in Neural Information Processing Systems (NeurIPS) , Vol. 30. 5998–6008. [Werbos(1990)] Paul J. Werbos. 1990. Backpropagation Through Time: What It Does and How to Do It. Proc. IEEE 78, 10 (1990), 1550–1560. doi: 10.1109/5.58337 
+
+[Whittington and Bogacz(2017)] James C. R. Whittington and Rafal Bogacz. 2017. An Approxi-mation of the Error Backpropagation Algorithm in a Predictive Coding Network with Local Hebbian Synaptic Plasticity. Neural Computation 29, 5 (2017), 1229–1262. [Xiao et al.(2018)] Will Xiao, Honglin Chen, Qianli Liao, and Tomaso Poggio. 2018. Biologically-Plausible Learning Algorithms Can Scale to Large Datasets. arXiv preprint arXiv:1811.03567 
+
+(2018). [Zhou et al.(2024)] Chenlin Zhou, Han Zhang, Zhaokun Zhou, Liutao Yu, Liwei Huang, Xiaopeng Fan, Li Yuan, Zhengyu Ma, Huihui Zhou, and Yonghong Tian. 2024. QKFormer: Hierarchi-cal Spiking Transformer using Q-K Attention. In Advances in Neural Information Processing Systems , Vol. 37.
