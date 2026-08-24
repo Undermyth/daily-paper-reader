@@ -1,0 +1,512 @@
+Title: From Attention Masks to Inert Zero-Vector Tokens: OAttention and O-Closure for Token Dynamics
+
+URL Source: https://arxiv.org/pdf/2608.21174v1
+
+Published Time: Mon, 24 Aug 2026 00:55:44 GMT
+
+Number of Pages: 22
+
+Markdown Content:
+# From Attention Masks to Inert Zero-Vector Tokens: OAttention and O-Closure for Token Dynamics 
+
+Heyang Gong 
+
+Abstract 
+
+Attention masks are indispensable relation-level controls: they specify which query–source pairs may interact. They do not, however, provide a representation-carried token state that is intrinsically non-participating at the attention boundary. We assign each token hidden carrier hi
+
+a smooth active-presence coefficient pi = ∥hi∥2/(τ + ∥hi∥2). The same coefficient has two roles: it gates information emitted by token i, and it determines the mass with which token i enters computations shared with other tokens. OAttention is the support-coupled attention realization of this rule. It gates the receiver output by pi and weights source j by pj in both the attention numerator and partition, while retaining the standard score, visibility relation, exponential competition, and value aggregation. This minimal completion makes the zero-vector token a zero element and yields exact null-receiver, null-source insertion, self-attention insertion, and empty-support properties. The same token-level presence gives local O-components (OFFN, ONorm, and OInject), presence-weighted OStandardize, the O-Closure law M (H ⊕ 0) = M (H) ⊕ 0, and an OTransformer by residual and compositional closure. The canonical operator is checked by contract tests and an independent GPU evaluation. In a zero-fine-tuning retrofit of a cloned pretrained TabPFN v3 regressor, calibrated hidden-carrier OAttention and Full-O variants change mean RMSE by +0 .088% and +0 .177%, respectively, over 18 matched dataset–seed cases. A two-block ablation further shows that OAttention alone does not preserve a NULL state through ordinary host components, whereas the declared OTransformer path does. These are scoped tests of exactness, active-path compatibility, and compositional necessity; they do not establish universal no-loss, arbitrary-host closure, learned attraction to the origin, or a general semantics for missing values. 
+
+# 1 Introduction 
+
+Suppressing information is a basic requirement in attention-based models. The standard mechanism is a mask mij , supplied to the operator to specify which query–source relations are allowed. Such masks are indispensable for causal structure, routing, permissions, and target visibility, but they do not provide a token state whose non-participation is carried by its representation. Padding, absent support, unused routing slots, and deliberately empty latent states motivate a complementary requirement. At a declared operator boundary, an empty state should emit no output as a query and contribute no support mass along any relation for which it would otherwise be visible. A mask therefore answers a relation-level question—which token pairs may interact—whereas a structural NULL answers a state-level question—whether this representation participates at all. The two controls are complementary: state-level nullness does not replace causal, routing, permission, or target-visibility masks. Standard scaled dot-product attention does not satisfy this requirement [23]. For visible sources, 
+
+αij = exp( q⊤ 
+
+> i
+
+kj /√d)
+
+∑ 
+
+> t
+
+exp( q⊤ 
+
+> i
+
+kt/√d) , yi = ∑
+
+> j
+
+αij vj . (1) 1arXiv:2608.21174v1 [cs.AI] 21 Aug 2026 If qi = 0, every finite logit is zero and the output is the average of the visible values, not zero. If a source ( k0, v 0) = (0 , 0) is appended, it adds exp(0) = 1 to the denominator. Its direct value contribution is zero, but all pre-existing weights change. The origin is therefore an ordinary state of softmax attention rather than an inert one. We give state-level non-participation a single token-level coordinate. At a declared hidden-carrier boundary, token i has presence 
+
+pi = ρτ (hi) = ∥hi∥22
+
+τ + ∥hi∥22
+
+. (2) The coefficient has two roles. Local update participation determines whether token i emits newly generated information. Context support participation determines whether that token contributes mass to a shared support, partition, or statistic. The same pi, rather than a new gate for each component, governs both roles. We introduce OAttention , where O denotes the origin of the representation space, as the support-coupled attention instance. Query and key projections still determine the score geometry, but the receiver hidden state supplies the output factor pi and each source hidden state supplies its support mass pj . OAttention otherwise retains the standard score, externally supplied visibility relation, exponential competition, and value aggregation. The visibility mask says whether an edge is permitted; token presence says whether an otherwise visible state participates on that edge. The broader principle is necessary because attention alone cannot make a model null consistent. An additive position encoding can map zero to a nonzero vector; an affine normalization or biased feed-forward branch can manufacture a nonzero update; and an ordinary cross-token statistic can allow an inserted zero to change every pre-existing output. O-Closure distinguishes token-local maps, which must absorb zero, from support-coupled maps, which must also assign zero mass to null sources. OFFN, ONorm, OInject, and OStandardize instantiate these two cases, and closure under residual addition and composition gives a conditional construction of an OTransformer. Our contributions are: 1. We formulate null consistency as exact operator properties that separate representation-carried, state-level participation from externally supplied, relation-level visibility masks; from one hidden-carrier presence coefficient we derive OAttention and prove its null and active-limit properties. 2. We identify local update participation and context support participation as two placements of the same token presence, formulate their zero-extension law, and derive OFFN, ONorm, OInject, OStandardize, and a conditional OTransformer by residual and compositional closure. 3. We test three distinct claims: exact implementation of the canonical operator, calibrated near-identity compatibility in a frozen pretrained TabPFN v3 host, and the necessity of whole-path closure in a scoped OTransformer ablation. These claims deliberately have different scopes. Theorems establish the declared algebraic contracts; finite-precision evaluations check their implementation; and task metrics are bounded compatibility observations rather than universal non-inferiority tests. We do not claim closure for arbitrary tokenizers, routers, caches, or readouts; learned zero-attractor dynamics; or a general semantics for missing values. 
+
+# 2 Related work 
+
+Sparse and no-op attention. Sparsemax and entmax can assign individual sources zero weight, but their simplex constraint prevents an all-zero row [16, 18]. Sigmoid attention removes row-wise 2normalization, but a zero dot product is not intrinsically null [20]. ReLA and Softpick instead allow zero aggregate updates through rectified scores [28, 29]. These mechanisms show that attention need not always emit a convex combination. Our question is narrower: whether a representation-carried state can be inert as both receiver and source while the active regime retains vanilla softmax. The operator-level distinction from score-space no-op attention is made after OAttention is defined. 
+
+Gates, routing, sinks, and spare capacity. Output and value-state gates attenuate attention updates [2, 3, 19], while conditional computation routes tokens through selected feed-forward or attention branches [1, 27]. Attention-sink studies analyze content-light destinations and default no-op behavior [6–8, 10, 21, 24]. Softmax-plus-one supplies fixed spare partition mass, and StableMask modifies causal masking with pseudo-attention values [12, 17, 25]. These lines of work control branches, destinations, or relations; they do not by themselves identify an exact-zero carrier with the null-insertion contract studied here. A trainable-key “zero token” used for cyclic refinement is likewise an information-bearing control state rather than a structural NULL [15]. 
+
+Norms, sets, and missing data. Vector norms have been used to analyze attention contributions and normalize query–key geometry [9, 11, 13]; capsule squash provides a related radial factor [22]. Deep Sets and Set Transformer provide the broader context of permutation-aware set processing [14, 26], although permutation symmetry alone does not imply invariance to adjoining an unmasked zero element. Missing-data models may either suppress missing entries or encode missingness as information [4, 5]; this motivates our strict separation between structural NULL and informative missingness. 
+
+# 3 From relation masks to a null state 
+
+Let an attention operator consume hidden receiver carriers ( hi)i∈I , hidden source carriers ( hj )j∈J ,their projected queries, keys, and values, and a visibility relation mij ∈ { 0, 1}. The mask is indexed by query–source relations and is supplied as a separate operator input rather than implied by token state. A zero-vector token at the canonical boundary is h = 0. A projected zero in one head, a zero value with a nonzero carrier, an observed scalar equal to zero, and a learned [MASK] token are different objects. 
+
+Definition 1 (Null consistency) . An attention operator is null consistent at its declared carrier boundary if it satisfies: 1. Null receiver: hi = 0 implies yi = 0 .2. Null-source insertion: inserting any finite number of source carriers hj = 0 changes no pre-existing output or old source weight. 3. Self-attention insertion: inserting a zero hidden carrier leaves old outputs unchanged and gives the new receiver a zero output. 4. Empty support: an empty or fully masked source set returns a finite zero output and zero weights. 
+
+Null consistency is an operator effect, not a replacement for masking. For all pre-existing receivers, inserting hj = 0 should be equivalent to removing it or masking its entire source column, while leaving old–old relations and metadata unchanged. The state and relation remain semantically distinct: a learned [MASK] embedding may deliberately carry information, and masking a source 3column does not deactivate the receiver row at the same position. A full self-attention NULL also has zero receiver presence, so its emitted output is zero regardless of visible context; this does not imply that its internal attention weights equal those of a fully masked row. A query placeholder that must read context can instead be receiver-active and source-inactive; it is not a full zero-vector token. Standard attention violates the first two properties. For a visible zero carrier under zero-preserving projections, the old denominator Zi becomes Zi + 1, and every old weight is multiplied by Zi/(Zi + 1). For a zero receiver carrier, the projected query is zero and the score function loses all directional distinctions but not the aggregation itself. These failures arise from the normalization topology, not from numerical instability. 
+
+# 4 Token presence and OAttention 
+
+4.1 Smooth radial presence 
+
+For τ > 0, define 
+
+ρτ (x) = ∥x∥22
+
+τ + ∥x∥22
+
+. (3) The map is radial, differentiable, bounded in [0 , 1), exactly zero only at the origin, and approaches one on any fixed nonzero vector as τ → 0+. Near the origin, ρτ (x) = ∥x∥2/τ + O(∥x∥4), so attenuation is continuous and quadratic rather than thresholded. The norm is evaluated before any normalization that would erase magnitude. The construction adds no learned projection, but τ remains a scale hyperparameter and the learned representations determine the gate value. 
+
+Relation to norm-derived mechanisms. Unlike query–key normalization, which changes score geometry, OAttention reads the carrier norm before normalization and assigns the resulting scalar a participation semantics. The radial factor in Eq. (3) also appears in capsule squash, but capsule squash uses it to rescale a vector rather than to couple receiver output with source support. 
+
+4.2 Canonical hidden-carrier operator 
+
+Let hi be a receiver carrier and hj a source carrier. Suppressing head indices, define 
+
+pi = ρτ (hi), qi = WQhi, kj = WK hj , vj = WV hj , sij = q⊤ 
+
+> i
+
+kj
+
+√d . (4) For an externally supplied visibility relation mij and a small εden > 0, OAttention is 
+
+uij = mij pj exp( sij ), (5) 
+
+wij = uij 
+
+εden + ∑ 
+
+> t
+
+uit 
+
+, (6) OAttention Hi (H; m) = pi
+
+> ∑
+> j
+
+wij vj = pi 
+
+> ∑
+> j
+
+mij pj exp( sij )vj
+
+εden + ∑ 
+
+> j
+
+mij pj exp( sij ) . (7) One token coefficient now governs both roles. The receiver factor pi controls emitted output; the source factor pj enters both numerator and partition and therefore controls support mass. It is shared across heads at this hidden boundary. The denominator stabilizer only totalizes empty support; it is not a learned NULL destination or an attention objective. 4Proposition 1 (Hidden-carrier null receiver) . For all finite sources and masks, hi = 0 implies 
+
+OAttention Hi (H; m) = 0 .Proof. Equation (3) gives pi = ρτ (0) = 0, which multiplies the complete aggregate in Eq. (7). 
+
+Proposition 2 (Hidden-carrier null-source insertion) . Appending any finite number of source carriers hj = 0 , with arbitrary visibility bits and compatible old metadata, leaves every pre-existing output and old source weight unchanged. Proof. Each inserted source has pj = 0, hence uij = 0 for every receiver. It contributes neither to the numerator nor to the partition; all old terms and receiver factors are unchanged. 
+
+Proposition 3 (Self-attention insertion and empty support) . Inserting a hidden zero carrier in self-attention leaves all old outputs unchanged and gives the inserted receiver output zero. If effective support is empty, all weights and outputs are finite zero. Proof. The old-output statement follows from null-source insertion, and the new output follows from the null-receiver proposition. With empty support, every uij = 0; the positive stabilizer makes each weight zero. 
+
+Remark 1 (Projection-boundary variation) . Presence can instead be evaluated after Q/K projection, separately by role and head. That construction satisfies an analogous contract at a different boundary but is not a notation variant of Eq. (7) : a nonzero hidden carrier may project to zero in one head. We keep this variation, its formula, and its independent evidence in Sections A.1 and C.1; the canonical argument below always refers to token-level hidden-carrier presence. 
+
+Comparison with score-space no-op attention. At a bias-free dot-product boundary, ReLA makes a zero query or key inert in its rectified-score core and can produce an all-zero aggregate; Softpick also permits zero aggregate updates. Their source selection is determined by the sign of each query–key score and changes the score-normalization regime. In OAttention, source presence is carried by hj , is independent of which receiver reads that source, and modulates an otherwise unchanged exponential competition. We therefore treat ReLA as the closest score-space no-op precedent, not as the same operator or as evidence of poor general performance. 
+
+4.3 Vanilla-consistent active-state limit 
+
+For a fixed finite collection of nonzero hidden carriers, pi, p j → 1 as τ → 0+. If the ordinary softmax partition is positive, taking εden → 0+ yields OAttention Hi (H; m) −→ ∑
+
+> j
+
+mij exp( sij ) 
+
+> ∑
+> t
+
+mit exp( sit ) vj . (8) At finite τ , active states can still be attenuated; the limit does not imply exact equality at a chosen finite scale. 
+
+Comparison with spare-mass normalizers. Softmax-plus-one adds a fixed non-data term to the partition and therefore shrinks an ordinary active row by a factor of the form Z/ (Z + λ). StableMask changes the causal visibility construction and introduces pseudo-attention values. By contrast, εden in Eq. (7) only totalizes empty support and vanishes in the active-state limit; a zero source is removed through token presence rather than represented by a competing sink. 55 From OAttention to O-closed token dynamics 
+
+Within OAttention, relation-level visibility and state-level presence play different roles. The mask selects permitted query–source edges; receiver presence gates the emitted output, while source presence enters the normalized support along otherwise visible edges. These are not attention-specific gates: they are two placements of one operator-independent notion of token participation. A token participates both by changing its own state and by contributing mass to computations shared with other tokens. Attention alone cannot establish this semantics at the model level. A biased FFN or additive encoding can map zero to a nonzero state, while a cross-token statistic can allow an inserted zero to alter existing outputs. A model-level zero element therefore requires both zero absorption in token-local maps and zero support mass in token-coupled maps. 
+
+5.1 One token presence, two operator roles 
+
+At the current hidden-carrier boundary, define once 
+
+pi = ρτ (hi). (9) Every O-component consuming this boundary state uses that coefficient. A token-local branch uses pi to control emitted update; a coupled component uses the source coefficients pj to define its support measure. Presence is recomputed when token dynamics produce a new hidden carrier at the next declared boundary, but it is not recomputed separately from Q/K projections inside canonical OAttention. 
+
+5.2 Zero extension 
+
+Let HI = ( hi)i∈I be a finite indexed token family. For a new index j / ∈ I, let ιj HI = HI ⊕j 0denote extension by an exact zero token. Metadata are called compatible when extension leaves the metadata of all old indices unchanged; in particular, an insertion operation that renumbers absolute positions is not compatible under this definition. 
+
+Definition 2 (O-Closure) . A family of token operators M = ( MI )I is O-closed if, for every finite 
+
+I, every j / ∈ I, and compatible metadata c, c +,
+
+MI∪{ j}(ιj HI ; c+) = ιj MI (HI ; c). (10) The inserted coordinate on the right-hand side is zero, expressing state-zero absorption . Equality on the old coordinates expresses contextual erasure : adding a zero source has the same operator effect as removing it from the relevant support. The two statements are complementary. The zero state is absorbing at its own position and neutral when viewed as context by other positions. For deterministic modules, Eq. (10) is the compact zero-extension law. A stochastic version can be stated for the conditional kernel: the inserted state has conditional law δ0, and the joint law of the old states is unchanged. This explains the token-dynamics reading without conflating a full NULL state with a query placeholder that must be predicted from context. 
+
+5.3 Local and support-coupled lifts 
+
+For a token-local map, a gated branch has the form 
+
+GO[F ]( hi) = piF (hi). (11) 6If F (0) is finite, this branch emits zero at a null input even when F contains a bias. A residual lift is 
+
+RO[F ]( hi) = hi + ρτ (hi)F (hi). (12) Output gating alone is insufficient for a token-coupled operator: a zero source may still alter a shared denominator or statistic. Source presence must enter the support measure. Retaining token identity and state as marks, define 
+
+νOH = ∑
+
+> i∈I
+
+pi δ(i,h i). (13) OAttention is a query-dependent exponential tilt of this same token measure, OAttention Hi = pi 
+
+> ∑
+> j
+
+mij pj esij vj
+
+εden + ∑ 
+
+> j
+
+mij pj esij . (14) The receiver use and source-support use are two placements of the same token-level presence, not separately inferred attention gates. 
+
+5.4 Residual and compositional closure 
+
+Theorem 1 (Closure) . Let M and N satisfy Eq. (10) on compatible token families. Then N ◦ M is O-closed. If an update field U is O-closed, then the residual map I + U is O-closed. Proof. For composition, (N ◦ M )( H ⊕j 0) = N (M (H) ⊕j 0) = N (M (H)) ⊕j 0.
+
+For the residual map, the inserted coordinate is 0 + 0 = 0, and both the identity and update fields agree on every old coordinate before and after zero extension. The theorem is conditional on complete module closure. If an update is context-coupled, multiplying only its output at position i can establish state absorption but not contextual erasure; its aggregation must also be compatible with the presence-weighted support in Eq. (13). 
+
+5.5 O-component realizations 
+
+5.5.1 OFFN, ONorm, and OInject 
+
+Let hi be the state entering the declared component boundary and let pi = ρτ (hi). For a feed-forward branch, including a branch with internal biases, define OFFN upd (hi) = pi FFN( hi), h+ 
+
+> i
+
+= hi + OFFN upd (hi). (15) The notation distinguishes the gated update from the complete residual transformation. For token-local normalization N , such as LayerNorm over channels, define ONorm( hi) = piN (hi). (16) This is a gated replacement or branch map, not a cross-token statistic. For additive position, schema, or label metadata ei, we use OInject( hi, e i) = hi + piei. (17) 7Only the newly injected branch is gated; the carrier is retained. The alternative pi(hi + ei) contracts the carrier itself and may be useful in an attractor-oriented design, but it is not used in the evaluated OTransformer. Presence is recomputed from the current state at every declared boundary. Consequently, an exact zero produced by one component is absorbed by the next. The same convention can deactivate an active representation that is mapped exactly to the origin, which motivates the collapse diagnostics and limitations in Section 7. 
+
+5.5.2 OStandardize 
+
+Standardization across a token or cell axis is support-coupled. For pi = ρτ (hi), S = ∑ 
+
+> i
+
+pi, and 
+
+S > 0, define 
+
+μO = 
+
+> ∑
+> i
+
+pihi
+
+S , (18) 
+
+vO = 
+
+> ∑
+> i
+
+pi(hi − μO)⊙2
+
+S , (19) 
+
+zOi = pi
+
+> [
+
+γ ⊙ hi − μO
+
+√vO + εvar 
+
++ β
+
+> ]
+
+. (20) The definition is totalized at empty effective support by 
+
+S = 0 =⇒ μO = 0 , vO = 0 , zOi = 0 for all i. (21) The implementation realizes this branch with a safe positive divisor followed by explicit zero selection. An inserted zero token has p = 0, so it changes neither S, μO, nor vO, leaves all old outputs unchanged, and receives a zero output. The variance uses the presence-weighted mean of squared residuals; applying the radial map to μ or σ itself would not establish this invariance. OStandardize and ONorm have different topologies. ONorm is token-local and gates its output. OStandardize couples positions and must alter both the statistical numerator and its normalizer. The final multiplication by pi means that we claim insertion-invariant weighted moments and zero null output, not exact unit variance of the final gated activations under the same measure. 
+
+5.5.3 OTransformer by compositional closure 
+
+An OTransformer is a token architecture in which every declared token-local path is zero absorbing and every declared support-coupled path assigns zero mass to zero states. Its canonical attention component is hidden-carrier OAttention, so the same pi used by local components also controls attention participation. The evaluated two-block instantiation uses canonical hidden-carrier OAtten-tion together with OInject, ONorm, and OFFN. It tests compositional zero closure for that declared host path; task metrics remain descriptive rather than a universal no-loss claim. OStandardize is evaluated independently and is not part of that host. Under compatible tokenization and metadata, applying the closure theorem through L blocks gives OTransformer L(H ⊕j 0) = OTransformer L(H) ⊕j 0. (22) For another architecture, this conclusion additionally requires its routing, pooling, compression, caching, and token-level readout paths to satisfy the same law. It does not imply that a biased task head vanishes on an all-null input or that every missing value should be represented by zero. 85.6 Validity domain and host-model conditions 
+
+The canonical contract begins at the declared hidden-carrier boundary: one presence value is shared across heads for each token. The implementation explicitly totalizes zero-length and fully masked support. Precision, mask-layout, grouped-query broadcasting, and API details are reported in the supplement. Insertion invariance is exact in real arithmetic. Dense floating-point reduction order can change when columns are inserted, so equality of old outputs is evaluated with dtype-appropriate tolerances. Source weights and receiver outputs at the declared exact-zero boundary remain exactly zero. The deterministic operator is defined before dropout; a training kernel that changes random-number indexing after insertion must state whether it promises pathwise coupling or only distributional equivalence. The current standalone wrapper uses bias-free Q/K/V and output projections. Canonical source and receiver gating does not require a hidden zero to remain zero inside Q/K/V projection, but its returned update still requires a zero-preserving output projection or a final carrier gate. This is sufficient for the attention primitive, not for an arbitrary host model. Additive metadata, affine normalization, biased branches, routing, pooling, and readout can all violate Eq. (10). The O-component wrappers preserve biased local modules by gating the newly generated branch, but every support-coupled path still requires its own presence-aware construction. The structural NULL also remains distinct from data semantics. An observed numeric zero may be informative and should normally receive an active carrier. A learned [MASK] embedding is an information-bearing role token. A missingness indicator can itself be predictive. Mapping NaN or missing values to the origin is appropriate only when the application declares their carrier to be semantically inert; OAttention does not make that declaration. 
+
+# 6 Evaluation 
+
+We align each experiment with one of three claims: 1. Exactness: does the canonical implementation realize the declared null and insertion contracts at finite precision? 2. Active-path compatibility: can token presence be introduced into a frozen pretrained host as a calibrated near-identity change? 3. Compositional necessity: does attention alone fail when ordinary host components reactivate NULL, and does the declared O-closed path repair that failure? No superiority objective or post-hoc equivalence margin is imposed. Task metrics are descriptive matched comparisons; the primary algebraic outcomes are null-state preservation and inert insertion. 
+
+6.1 Exact operator contracts 
+
+An independent DGX2 operator sweep evaluates the implementation of Eq. (7). It covers fp32, bf16, and fp16; ordinary multi-head and grouped-query layouts; self- and cross-attention; empty and all-null support; finite gradients; and insertion at multiple positions. 9Table 2: Near-identity hidden-carrier retrofit of pretrained TabPFN v3 ( τ = 10 −8). Values are means over three seeds. RMSE is in the original target units; R2 is computed on each test split.                                              
+
+> Dataset Base RMSE OA RMSE Full-O RMSE Base R2OA R2Full-O R2
+> bodyfat 1.231549 1.230964 1.232571 .961179 .961228 .961112 concrete 4.127869 4.133669 4.129971 .936922 .936758 .936862 cpu_small 3.023569 3.022008 3.023061 .971290 .971319 .971299 kin8nm .091274 .091292 .091278 .877050 .877005 .877038 space_ga .093484 .093366 .093445 .740970 .741612 .741182 tecator .422813 .424202 .424954 .999087 .999082 .999078
+
+Table 1: Independent hidden-carrier OAttention operator evaluation. Errors are maxima on an NVIDIA GB10 GPU. 
+
+Property Result Canonical equation Output and weight L∞ error ≤ 8.94 × 10 −8 against direct evaluation Null insertion Old-output L∞ ≤ 4.47 × 10 −8; old-weight L∞ ≤ 5.96 × 10 −8
+
+Exact null boundary Inserted receiver output and source weight: 0 Empty/all-null support Output and weights finite exact zero Interfaces 6/6 dtype–head cases finite; MHA, GQA, fp32, bf16, fp16, cross-attention, and tested gradients 
+
+The propositions establish the algebraic contract; this evaluation checks that the implementation realizes it at finite precision. The standalone OStandardize sweep checks the other support-coupled topology: presence-weighted moments and old outputs are invariant to tested zero insertions, inserted outputs are exact zero, and all tested support and dtype cases are finite. Full tensor shapes, permutation checks, singleton centering, and the selected next-boundary semantics are reported in the supplement. This operator is not folded into the task host. 
+
+6.2 Pretrained active-path compatibility: TabPFN v3 
+
+To test whether token presence can be introduced without retraining or redesigning the active computation, we cloned the pretrained TabPFN v3 regressor and left its learned weights and preprocessing unchanged. The baseline, hidden-carrier OAttention, and Full-O instances each use one copy of the same checkpoint. Full-O adds hidden-carrier OAttention, ONorm, OFFN, and hidden-carrier gating of the two target-encoding additions in the v3 forward path; OStandardize is deliberately not inserted into the preprocessing pipeline. We evaluate six cached OpenML regression datasets (IDs 560, 44959, 505, 507, 227, and 189), three seeds 11 , 23 , 37, one estimator, and deterministic caps of 512 training and 256 test rows. No arm is fine-tuned. The main comparison uses τ = 10 −8, a near-identity active-path calibration that nevertheless maps an exact zero carrier to exactly zero. Across the 18 dataset–seed pairs, hidden-carrier OAttention changes mean RMSE by +0 .088% and mean R2 by +8 .4 × 10 −5; Full-O changes them by +0 .177% and +1 .2 × 10 −5, respectively. These are bounded inference observations, not a universal non-inferiority test. This is the principal model-level evidence for minimal perturbation; the adapter and OTransformer studies serve as complementary boundary and composition checks. The corresponding finite-gate stress test is reported in Section C.2. At τ = 1, OAttention alone remains close to the baseline, whereas repeatedly gating every local branch produces sizeable active-path changes in Full-O. This separation is useful evidence about scale calibration, not evidence against the zero-extension contract. 10 Complementary adapter and insertion checks. These checks calibrate the extension without carrying the main empirical argument. A seven-task, 21-pair adapter rerun shows mixed, small active-path metric changes (Section C.3). In 15 task–seed test-time insertion pairs, hidden-carrier OAttention preserved every appended NULL state exactly, whereas standard attention activated the new positions and produced larger prediction shifts (Section C.4). A separate 120-fit training-time zero-column study gives the same bounded contrast (Section C.5). These results are supporting diagnostics, not a claim of universal task-level non-inferiority. 
+
+6.3 Why attention alone is insufficient: OTransformer closure 
+
+The OTransformer study uses canonical hidden-carrier OAttention in a two-block, 32-dimensional, four-head feature-token host on the same five datasets and seeds, with k ∈ { 0, 1, 4} inserted zeros during training. The Standard, OA-only, and OTransformer arms share exact initialization. A separately initialized zero-preserving structural control is included only as an architectural reference. The OA-only arm isolates the failure of attention-level closure to repair ordinary additive, affine, and biased paths. Table 3: Scoped OTransformer study. Maxima are over the evaluated task–seed–zero-count matrix for k > 0. The structural control is not part of the initialization-matched three-arm comparison.               
+
+> Arm Host components Max inserted-state L∞Interpretation Standard Softmax, additive encoding, affine norm, biased FFN 7.982 Ordinary host OA-only Hidden-carrier OA; other components ordinary 7.983 Attention alone is insuffi-cient OTransformer Hidden-carrier OA, OInject, ONorm, OFFN 0Declared O-closed path Structural control Hidden-carrier OA, no ad-ditive encoding, affine-free norm, bias-free FFN 0Separately initialized com-parator
+
+All 180 fits were finite. In the OTransformer arm, the maximum old-token state L∞ shift was 2.47 × 10 −3 and the maximum prediction L∞ shift was 2 .08 × 10 −3. These are finite-precision diagnostics in one host, not exact empirical equality or a universal task-level guarantee. 
+
+# 7 Limitations and open questions 
+
+Presence is an operational convention. A learned norm is not guaranteed to represent epistemic absence. Useful weak signals may have low magnitude, and optimization may avoid the origin. The radial map supplies a differentiable route to lower participation, but it does not prove that training discovers or uses a null state. Any zero-attractor claim requires longitudinal measurements of norms, presence, and transition dynamics under an explicit learning objective. 
+
+Finite-scale attenuation. At finite τ , a gate can attenuate weak nonzero states, and repeated gates may compound this effect. This is a deliberate operational trade-off: the exact origin remains a mathematical NULL state, while ordinary active states should stay close to the standard path when τ is below their characteristic norm scale. The intended regime is therefore not to suppress weak information indiscriminately, but to introduce an exact null token while preserving active 11 computation as closely as possible. Wider studies should still examine task-dependent calibration and weak-feature survival. 
+
+Exact-zero collisions. Cross-token centering can map an active token exactly to zero—for example, a singleton support or a token equal to the weighted mean. Under the selected layerwise semantics, the next component treats that representation as NULL. This is a genuine consequence rather than a numerical corner case. A system that must preserve semantic activity across centering should carry an explicit pre-standardization presence side channel instead of re-inferring it from the centered vector. 
+
+Host scope and metadata. The whole-model theorem is conditional on compatible metadata and closure of every path. Absolute-position renumbering, lossy token merging, caches, sequence-level normalization, or a non-neutral readout can break zero extension. The current OTransformer result covers one feature-token host and does not include OStandardize. The separate TabPFN v3 retrofit evaluates the hidden-carrier realization on one pretrained host without fine-tuning; it does not establish arbitrary-host safety or universal task-level no-loss. 
+
+Missingness. Observed zero, missing, NaN, learned mask states, and query placeholders have different semantics. Mapping missing data to an exact-zero carrier is a promising option only when missingness is declared uninformative. Informative missingness should retain a nonzero side channel. Establishing when either choice is appropriate is outside the present experiments. 
+
+# 8 Conclusion 
+
+Attention masks answer a relation-level question: which query–source interactions are permit-ted. Token presence answers the complementary state-level question of whether a representation participates at all. We assign every hidden carrier one coefficient pi = ρτ (hi). Its receiver use gates newly emitted information; its source use controls mass in context support. OAttention is the nonlocal attention realization of these two placements, retaining the standard score, visibility relation, exponential competition, and value aggregation while making the origin a zero element. This single coefficient also organizes the rest of token dynamics. Local updates yield OFFN, ONorm, and OInject; support-weighted moments yield OStandardize; and the O-Closure law propagates null insertion through residual updates and composition. The components are therefore consequences of one token-participation variable rather than a collection of analogous gates. The experiments address three bounded questions. Operator checks reproduce the canonical equation and null contracts at finite precision; a cloned pretrained TabPFN v3 host exhibits a calibrated near-identity active path without fine-tuning; and a two-block negative control shows why OAttention alone is insufficient when ordinary host components reactivate NULL. These results do not establish arbitrary-host safety, universal task-level non-regression, learned zero-attractor dynamics, or a general missing-value semantics. Whether the construction preserves weak active signals across model families, induces useful zero-attractor dynamics, or provides an appropriate semantics for missing values remains open. 
+
+Reproducibility. The accompanying artifact contains the source package, tests, experiment runners, configurations, and machine-readable results. Exact reproduction commands, environment information, and CPU/CUDA provenance are reported in Section D. 12 References 
+
+[1] Joshua Ainslie, Tao Lei, Michiel de Jong, Santiago Ontañón, Siddhartha Brahma, Yury Zemlyanskiy, David Uthus, Mandy Guo, James Lee-Thorp, Yi Tay, Yun-Hsuan Sung, and Sumit Sanghai. CoLT5: Faster long-range transformers with conditional computation. arXiv preprint arXiv:2303.09752 , 2023. URL https://arxiv.org/abs/2303.09752 .[2] Yelysei Bondarenko, Markus Nagel, and Tijmen Blankevoort. Quantizable transformers: Removing outliers by helping attention heads do nothing. In Advances in Neural Information Processing Systems , 2023. arXiv:2306.12929. [3] Rui Bu, Haofeng Zhong, Wenzheng Chen, and Yangyan Li. Value-state gated attention for mitigating extreme-token phenomena in transformers. arXiv preprint arXiv:2510.09017 , 2025. URL https://arxiv.org/abs/2510.09017 .[4] Camillo Maria Caruso, Paolo Soda, and Valerio Guarrasi. Not another imputation method: A transformer-based model for missing values in tabular datasets. AI Open , 7:96–122, 2026. doi: 10.1016/j.aiopen.2026.02.005. URL https://doi.org/10.1016/j.aiopen.2026.02.005 .[5] Li-Wei Chang, Cheng-Te Li, Chun-Pai Yang, and Shou-de Lin. Learning on missing tabular data: Attention with self-supervision, not imputation, is all you need. ACM Transactions on Intelligent Systems and Technology , 16(3):1–24, 2025. doi: 10.1145/3729241. URL 
+
+https://doi.org/10.1145/3729241 .[6] Chi Chen, Maosong Sun, and Yang Liu. Mask-align: Self-supervised neural word alignment. In Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers) , pages 4781–4791. Association for Computational Linguistics, 2021. doi: 10.18653/v1/ 2021.acl-long.369. URL https://aclanthology.org/2021.acl-long.369/ .[7] Kevin Clark, Urvashi Khandelwal, Omer Levy, and Christopher D. Manning. What does BERT look at? an analysis of BERT’s attention. In Proceedings of the 2019 ACL Workshop BlackboxNLP: Analyzing and Interpreting Neural Networks for NLP , pages 276–286. Association for Computational Linguistics, 2019. doi: 10.18653/v1/W19-4828. URL https://aclantholo gy.org/W19-4828/ .[8] Lukas Fesser, Mozes Jacobs, Thomas Fel, Andy Keller, and Sham Kakade. A unifying view of attention sinks: Two algorithms, two solutions. arXiv preprint arXiv:2606.08105 , 2026. URL 
+
+https://arxiv.org/abs/2606.08105 .[9] Hariprasath Govindarajan, Per Sidén, Jacob Roll, and Fredrik Lindsten. QUEST: A robust at-tention formulation using query-modulated spherical attention. arXiv preprint arXiv:2604.00199 ,2026. [10] Xiangming Gu, Tianyu Pang, Chao Du, Qian Liu, Fengzhuo Zhang, Cunxiao Du, Ye Wang, and Min Lin. When attention sink emerges in language models: An empirical view. arXiv preprint arXiv:2410.10781 , 2024. ICLR 2025. [11] Alex Henry, Prudhvi Raj Dachapally, Shubham Shantaram Pawar, and Yuxuan Chen. Query-key normalization for transformers. In Findings of the Association for Computational Linguistics: EMNLP 2020 , 2020. 13 [12] Jerry Yao-Chieh Hu, Pei-Hsuan Chang, Haozheng Luo, Hong-Yu Chen, Weijian Li, Wei-Po Wang, and Han Liu. Outlier-efficient hopfield layers for large transformer-based models. In Proceedings of the 41st International Conference on Machine Learning , volume 235 of 
+
+Proceedings of Machine Learning Research , pages 19123–19152. PMLR, 2024. URL https: //proceedings.mlr.press/v235/hu24a.html .[13] Goro Kobayashi, Tatsuki Kuribayashi, Sho Yokoi, and Kentaro Inui. Attention is not only a weight: Analyzing transformers with vector norms. In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing , pages 7057–7075. Association for Computational Linguistics, 2020. doi: 10.18653/v1/2020.emnlp-main.574. URL https: //aclanthology.org/2020.emnlp-main.574/ .[14] Juho Lee, Yoonho Lee, Jungtaek Kim, Adam Kosiorek, Seungjin Choi, and Yee Whye Teh. Set transformer: A framework for attention-based permutation-invariant neural networks. In Proceedings of the 36th International Conference on Machine Learning , volume 97 of 
+
+Proceedings of Machine Learning Research , pages 3744–3753. PMLR, 2019. URL https: //proceedings.mlr.press/v97/lee19d.html .[15] Guanghao Li, Wenhao Jiang, Li Shen, Ming Tang, and Chun Yuan. Zero token-driven deep thinking in LLMs: Unlocking the full potential of existing parameters via cyclic refinement. 
+
+arXiv preprint arXiv:2502.12214 , 2025. URL https://arxiv.org/abs/2502.12214 .[16] André F. T. Martins and Ramón Fernandez Astudillo. From softmax to sparsemax: Asparse model of attention and multi-label classification. In Proceedings of the 33rd International Conference on Machine Learning , volume 48 of Proceedings of Machine Learning Research , pages 1614–1623. PMLR, 2016. URL https://proceedings.mlr.press/v48/martins16.html .[17] Evan Miller. Attention is off by one. https://www.evanmiller.org/attention-is-off-b y-one.html , 2023. [18] Ben Peters, Vlad Niculae, and André F. T. Martins. Sparse sequence-to-sequence models. In 
+
+Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics , pages 1504–1519. Association for Computational Linguistics, 2019. doi: 10.18653/v1/P19-1146. URL 
+
+https://aclanthology.org/P19-1146/ .[19] Zihan Qiu, Zekun Wang, Bo Zheng, Zeyu Huang, Kaiyue Wen, Songlin Yang, Rui Men, Le Yu, Fei Huang, Suozhi Huang, Dayiheng Liu, Jingren Zhou, and Junyang Lin. Gated attention for large language models: Non-linearity, sparsity, and attention-sink-free. Advances in Neural Information Processing Systems , 2025. arXiv:2505.06708. [20] Jason Ramapuram, Federico Danieli, Eeshan Gunesh Dhekane, Floris Weers, Dan Busbridge, Pierre Ablin, Tatiana Likhomanenko, Jagrit Digani, Zijin Gu, Amitis Shidani, and Russell Webb. Theory, analysis, and best practices for sigmoid self-attention. In The Thirteenth International Conference on Learning Representations , 2025. URL https://openreview.net /forum?id=Zhdhg6n2OG . arXiv:2409.04431. [21] Yuval Ran-Milo. Attention sinks are provably necessary in softmax transformers: Evi-dence from trigger-conditional tasks. In Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 2: Short Papers) , pages 70–89. Asso-ciation for Computational Linguistics, 2026. doi: 10.18653/v1/2026.acl-short.8. URL 
+
+https://aclanthology.org/2026.acl-short.8/ .14 [22] Sara Sabour, Nicholas Frosst, and Geoffrey E. Hinton. Dynamic routing between capsules. In 
+
+Advances in Neural Information Processing Systems , 2017. [23] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in Neural Information Processing Systems , volume 30, 2017. URL https://papers.nips.cc/paper/7181-attenti on-is-all-you-need .[24] Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song Han, and Mike Lewis. Efficient streaming language models with attention sinks. In International Conference on Learning Representations ,2024. arXiv:2309.17453. [25] Qingyu Yin, Xuzheng He, Xiang Zhuang, Yu Zhao, Jianhua Yao, Xiaoyu Shen, and Qiang Zhang. StableMask: Refining causal masking in decoder-only transformer. In Proceedings of the 41st International Conference on Machine Learning , volume 235 of Proceedings of Machine Learning Research , pages 57033–57052. PMLR, 2024. URL https://proceedings.mlr.pres s/v235/yin24a.html .[26] Manzil Zaheer, Satwik Kottur, Siamak Ravanbakhsh, Barnabás Póczos, Ruslan Salakhutdinov, and Alexander J. Smola. Deep sets. In Advances in Neural Information Processing Systems ,volume 30, 2017. URL https://papers.nips.cc/paper/6931-deep-sets .[27] Dewen Zeng, Nan Du, Tao Wang, Yuanzhong Xu, Tao Lei, Zhifeng Chen, and Claire Cui. Learning to skip for language modeling. arXiv preprint arXiv:2311.15436 , 2023. URL https: //arxiv.org/abs/2311.15436 .[28] Biao Zhang, Ivan Titov, and Rico Sennrich. Sparse attention with linear units. In Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing , pages 6507–6520. Association for Computational Linguistics, 2021. doi: 10.18653/v1/2021.emnlp-main.523. URL 
+
+https://aclanthology.org/2021.emnlp-main.523/ .[29] Zayd Muhammad Kawakibi Zuhri, Erland Hilman Fuadi, and Alham Fikri Aji. Softpick: No attention sink, no massive activations with rectified softmax. In Findings of the Association for Computational Linguistics: ACL 2026 , pages 18179–18213. Association for Computational Linguistics, 2026. doi: 10.18653/v1/2026.findings-acl.905. URL https://aclanthology.org /2026.findings-acl.905/ .15 A Additional mathematical details 
+
+A.1 Projection-boundary design variation 
+
+Presence may be evaluated after projection rather than on the shared hidden carrier. For head a,define 
+
+pQia = ρτ (qia ), pKja = ρτ (kja ), OAttention QK ia = pQia  
+
+> ∑
+> j
+
+mij pKja esija vja 
+
+εden + ∑ 
+
+> j
+
+mij pKja esija . (23) This form satisfies null-query and null-source contracts at the projected Q/K/V boundary. It differs from canonical hidden-carrier OAttention whenever a nonzero hi projects to qia = 0 or kia = 0 in one head: the projection-boundary form suppresses that role in that head, whereas the canonical form retains the shared token presence. Under zero-preserving projections, both forms preserve a hidden zero. They are therefore related designs with different declared carrier boundaries, not notation variants. 
+
+A.2 Conditional-kernel interpretation 
+
+For a token transition kernel KI (dH ′ | H, c ), the deterministic zero-extension law has a direct probabilistic analogue. After adjoining a null index j,
+
+KI∪{ j}
+
+> (
+
+dH ′ 
+
+> I
+
+, dh ′ 
+
+> j
+
+| HI ⊕j 0, c +) = KI (dH ′ 
+
+> I
+
+| HI , c ) δ0(dh ′ 
+
+> j
+
+). (24) The first factor states that a null context token does not change the conditional dynamics of old tokens. The second states that the null position is absorbing. This factorization is stronger than saying only that the new position has zero output. A query placeholder has a different factorization. A full structural NULL has one hidden-carrier presence (p=0). A read-only query hole instead keeps a nonzero carrier (p>0) so its next state can depend on context, while the caller masks its source column or otherwise excludes it from source support. In the Q/K/V reference this distinction can also be expressed as ( pQ > 0, p K = 0). A learned [MASK] token can be nonzero and information-bearing. These states should not be identified merely because they occupy the same table cell. 
+
+A.3 Compatibility of metadata 
+
+Equation (10) compares an original indexed family with its zero extension. The comparison requires metadata on old indices to remain fixed. Appending a token to a table with fixed feature identifiers is compatible. Inserting before a sequence position and then recomputing absolute position indices may not be compatible because old carriers have changed. OInject prevents an exact-zero token from receiving additive metadata; it does not make arbitrary re-indexing invariant. 
+
+A.4 Why output gating is insufficient for coupled maps 
+
+Let Ai(H) be a cross-token aggregate and consider ˜Ai(H) = piAi(H). If pi = 0, the output at position i vanishes. For an old active position r, however, ˜Ar(H ⊕ 0) = prAr(H ⊕ 0) can differ from 
+
+prAr(H). Ordinary softmax attention and unweighted standardization are examples: the inserted zero changes a denominator or empirical moment. Source presence must therefore enter the coupled support itself, as in Eqs. (14) and (20). 16 B Experimental protocols and reproducibility 
+
+B.1 Operator implementation details 
+
+The package exposes two explicit classes. HiddenCarrierOAttention computes one token presence from each hidden carrier and broadcasts it across heads. OAttention retains the Q/K/V-boundary design variation, computing query and key presence per head. Both paths compute norms, scores, exponentials, and normalizers in fp32, then cast outputs and reported weights to the caller dtype. They branch on a zero-length key axis and map fully masked rows to zero. Boolean masks use True 
+
+for visibility; additive masks map excluded edges to −∞ before exponentiation. Under grouped-query attention, the canonical source coefficient is broadcast across expanded query heads, while the reference key coefficient follows the KV-head repeat. 
+
+B.2 Datasets, splits, and metrics 
+
+All real-data experiments use datasets distributed with scikit-learn. We split rows into 60% training, 20% validation, and 20% test subsets; classification splits are stratified. Feature standardization is fitted on the training split and applied unchanged to validation and test. For Diabetes, the target transform is also fitted on training targets, and RMSE and MAE are reported after inversion to original units. Table 4: Real datasets used in the learned-model evaluations.                         
+
+> Dataset Rows Features Classes Task Iris 150 43classification Wine 178 13 3classification Breast Cancer Wisconsin 569 30 2classification Digits 1,797 64 10 classification Diabetes 442 10 –regression
+
+Classification metrics are accuracy, balanced accuracy, and cross-entropy. Regression metrics are RMSE and MAE. Unless stated otherwise, learned-model comparisons use seeds 11 , 23 , 37. The learned-model experiments are small, controlled architecture studies rather than broad benchmarks. 
+
+B.3 Canonical hidden-carrier model configurations 
+
+The minimal scalar-feature adapter maps a standardized scalar zj to hj = zj wj ∈ R64 without token bias. It applies one four-head self-attention layer, a residual connection, mean pooling over feature tokens, and a task head. The standard and hidden-carrier arms share initialization, optimizer, split, and training budget. OAttention uses τ = 10 −6. The projection-boundary experiments use the same host protocols but evaluate a different declared carrier boundary. The test-time insertion experiment uses a two-block, 32-dimensional, four-head FT-style host with a learned CLS readout. Exact zero tokens are appended after the ordinary feature and CLS carriers. The insertion comparison is made within the trained model between the original and extended sequence. The reported prediction shift is therefore not a change in task loss. The training-time zero-column study uses the same two-block hidden size and head count, a bias-free feature tokenizer, affine-free LayerNorm, bias-free FFN, and learned CLS readout. Exact zero columns are added after train-fitted preprocessing to training, validation, and test sets. Standard and hidden-carrier OAttention arms use the same initial state for each task, seed, and zero count. 17 B.4 Pretrained TabPFN v3 retrofit protocol 
+
+The hidden-carrier host comparison uses an independent copy of the pretrained TabPFN v3 regressor checkpoint (vendor package 8.0.1) on an NVIDIA GB10 GPU. The baseline and both O arms are separate model instances loaded from the same checkpoint; no parameter is fine-tuned. The OAttention arm replaces attention participation at the feature-distribution, column-aggregation, and ICL boundaries. Full-O additionally applies ONorm, OFFN, and hidden-carrier gates to the two target-encoding additions in the v3 forward path. The upstream preprocessing standardizer remains unchanged, so this is not an OStandardize task experiment. The cached OpenML data IDs are 560 (bodyfat), 44959 (concrete_compressive_strength), 505 (tecator), 507 (space_ga), 227 (cpu_small), and 189 (kin8nm). We use seeds 11 , 23 , 37, one estimator per arm, and deterministic caps of 512 training and 256 test rows for larger datasets. RMSE is measured in original target units and R2 is computed on each held-out test split. The main table uses τ = 10 −8 as a near-identity active-path control. A separate τ = 1 stress matrix is reported below; it is not pooled into the main table. 
+
+B.5 OStandardize protocol 
+
+The machine-readable OStandardize sweep fixes τ = 10 −6, εvar = 10 −6, and token axis 1. It evaluates fp32 shapes (2 , 5, 4), (1 , 7, 8), and (3 , 4, 16), together with bf16 and fp16 cases on (2 , 5, 4). Each case checks: • preservation of old support, mean, variance, and outputs under one zero inserted at the tested boundary and interior positions; • exact-zero output for the inserted positions; • permutation equivariance and finite gradients; • all-null, zero-length, and singleton active support. Constant active support is covered separately by the component unit tests. The singleton case also verifies the selected layerwise semantics: centering produces an exact-zero state, and a subsequent biased OFFN branch emits zero when presence is recomputed from that state. 
+
+B.6 OTransformer protocol 
+
+The OTransformer experiment uses two blocks, hidden dimension 32, four heads, FFN dimension 128, 100 epochs, learning rate 10 −3, weight decay 10 −4, and τ = εden = 10 −6. Exact zero tokens are inserted after feature tokenization and before position encoding and Transformer blocks. The factorial comprises five datasets, three seeds, three training zero counts k ∈ { 0, 1, 4}, and four arms, for 180 fits. 18 Table 5: Arms in the scoped OTransformer experiment. The first three share exact initialization; the structural control is initialized separately. 
+
+Arm Attention Encoding and normaliza-tion FFN Standard softmax additive encoding; affine LayerNorm biased OA-only hidden-carrier OAttention additive encoding; affine LayerNorm biased OTransformer hidden-carrier OAttention OInject; ONorm-wrapped affine LayerNorm OFFN-wrapped biased FFN Structural control hidden-carrier OAttention no additive encoding; affine-free LayerNorm bias-free, O-gated 
+
+The primary diagnostics are per-layer inserted-state norm, old-token and CLS state shift, prediction shift, norm and presence quantiles, exact/near-zero fractions, and finiteness. The task head is outside the token-dynamics theorem; a bias in the head can produce a nonzero all-null prediction even when every token state remains zero. 
+
+# C Additional empirical results 
+
+C.1 Q/K/V-boundary reference operator properties 
+
+A separate projection-boundary study covers five random seeds and three ( H, Q, K, d ) configurations, for 15 cases at τ = εden = 10 −6. It evaluates exact and fully masked boundaries, insertion at the Q/K/V boundary, the active-state comparison with softmax, near-origin scaling, grouped-query attention, masks, bf16, and gradients. Table 6: Numerical verification of the Q/K/V-boundary design variation. The nonzero insertion errors are floating-point residuals on pre-existing outputs or weights. 
+
+Property Result Finiteness 15/15 seed–shape cases finite Exact zero boundaries Null query, empty support, and fully masked output and weights: 0 Null-source insertion Old-output L∞ ≤ 2.4 × 10 −7; old-weight L∞ ≤ 6.0 × 10 −8
+
+Self-attention insertion Old-output L∞ ≤ 4.8 × 10 −7; inserted-query output 0 Near-origin behavior Log–log output/query slope 1 .9997 over scales 10 −7 to 10 −5
+
+Active path Relative output L∞ ≤ 3.7 × 10 −7 at the evaluated default scale Interfaces GQA, boolean/additive masks, bf16, and tested gradients finite 
+
+The measured near-origin slope matches the quadratic expansion of Eq. (3). The active-path difference is a finite-scale numerical observation, while Eq. (8) supplies the asymptotic statement. Because the presence boundary differs, these measurements do not constitute evidence for the canonical hidden-carrier operator. 
+
+C.2 Finite-gate stress test for the pretrained TabPFN v3 retrofit 
+
+The main text uses τ = 10 −8 to isolate the minimal-change regime. To make the calibration trade-off visible, we repeat the same 54 inference fits with τ = 1. OAttention remains close to the baseline, 19 but applying the same gate to every local branch can materially alter a pretrained active path. The entries below are means over seeds; positive RMSE deltas and negative R2 deltas indicate degradation. Table 7: Finite-τ stress matrix on the cloned pretrained TabPFN v3 host. Deltas are relative to the unmodified checkpoint.                                 
+
+> Dataset OA ∆RMSE Full-O ∆RMSE OA ∆ R2Full-O ∆ R2
+> bodyfat +0.532% +95.354% +0.000028 +0.005431 concrete +0.162% +24.442% -0.000178 -0.034037 cpu_small -0.054% +5.238% +0.000031 -0.002766 kin8nm -0.112% +39.797% +0.000277 -0.117006 space_ga -0.126% +17.324% +0.000649 -0.096142 tecator +0.429% +100.143% -0.000008 -0.002602 Mean over 18 cells +0.138% +47.050% +0.000133 -0.041187
+
+The large Full-O changes are not a refutation of the zero-extension contract: they are an active-path calibration result for a pretrained model that was not trained with repeated gates. The near-identity matrix and this stress matrix should therefore be read together. 
+
+C.3 Canonical hidden-carrier adapter calibration 
+
+The broad adapter receipt covers seven tasks and three matched seeds. The table reports test means; positive regression deltas are worse because RMSE and MAE are lower-is-better metrics. These numbers are included to expose the scale of the active-path perturbation, not to rank the two attention mechanisms. Table 8: Canonical hidden-carrier adapter rerun. Deltas are hidden-carrier OAttention minus standard softmax.                                 
+
+> Task Metric Standard Hidden-carrier OA ∆Iris accuracy .9111 .9111 +.0000 Wine accuracy .9630 .9630 +.0000 Breast Cancer accuracy .9708 .9708 +.0000 Digits accuracy .8972 .8954 -.0019 Synthetic classification accuracy .6889 .6900 +.0011 Diabetes RMSE 54.6873 54.6782 -.0092 Friedman1 RMSE 2.5011 2.5016 +.0005
+
+The corresponding cross-entropy and MAE values, per-seed outcomes, presence quantiles, and runtime metadata remain in the machine-readable receipt. 
+
+C.4 Test-time NULL insertion 
+
+We append one or four exact zero-vector tokens after token construction in a two-block, 32-dimensional host and compare predictions with the unextended sequence. The inserted state is measured after the final block. Across all 15 task–seed pairs, every inserted hidden-carrier OAttention token remained exactly zero in the recorded post-block tensor. Standard attention activated the new positions and changed predictions more strongly (Table 9). 20 Table 9: Test-time insertion over five datasets and three seeds. Prediction shift is RMS over test predictions; state is the maximum absolute inserted coordinate.                        
+
+> Inserted Prediction RMS shift Inserted-state L∞
+> tokens Standard Hidden-carrier OA Standard Hidden-carrier OA 17.39 ×10 −23.69 ×10 −51.83–7.42 042.18 ×10 −11.64 ×10 −41.84–7.42 0
+
+C.5 Training-time exact-zero columns 
+
+Table 10: Mean test metric over three seeds in the canonical hidden-carrier training-time zero-column study, reported as standard/hidden-carrier OAttention. For Diabetes, lower RMSE is better.                                   
+
+> Task Metric k= 0 k= 1 k= 2 k= 4 Iris accuracy .8667/.9222 .8667/.9111 .8778/.9111 .9333/.8889 Wine accuracy .9444/.9444 .9444/.9444 .9444/.9444 .9444/.9444 Breast Cancer accuracy .9678/.9678 .9678/.9678 .9678/.9678 .9678/.9678 Digits accuracy .9204/.9213 .9194/.9213 .9194/.9213 .9194/.9213 Diabetes RMSE 62.6683/62.6689 62.7226/62.6680 62.7453/62.6682 62.8580/62.6688
+
+These values provide a bounded matched comparison only. The study was not designed with a formal non-inferiority margin, and differences across tasks and seeds should not be aggregated into a universal no-loss statement. 
+
+C.6 Component-level checks 
+
+The component tests use biased FFNs, affine normalizers, and arbitrary additive encodings to verify exact-zero output or update at the declared boundary. They also check convergence toward the wrapped active path as τ → 0+, finite gradients, tested dtypes, shape validation, block-level insertion, the OA-only failure boundary, and one-component-at-a-time ablations. These tests establish implementation agreement with the displayed definitions; they do not show that every possible wrapped module is safe. 
+
+# D Reproducibility artifacts 
+
+The implementation is in the zero_activity_attention Python package. The principal experiment entry points are run_systematic_operator_sweep.py , run_hidden_carrier_oattention_sw eep.py , run_ft_transformer_paper_suite.py , run_zero_column_training_factorial.py ,
+
+run_o_standardize_sweep.py , and run_otransformer_suite.py .The following machine-readable artifacts support the numerical values in the publication manuscript. Paths are relative to experiments/results/ :
+
+Hidden-carrier OAttention 
+
+remote/hidden-carrier-oattention-dgx2-20260821/hidden-carrier-oat tention-dgx2-20260821-v1.json 
+
+Operator sweep 
+
+systematic-operator-sweep-dgx2.json 
+
+21 Matched adapters 
+
+adapter-nonregression-dgx2.json , digits-adapter-nonregression-dgx2. json , and regression-adapter-nonregression-dgx2-fixed.json 
+
+Canonical matched-task rerun 
+
+hidden-carrier-task-rerun-20260821-v1/broad-adapter-hidden-carri er-20260821.json , hidden-carrier-task-rerun-20260821-v1/ft-transfo rmer-hidden-carrier-20260821.json , and hidden-carrier-task-rerun-2 0260821-v1/zero-column-hidden-carrier-20260821.json 
+
+Test-time insertion 
+
+ft-transformer-paper-suite-dgx2-20260820.json 
+
+Training-time zeros 
+
+remote/zero-column-training-factorial-dgx2-20260820/zero-column-t raining-factorial-dgx2-20260820-v2.json 
+
+OStandardize remote/ostandardize-20260821/ostandardize-sweep-20260821-v2.json 
+
+OTransformer remote/otransformer-dgx2-20260821/otransformer-suite-dgx2-2026082 1-v4.json 
+
+Canonical OTransformer rerun 
+
+hidden-carrier-task-rerun-20260821-v1/otransformer-hidden-carrier -20260821.json 
+
+Pretrained TabPFN v3 near-identity 
+
+tabpfn3-o-closure-20260821-v1/openml_regression_matrix_tau1e-8.j son 
+
+Pretrained TabPFN v3 finite-τ stress 
+
+tabpfn3-o-closure-20260821-v1/openml_regression_matrix_tau1_final. json 
+
+Protocol clarification 
+
+remote/otransformer-dgx2-20260821/protocol-clarification-v4.json 
+
+The canonical task rerun uses source SHA-256 beginning f9fc6e9b52d968a2 ; the complete digest is stored in each receipt. Its receipt digests begin with c8198791 , 3dbd656c , d9484ac3 , and 
+
+24e4afe0 for the adapter, FT, zero-column, and OTransformer matrices, respectively. The historical hidden-carrier operator source and runner SHA-256 values begin with a87ac5c8 and 71a1c463 ;the OStandardize source and runner values begin with e4276970 and 50af6245 ; the historical OTransformer source and runner values begin with e4276970 and 8e3fc992 . The complete digests for the TabPFN v3 runner and checkpoint begin with e73c1134 and 311ce18d ; its copied vendor architecture begins with 733f0f24 . Environment metadata, per-run configurations, and task-level outputs are stored in the artifacts above. Historical runs and release verification records remain in the repository but are not pooled into the publication tables. 22
