@@ -1,0 +1,1262 @@
+Title: Beyond Sparse Weights: When Is Attention Compressible?
+
+URL Source: https://arxiv.org/pdf/2608.21541v1
+
+Published Time: Tue, 25 Aug 2026 00:07:40 GMT
+
+Number of Pages: 37
+
+Markdown Content:
+# Beyond Sparse Weights: When Is Attention Compressible? 
+
+Chiwun Yang ∗ Xiaoyu Li †
+
+Abstract 
+
+KV-cache compression is often justified by attention maps with a few large weights. This is incomplete: large weights may not contain most of the mass, omitted values can cancel, and preserving the attention output may not preserve the task. We separate these questions. Global score gaps—not threshold counts—determine how many tokens are needed to retain a target mass. For a realized row, the weighted sum of omitted values is the exact missing statistic. A controlled retrieval–aggregation model explains when truncation helps and when it hurts. These results motivate CertKV , a training-free compressor that reserves one tail-summary slot per head and allocates the rest by value dispersion. Under matched budgets, CertKV is top-two in seven of nine LongBench-v2 settings, remains in the leading compressed tier on 128K RULER ,and realizes a ten-fold cache budget in a packed Llama prototype. Compressibility depends on the mass, values, future queries, and task—not on a sparse-looking map alone. 
+
+# 1 Introduction 
+
+Long-context decoding repeatedly reads a key–value (KV) cache that grows with sequence length. Cache reduction is therefore both a systems requirement and a scientific claim about what state later queries need (Dao et al., 2022; Kwon et al., 2023). Existing methods retain tokens deemed important, or impose windows, sinks, per-head budgets, and trained sparse patterns (Zhang et al., 2023; Liu et al., 2023a; Li et al., 2024; Tang et al., 2024; Xiao et al., 2024b; Feng et al., 2025; Cai et al., 2024; Jiang et al., 2024). Their justification often starts from an attention map with a few bright entries. Yet a cache does not store a heat map: it stores state for future queries and downstream computation. The real question is what must be true before sparse-looking attention licenses compression. We separate four objects: the number of large weights, the number of tokens needed for a target mass, the retained state needed to preserve an attention output, and the state needed by the task. Without further assumptions, count sparsity ̸ ⇒ coverage sparsity ,
+
+coverage sparsity ̸ ⇒ output fidelity ,
+
+output fidelity ̸ ⇒ task utility .
+
+The missing objects are, respectively, the global score-gap profile, the values carried by omitted mass, and the task target. A dim bulk can carry most of the probability; substantial omitted mass can also cancel in value space; and exact softmax can preserve noise that a retrieval task would prefer to discard. Thus “attention is sparse” is incomplete until the metric and the required contract are specified. 
+
+> ∗christiannyang37@gmail.com . City University of Hong Kong.
+> †xiaoyu.li2@unsw.edu.au . University of New South Wales.
+
+1arXiv:2608.21541v1 [cs.LG] 21 Aug 2026 The first missing link is mass coverage . A threshold count records visible entries; a cache budget asks how many retain, say, 90% of the probability mass. Fixed-scale i.i.d. sub-Gaussian scores can have a logarithmic calibrated count, yet Gaussian scores at initialization scale require an asymptotic fraction near 0 .61 for 90% coverage—only 1 .6× compression. Complementary all-rank conditions separate the regimes: a log-rank lower gap envelope with slope above one makes the tail summable, whereas a sub-unit upper envelope forces a growing budget. The unit-slope boundary depends on lower-order structure. Peaks alone are not enough; the whole plateau–slope geometry matters. The second link is attention-output fidelity . Omitted mass is not an error certificate: its values may cancel or reinforce. For a fixed realized row, the output factors into a retained contribution and the omitted weighted value sum. That sum is the unique additive correction. Under the stronger requirement that one linear sketch recover both the full output and every retained sub-budget, the kept values plus one tail aggregate attain the matching ( |S| + 1) d dimension bound. The third link is task utility . Exact attention is an estimator, not the task target. In a planted-token model, the informative token can enter top-k before it dominates softmax; renormalization then suppresses a diffuse noisy bulk and can win for retrieval-like targets, while exact attention remains preferable for aggregation. The controlled test recovers this transition; the downstream test exposes the proxy’s limits. Compressibility is consequently not a scalar property of a weight histogram. It is a contract among score geometry, value geometry, future queries, and the task. This view suggests a cache design: CertKV reserves one explicitly charged tail-summary slot per KV head, ranks tokens from SnapKV’s observation window, allocates more real-token slots where the omitted values are harder to summarize, and stores a weighted key–value tail summary. Synthetic and real slots obey the same physical budget. 
+
+Contributions. 1. Coverage geometry. Complementary all-rank gap conditions give a length-independent fixed-mass budget above unit log-rank slope and polynomial growth below it. Fixed-scale i.i.d. Gaus-sian logits simultaneously exhibit a logarithmic calibrated count and linear coverage. A 4K profile’s failed 128K prediction isolates cross-length stability as a separate requirement (Theo-rem 3.6 and Fig. 1). 
+
+2. Fixed-row output fidelity. We identify the omitted weighted value sum as the unique fixed-row correction. For the stronger linear-sketch requirement above, one tail aggregate also attains the matching dimension bound; trained-model controls instantiate the identity (Theorem 3.7 and Table 3). 
+
+3. Task-dependent utility. A planted-token analysis characterizes when renormalized top-k
+
+suppresses a diffuse bulk and overtakes exact attention. Experiments recover the controlled transition and show why it is not a calibrated downstream rule (Theorem 3.8 and Fig. 2). 
+
+4. Exact-budget compression. CertKV is evaluated on all 503 LongBench-v2 examples with three backbones and three ratios, multi-length RULER , one-factor studies, and a packed-cache prototype. On the pre-specified four-baseline grid, its compressed point estimate is top-two in seven of nine settings; at 128K it joins the leading RULER tier and, at Llama 64K/10 ×, realizes the requested physical cache reduction (Tables 1 and 2). 
+
+# 2 Related Work 
+
+KV-cache compression. Training-free sparse decoding spans cumulative-score eviction (H2O (Zhang et al., 2023), Scissorhands (Liu et al., 2023a), and TOVA (Oren et al., 2024)), observation-2window selection (SnapKV (Li et al., 2024)), query-aware page selection (Quest (Tang et al., 2024)), block summaries (InfLLM (Xiao et al., 2024a)), dynamic token pruning (SlimInfer (Long et al., 2026)), sink-plus-window streaming (StreamingLLM (Xiao et al., 2024b)), and LSH-based sam-pling with variance guarantees (MagicPIG (Chen et al., 2025)). Other methods use values (VATP (Guo et al., 2024)), allocate budgets across heads (Ada-KV (Feng et al., 2025)), distinguish head types (DuoAttention (Xiao et al., 2025); retrieval heads (Wu et al., 2025)), or compensate through merging (D2O (Wan et al., 2025), WeightedKV (Yuan et al., 2025b), and KeepKV (Tian et al., 2025)). A broader survey appears in Zhang et al. (2025). Prefill and layer-wise methods select structure before or across decoding (MInference (Jiang et al., 2024), ParallelComp (Xiong et al., 2025), SampleAttention (Zhu et al., 2024), SeerAttention (Gao et al., 2024), HashAttention (Desai et al., 2025), PyramidKV (Cai et al., 2024), and Pyramid-Infer (Yang et al., 2024a)). System designs trade cache placement for bandwidth (ShadowKV (Sun et al., 2024a) and Double Sparsity (Yang et al., 2024b)) on top of exact kernels and paged serving (Dao et al., 2022; Kwon et al., 2023), while multi- and grouped-query attention reduce cache size architecturally (Shazeer, 2019; Ainslie et al., 2023). This design space descends from training-time sparse patterns (Child et al., 2019; Beltagy et al., 2020; Zaheer et al., 2020; Kitaev et al., 2020; Roy et al., 2021) and kernel or low-rank approximations (Choromanski et al., 2020; Katharopoulos et al., 2020; Xiong et al., 2021; Qin et al., 2022). Trainable sparsity co-designs the pattern and weights (Yuan et al., 2025a; Lu et al., 2025; Ge et al., 2024) and is outside our scope. 
+
+Threshold counts and attention approximation. Deng et al. (2024) study threshold-count sparsity in an idealized one-layer model with independent bounded input entries. Given access to the largest attention entries, they derive nC -scaled top-k windows for approximating the attention matrix. That analysis establishes a count-based approximation result under its assumptions; it does not determine the probability mass carried by the selected entries, the value-dependent error in the attention output, or the utility of that output for a task. We make these three quantities explicit. Our global gap criterion determines fixed-row mass coverage (Theorem 3.6); our tail factorization identifies the value statistic required for exact fixed-row completion (Theorem 3.7); and our task law characterizes when reproducing exact attention is preferable to renormalized selection (Theorem 3.8). These results analyze the premise shared by many cache selectors. The coverage theorem com-plements one-sided variance and dispersion analyses (Chen et al., 2025; Veliˇ ckovi´ c et al., 2025). The fixed-row minimality result applies when one linear sketch must recover every retained sub-budget; it does not concern a single output, nonlinear summaries, or an unseen future-query distribution. The per-head growth classes also organize the heterogeneity exploited by Ada-KV (Feng et al., 2025), PyramidKV (Cai et al., 2024), and DuoAttention (Xiao et al., 2025). Finally, the empirical observation that different sparse methods lead on different tasks (Nawrot et al., 2025) agrees with our task-conditional analysis. 
+
+Softmax dispersion and logit scaling. Veliˇ ckovi´ c et al. (2025) prove that bounded softmax logits disperse as the sequence grows and propose inference-time temperature adaptation. Scalable-Softmax (Nakanishi, 2025) and entropy-invariant scaling (Su, 2021) instead multiply logits by log n-dependent factors. These interventions change the score scale and therefore the sorted-logit gap profile that governs coverage. Our proved submission claim is the distribution-free row-wise state-ment: a global lower envelope steeper than log j gives a length-independent coverage budget, while a global upper envelope below unit slope forces the budget to grow with context length (Theo-rem 3.6). This criterion deliberately separates coverage from concentration: a bounded normalized 3count or a large top weight does not by itself determine the mass budget (Section 3.1 and Fig. 1). Related length-dependent rescalings appear in positional extrapolation (Su et al., 2024; Press et al., 2022; Chen et al., 2023; Peng et al., 2024) and in analyses of attention-entropy collapse (Zhai et al., 2023; Hong and Lee, 2025). The fine-grained complexity threshold of Alman and Song (2023) is analogous but distinct: it prices O(√log n) logit magnitude for almost-linear-time approximation, whereas our criterion prices the global log-rank gap slope needed for fixed-row mass coverage. 
+
+Theory of attention concentration. Modern Hopfield networks (Ramsauer et al., 2021) study when an attention update retrieves a stored pattern rather than a metastable average. Our planted-token analysis gives a statistical complement: once the signal enters the retained set but before it dominates the full softmax, renormalized selection can suppress a noisy bulk (Theorem 3.8). Random Energy Model and Poisson–Dirichlet laws (Derrida, 1981; Bovier, 2006) provide classical machinery for analyzing condensed weights; the three submission proofs do not rely on that addi-tional asymptotic route. Rank collapse across depth (Dong et al., 2021) concerns compositions of layers and is orthogonal to our fixed-row summary question. Likewise, recent empirical “lossless” top-k claims (Ruiz Williams, 2026) concern trained values and future queries; our exact-completion statement is only for the specified fixed-row additive statistic (Theorem 3.7). Sparsemax (Martins and Astudillo, 2016) and α-entmax (Peters et al., 2019) change the attention operator, whereas we analyze standard softmax. A separate complexity literature prices attention computation through kernel, tensor, dynamic, and streaming approximations (Zandieh et al., 2023; Han et al., 2023; Kacham et al., 2023; Alman and Song, 2024b; Chu et al., 2024; Alman and Song, 2024a; Brand et al., 2023; Addanki et al., 2023), and contextual sparsity is exploited at inference by Liu et al. (2023b). Mechanistic studies document induction heads (Olsson et al., 2022), massive activations (Sun et al., 2024b), and attention sinks (Gu et al., 2025); learned token dropping (Anagnostidis et al., 2023) and max-margin convergence (Tarzanagh et al., 2023) describe how training can install sharp selection. Closest to our score-scale discussion, Chen et al. (2026) show in a one-layer Markov model that attention scale grows only after embeddings condense to rank one. Their parameter-level condensation differs from our realized-row criterion, but provides a training-dynamics counterpart to the length-growing score geometry excluded by a fixed-weight, bounded-input model (Fact 3.1). These works establish that concentration emerges (Gu et al., 2025; Olsson et al., 2022) or exploit it as a premise (Zhang et al., 2023; Liu et al., 2023b); they do not separate a calibrated large-weight count from the generally different budget required for mass coverage. 
+
+# 3 From Sparse Weights to Attention Compressibility: Three Sep-arations 
+
+“Sparse attention” can refer to four different properties: a small threshold count, a small fixed-mass support, a compact representation of the attention output, or preservation of the downstream task. Without additional structure, none determines the next: count ̸ ⇒ coverage ̸ ⇒ output fidelity ,
+
+output fidelity ̸ ⇒ task utility .
+
+This section identifies what each arrow is missing. Global score gaps govern mass coverage, omitted values govern output fidelity, and the task target governs whether fidelity is useful. The result is a set of quantities that a cache-compression argument can state, measure, or model. 4One-row setup. Fix one realized query attending over logits ℓ1, . . . , ℓ n and values V1, . . . , V n ∈
+
+Rd, with max j ∥Vj ∥2 ≤ Vmax . Write 
+
+Aj = eℓj
+
+P 
+
+> t
+
+eℓt , O = X
+
+> j
+
+Aj Vj .
+
+In a transformer, conditioning on query row i gives the input-to-score bridge 
+
+ℓj = ⟨ui, X j ⟩, ui = WK W ⊤ 
+
+> Q
+
+X⊤
+
+> i
+
+√d . (1) 
+
+Fact 3.1 (Fixed weights do not create length-growing score scale) . If ∥WQ∥op , ∥WK ∥op ≤ W and 
+
+∥Xi∥2 ≤ B, then ∥ui∥2 ≤ W 2B/ √d. If, conditional on Xi, each key Xj is centered and κ2-sub-Gaussian in every direction, then ℓj | Xi is centered κ2∥ui∥22-sub-Gaussian. Thus fixed B, W, κ, d 
+
+prevent the logit scale from growing with context length; they do not imply a favorable gap profile. Let π order the logits nonincreasingly, breaking ties by index, and write ℓ(j) = ℓπ(j) and A(j) =
+
+Aπ(j). Define the gap profile 
+
+G(j) = ℓ(1) − ℓ(j), (2) and let 
+
+Kη = min 
+
+n
+
+k ∈ [n] : 
+
+> k
+
+X
+
+> j=1
+
+A(j) ≥ 1 − η
+
+o
+
+. (3) The count of large weights is a different quantity. 
+
+Definition 3.2 (Calibrated count sparsity) . For ϵ > 0, define k(ϵ) = # {j ∈ [n] : Aj > ϵ }. A row is ( ϵ, k )-count-sparse when k(ϵ) ≤ k.A realized count is informative only between the uniform floor and A(1) . The first result below is a conservative simultaneous upper certificate and may be empty; its Gaussian clause and the subsequent relative-threshold law supply non-vacuous counts. 
+
+Remark 3.3 (Threshold scope) . Writing a threshold merely as n−1+ o(1) is insufficient. The formal i.i.d. result uses ϵ ≥ n−1 exp {O(plog( n/δ )) }; below that calibrated window even a uniform row can have a linear count. Its conservative threshold need not lie below the realized maximum weight, so non-vacuity must be proved separately rather than inferred from the n−1+ o(1) notation. 
+
+Proposition 3.4 (Calibrated logarithmic count and a non-vacuous Gaussian level) . Fix σ > 0.For each n ≥ 2, let ℓ1, . . . , ℓ n be independent, centered, σ2-sub-Gaussian logits, and fix δ ∈ (0 , 1) .Set 
+
+Sδ = σp2 log(2 n/δ ),ϵδ(n) = 1
+
+n exp 
+
+n
+
+σp2 log( n/δ ) + Sδ
+
+o
+
+.
+
+With probability at least 1 − 2δ, simultaneously for every ϵ ≥ ϵδ(n),
+
+k(ϵ) ≤ 23 log 2nδ +
+
+r
+
+2 log 2nδ + 2 .
+
+Thus, at fixed (σ, δ ), the calibrated threshold is n−1+ o(1) and the large-weight count is O(log n). This is a possibly empty upper certificate; it neither controls retained mass nor licenses a cache budget. If additionally ℓj iid 
+
+∼ N (0 , σ 2), define mn = log n, τn = σΦ−1(1 − mn/n ), and ϵn = n−1 exp( τn −
+
+σ2/2) . Then ϵn = n−1+ o(1) and k(ϵn)/ log n P
+
+−→ 1.
+
+5Proposition 3.5 (Relative-threshold count under an additive near-top law) . Let bn = √2 log n.Suppose that for some σs > 0 and every fixed C > 0,
+
+sup 
+
+> 1≤j≤⌊ exp( Cb n)⌋
+
+ℓ(j) − σs
+
+p2 log( n/j ) P
+
+−→ 0.
+
+Then, for every fixed ϵ ∈ (0 , 1) and t = log(1 /ϵ ),
+
+log k(ϵA (1) )
+
+√2 log n
+
+> P
+
+−→ tσs
+
+, log k(ϵA (1) )log n
+
+> P
+
+−→ 0.
+
+The additive precision is load-bearing: first-order tails alone do not imply this non-vacuous condi-tional law. 
+
+3.1 Count sparsity does not imply coverage sparsity 
+
+A threshold count looks only at entries that cross one horizontal level. Coverage instead adds the whole ranked tail until it reaches a prescribed mass. Softmax monotonicity makes the top-Kη set coverage-optimal, and A(j)/A (1) = e−G(j) turns this cumulative question into a summability test for the ranked gaps. 
+
+Theorem 3.6 (Coverage regimes from global gap envelopes) . Fix η ∈ (0 , 1) , with the envelope parameters below independent of n. For one realized row, suppose the global pointwise envelope 
+
+G(j) ≥ γ log j − b holds at every rank for b ≥ 0. If γ > 1, then 
+
+Kη ≤
+
+& eb
+
+(γ − 1) η
+
+1/(γ−1) '
+
+,
+
+independently of n. On the other hand, if G(j) ≤ γ′ log j + b′ for every rank, with b′ ≥ 0, and 
+
+0 ≤ γ′ < 1, then 
+
+Kη ≥ (1 − η)e−b′
+
+2 n1−γ′
+
+.
+
+At γ′ = 0 , Kη = Θ( n).
+
+The theorem has a direct interpretation. If the ranked logits fall faster than log j, their expo-nentiated tail is summable and a fixed cache budget can retain the target mass. If they fall more slowly, the required budget must grow with context length. The proof is the p-series test applied to e−G(j), with matching tail lower bounds on the flat side. The all-rank quantifier is essential: a slope fitted on a finite range describes that range only. A leading plateau of size J multiplies the sparse-side budget by J, while lower-order terms determine the boundary γ = 1. Self-contained proofs of the three headline results are in Section B. Count calibration supplies the contrast. The conservative sub-Gaussian certificate in Propo-sition 3.4 gives a simultaneous logarithmic upper bound, while its Gaussian-specific deterministic threshold has (1+ oP(1)) log n exceedances and is non-vacuous. Geometric mixing weakens the avail-able generic upper bound to a larger sublinear rate. Yet for i.i.d. N (0 , σ 2) logits the asymptotic kept fraction is Kη
+
+n
+
+> P
+
+−→ Φ Φ−1(1 − η) − σ .
+
+At σ = 1 and η = 0 .1, it is about 0 .61: logarithmic large-weight count coexists with only 1 .6×
+
+coverage compression. Length-growing score scale can improve coverage under additional tail-shape assumptions, but scale alone does not imply a universal coverage budget and the critical boundary remains sensitive to lower-order structure. 6Connection to measured attention profiles. The relative-weight count ˆkrel = # {j : Aj >
+
+0.1A(1) } has estimated sublinear growth over the measured lengths of the multi-length language-model anchors. This is the observable described by Proposition 3.5 when its Gaussian-type order-statistic assumption holds; it differs from the calibrated absolute threshold in Proposition 3.4. To test whether a short-context profile provides a reusable cache budget, we fit the profile at 4K and predict the 128K coverage requirement without refitting. The predicted and measured budgets differ by more than a factor of 1 .5 (Fig. 1). Thus a short-context profile must demonstrate stability before it is reused as a long-context cache budget. This does not contradict the all-rank theorem: a 4K fit does not establish its global envelope. 
+
+3.2 Coverage does not determine output fidelity 
+
+For a nonempty proper retained set S ⊂ [n], let T = [ n] \ S and pS = P 
+
+> j∈S
+
+Aj . The truncated output, its renormalized counterpart, and the conditional tail mean are 
+
+OS = X
+
+> j∈S
+
+Aj Vj , eOS = X
+
+> j∈S
+
+Aj
+
+pS
+
+Vj ,
+
+¯VT = X
+
+> j∈T
+
+Aj
+
+1 − pS
+
+Vj .
+
+(4) Coverage controls only the scalar pS . It does not say whether the omitted values reinforce one another, cancel, or point in a direction already represented by the retained set. The next identity exposes this missing quantity exactly. 
+
+Theorem 3.7 (Fixed-row tail factorization) . For every fixed realized row and nonempty proper retained set, 
+
+O = pS eOS + (1 − pS ) ¯VT , (5) 
+
+eOS − O = (1 − pS )( eOS − ¯VT ), (6) 
+
+∥ eOS − O∥2 ≤ 2Vmax (1 − pS ). (7) 
+
+The unique u ∈ Rd satisfying OS + u = O is 
+
+u⋆ = X
+
+> j∈T
+
+Aj Vj = (1 − pS ) ¯VT .
+
+The identities follow by splitting kept and omitted terms. They are tight: the same omitted mass can either cancel or create constant error, depending on the values. Under the explicitly stronger requirement that a linear sketch recover the full output and every retained sub-budget, the kept values plus one tail aggregate also meet a matching ( |S| + 1) d rank floor (Theorem C.2). That scoped statement is not a lower bound for one output, nonlinear compression, or a future-query KV cache. 
+
+From a realized row to later queries. The theorem is exact only after the attention weights of one row are known. A cache evictor acts before later queries reveal their weights. Our future-query result gives an a posteriori bound separating two errors: synthetic tail-mass mismatch and conditional tail-distribution mismatch. Computing these quantities still requires the evicted keys (Theorem C.1). Section 4 therefore uses the fixed-row result as a design principle and approximates the unavailable future-query quantities at eviction time. 73.3 Output fidelity does not determine task utility 
+
+Approximating O is appropriate when the task target is the full aggregate. It can be wrong when the bulk acts as noise around a planted or retrieval-like value. For target y, use L( bO) = ∥ bO − y∥2,and compare exact attention, renormalized top-k, and the value-aware oracle set minimizing this loss. 
+
+Planted-token setup. For each n, one token j⋆ has logit μn and fixed value Vj⋆ . The other logits are i.i.d. N (0 , σ 2) for fixed σ > 0; their values are i.i.d., independent of the logits, with mean ¯Vb and second moment E∥Vj − ¯Vb∥22 ≤ σ2 
+
+> V
+
+for fixed σV > 0. Write D = ∥Vj⋆ − ¯Vb∥2 > 0. The retained budget and planted logit satisfy 
+
+kn → ∞ , log kn = o(plog n),σp2 log n + log kn + C ≤ μn ≤ (1 − ε) log n. 
+
+Here C > 0 and ε ∈ (0 , 1) are fixed. Let Skn be the top-kn set, and define 
+
+eAj = Aj 1{j ∈ Skn }
+
+P 
+
+> t∈Skn
+
+At
+
+, eOSkn = X
+
+> j
+
+eAj Vj ,we = Aj⋆ , ws = eAj⋆ .
+
+The retained bulk is diffuse when 
+
+X 
+
+> j∈Skn \{ j⋆}
+
+eAj
+
+1 − ws
+
+!2
+
+= OP(k−1 
+
+> n
+
+).
+
+Theorem 3.8 (Task ordering in the planted-token regime) . Under the setup above, assume the retained bulk is diffuse. Then: (i) With probability tending to one, j⋆ ∈ Skn , ws = Θ P(1) , and we ≤ n−ε+oP(1) .(ii) For yα = αV j⋆ + (1 − α) ¯Vb,
+
+L(O) = |α − we|D + OP(σV n−1/2),L( eOSkn ) = |α − ws|D + OP(σV k−1/2 
+
+> n
+
+).
+
+(iii) Let α⋆n = ( we+ws)/2 and ∆n(α) = |α−we|−| α−ws| . For any deterministic or logit-measurable 
+
+αn ∈ [0 , 1] satisfying 
+
+D∆n(αn)
+
+σV (n−1/2 + k−1/2 
+
+> n
+
+)
+
+> P
+
+−→ ∞ ,
+
+exact attention has smaller loss below α⋆n, and renormalized top-kn has smaller loss above it, with probability tending to one. 
+
+The value-aware oracle is defined by minimizing over all kn-subsets, so, deterministically, min  
+
+> S:|S|=kn
+
+L( eOS ) ≤ L( eOSkn ).
+
+Gaussian maxima establish that the planted token is detected, while the lognormal law of large numbers and retained-bulk diffuseness control the two value averages. The result isolates a precise denoising mechanism: truncation can help after a signal becomes rank-visible but before full softmax gives it enough mass. Rank inclusion alone does not imply the diffuseness condition, so applying the law to a deployed head requires checking that additional property. 8Connection to downstream tasks. The controlled mixture exhibits the predicted single flip. We then asked whether an observable estimate of the same mixture parameter predicts which method is more accurate on downstream retrieval and aggregation tasks. The estimated parameter varies, but the exact–top-k accuracy difference does not change sign as the model predicts; on the frozen dense model, the two methods remain statistically indistinguishable. Thus the controlled result isolates a task-dependent mechanism, while the downstream measurement shows that one mixture coordinate does not describe real tasks adequately. Separately, trained sparse attention shows a finite extrapolation advantage at 4 × and 8 ×, not at 16 × or 32 × (Fig. 2). This is an independent observation, not a validation of the planted-token model. 
+
+Design implications. The three results suggest a concrete workflow for cache compression. Estimate the current row’s coverage from its full score profile; retain information about the values carried by the omitted tail; model how later queries will reweight that tail; and evaluate the resulting state on the target task. The next section instantiates these principles under an exact physical cache budget. 
+
+# 4 CertKV : Value-Aware Compression under Exact Budgets 
+
+The preceding results yield a design rule, not an end-to-end certificate: retain score-relevant tokens, preserve information about omitted values, and charge every stored summary to the physical bud-get. CertKV implements this rule by combining SnapKV’s observation-window score (Li et al., 2024) with value-dispersion allocation and one synthetic KV pair per head. These three choices de-termine which tokens remain, how the shared budget is split, and how the tail is represented. Here “Cert” refers to exact slot accounting; it does not denote an unconditional future-query guarantee. 
+
+From the fixed-row decomposition to a cache design. The fixed-row factorization identifies the weighted tail value discarded by subset-only eviction (Theorem 3.7). Later-query weights are unavailable at eviction time, so CertKV estimates this statistic from the observation window and stores it as one synthetic KV pair. The slot budget is exact; the scorer, estimator, and cross-head allocation remain training-free approximations evaluated below. 
+
+4.1 Dispersion-guided allocation with exact slot accounting 
+
+For head h, sort the L real tokens by the scorer and normalize its scores to positive importance weights πh,j that sum to one. For a candidate 0 ≤ b ≤ L − 1, let Eh(b) be the evicted suffix. Its total importance and normalized tail weights are 
+
+mh(b) = X
+
+> j∈Eh(b)
+
+πh,j , rh,j (b) = πh,j 
+
+mh(b) .
+
+Thus rh(b) is the conditional importance distribution within the evicted tail. Its key and value centroids form the synthetic pair: 
+
+ k⋆h(b), v ⋆h(b) = Ej∼rh(b)
+
+(kh,j , v h,j ).
+
+We allocate by the mass-weighted spread of the omitted values, 
+
+ch(b) = mh(b)
+
+q
+
+Ej∼rh(b)
+
+∥vh,j − v⋆h(b)∥22
+
+. (8) 9This is the tight envelope within the declared mass–centroid–second-moment summary class (The-orem C.3). Intuitively, a head receives more slots when the tail carries more mass or is harder to summarize by one value. With H KV heads and requested evicted fraction ρ, every method receives Blive = H⌊L(1 − ρ)⌋
+
+live slots. Because CertKV charges one aggregate per head, its real-token allocation satisfies 
+
+Breal = Blive − H, 
+
+X
+
+> h
+
+bh = Breal ,bh ≥ max {1, ⌊0.2 Breal /H ⌋} .
+
+It selects per-head minimizers of ch(b) + λb , then applies deterministic best-marginal repair until the equality budget holds. This construction enforces the global slot budget exactly while adapting the per-head allocation to the measured tail dispersion. The method keeps bh ≤ L − 1, so mh(bh) > 0, and writes ( k⋆h(bh), v ⋆h(bh)) into the charged slot. This synthetic pair is the eviction-time estimate of the future conditional tail. For realized weights, the exact d-dimensional tail aggregate is sufficient and minimal among linear representa-tions supporting every sub-budget (Theorems C.2 and 3.7). The synthetic pair uses this structure as a later-query approximation; implementation details are in the appendix. 
+
+4.2 Matched-budget evaluation and one-factor ablations 
+
+The pre-specified 3 × 3 grid uses all 503 aligned LongBench-v2 examples per setting (inference seed 42; bootstrap seed 0, B = 5000). Among the four matched-budget baselines in this grid, CertKV 
+
+has a top-two compressed point estimate in seven of nine settings (Table 1). After Holm correction across 36 paired comparisons, the only decisive difference is Llama at 2 × versus PyramidKV: +8 .75 points, 95% paired CI [3 .58 , 13 .92], exact McNemar pHolm = 0 .0407. We therefore read the grid as evidence for a competitive operating point, not a universal method ranking. At 128K RULER , CertKV and Ada-KV form the leading compressed tier: 73 .6±17 .9 versus 73 .2±18 .0 on Llama, and 61 .5±21 .0 versus 60 .2±21 .0 on Qwen (Table 2). The CertKV entries are the strongest compressed point estimates, but the task-bootstrap uncertainty is wide. The one-factor study in Table 4 varies the tail statistic, allocator, summary, and safeguard. Block-average point estimates span 24 .3%–25 .1%; none of the nine adjusted paired contrasts is decisive. This is local descriptive insensitivity, not statistical equivalence. We retain centered dispersion with deterministic repair because it directly implements the value-heterogeneity objective while preserving slot equality. The packed Llama prototype realizes the nominal 10 × persistent-KV budget. At 64K, it reduces storage from 8 .59 to 0 .86 GB and decode peak memory from 23 .11 to 16 .34 GiB relative to the full cache (Table 6). This validates physical accounting; it does not establish latency gains or a memory advantage over other methods at the same budget. The RULER result uses all nine model–length settings with fixed task denominators; historical no-slot and 20 × measurements remain descriptive appendix material. 10 Model Method 2× 4× 10 × Avg. Llama-3.1-8B Full cache 26 .84 ±3.88 26 .84 ±3.88 26 .84 ±3.88 26 .84 ±3.88 SnapKV 27 .04 ±3.88 25 .65 ±3.78 23 .46 ±3.68 25 .38 ±3.51 StreamingLLM 27 .04 ±3.88 27 .24 ±3.88 26 .04 ±3.78 26 .77 ±3.55 
+
+PyramidKV 18 .09 ±3.28 18 .89 ±3.48 18 .29 ±3.38 18 .42 ±3.02 Ada-KV 26 .64 ±3.88 25 .25 ±3.88 24 .06 ±3.68 25 .31 ±3.45 CertKV 26 .84 ±3.88 26 .04 ±3.78 24 .06 ±3.68 25 .65 ±3.48 Qwen3-8B Full cache 33 .20 ±4.08 33 .20 ±4.08 33 .20 ±4.08 33 .20 ±4.08 SnapKV 32 .41 ±4.08 29 .62 ±3.98 30 .22 ±3.98 30 .75 ±3.58 
+
+StreamingLLM 29 .62 ±3.98 29 .22 ±3.98 29 .62 ±3.98 29 .49 ±3.58 PyramidKV 28 .03 ±3.88 28 .03 ±3.88 28 .03 ±3.88 28 .03 ±3.64 Ada-KV 31 .61 ±4.08 30 .82 ±4.08 28 .43 ±3.88 30 .28 ±3.68 CertKV 31 .01 ±4.08 30 .02 ±3.98 29 .03 ±3.98 30 .02 ±3.68 Mistral-7B Full cache 28 .03 ±3.88 28 .03 ±3.88 28 .03 ±3.88 28 .03 ±3.88 SnapKV 27 .24 ±3.88 28 .43 ±3.88 26 .44 ±3.78 27 .37 ±3.55 StreamingLLM 28 .83 ±3.88 28 .03 ±3.88 25 .05 ±3.78 27 .30 ±3.64 PyramidKV 22 .66 ±3.68 21 .87 ±3.58 22 .27 ±3.58 22 .27 ±3.25 Ada-KV 27 .83 ±3.88 27 .44 ±3.88 27 .04 ±3.88 27 .44 ±3.55 CertKV 28 .03 ±3.88 28 .23 ±3.88 28 .23 ±3.88 28 .16 ±3.58 
+
+Table 1: LongBench-v2 under matched KV budgets. Accuracy (%) on 503 aligned ex-amples per setting; entries are point estimate ± 95% example-bootstrap half-width ( B = 5000; fixed checkpoints/configurations). Avg. averages ratios; Full is unranked; bold/underline mark the best/second distinct compressed estimates. 
+
+Model Method 16K 32K 64K 128K Avg. 
+
+Llama-3.1-8B Full cache 90 .8±8.3 83 .3±14 .1 79 .9±16 .5 72 .2±18 .4 81 .6±7.4SnapKV 90 .7±8.6 83 .3±13 .8 79 .2±16 .4 71 .7±18 .2 81 .2±7.4StreamingLLM 48 .4±10 .4 45 .7±10 .3 49 .7±11 .4 42 .0±10 .4 46 .4±5.3PyramidKV 87 .1±9.5 84 .1±12 .7 79 .6±16 .2 68 .9±17 .4 79 .9±7.2Ada-KV 90 .8±8.5 83 .5±13 .9 79 .6±16 .4 73 .2±18 .0 81 .8±7.4
+
+CertKV (ours) 90 .8±8.5 83 .0±14 .1 79 .9±16 .2 73 .6±17 .9 81 .8±7.4
+
+Qwen3-8B Full cache 80 .9±17 .0 79 .6±17 .1 73 .4±17 .1 61 .0±22 .0 73 .7±9.2SnapKV 81 .7±15 .8 78 .6±17 .0 71 .6±17 .5 55 .9±21 .7 72 .0±9.1StreamingLLM 46 .2±11 .3 46 .8±10 .4 47 .2±12 .9 39 .2±18 .2 44 .9±6.8PyramidKV 77 .2±16 .4 78 .0±15 .6 69 .2±16 .5 52 .9±21 .1 69 .3±9.0Ada-KV 81 .5±16 .4 79 .9±16 .6 72 .8±17 .2 60 .2±21 .0 73 .6±9.0
+
+CertKV (ours) 81 .5±16 .4 79 .7±16 .8 73 .0±17 .2 61 .5±21 .0 73 .9±9.0
+
+Mistral-7B Full cache 87 .0±9.3 – – – 87 .0±9.3SnapKV 71 .9±13 .6 – – – 71 .9±13 .6StreamingLLM 50 .5±9.6 – – – 50 .5±9.6PyramidKV 70 .4±14 .4 – – – 70 .4±14 .4Ada-KV 77 .4±11 .6 – – – 77 .4±11 .6
+
+CertKV (ours) 79 .5±11 .2 – – – 79 .5±11 .2
+
+Table 2: RULER across context lengths at 2×. Accuracy (%) for shared denominators; entries report the point estimate ± 95% task-bootstrap half-width ( B = 5000, fixed checkpoints and configurations). At 128K, all methods use 3% subsets and Qwen uses YaRN. Avg. averages available lengths (Mistral: 16K only). Full is unranked; styling marks compressed point ranks, not significance. 11 5 Evidence for the Three Separations 
+
+5.1 Design 
+
+The experiments follow the three failed arrows. Multi-length profiles compare threshold count with mass coverage; matched tail summaries instantiate the fixed-row factorization; and controlled plus trained-sparse tasks probe utility. They test the scope of each mechanism, not an end-to-end guarantee. Five language-model anchors span 4K–128K, with a 4K Gemma control. Heads follow fixed MInference groups (Jiang et al., 2024); captions give the resampling unit, and the appendix gives the roster and controls. 
+
+5.2 Count, Coverage, Output, and Task 
+
+Count and coverage follow different scaling laws. Among eligible heads of each fixed checkpoint observed at three or more lengths, after excluding non-finite document slopes (seed 0, B = 5000, BH-FDR q = 0 .05), the measured sublinear-growth fractions (estimate ± Wilson 95% half-width) are 99 .87 ±0.22% ( gpt-oss ), 98 .93 ±0.66% (Llama-8B), 96 .05 ±0.53% (Llama-70B), 98 .63 ±0.73% (Mistral), and 98 .96 ±0.61% (Qwen). Sink/concentrated heads typically use 1–7 large weights; dense-heavy Qwen3/ gpt-oss use 12–19 at the longest contexts. Gemma is a 4K descriptive control. The result establishes finite-range count sparsity, not cheap coverage. 
+
+Short-context coverage does not transfer without profile stability. At fixed length, the two-parameter gap-profile fit beats its within-head shuffle on five of six anchors (fit/null RMSE: 0.56 /0.68, 0 .58 /0.77, 0 .57 /1.19, 0 .53 /0.75, and 0 .37 /0.58); gpt-oss is the exception (0 .49 /0.46). The 4K fit nevertheless misses the measured 128K coverage budget by more than 1 .5×: A(1) , hence concentration, changes with length even when normalized count stays small (Fig. 1c). Reusing a short-context cache budget therefore requires profile stability. 
+
+The fixed-row tail aggregate is the operative oracle statistic. At 4K context and k = 64, the true weighted tail aggregate reconstructs the realized attention output exactly on every anchor, while the norm-matched random, covariance-matched, and cross-document shuffled controls are all worse than keeping no extra statistic (Table 3). This experiment instantiates the algebraic identity on trained-model activations; it is a fixed-row diagnostic, not evidence for unseen future queries. 
+
+A controlled task law does not reduce real tasks to one coordinate. The controlled task recovers the predicted transition: top-k helps retrieval after retaining the planted signal, whereas exact attention remains preferable for aggregation (Fig. 2a). The analogous real-task coordinate varies but does not predict method ordering, so the mechanism does not transfer without a richer signal model. Trained entmax separately improves at 4 /8×, while the 16 /32 × intervals include zero (Fig. 2b). 
+
+Evidence synthesis. The tests rule out three shortcuts: treating count as a transferable coverage budget, generic tail moments as fixed-row output summaries, and one controlled coordinate as a real-task predictor. Together they show where the formal mechanisms instantiate cleanly and where additional structure is required. 12 4k 16k 32k 64k 128k 
+
+context length n (log 10 )
+
+010 20 30 40 
+
+> count ̂  k
+
+head type 
+
+dense (Block-Sparse) concentrated (V-Slash) sink (A-shape) (a) relative-weight count dense concentrated sink 0.0 0.2 0.4 0.6 0.8 1.0 1.2 1.4  
+
+> collapse RMSE
+> true shape document-shuffle null
+
+(b) coverage-shape prediction 4k 16k 32k 64k 128k   
+
+> context length n
+> 01234
+> count (within-model normalized)
+> dense concentrated sink count
+> A(1)
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> A(1)  (right axis)
+
+(c) count and concentration 
+
+Figure 1: Finite-range count sparsity does not yield a transferable mass budget. (a) 
+
+Within fixed head types, ˆk(0 .1A(1) ) grows sublinearly over the measured lengths. (b) A profile that beats a shuffled control on five of six anchors at fixed length still misses the measured 128K budget by > 1.5× when fitted at 4K. (c) A(1) can fall while normalized count stays bounded. Intervals are 95% document bootstraps ( B = 5000); (b,c) use an equal-model median. Gemma is a 4K descriptive point. 
+
+Model +random +cov.-matched +shuffled tail +true aggregate Llama-3.1-8B 1.4125 ±0.0020 1.9988 ±0.0324 1.4593 ±0.0034 0.0000 Qwen3-8B 1.4135 ±0.0026 1.6893 ±0.1018 1.3906 ±0.0117 0.0000 Llama-3.3-70B 1.4131 ±0.0005 1.7958 ±0.2033 1.4533 ±0.0050 0.0000 Mistral-7B 1.4122 ±0.0020 2.9515 ±0.0766 1.4679 ±0.0055 0.0000 Gemma-2-9B 1.4128 ±0.0012 1.7967 ±0.1773 1.4321 ±0.0193 0.0000 Avg. (5 anchors) 1.4128 ±0.0004 2.0464 ±0.3776 1.4406 ±0.0236 0.0000 
+
+Table 3: Fixed-row tail reconstruction at 4K, k = 64 , on five anchors. Keep-only-normalized error; +random is norm-matched. Intervals are 95% document-bootstrap half-widths. Among the tested summaries, the oracle aggregate is exact for the realized row. 0.0 0.2 0.4 0.6 0.8 1.0 
+
+mass α on the heavy token 
+
+0.00 0.25 0.50 0.75 1.00    
+
+> end-to-end task accuracy
+> α∗= 0.50 exact wins (aggregation) sparse wins (retrieval)
+
+exact (full softmax) top-k (k = 8, renorm) 
+
+(a) controlled task phase law 27 29 211 
+
+## test length 
+
+0.00 0.25 0.50 0.75 1.00 1.25 
+
+> MQAR recall accuracy
+
+## train 
+
+softmax ( α = 1) entmax ( α = 1.5) (b) trained-sparse length extrapolation 
+
+Figure 2: Task utility depends on regime. (a) Exact and top-k exchange order at α⋆ = 0 .50 in the controlled mixture; the real-task observable does not predict a change (1500 trials/ α, B = 5000, 95% trial bootstrap). (b) Five-seed paired-t differences are 0 .10 ±0.08 at 4 × and 0 .17 ±0.13 at 8 ×;16 /32 × include zero. This test is separate from the controlled theorem. 13 6 Discussion 
+
+6.1 What the three separations change 
+
+The paper separates four objects that are often collapsed into the phrase “attention sparsity.” A small threshold count describes how many unusually large weights a row has; a coverage budget asks how many entries retain a specified mass; output recovery additionally depends on the omitted values; and task utility depends on which value directions the task reads. None of the three forward transitions follows without additional assumptions. Theorem 3.6 makes the count–coverage break explicit, Theorem 3.7 identifies the exact fixed-row statistic lost by subset-only retention, and Theorem 3.8 gives one controlled task family in which exact and top-k attention exchange order. This decomposition also changes how an empirical compression claim should be read. Count curves describe observed weights; they are not memory budgets. A coverage predictor must be checked under length transfer rather than only within a fixed length. A fixed-row aggregate is not automatically a future-query cache. Finally, a downstream average cannot establish that sparsifi-cation is uniformly beneficial when aggregation- and retrieval-like targets price the omitted values differently. 
+
+6.2 Open problems 
+
+Three directions would materially strengthen the result. First, a multi-layer stability theorem should propagate row-level omitted-mass and value-dispersion errors through a transformer block. Second, a useful future-query result must bound tail log-partition and conditional-value mismatch using statistics available before eviction. Third, training theory should explain when a head moves across the critical coverage regime and what happens at the γ = 1 boundary. These are mathe-matical gaps, not promises that the current experiments have already resolved. 
+
+# 7 Conclusion 
+
+Attention compressibility is a contract—not a heat-map property—among retained mass, omitted values, future queries, and task. Score gaps govern coverage; the weighted tail sum completes a realized row; task structure can reverse exact and top-k attention. CertKV converts these lessons into a competitive exact-budget compressor with measured cache savings, while claiming no uncon-ditional future-query or multilayer guarantee. Sparse-looking weights are clues, not certificates. 
+
+# Acknowledgement 
+
+Chiwun is supported by Hong Kong Future Talents Scholarship Scheme for Advanced Studies (FTSS). 
+
+# References 
+
+R. Addanki, C. Li, Z. Song, and C. Yang. One pass streaming algorithm for super long token attention approximation in sublinear space. arXiv preprint arXiv:2311.14652 , 2023. J. Ainslie, J. Lee-Thorp, M. de Jong, Y. Zemlyanskiy, F. Lebr´ on, and S. Sanghai. GQA: Train-ing generalized multi-query transformer models from multi-head checkpoints. In Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP) , 2023. arXiv:2305.13245. 14 J. Alman and Z. Song. Fast attention requires bounded entries. Advances in Neural Information Processing Systems (NeurIPS) , 36, 2023. J. Alman and Z. Song. The fine-grained complexity of gradient computation for training large language models. arXiv preprint arXiv:2402.04497 , 2024a. J. Alman and Z. Song. How to capture higher-order correlations? generalizing matrix softmax attention to kronecker computation. In The Twelfth International Conference on Learning Rep-resentations (ICLR) , 2024b. URL https://openreview.net/forum?id=v0zNCwwkaV .S. Anagnostidis, D. Pavllo, L. Biggio, L. Noci, A. Lucchi, and T. Hofmann. Dynamic context prun-ing for efficient and interpretable autoregressive transformers. In Advances in Neural Information Processing Systems (NeurIPS) , 2023. arXiv:2305.15805. Y. Bai, S. Tu, J. Zhang, H. Peng, X. Wang, X. Lv, S. Cao, J. Xu, L. Hou, Y. Dong, J. Tang, and J. Li. LongBench v2: Towards deeper understanding and reasoning on realistic long-context multitasks. In Annual Meeting of the Association for Computational Linguistics (ACL) , 2025. arXiv:2412.15204. I. Beltagy, M. E. Peters, and A. Cohan. Longformer: The long-document transformer. arXiv preprint arXiv:2004.05150 , 2020. Y. Benjamini and Y. Hochberg. Controlling the false discovery rate: A practical and powerful approach to multiple testing. Journal of the Royal Statistical Society: Series B , 57(1):289–300, 1995. A. Bovier. Statistical Mechanics of Disordered Systems: A Mathematical Perspective . Cambridge Series in Statistical and Probabilistic Mathematics. Cambridge University Press, 2006. J. v. d. Brand, Z. Song, and T. Zhou. Algorithm and hardness for dynamic attention maintenance in large language models. arXiv preprint arXiv:2304.02207 , 2023. Z. Cai, Y. Zhang, B. Gao, Y. Liu, Y. Li, T. Liu, K. Lu, W. Xiong, Y. Dong, J. Hu, and W. Xiao. PyramidKV: Dynamic KV cache compression based on pyramidal information funneling, 2024. arXiv:2406.02069. S. Chen, S. Wong, L. Chen, and Y. Tian. Extending context window of large language models via positional interpolation, 2023. arXiv:2306.15595. Z. Chen, R. Sadhukhan, Z. Ye, Y. Zhou, J. Zhang, N. Nolte, Y. Tian, M. Douze, L. Bottou, Z. Jia, and B. Chen. Magicpig: Lsh sampling for efficient llm generation. In International Conference on Learning Representations (ICLR) , 2025. arXiv:2410.16179. Z.-A. Chen, P. Lin, Z.-Q. J. Xu, and T. Luo. Focus and dilution: The multi-stage learning process of attention. In International Conference on Machine Learning (ICML) , 2026. arXiv:2605.01199. R. Child, S. Gray, A. Radford, and I. Sutskever. Generating long sequences with sparse transform-ers. arXiv preprint arXiv:1904.10509 , 2019. K. Choromanski, V. Likhosherstov, D. Dohan, X. Song, A. Gane, T. Sarlos, P. Hawkins, J. Davis, A. Mohiuddin, L. Kaiser, et al. Rethinking attention with performers. arXiv preprint arXiv:2009.14794 , 2020. 15 T. Z.-A. Chu, J. Alman, G. Miller, S. Narayanan, M. Sellke, and Z. Song. Metric transforms and low rank representations of kernels for fast attention. In The Thirty-eighth Annual Conference on Neural Information Processing Systems , 2024. T. Dao, D. Y. Fu, S. Ermon, A. Rudra, and C. R´ e. FlashAttention: Fast and memory-efficient exact attention with IO-awareness. In Advances in Neural Information Processing Systems (NeurIPS) ,2022. arXiv:2205.14135. Y. Deng, Z. Song, J. Xiong, and C. Yang. How sparse attention approximates exact attention? your attention is naturally nC -sparse, 2024. arXiv:2404.02690v2. B. Derrida. Random-energy model: An exactly solvable model of disordered systems. Physical Review B , 24(5):2613–2626, 1981. A. Desai, S. Yang, A. Cuadron, M. Zaharia, J. E. Gonzalez, and I. Stoica. HashAttention: Semantic sparsity for faster inference. In International Conference on Machine Learning (ICML) , 2025. arXiv:2412.14468. Y. Dong, J.-B. Cordonnier, and A. Loukas. Attention is not all you need: Pure attention loses rank doubly exponentially with depth. In International Conference on Machine Learning (ICML) ,2021. arXiv:2103.03404. Y. Feng, J. Lv, Y. Cao, X. Xie, and S. K. Zhou. Ada-KV: Optimizing KV cache eviction by adaptive budget allocation for efficient LLM inference. In Advances in Neural Information Processing Systems (NeurIPS) , 2025. arXiv:2407.11550. Y. Gao, Z. Zeng, D. Du, S. Cao, P. Zhou, J. Qi, J. Lai, H. K.-H. So, T. Cao, F. Yang, and M. Yang. SeerAttention: Learning intrinsic sparse attention in your LLMs, 2024. arXiv:2410.13276. S. Ge, Y. Zhang, L. Liu, M. Zhang, J. Han, and J. Gao. Model tells you what to discard: Adaptive KV cache compression for LLMs. In International Conference on Learning Representations (ICLR) , 2024. arXiv:2310.01801. A. Grattafiori, A. Dubey, A. Jauhri, A. Pandey, A. Kadian, et al. The Llama 3 herd of models, 2024. arXiv:2407.21783. X. Gu, T. Pang, C. Du, Q. Liu, F. Zhang, C. Du, Y. Wang, and M. Lin. When attention sink emerges in language models: An empirical view. In International Conference on Learning Representations (ICLR) , 2025. arXiv:2410.10781. Z. Guo, H. Kamigaito, and T. Watanabe. Attention score is not all you need for token importance indicator in KV cache reduction: Value also matters. In Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP) , 2024. arXiv:2406.12335. I. Han, R. Jayaram, A. Karbasi, V. Mirrokni, D. P. Woodruff, and A. Zandieh. Hyperattention: Long-context attention in near-linear time. arXiv preprint arXiv:2310.05869 , 2023. J. Hong and S. Lee. Variance sensitivity induces attention entropy collapse and instability in transformers. In Conference on Empirical Methods in Natural Language Processing (EMNLP) ,2025. C.-P. Hsieh, S. Sun, S. Kriman, S. Acharya, D. Rekesh, F. Jia, Y. Zhang, and B. Ginsburg. RULER: What’s the real context size of your long-context language models? In First Conference on Language Modeling (COLM) , 2024. arXiv:2404.06654. 16 H. Jiang, Y. Li, C. Zhang, Q. Wu, X. Luo, S. Ahn, Z. Han, A. H. Abdi, D. Li, C.-Y. Lin, Y. Yang, and L. Qiu. MInference 1.0: Accelerating pre-filling for long-context LLMs via dy-namic sparse attention. In Advances in Neural Information Processing Systems (NeurIPS) , 2024. arXiv:2407.02490. P. Kacham, V. Mirrokni, and P. Zhong. Polysketchformer: Fast transformers via sketches for polynomial kernels. arXiv preprint arXiv:2310.01655 , 2023. A. Katharopoulos, A. Vyas, N. Pappas, and F. Fleuret. Transformers are RNNs: Fast autoregressive transformers with linear attention. In International Conference on Machine Learning (ICML) ,2020. arXiv:2006.16236. N. Kitaev, L. Kaiser, and A. Levskaya. Reformer: The efficient transformer. arXiv preprint arXiv:2001.04451 , 2020. W. Kwon, Z. Li, S. Zhuang, Y. Sheng, L. Zheng, C. H. Yu, J. E. Gonzalez, H. Zhang, and I. Stoica. Efficient memory management for large language model serving with PagedAttention. In Proceed-ings of the 29th Symposium on Operating Systems Principles (SOSP) , 2023. arXiv:2309.06180. Y. Li, Y. Huang, B. Yang, B. Venkitesh, A. Locatelli, H. Ye, T. Cai, P. Lewis, and D. Chen. SnapKV: LLM knows what you are looking for before generation. In Advances in Neural Information Processing Systems (NeurIPS) , 2024. arXiv:2404.14469. Z. Liu, A. Desai, F. Liao, W. Wang, V. Xie, Z. Xu, A. Kyrillidis, and A. Shrivastava. Scissorhands: Exploiting the persistence of importance hypothesis for LLM KV cache compression at test time. In Advances in Neural Information Processing Systems (NeurIPS) , 2023a. arXiv:2305.17118. Z. Liu, J. Wang, T. Dao, T. Zhou, B. Yuan, Z. Song, A. Shrivastava, C. Zhang, Y. Tian, C. Re, et al. Deja vu: Contextual sparsity for efficient llms at inference time. In International Conference on Machine Learning , pages 22137–22176. PMLR, 2023b. L. Long, R. Yang, Y. Huang, D. Hui, A. Zhou, and J. Yang. SlimInfer: Accelerating long-context LLM inference via dynamic token pruning. In AAAI Conference on Artificial Intelligence (AAAI) , 2026. arXiv:2508.06447. E. Lu, Z. Jiang, J. Liu, Y. Du, T. Jiang, C. Hong, S. Liu, W. He, E. Yuan, Y. Wang, Z. Huang, H. Yuan, S. Xu, X. Xu, G. Lai, Y. Chen, H. Zheng, J. Yan, J. Su, Y. Wu, N. Y. Zhang, Z. Yang, X. Zhou, M. Zhang, and J. Qiu. MoBA: Mixture of block attention for long-context LLMs, 2025. A. F. T. Martins and R. F. Astudillo. From softmax to sparsemax: A sparse model of attention and multi-label classification. In International Conference on Machine Learning (ICML) , 2016. arXiv:1602.02068. K. M. Nakanishi. Scalable-softmax is superior for attention, 2025. arXiv:2501.19399. P. Nawrot, R. Li, R. Huang, S. Ruder, K. Marchisio, and E. M. Ponti. The sparse frontier: Sparse attention trade-offs in transformer LLMs, 2025. arXiv:2504.17768. C. Olsson, N. Elhage, N. Nanda, N. Joseph, N. DasSarma, T. Henighan, B. Mann, A. Askell, et al. In-context learning and induction heads, 2022. arXiv:2209.11895. OpenAI. gpt-oss-120b & gpt-oss-20b model card. arXiv preprint , 2025. arXiv:2508.10925. 17 M. Oren, M. Hassid, N. Yarden, Y. Adi, and R. Schwartz. Transformers are multi-state RNNs. In Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP) , 2024. arXiv:2401.06104. B. Peng, J. Quesnelle, H. Fan, and E. Shippole. YaRN: Efficient context window extension of large language models. In International Conference on Learning Representations (ICLR) , 2024. arXiv:2309.00071. B. Peters, V. Niculae, and A. F. T. Martins. Sparse sequence-to-sequence models. In Proceed-ings of the 57th Annual Meeting of the Association for Computational Linguistics (ACL) , 2019. arXiv:1905.05702. O. Press, N. A. Smith, and M. Lewis. Train short, test long: Attention with linear biases enables input length extrapolation. In International Conference on Learning Representations (ICLR) ,2022. arXiv:2108.12409. Z. Qin, W. Sun, H. Deng, D. Li, Y. Wei, B. Lv, J. Yan, L. Kong, and Y. Zhong. cosFormer: Re-thinking softmax in attention. In International Conference on Learning Representations (ICLR) ,2022. arXiv:2202.08791. H. Ramsauer, B. Sch¨ afl, J. Lehner, P. Seidl, M. Widrich, T. Adler, L. Gruber, M. Holzleitner, M. Pavlovi´ c, G. K. Sandve, V. Greiff, D. Kreil, M. Kopp, G. Klambauer, J. Brandstetter, and S. Hochreiter. Hopfield networks is all you need. In International Conference on Learning Representations (ICLR) , 2021. A. Roy, M. Saffar, A. Vaswani, and D. Grangier. Efficient content-based sparse attention with routing transformers. Transactions of the Association for Computational Linguistics , 9:53–68, 2021. arXiv:2003.05997. J. L. Ruiz Williams. The condensate theorem: Transformers are O(n), not O( n2), 2026. Preprint, arXiv:2602.06317. N. Shazeer. Fast transformer decoding: One write-head is all you need, 2019. arXiv:1911.02150. J. Su. From entropy invariance to the scale operation of attention. Blog post, Scientific Spaces, 2021. https://kexue.fm/archives/8823 .J. Su, M. Ahmed, Y. Lu, S. Pan, W. Bo, and Y. Liu. Roformer: Enhanced transformer with rotary position embedding. Neurocomputing , 568:127063, 2024. H. Sun, L.-W. Chang, W. Bao, S. Zheng, N. Zheng, X. Liu, H. Dong, Y. Chi, and B. Chen. ShadowKV: KV cache in shadows for high-throughput long-context LLM inference, 2024a. arXiv:2410.21465. M. Sun, X. Chen, J. Z. Kolter, and Z. Liu. Massive activations in large language models. In First Conference on Language Modeling (COLM) , 2024b. arXiv:2402.17762. J. Tang, Y. Zhao, K. Zhu, G. Xiao, B. Kasikci, and S. Han. Quest: Query-aware sparsity for efficient long-context LLM inference. In International Conference on Machine Learning (ICML) ,2024. arXiv:2406.10774. D. A. Tarzanagh, Y. Li, X. Zhang, and S. Oymak. Max-margin token selection in attention mecha-nism. In Advances in Neural Information Processing Systems (NeurIPS) , 2023. arXiv:2306.13596. 18 Y. Tian, Z. Wang, Y. Peng, A. Yuan, Z. Wang, B. Yi, X. Liu, Y. Cui, and T. Yang. KeepKV: Achiev-ing periodic lossless KV cache compression for efficient LLM inference, 2025. arXiv:2504.09936. Earlier versions titled “KeepKV: Eliminating Output Perturbation in KV Cache Compression”. P. Veliˇ ckovi´ c, C. Perivolaropoulos, F. Barbero, and R. Pascanu. Softmax is not enough (for sharp size generalisation). In International Conference on Machine Learning (ICML) , 2025. arXiv:2410.01104. Z. Wan, X. Wu, Y. Zhang, Y. Xin, C. Tao, Z. Zhu, X. Wang, S. Luo, J. Xiong, L. Wang, and M. Zhang. D2O: Dynamic discriminative operations for efficient long-context inference of large language models. In International Conference on Learning Representations (ICLR) , 2025. arXiv:2406.13035. W. Wu, Y. Wang, G. Xiao, H. Peng, and Y. Fu. Retrieval head mechanistically explains long-context factuality. In International Conference on Learning Representations (ICLR) , 2025. arXiv:2404.15574. C. Xiao, P. Zhang, X. Han, G. Xiao, Y. Lin, Z. Zhang, Z. Liu, and M. Sun. InfLLM: Training-free long-context extrapolation for LLMs with an efficient context memory. In Advances in Neural Information Processing Systems (NeurIPS) , 2024a. arXiv:2402.04617. G. Xiao, Y. Tian, B. Chen, S. Han, and M. Lewis. Efficient streaming language models with attention sinks. In International Conference on Learning Representations (ICLR) , 2024b. arXiv:2309.17453. G. Xiao, J. Tang, J. Zuo, J. Guo, S. Yang, H. Tang, Y. Fu, and S. Han. DuoAttention: Efficient long-context LLM inference with retrieval and streaming heads. In International Conference on Learning Representations (ICLR) , 2025. arXiv:2410.10819. J. Xiong, J. Shen, C. Zheng, Z. Wan, C. Zhao, C. Yang, F. Ye, H. Yang, L. Kong, and N. Wong. ParallelComp: Parallel long-context compressor for length extrapolation. In Proceedings of the 42nd International Conference on Machine Learning , volume 267 of Proceedings of Machine Learning Research , pages 68998–69016. PMLR, 2025. URL https://proceedings.mlr.press/ v267/xiong25b.html . arXiv:2502.14317. Y. Xiong, Z. Zeng, R. Chakraborty, M. Tan, G. Fung, Y. Li, and V. Singh. Nystr¨ omformer: A nystr¨ om-based algorithm for approximating self-attention. In Proceedings of the AAAI Confer-ence on Artificial Intelligence , volume 35, pages 14138–14148, 2021. No. 16. A. Yang et al. Qwen3 technical report. arXiv preprint , 2025. arXiv:2505.09388. D. Yang, X. Han, Y. Gao, Y. Hu, S. Zhang, and H. Zhao. PyramidInfer: Pyramid KV cache compression for high-throughput LLM inference, 2024a. arXiv:2405.12532. Accepted at ACL 2024. S. Yang, Y. Sheng, J. E. Gonzalez, I. Stoica, and L. Zheng. Post-training sparse attention with double sparsity, 2024b. arXiv:2408.07092. J. Yuan, H. Gao, D. Dai, J. Luo, L. Zhao, Z. Zhang, Z. Xie, Y. X. Wei, L. Wang, Z. Xiao, Y. Wang, C. Ruan, M. Zhang, W. Liang, and W. Zeng. Native sparse attention: Hardware-aligned and natively trainable sparse attention. In Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (ACL) , 2025a. arXiv:2502.11089. 19 J. Yuan, Z. He, H. Bai, J. Leng, and B. Jiang. WeightedKV: Attention scores weighted key-value cache merging for large language models. In IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) , 2025b. arXiv:2503.01330. M. Zaheer, G. Guruganesh, K. A. Dubey, J. Ainslie, C. Alberti, S. Ontanon, P. Pham, A. Ravula, Q. Wang, L. Yang, et al. Big bird: Transformers for longer sequences. Advances in neural information processing systems , 33:17283–17297, 2020. A. Zandieh, I. Han, M. Daliri, and A. Karbasi. Kdeformer: Accelerating transformers via ker-nel density estimation. In International Conference on Machine Learning , pages 40605–40623. PMLR, 2023. S. Zhai, T. Likhomanenko, E. Littwin, D. Busbridge, J. Ramapuram, Y. Zhang, J. Gu, and J. Susskind. Stabilizing transformer training by preventing attention entropy collapse. In Inter-national Conference on Machine Learning (ICML) , 2023. arXiv:2303.06296. J. Zhang, R. Su, C. Liu, J. Wei, Z. Wang, H. Wang, P. Zhang, H. Jiang, H. Huang, C. Xiang, H. Xi, S. Yang, X. Li, Y. Zhao, Y. Hu, T. Fu, T. Zhao, Y. Zhang, B. Cao, Y. Jiang, C. Chen, K. Jiang, H. Chen, M. Zhao, X. Xu, Y. Wu, F. Bao, I. Stoica, J. E. Gonzalez, J. Chen, and J. Zhu. Asurvey of efficient attention methods: Hardware-efficient, sparse, compact, and linear attention. 
+
+https://attention-survey.github.io/ , 2025. Z. Zhang, Y. Sheng, T. Zhou, T. Chen, L. Zheng, R. Cai, Z. Song, Y. Tian, C. R´ e, C. Bar-rett, Z. Wang, and B. Chen. H2O: Heavy-hitter oracle for efficient generative inference of large language models. In Advances in Neural Information Processing Systems (NeurIPS) , 2023. arXiv:2306.14048. Q. Zhu, J. Duan, C. Chen, S. Liu, G. Feng, X. Lv, X. Chuanfu, D. Lin, and C. Yang. SampleAtten-tion: Near-lossless acceleration of long context LLM inference with adaptive structured sparse attention, 2024. arXiv:2406.15486. 20 Appendix 
+
+# Contents 
+
+1 Introduction 12 Related Work 23 From Sparse Weights to Attention Compressibility: Three Separations 4
+
+3.1 Count sparsity does not imply coverage sparsity . . . . . . . . . . . . . . . . . . . . . 63.2 Coverage does not determine output fidelity . . . . . . . . . . . . . . . . . . . . . . . 73.3 Output fidelity does not determine task utility . . . . . . . . . . . . . . . . . . . . . 8
+
+4 CertKV : Value-Aware Compression under Exact Budgets 9
+
+4.1 Dispersion-guided allocation with exact slot accounting . . . . . . . . . . . . . . . . 94.2 Matched-budget evaluation and one-factor ablations . . . . . . . . . . . . . . . . . . 10 
+
+5 Evidence for the Three Separations 12 
+
+5.1 Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12 5.2 Count, Coverage, Output, and Task . . . . . . . . . . . . . . . . . . . . . . . . . . . 12 
+
+6 Discussion 14 
+
+6.1 What the three separations change . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14 6.2 Open problems . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14 
+
+7 Conclusion 14 A Appendix Roadmap 22 B Proofs for the Three Main Separations 22 
+
+B.1 Calibrated large-weight count . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22 B.2 Global gap envelopes and coverage . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23 B.3 Fixed-row tail factorization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24 B.4 Task-conditional denoising . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24 
+
+C Scoped Guarantees Behind CertKV 25 
+
+C.1 A posteriori future-query error decomposition . . . . . . . . . . . . . . . . . . . . . . 26 C.2 Linear-sketch scope of the tail aggregate . . . . . . . . . . . . . . . . . . . . . . . . . 26 C.3 Why centered dispersion is a principled feature . . . . . . . . . . . . . . . . . . . . . 27 
+
+D Experimental Protocol and Supplementary Results 28 
+
+D.1 Supplementary diagnostics and scope checks . . . . . . . . . . . . . . . . . . . . . . . 28 D.2 Evaluation design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31 D.3 One-factor ablations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33 D.4 Physical cache capacity . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34 D.5 LongBench-v2 domain breakdown . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34 D.6 Reproducibility and data traceability . . . . . . . . . . . . . . . . . . . . . . . . . . . 35 D.7 Reading the domain tables . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 35 21 A Appendix Roadmap 
+
+The appendix is organized as follows. 
+
+• Section B proves the three main separations: the distinction between calibrated large-weight counts and mass coverage, the fixed-row tail factorization, and the stylized task-ordering law. 
+
+• Section C records the scoped guarantees behind CertKV , including the exact-budget con-struction, fixed-row completion, allocation rule, and the boundary between realized-row guar-antees and future-query claims. 
+
+• Section D gives the experimental protocol and supplementary results, including ablations, physical cache measurements, domain-level breakdowns, uncertainty procedures, and repro-ducibility details. 
+
+# B Proofs for the Three Main Separations 
+
+This appendix proves the three results stated in Section 3. The proofs use the same scope as the main text: one realized row for coverage and output, and an explicit planted model for the task ordering. They do not assert an unconditional guarantee for future queries. 
+
+B.1 Calibrated large-weight count 
+
+Proof of Proposition 3.4. The sub-Gaussian tail and a union bound give 
+
+P
+
+
+
+max  
+
+> j≤n
+
+|ℓj | > S δ
+
+
+
+≤ δ. 
+
+On the complementary event, Z = P 
+
+> j
+
+eℓj ≥ ne −Sδ . Therefore Aj > ϵ implies ℓj > log( ϵn ) − Sδ.For every ϵ ≥ ϵδ(n), the latter threshold is at least τδ = σp2 log( n/δ ). Hence, simultaneously over that entire threshold range, 
+
+k(ϵ) ≤ Nδ := 
+
+> n
+
+X
+
+> j=1
+
+1{ℓj > τ δ}.
+
+Writing pj = P{ℓj > τ δ}, sub-Gaussianity gives pj ≤ δ/n . Hence 
+
+μδ := ENδ =
+
+> n
+
+X
+
+> j=1
+
+pj ≤ δ, 
+
+Var( Nδ) ≤ μδ ≤ 1.
+
+Bernstein’s inequality, with x = log(2 n/δ ), gives with failure probability at most e−x = δ/ (2 n), 
+
+Nδ ≤ μδ + p2μδx + 23 x ≤ 23 x + √2x + 2 .
+
+Combining the two events proves the stated probability 1 − 2δ. Finally, exp {O(√log n)} = no(1) 
+
+for fixed ( σ, δ ), so ϵδ(n) = n−1+ o(1) .For the Gaussian clause, Eeℓj = eσ2/2 and Var( eℓj ) < ∞, so 
+
+ξn := log Zne σ2/2 = OP(n−1/2).
+
+22 The event Aj > ϵ n is exactly ℓj > τ n + ξn. Put an = n−1/4 and let N (u) = P 
+
+> j
+
+1{ℓj > u }. On 
+
+{| ξn| ≤ an}, whose probability tends to one, 
+
+N (τn + an) ≤ k(ϵn) ≤ N (τn − an).
+
+By the definition of τn and the Gaussian Mills ratio, 
+
+nP{ℓj > τ n ± an} = (1 + o(1)) log n, 
+
+because τnan → 0. Each bounding count is binomial with variance no larger than its mean, so Chebyshev’s inequality makes both (1 + oP(1)) log n. The sandwich proves the claimed count, while 
+
+τn = O(√log n) gives ϵn = n−1+ o(1) .
+
+Proof of Proposition 3.5. Let t = log(1 /ϵ ) and bn = √2 log n. The assumed additive near-top law gives, uniformly for log j = O(bn), 
+
+G(j) = σs
+
+
+
+bn − pb2 
+
+> n
+
+− 2 log j
+
+
+
++ oP(1) = σs
+
+log jbn
+
++ oP(1) .
+
+For fixed ξ ∈ (0 , t ), set 
+
+j± =
+
+
+
+exp 
+
+ t ± ξσs
+
+bn
+
+ 
+
+.
+
+With probability tending to one, G(j−) < t < G (j+). Since G is nondecreasing, j− ≤ k(ϵA (1) ) < j +.Dividing logarithms by bn, then letting ξ ↓ 0, gives the first convergence. Since bn/ log n → 0, the second follows. 
+
+B.2 Global gap envelopes and coverage 
+
+Proof of Theorem 3.6. Normalize by the largest logit and write 
+
+qj = e−G(j), Z =
+
+> n
+
+X
+
+> j=1
+
+qj .
+
+The top-k mass is P 
+
+> j≤k
+
+qj /Z . On the sparse branch, qj ≤ ebj−γ , while Z ≥ q1 = 1. Hence 1 − X
+
+> j≤k
+
+A(j) ≤ X
+
+> j>k
+
+qj
+
+≤ eb
+
+Z ∞
+
+> k
+
+x−γ dx = eb
+
+γ − 1 k1−γ .
+
+The displayed upper bound on Kη follows by making the last quantity at most η.On the dense branch, qj ≥ e−b′
+
+j−γ′
+
+. In particular, 
+
+Z ≥
+
+> n
+
+X
+
+> j=⌈n/ 2⌉
+
+qj ≥ 12 e−b′
+
+n1−γ′
+
+.
+
+Since every qj ≤ 1, any k-set has mass at most k/Z . Reaching mass 1 − η therefore requires 
+
+k ≥ (1 − η)Z ≥ (1 − η)e−b′
+
+2 n1−γ′
+
+.
+
+At γ′ = 0, this lower bound is linear and the trivial upper bound Kη ≤ n gives Kη = Θ( n). 23 Gaussian calibration. For i.i.d. Xj ∼ N (0 , σ 2), selecting the largest ρn logits is asymptotically equivalent to thresholding at a quantile τ . Exponential tilting by eX sends N (0 , σ 2) to N (σ2, σ 2). Thus the threshold capturing weighted mass 1 − η obeys 
+
+P{N (σ2, σ 2) ≥ τ } = 1 − η, 
+
+and the unweighted fraction above it is 
+
+ρ = P{N (0 , σ 2) ≥ τ } = Φ  Φ−1(1 − η) − σ .
+
+To justify the random minimal rank, define 
+
+h(t) = E[eX 1{X ≥ t}]
+
+EeX .
+
+This function is continuous and strictly decreasing, and τ is its unique solution to h(τ ) = 1 − η.For every a > 0, the law of large numbers at τ − a and τ + a implies, with probability tending to one, 1
+
+n
+
+X
+
+> j
+
+1{Xj > τ + a} ≤ Kη
+
+n
+
+≤ 1
+
+n
+
+X
+
+> j
+
+1{Xj > τ − a}.
+
+Letting n → ∞ and then a ↓ 0 proves the stated limit. The formula is a distribution-specific calibration, not a consequence of a small threshold count. 
+
+B.3 Fixed-row tail factorization 
+
+Proof of Theorem 3.7. Split the exact output into retained and omitted indices: 
+
+O = X
+
+> j∈S
+
+Aj Vj + X
+
+> j / ∈S
+
+Aj Vj = pS eOS + (1 − pS ) ¯VT .
+
+Subtracting this identity from eOS gives 
+
+eOS − O = (1 − pS )( eOS − ¯VT ).
+
+Both eOS and ¯VT are convex combinations of values with norm at most Vmax , proving the 2 Vmax (1 −
+
+pS ) bound. For an additive correction u,
+
+X
+
+> j∈S
+
+Aj Vj + u − O
+
+> 2
+
+= u − X
+
+> j / ∈S
+
+Aj Vj
+
+> 2
+
+,
+
+which vanishes uniquely at u⋆ = P 
+
+> j / ∈S
+
+Aj Vj = (1 − pS ) ¯VT .
+
+B.4 Task-conditional denoising 
+
+Proof of Theorem 3.8. Let Mn be the maximum bulk logit. We only need a sharp upper bound. Set 
+
+tn = σ log log n
+
+√2 log n = o(1) ,
+
+24 un = σp2 log n + tn.
+
+A Gaussian tail bound and a union bound give 
+
+P{Mn > u n} ≤ n exp 
+
+
+
+− u2
+
+> n
+
+2σ2
+
+
+
+= exp 
+
+
+
+−√2 log nσ tn − t2
+
+> n
+
+2σ2
+
+
+
+= o(1) .
+
+Thus Mn ≤ σ√2 log n + oP(1). The lower bound on μn therefore puts the planted token above the bulk with probability tending to one. Moreover, the retained bulk contributes at most kneMn , so 
+
+P  
+
+> j∈Skn \{ j⋆}
+
+eℓj
+
+eμn ≤ e−C+oP(1) .
+
+Consequently ws ≥ (1+ e−C+oP(1) )−1 = Θ P(1). For full softmax, the lognormal law of large numbers gives X
+
+> bulk
+
+eℓj = n e σ2/2+ oP(1) .
+
+The upper bound on μn then yields we ≤ n−ε+oP(1) .Condition on the logits. Because the bulk values are i.i.d. and independent of the logits, their exact attention-weighted average has mean ¯Vb; fixed logit scale gives squared normalized weights of order OP(n−1), hence deviation OP(σV n−1/2). The explicitly assumed retained-bulk diffuseness gives the corresponding OP(σV k−1/2 
+
+> n
+
+) deviation for top-kn. An estimator placing planted-token weight w therefore satisfies 
+
+L = |α − w|D + the stated stochastic error .
+
+Since we < w s with probability tending to one, |α − we| = |α − ws| has the unique solution 
+
+α⋆n = ( we + ws)/2. On that event, the exact noiseless loss gap is ∆n(α) = |α − we| − | α − ws|
+
+= min {ws − we, 2|α − α⋆n|} .
+
+The stated margin absorbs the sum of the two stochastic remainders and therefore determines the ordering. Finally, the value-aware oracle minimizes the loss over all kn-subsets, so it cannot be worse than the score-selected set. 
+
+Scope. The retained-bulk diffuseness assumption is load bearing and is not implied by rank inclusion. The controlled mixture exhibits the predicted ordering change. The downstream test is different: it asks whether a pre-specified estimate of α predicts the sign of the exact–top-k
+
+accuracy difference on retrieval and aggregation tasks. It does not. We therefore treat the controlled experiment as a validation within the planted model and the downstream result as evidence that this one-parameter task summary is not a calibrated decision rule. 
+
+# C Scoped Guarantees Behind CertKV 
+
+The fixed-row identity in Theorem 3.7 motivates a charged tail-summary slot. The results below make precise what else is, and is not, guaranteed. 25 C.1 A posteriori future-query error decomposition 
+
+Theorem C.1 (Future-query lift and summary mismatch) . Let nonempty sets S, T partition the original cache. For one fixed future query, let A be exact attention on S ∪T , and let bA be compressed attention on S ∪ { ⋆}. For r ∈ ∆( T ), store V ⋆ = P 
+
+> j∈T
+
+rj Vj . Put 
+
+p = A(T ), q = bA⋆, a = AT /p 
+
+when p > 0. If all retained logits are unchanged and ∥Vj ∥2 ≤ Vmax , then 
+
+∥O − bO∥2 ≤ Vmax [2 |p − q|
+
++ min {p, q }∥ a − r∥1] .
+
+If ΛT = log P 
+
+> j∈T
+
+ezj is the exact tail log-partition and z⋆ is the synthetic-slot logit, then 
+
+|p − q| ≤ tanh 
+
+ |ΛT − z⋆|
+
+4
+
+
+
+≤ 14 |ΛT − z⋆|.
+
+Proof. Lift the compressed distribution back to S ∪ T by setting ¯Ai = bAi on S and ¯Aj = qr j on T .Expanding V ⋆ gives bO = P 
+
+> j
+
+¯Aj Vj , so 
+
+∥O − bO∥2 ≤ Vmax ∥A − ¯A∥1.
+
+Unchanged retained logits preserve all within-S softmax ratios. Splitting the L1 difference into its retained and tail parts, and matching the smaller common mass on each side, gives 
+
+∥A − ¯A∥1 ≤ 2|p − q| + min {p, q }∥ a − r∥1.
+
+Finally, with ZS = P 
+
+> i∈S
+
+ezi ,
+
+p = sigmoid(Λ T − log ZS ),q = sigmoid( z⋆ − log ZS ).
+
+The largest displacement of a sigmoid under an input shift of magnitude d is tanh( d/ 4) ≤ d/ 4. Evaluating p, a, or Λ T after eviction requires the omitted keys. The theorem is therefore an a posteriori bound separating two mismatches, not a pre-eviction guarantee for CertKV .
+
+C.2 Linear-sketch scope of the tail aggregate 
+
+Theorem C.2 (Fixed-row factor map and scoped minimality) . Fix A1, . . . , A n > 0 with P 
+
+> j
+
+Aj = 1 ,and let S ⊂ [n] satisfy |S| = k < n . Write T = [ n] \ S, pS = P 
+
+> j∈S
+
+Aj , and 
+
+¯VT = 11 − pS
+
+X
+
+> j∈T
+
+Aj Vj .
+
+Treating V ∈ Rnd as variable, the linear map 
+
+Φ( V ) =  (Vj )j∈S , ¯VT
+
+ ∈ R(k+1) d
+
+is surjective and has kernel dimension (n − k − 1) d. It recovers the full output and every truncated sub-budget output P 
+
+> j∈S′
+
+Aj Vj , S′ ⊆ S. Conversely, any linear sketch Ψ : Rnd → Rm from which all these quantities can be recovered, even by nonlinear decoders, has m ≥ (k + 1) d.
+
+26 Proof. Surjectivity follows by assigning the requested retained values and setting all tail values equal to the requested ¯VT ; rank–nullity gives the kernel dimension. The output factorization is the split in Theorem 3.7, and sub-budget outputs read retained coordinates directly. For minimality, singleton sub-budgets recover each of the kd retained value coordinates up to its positive scalar weight. Subtracting the retained output from the full output recovers the d
+
+coordinates of the weighted tail sum. These ( k+1) d coordinate functionals are linearly independent. If any factored functional varied on ker Ψ, two inputs with the same sketch would require different decoder outputs. Thus ker Ψ lies in the joint kernel of all ( k + 1) d functionals, forcing rank Ψ ≥
+
+(k + 1) d and hence m ≥ (k + 1) d.The lower bound concerns a linear sketch that supports every retained sub-budget. It is not a lower bound for one fixed output, a nonlinear summary, or a future-query cache. 
+
+C.3 Why centered dispersion is a principled feature 
+
+For m > 0 and ∥v⋆∥2 ≤ Vmax , let T (m, v ⋆) be the class of all finite weighted tails {(aj , v j )}Nj=1 ,with arbitrary N ≥ 1, satisfying 
+
+aj ≥ 0, X
+
+> j
+
+aj = m, 
+
+X
+
+> j
+
+aj vj = mv ⋆, ∥vj ∥2 ≤ Vmax .
+
+For a member of this class, define 
+
+M2 = X
+
+> j
+
+aj ∥vj − v⋆∥22,
+
+Err 1 = X
+
+> j
+
+aj ∥vj − v⋆∥2.
+
+Let T (m, v ⋆, M 2) denote the subclass with the displayed centered moment fixed to M2.
+
+Theorem C.3 (Exact envelopes for two declared summary classes) . For d ≥ 2,
+
+sup  
+
+> T(m,v ⋆)
+
+Err 1 = m
+
+q
+
+V 2max − ∥ v⋆∥22,
+
+although the same (m, v ⋆) also permits zero deviation. If the centered moment M2 is additionally fixed, the subclass is nonempty exactly when 
+
+0 ≤ M2 ≤ m V 2max − ∥ v⋆∥22
+
+,
+
+and in that case 
+
+sup  
+
+> T(m,v ⋆,M 2)
+
+Err 1 = pmM 2.
+
+Proof. Normalize the weights by pj = aj /m . Jensen followed by the variance identity gives Err 1
+
+m ≤
+
+sX
+
+> j
+
+pj ∥vj − v⋆∥22 ≤
+
+q
+
+V 2max − ∥ v⋆∥22.
+
+27 Choose a unit vector u ⊥ v⋆ and two equally weighted points v⋆ ± δu . With δ = pV 2max − ∥ v⋆∥22,this attains the first envelope; a one-point tail at v⋆ has zero deviation. For fixed M2, weighted Cauchy–Schwarz yields Err 1 ≤
+
+sX
+
+> j
+
+aj
+
+sX
+
+> j
+
+aj ∥vj − v⋆∥22 = pmM 2.
+
+The same two-point construction with δ = pM2/m is feasible exactly on the displayed interval and attains equality. This theorem compares two declared summary classes. It neither proves optimality over arbi-trary constant-size summaries nor bounds future-query output error at fixed summaries. It justifies √mM 2 as a tight observation-weighted dispersion envelope for allocation. 
+
+# D Experimental Protocol and Supplementary Results 
+
+D.1 Supplementary diagnostics and scope checks 
+
+The following measurements test different parts of the argument and therefore use different sampling units and decision rules. We present them separately so that each diagnostic, uncertainty interval, and negative result can be read at its native scale. 
+
+Cross-modal scope of the fitted phase structure. We first ask whether the clean two-regime structure fitted on language-model attention also appears in bidirectional vision and audio encoders. The pre-specified gate requires a sufficiently deep trough between two fitted modes, not merely a non-unimodal histogram. Neither modality passes this gate. The result limits the empirical phase-structure claim; it does not limit the deterministic coverage criterion, which can be evaluated on any realized attention row. The plotted audit uses per-input/layer/head slopes from SigLIP2 and 
+
+Whisper ; the broader modality check also includes DINOv2 and a causal ImageGPT control. The fitted mode separation is only moderate (Cohen’s d = 0 .66 for vision and 1 .23 for audio), whereas a synthetic positive control recovers a clearly separated effect ( d = 7 .1). The negative gate is therefore not explained by an instrument that is intrinsically unable to detect strong bimodality. 
+
+Stability of the count trend on real books. This check resamples documents and positions from a fixed Project Gutenberg capture. Across six such resampling replicates, the fraction of heads whose large-weight count grows sublinearly is 98 .9% for Llama-3.1-8B , 99 .1% for Qwen3-8B , and 99 .4% for Mistral-7B . The intervals quantify stability to that fixed resampling procedure; they are not evidence from six independent training runs or six independently collected corpora. Each replicate repeats the same head-level slope decision after resampling positions from eight books, and the displayed uncertainty is a two-sided Student-t interval across those six estimates. This check addresses data-resampling sensitivity of the finite-range count trend; it does not validate short-to-long mass-coverage transfer. 
+
+Distributional scope of the probabilistic count model. The count theorem’s i.i.d. sub-Gaussian model is a sufficient-condition analysis, whereas the operative coverage criterion is de-terministic. To separate the two layers, we measure effective rank, per-coordinate excess kurtosis, and the fraction of condensed heads across relative depth on three trained architectures. The trained hidden states are anisotropic and heavier-tailed, and the prevalence of condensed heads 28 10 0 10 1
+
+gap slope ̂ γ (log scale) 
+
+> 0100 200 300 400 500 600
+> input-layer-head estimates  clean two-mode gate: FAIL median = 0.991 [0.972, 1.007] Pr(gamma>1) = 0.484 [0.456, 0.508] exact dip = 0.007 [0.005, 0.011] GMM d / trough = 0.66 / 0.97
+
+Vision encoder (SigLIP2)   
+
+> 10 −1 10 010 1
+
+gap slope ̂ γ (log scale)  
+
+> 050 100 150 200 250 300 350 clean two-mode gate: FAIL median = 0.664 [0.560, 0.804] Pr(gamma>1) = 0.291 [0.217, 0.366] exact dip = 0.005 [0.005, 0.014] GMM d / trough = 1.23 / 0.98
+
+Audio encoder (Whisper)  
+
+> unit-slope boundary descriptive GMM means
+
+Figure 3: Cross-modal clean two-phase universality is not established. Per-input/layer/ head gap-slope estimates are shown on a log axis; the dashed line is the unit-slope boundary and dotted lines are descriptive two-Gaussian means. Neither modality meets the clean two-mode criterion because the fitted mixtures have no sufficiently deep between-mean trough. Brackets are 95% percentile sensitivity intervals from resampling the four structured inputs (seed 0, B = 5000). Exact Hartigan dip statistics are reported without iid head-level p-values. Llama-3.1-8B Qwen3-8B Mistral-7B 96 97 98 99 100 
+
+> % sub-linear heads
+
+Figure 4: Count-sublinearity on real books, with resampling intervals (real Project Gutenberg ; fraction of heads with sublinear large-weight count). Error bars are two-sided 95% Student-t intervals over six document/position resampling replicates (seed base 0, eight documents), not six independent training runs. is architecture- and depth-dependent. These measurements motivate applying the deterministic row-wise criterion directly rather than treating the clean probabilistic regimes as a literal model of every deployed hidden state. Across the recorded trained models, effective rank is roughly 43–182 out of hidden dimensions 2880 or 4096, median per-coordinate excess kurtosis reaches 0 .55, and the condensed-head fraction ranges from low single digits on Llama to about 60% on some gpt-oss 
+
+layers. The intervals resample corpora first and heads second; identical PG19/code inputs are not counted as independent corpora. These are scope diagnostics, not new assumptions inserted into 29 0.0 0.2 0.4 0.6 0.8 1.0           
+
+> relative depth
+> 10 1
+> 10 2
+> effective rank (PR)
+> Llama-3.1-8B Qwen3-8B gpt-oss-20B
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> relative depth
+> 0.0 0.2 0.4 0.6 0.8 1.0 1.2 1.4
+> per-coordinate excess kurtosis
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> relative depth
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> fraction of heads ̂  c > 1
+
+Figure 5: Real hidden states sit outside the clean distributional regimes (Fact 3.1 and The-orem 3.6; three architectures). (a,b) Effective rank and excess kurtosis, with seed-0, B = 5000, 95% corpus-bootstrap bands over three trained corpora. (c) Condensed-head fraction with corpus-then-head bootstrap; the single-corpus untrained condition is omitted, and identical PG19/code inputs are not treated as independent corpora. 0 500 1000 1500 2000 2500 3000 3500 4000   
+
+> training step
+> 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8
+> median kept fraction  ρmed
+> real books shuffled tokens
+> 0500 1000 1500 2000 2500 3000 3500 4000
+> training step
+> 0.0 0.1 0.2 0.3 0.4 0.5
+> next-token accuracy
+> real books shuffled tokens
+
+Figure 6: Sparsity accompanies learned alignment in a controlled from-scratch repli-cation (Qwen3 -architecture byte-LM). (a) Median kept fraction, real versus shuffled text; (b) 
+
+next-token accuracy. Curves show mean ± sample standard deviation over seeds 0 , 1, 2; the single-checkpoint legacy control is omitted. the deterministic theorem. 
+
+Controlled emergence on real versus shuffled text. The controlled language-model run asks whether decreasing kept fraction is accompanied by learning. With real books, next-token accuracy rises while the median kept fraction falls; with shuffled tokens, accuracy remains near chance even though its kept-fraction trajectory also changes. The supported observation is therefore the conjunction of learned task structure and attention concentration, not the claim that a falling kept fraction alone certifies useful learning. Over the plotted horizon, the real-book median kept fraction falls from 0 .67 to 0 .30 while next-token accuracy rises to 0 .41; shuffled-token accuracy remains near its 0 .05 chance level. Three training seeds supply the mean and sample-standard-deviation bands. Because the shuffled control’s kept fraction also falls, it is the paired accuracy trajectory—not sparsity in isolation—that makes the real-text observation informative. 
+
+Heterogeneity across fixed head types. Pooling all heads would mix different structural profiles. We therefore assign the MInference-inspired static types before aggregation and display 30 dense concentrated sink 12345  
+
+> per-head count log 10  (̂ k + 1)
+> model-balanced centre ± 95% document-bootstrap CI
+> dense concentrated sink 0.0 0.2 0.4 0.6 0.8 1.0
+> per-head top weight  A(1)
+> Llama-3.1-8B Qwen3-8B gpt-oss-20B Llama-3.3-70B Mistral-7B Gemma-2-9B 0.0 0.2 0.4 0.6 0.8 1.0
+> head-type fraction
+> dense concentrated sink
+
+Figure 7: Per-head distributions by static type. Left/middle: violins show the finite observed distributions of per-head count ˆk and top weight A(1) at the longest context; black points and bars are the model-balanced center and seed-0, B = 5000, 95% percentile document-bootstrap interval. Right: head-type composition per anchor with the same document-bootstrap intervals. The types summarize static profiles and should not be read as functional head labels. their count, concentration, and model-composition distributions separately. The violin plots are descriptive finite distributions; the black summaries use model-balanced centers and document-bootstrap intervals. These static profile types should not be read as functional retrieval or induction labels. The three types are sink (A-shape, with high initial-token mass), concentrated (Vertical-Slash, with a few dominant non-sink columns), and dense (Block-Sparse, with broad mass). Their composition differs substantially by architecture: the Llama family is sink-heavy, while Qwen3 
+
+and gpt-oss are dense-heavy under this static classifier. We therefore pool within type only after assignment and use an equal-model center, preventing a large architecture or a common head type from silently dominating the descriptive summary. 
+
+Replication across two controlled architectures. A second from-scratch check measures the sparse-head fraction throughout training in two small byte-level language-model architectures, with matched random-byte controls. Both real-text trajectories cross the pre-specified 15% guide and remain above their controls. This supports recurrence across the two controlled architectures; it does not establish an in-the-wild model-scale trend or task utility from sparsity alone. The GPT-NeoX -like and Qwen3 -like models have 3 .22M and 4 .26M parameters, respectively, and each real/random trajectory is averaged over three seeds. The real-text endpoints reach approximately 93% and 75% sparse heads, respectively; the random-byte controls remain nonzero but lower, so the comparison supports a training-data effect rather than an architectural zero baseline. 
+
+D.2 Evaluation design 
+
+Profile anchors. Five models— Llama-3.1-8B and Llama-3.3-70B (Grattafiori et al., 2024), 
+
+Qwen3-8B (Yang et al., 2025), gpt-oss-20B (OpenAI, 2025), and Mistral-7B —provide profiles between 4K and 128K. The recovered Gemma-2-9B surface contains only 4K and is used as a descriptive control, never for growth inference. The available profile records contain one natural-text surface: Wikipedia fallback documents stored under a legacy pg19 key. We preserve this data-source label and do not describe the surface as a multi-domain atlas. 31 10 0 10 1 10 2 10 3 10 4
+
+training step (step 0 plotted at 0.5)     
+
+> 020 40 60 80 100 120 140
+> sparse-head fraction (%)
+> Qwen3 (4.26M) trained Qwen3 (4.26M) control GPT-NeoX (3.22M) trained GPT-NeoX (3.22M) control 2% init floor 15% trained guide
+
+Figure 8: Sparse-head growth recurs in two controlled architectures. Sparse-head fraction (kept-fraction ρη=0 .1 ≤ 0.1) versus training step for two from-scratch byte-level language mod-els ( GPT-NeoX -architecture, 3 .22M parameters; Qwen3 -architecture, 4 .26M parameters; three seeds, solid = mean, band = ± sample standard deviation). On real text both trajectories cross the 15% guide ( GPT-NeoX to ∼93%, Qwen3 to ∼75% of heads sparse); the i.i.d.-random-byte controls (dashed) are nonzero but remain lower. 
+
+Theory-validation protocol. The relative-count thresholds are ϵ ∈ { 0.5, 0.1, 0.05 } times the row maximum, and coverage targets are η ∈ { 0.2, 0.1, 0.05 , 0.02 , 0.01 }. Growth inference requires at least three distinct lengths and at least two finite document slopes per head. The hardened report uses document bootstrap seed 0, B = 5000, and Benjamini–Hochberg correction at q = 0 .05 (Benjamini and Hochberg, 1995); underidentified and non-finite fits never enter the denominator. The short-to-long-context test fits the profile at 4K and, without refitting, predicts the 128K coverage budget. Its pre-specified success criterion is multiplicative error at most 1 .5×. Controlled task curves use shared evaluation examples and state their resampling unit in the caption. The separately trained sparse-model experiment is an exploratory observation, not an instantiation of Theorem 3.8. 
+
+Matched-budget task protocol. LongBench-v2 (Bai et al., 2025) uses all 503 unique, aligned multiple-choice examples with 32K truncation in every 2 /4/10 × setting. Inference uses seed 42; example-bootstrap summaries use seed 0, B = 5000, and 95% percentile intervals. The 36 planned method contrasts form one Holm family. The complete RULER evaluation (Hsieh et al., 2024) uses nine fixed model–length settings. The example fractions are ( .10 , . 10 , . 10 , . 03) for Llama at 16 /32 /64 /128K, ( .10 , . 10 , . 05 , . 03) for Qwen, and .10 for Mistral at 16K; all methods within a setting share the same sampled examples. Task-level resampling uses the same statistics seed and bootstrap count. For every setting we retain the configuration, raw predictions, scored outputs, item-level outcomes, and immutable log, and verify their file checksums before computing a table. 
+
+Software and compute. Production evaluation uses PyTorch 2.8.0+cu128 and Transform-ers 4.57.6 in bfloat16 ; attention-row logits are recomputed in fp32 . Experiments run on one 32 96 GB NVIDIA RTX PRO 6000. Table generators and configurations are identified by SHA-256; the anonymous code release will also include the complete environment export. Across all experiments conducted on the audited instance, we used 205.70 GPU-hours, cor-responding to 160.13 powered instance-hours across one- and two-GPU configurations on 96 GB NVIDIA RTX PRO 6000 GPUs. 
+
+D.3 One-factor ablations                         
+
+> Component Variant 4×10 ×Avg. Statistic Tail mass 24 .7±3.7 23 .9±3.7 24 .3±3.5Uncentered dispersion 25 .8±3.8 23 .5±3.7 24 .7±3.5Centered dispersion 26 .0±3.8 24 .1±3.7 25 .0±3.6Allocator True uniform 26 .2±3.8 23 .1±3.7 24 .7±3.5Greedy marginal 26 .4±3.8 23 .1±3.7 24 .8±3.5Lagrangian + repair 26 .0±3.8 24 .1±3.7 25 .0±3.6Tail summary No slot 26 .0±3.8 23 .7±3.7 24 .9±3.5Plain slot 26 .0±3.8 24 .1±3.7 25 .0±3.6Calibrated ¯ qslot 25 .4±3.8 24 .5±3.7 25 .0±3.5Safeguard α= 0 25 .8±3.8 24 .3±3.7 25 .0±3.6
+> α= 0 .126 .0±3.8 24 .3±3.7 25 .1±3.6
+> α= 0 .226 .0±3.8 24 .1±3.7 25 .0±3.6
+> α= 0 .425 .8±3.8 23 .9±3.7 24 .9±3.5
+
+Table 4: CertKV ablations on Llama LongBench-v2. Accuracy is estimate ± 95% example-bootstrap half-width (seed 0, B = 5000), conditional on one fixed checkpoint and configuration per row. Rows are unranked one-factor changes; nine paired p-values form one family. 
+
+Component attribution under the same physical budget. We further isolate which 
+
+CertKV components improve attention-output fidelity under exact live-slot accounting. Starting from one shared full-cache Llama-3.1-8B-Instruct capture, we evaluate 40 preselected held-out GovReport documents (indices 6–45), each truncated to 8 ,192 tokens. The evaluation crosses 4× and 10 × compression, layers 0 , 8, 16 , 24 , 31, all eight KV heads, and 32 realized future-query positions. Each contrast changes exactly one design choice: centering, cross-head allocation, the charged tail-summary slot, or the per-head safeguard. When the tail summary is removed, its phys-ical slot is reassigned to one additional real token per head, preserving the same global live-slot budget. Within each document, errors are averaged over the ratio–layer–head grid before statistical inference, making the document the independent unit. Inference uses seed 42. We report paired percentile bootstrap intervals with seed 0, B = 5000, and 95% coverage. The four two-sided paired sign-flip tests form one Holm-corrected family. A component passes the pre-specified practical-effect gate only when the upper confidence endpoint is negative, pHolm < 0.05, and the relative error reduction is at least 10%. The safeguard must additionally keep the upper confidence bound on its relative mean-error increase below 2%. 33 Intervention Effect ∆ ↓ Rel. Holm p 10% gate Centering vs. uncentered statistic ( −8.044 ± 3.907) × 10 −4 0.203% 1 .320 × 10 −3 No Adaptive vs. uniform allocation (−9.995 ± 2.519) × 10 −3 2.466% 4 .000 × 10 −5 No Tail summary vs. +1 real token (1 .494 ± 0.994) × 10 −4 −0.038% 9 .180 × 10 −3 No Safeguard (p95) vs. α = 0 (−2.194 ± 4.226) × 10 −5 0.002% 1.000 No 
+
+Table 5: Exact-budget component interventions. Relative attention-output error is lower-is-better. The first three rows evaluate document-level mean error; the safeguard row evaluates document-level p95 error. We define ∆ = design − control, so negative values favor the design. Entries report the point estimate ± half-width of the registered 95% percentile interval. Rel. denotes relative error reduction. The final column reports the pre-specified practical-effect gate rather than statistical significance alone. Adaptive allocation gives the largest resolved improvement: its mean relative output error is 0 .395369, compared with 0 .405364 under true-uniform allocation (∆ = −9.995 × 10 −3, 95% CI [−1.246 ×10 −2, −7.420 ×10 −3], 2 .466% relative reduction, pHolm = 4 .000 ×10 −5). Centering provides a smaller but consistently directed improvement over the uncentered statistic (∆ = −8.044 × 10 −4,95% CI [ −1.186 × 10 −3, −4.047 × 10 −4], 0 .203% relative reduction, pHolm = 1 .320 × 10 −3). Thus, under this controlled fidelity metric, cross-head allocation accounts for the clearest component-level gain, with centering providing an additional smaller improvement. Both effects are statistically resolved but remain below the pre-specified 10% practical-effect threshold. The charged tail summary is slightly worse than assigning the same physical slot to one addi-tional real token (∆ = 1 .494 × 10 −4, 95% CI [4 .664 × 10 −5, 2.454 × 10 −4], pHolm = 9 .180 × 10 −3). The safeguard does not resolve a p95-error improvement (∆ = −2.194 × 10 −5, 95% CI [ −7.517 ×
+
+10 −5, 9.347 × 10 −6], pHolm = 1 .000), although its registered mean-error non-inferiority check passes. These results attribute the measured shared-capture fidelity gains primarily to allocation and, sec-ondarily, to centering. They characterize attention-output fidelity under realized queries and should not be interpreted as downstream-accuracy evidence or as an unconditional guarantee for arbitrary future queries. 
+
+D.4 Physical cache capacity 
+
+The physical prototype materializes a packed bfloat16 cache for Llama-3.1-8B . At 64K and 10 ×,the packed CertKV cache stores 0 .86 GB of persistent K/V state, compared with 8 .59 GB for the full cache, and reduces decode peak memory from 23 .11 to 16 .34 GiB. Persistent bytes are exact; the displayed peak is unchanged across five repetitions at the reported precision. Method Persistent KV Decode peak Full cache (1 ×) 8.59 GB 23 .11 GiB 
+
+CertKV (10 ×) 0.86 GB 16 .34 GiB Table 6: Physical memory relative to the full cache. The 64K CertKV row uses the exact 10 × live-slot budget. 
+
+D.5 LongBench-v2 domain breakdown 
+
+The domain tables retain the exact 503-example denominator. Intervals resample examples within the displayed domain; Avg. is weighted by the actual domain counts rather than averaging six domain percentages. Full cache is shown as an unranked reference. Bold/underline mark the 34 Budget Method Single-Doc Multi-Doc ICL Dialogue Code Structured Avg. (503-wtd.) 2× Full cache 30 .3±6.9 32 .0±8.0 23 .5±9.3 15 .4±11 .5 30 .0±12 .0 6.1±7.6 26 .8±3.92× SnapKV 34 .3±6.9 28 .0±8.0 22 .2±9.3 15 .4±11 .5 28 .0±12 .0 9.1±10 .6 27 .0±3.9                                                                                                                         
+
+> 2×StreamingLLM 32 .6±6.928 .8±8.019 .8±8.617 .9±11 .528 .0±12 .018 .2±13 .627 .0±3.9
+> 2×PyramidKV 20 .6±6.019 .2±6.819 .8±8.617 .9±11 .54.0±5.018 .2±13 .618 .1±3.32×Ada-KV 33 .1±6.929 .6±8.021 .0±8.615 .4±11 .530 .0±12 .03.0±4.526 .6±3.92×CertKV 33 .1±6.929 .6±8.0 22 .2±9.315 .4±11 .530 .0±12 .03.0±4.526 .8±3.94×Full cache 30 .3±6.932 .0±8.023 .5±9.315 .4±11 .530 .0±12 .06.1±7.626 .8±3.94×SnapKV 32 .0±6.926 .4±8.0 23 .5±9.317 .9±11 .524 .0±12 .06.1±7.625 .6±3.84×StreamingLLM 32 .6±6.925 .6±8.019 .8±8.623 .1±12 .8 30 .0±12 .0 24 .2±15 .227 .2±3.9
+> 4×PyramidKV 18 .9±5.720 .0±7.222 .2±9.323 .1±12 .86.0±7.021 .2±13 .618 .9±3.54×Ada-KV 33 .7±6.925 .6±8.019 .8±8.615 .4±11 .524 .0±12 .06.1±7.625 .2±3.94×CertKV 33 .7±6.926 .4±8.021 .0±8.615 .4±11 .526 .0±12 .09.1±10 .626 .0±3.810 ×Full cache 30 .3±6.932 .0±8.023 .5±9.315 .4±11 .530 .0±12 .06.1±7.626 .8±3.910 ×SnapKV 29 .7±6.620 .8±7.223 .5±9.320 .5±12 .822 .0±11 .06.1±7.623 .5±3.710 ×StreamingLLM 34 .3±6.923 .2±7.218 .5±8.620 .5±12 .8 30 .0±12 .012 .1±10 .626 .0±3.8
+> 10 ×PyramidKV 21 .7±6.316 .8±6.418 .5±8.620 .5±12 .810 .0±8.015 .2±12 .118 .3±3.410 ×Ada-KV 28 .0±6.923 .2±7.225 .9±9.920 .5±12 .824 .0±12 .06.1±7.624 .1±3.710 ×CertKV 27 .4±6.923 .2±7.2 27 .2±9.9 20 .5±12 .824 .0±12 .06.1±7.624 .1±3.7
+
+Table 7: Llama-3.1-8B LongBench-v2 by domain. Accuracy (%) is estimate ± 95% within-domain bootstrap half-width; Avg. is 503-weighted. best/second distinct compressed point estimates; statistical decisions remain governed by the paired Holm family defined above. 
+
+D.6 Reproducibility and data traceability 
+
+For every reported number, the release links the configuration and code hash to raw predictions, item-level outcomes, the resampling report, and the final table or figure. Exploratory sweeps, incomplete settings, and results without the stated denominator are excluded. The release records the exact generators, configurations, environment, and a one-command validation entry point. 
+
+D.7 Reading the domain tables 
+
+The aggregate pattern is architecture-dependent. At 2 /4/10 ×, CertKV attains 26 .8/
+
+26 .0/24 .1 on Llama-3.1-8B , 31 .0/30 .0/29 .0 on Qwen3-8B , and 28 .0/28 .2/28 .2 on Mistral-7B .The strongest compressed point estimates are, respectively, 27 .0/27 .2/26 .0, 32 .4/30 .8/30 .2, and 28 .8/28 .4/28 .2. Thus the exact-budget method is close to the leading point across the grid and reaches the leading Mistral average at 10 ×, but it is not uniformly the largest entry. Formal comparative claims use the paired Holm family rather than these unpaired domain intervals. 
+
+Domain estimates are deliberately descriptive. Half-widths are often 6–18 points because each domain contains only a subset of the 503 examples. They localize aggregate differences but do not license separate domain significance claims or a domain-wise SOTA label. 
+
+No single domain explains the averages. On Llama at 4 ×, CertKV is strongest or tied on single- and multi-document questions, whereas StreamingLLM gains its larger average from dialogue, code, and structured-data items. The leader changes with ratio and domain on Qwen .At Mistral 10 ×, CertKV leads single-document accuracy and is leading or tied on ICL, dialogue, 35 Budget Method Single-Doc Multi-Doc ICL Dialogue Code Structured Avg. (503-wtd.) 2× Full cache 32 .6±6.9 34 .4±8.8 32 .1±9.9 33 .3±15 .4 34 .0±13 .0 33 .3±15 .2 33 .2±4.12× SnapKV 34 .3±6.9 33 .6±8.8 27 .2±9.9 28 .2±14 .1 34 .0±13 .0 33 .3±15 .2 32 .4±4.1                                                                                                                              
+
+> 2×StreamingLLM 33 .7±6.928 .0±8.029 .6±9.912 .8±10 .330 .0±12 .033 .3±15 .229 .6±4.02×PyramidKV 27 .4±6.926 .4±8.028 .4±9.923 .1±12 .826 .0±12 .045 .5±18 .228 .0±3.92×Ada-KV 32 .0±6.930 .4±8.029 .6±9.933 .3±15 .4 34 .0±13 .033 .3±15 .231 .6±4.12×CertKV 33 .1±6.928 .8±8.028 .4±9.928 .2±14 .134 .0±13 .033 .3±15 .231 .0±4.14×Full cache 32 .6±6.934 .4±8.832 .1±9.933 .3±15 .434 .0±13 .033 .3±15 .233 .2±4.14×SnapKV 32 .0±6.927 .2±8.028 .4±9.923 .1±12 .834 .0±13 .030 .3±15 .229 .6±4.04×StreamingLLM 32 .6±6.927 .2±8.030 .9±9.917 .9±11 .530 .0±12 .027 .3±15 .229 .2±4.04×PyramidKV 26 .9±6.928 .8±8.027 .2±9.928 .2±14 .122 .0±11 .042 .4±16 .728 .0±3.94×Ada-KV 33 .1±6.930 .4±8.028 .4±9.923 .1±12 .832 .0±13 .033 .3±15 .230 .8±4.1
+> 4×CertKV 30 .9±6.928 .8±8.028 .4±9.928 .2±14 .132 .0±13 .033 .3±15 .230 .0±4.010 ×Full cache 32 .6±6.934 .4±8.832 .1±9.933 .3±15 .434 .0±13 .033 .3±15 .233 .2±4.110 ×SnapKV 29 .7±6.624 .8±7.235 .8±10 .5 30 .8±14 .132 .0±13 .036 .4±15 .230 .2±4.0
+> 10 ×StreamingLLM 31 .4±6.928 .8±8.030 .9±9.917 .9±11 .534 .0±13 .027 .3±15 .229 .6±4.010 ×PyramidKV 25 .1±6.328 .8±8.030 .9±9.923 .1±12 .824 .0±12 .045 .5±18 .228 .0±3.910 ×Ada-KV 28 .6±6.924 .0±7.633 .3±9.930 .8±14 .126 .0±12 .033 .3±15 .228 .4±3.910 ×CertKV 29 .1±6.924 .8±7.234 .6±9.930 .8±14 .128 .0±12 .030 .3±15 .229 .0±4.0
+
+Table 8: Qwen3-8B LongBench-v2 by domain. Accuracy (%) is estimate ± 95% within-domain bootstrap half-width; Avg. is 503-weighted. and structured data. This heterogeneity supports an architecture-dependent operating region, not a universal method ordering. 
+
+Compression-ratio sensitivity is likewise model-specific. The Llama average decreases from 26 .8 at 2 × to 24 .1 at 10 ×, while Qwen changes from 31 .0 to 29 .0. Mistral remains at 28 .0–28 .2 across the same budgets. These trajectories should not be read as three estimates of one common compression curve: each model has a different full-cache reference, and the same nominal ratio acts on different attention and value geometries. In particular, the small non-monotonic changes on Mistral are well inside the reported uncertainty and are not evidence that stronger compression improves accuracy. 
+
+Point-estimate ranks are not significance decisions. Bold and underlined entries make the large table navigable within a model–ratio block; they do not create a separate hypothesis test for each domain. The domain subsets overlap neither in size nor in difficulty, and their intervals are marginal rather than paired method-difference intervals. Accordingly, the paper bases comparative claims on the pre-specified example-paired Holm family over the complete 503-example evaluation. The full cache is retained as a calibration reference but is deliberately excluded from compressed-method ranking. 
+
+What the breakdown rules out. The tables show that the aggregate result is not produced by a single favorable task family repeated across all architectures. Llama , Qwen , and Mistral 
+
+obtain their strongest cells from different domains, yet CertKV remains in the competitive band in all three aggregate rows. This supports the narrower conclusion used in the main text: exact-budget, value-aware selection is competitive across the declared four-baseline grid. It does not support a domain-wise SOTA claim, nor does it identify a universal semantic category in which one eviction rule must win. 36 Budget Method Single-Doc Multi-Doc ICL Dialogue Code Structured Avg. (503-wtd.) 2× Full cache 29 .1±6.9 30 .4±8.0 29 .6±9.9 28 .2±14 .1 18 .0±11 .0 24 .2±15 .2 28 .0±3.92× SnapKV 30 .9±6.9 29 .6±8.0 25 .9±9.9 23 .1±12 .8 20 .0±11 .0 18 .2±13 .6 27 .2±3.92× StreamingLLM 32 .6±6.9 30 .4±8.0 29 .6±9.9 25 .6±14 .1 18 .0±11 .0 21 .2±13 .6 28 .8±3.9
+
+2× PyramidKV 21 .7±6.3 26 .4±8.0 24 .7±9.3 12 .8±10 .3 24 .0±12 .0 18 .2±13 .6 22 .7±3.72× Ada-KV 31 .4±6.9 30 .4±8.0 27 .2±9.9 20 .5±12 .8 20 .0±11 .0 21 .2±13 .6 27 .8±3.92× CertKV 33 .1±6.9 29 .6±8.0 27 .2±9.9 17 .9±11 .5 18 .0±11 .0 24 .2±15 .2 28 .0±3.94× Full cache 29 .1±6.9 30 .4±8.0 29 .6±9.9 28 .2±14 .1 18 .0±11 .0 24 .2±15 .2 28 .0±3.94× SnapKV 37 .1±7.1 28 .8±8.0 27 .2±9.9 20 .5±12 .8 18 .0±11 .0 9.1±10 .6 28 .4±3.9
+
+4× StreamingLLM 32 .0±6.9 28 .8±8.0 28 .4±9.9 28 .2±14 .1 16 .0±10 .0 21 .2±13 .6 28 .0±3.94× PyramidKV 20 .6±6.0 28 .8±8.0 21 .0±8.6 15 .4±11 .5 24 .0±12 .0 9.1±10 .6 21 .9±3.64× Ada-KV 33 .7±6.9 28 .8±8.0 28 .4±9.9 20 .5±12 .8 16 .0±10 .0 12 .1±10 .6 27 .4±3.94× CertKV 35 .4±7.1 30 .4±8.0 28 .4±9.9 20 .5±12 .8 16 .0±10 .0 9.1±10 .6 28 .2±3.910 × Full cache 29 .1±6.9 30 .4±8.0 29 .6±9.9 28 .2±14 .1 18 .0±11 .0 24 .2±15 .2 28 .0±3.910 × SnapKV 30 .3±6.9 28 .0±8.0 28 .4±9.9 23 .1±12 .8 14 .0±9.0 18 .2±13 .6 26 .4±3.810 × StreamingLLM 27 .4±6.9 31 .2±8.0 23 .5±9.3 20 .5±12 .8 14 .0±9.0 15 .2±12 .1 25 .0±3.810 × PyramidKV 24 .0±6.3 30 .4±8.0 16 .0±8.0 15 .4±11 .5 22 .0±11 .0 6.1±7.6 22 .3±3.610 × Ada-KV 32 .6±6.9 28 .0±8.0 28 .4±9.9 20 .5±12 .8 16 .0±10 .0 15 .2±12 .1 27 .0±3.910 × CertKV 33 .7±6.9 28 .0±8.0 28 .4±9.9 28 .2±14 .1 14 .0±9.0 21 .2±13 .6 28 .2±3.9
+
+Table 9: Mistral-7B LongBench-v2 by domain. Accuracy (%) is estimate ± 95% within-domain bootstrap half-width; Avg. is 503-weighted. 37

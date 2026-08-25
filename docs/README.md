@@ -6,50 +6,68 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-24
-- 运行时间：2026-08-24 19:53:14 UTC
+- 最新运行日期：2026-08-25
+- 运行时间：2026-08-25 20:27:04 UTC
 - 运行状态：成功
-- 本次总论文数：10
-- 精读区：4
-- 速读区：6
+- 本次总论文数：16
+- 精读区：7
+- 速读区：9
 
 ### 今日简报（AI）
-今日聚焦表格数据高效建模与Hopfield检索动力学的理论突破，并跟进Transformer稀疏化、注意力掩码及CoT记忆增强等进展。最值得关注的是Tydra混合模型（9.0分）和能量单元视角下的Hopfield离散化（9.0分），前者兼顾精度效率，后者揭示能耗与注意力极限的联系。建议普通读者优先精读这两篇，其余可速览以把握token路由与记忆增强的实用思路。
-- 详情：[/202608/24/README](/202608/24/README)
+今日共读16篇论文，精读7篇、速读9篇，重点聚焦注意力机制压缩与视觉Transformer高效化。最值得关注的两项高分工作：注意力在何种条件下可压缩，以及无需标注即可将ViT线性化用于目标检测。建议普通读者优先浏览这两个方向，把握高效模型设计的前沿趋势。
+- 详情：[/202608/25/README](/202608/25/README)
 
 ### 精读区论文标签
-1. [Tydra: An Efficient Hybrid Model for Tabular Data](/202608/24/2608.21199v1-tydra-an-efficient-hybrid-model-for-tabular-data)  
+1. [Beyond Sparse Weights: When Is Attention Compressible?](/202608/25/2608.21541v1-beyond-sparse-weights-when-is-attention-compressible)  
    标签：评分：9.0/10、query:la
-   evidence：结合Transformer与SSM的混合架构，实现高效的表格上下文学习
-2. [Basin-Preserving Discretizations of Modern Hopfield Retrieval Dynamics: Energy Cells, Dissipation, and the Attention Limit](/202608/24/2608.21304v1-basin-preserving-discretizations-of-modern-hopfield-retrieval-dynamics-energy-cells-dissipation-and-the-attention-limit)  
+   evidence：注意力可压缩性分析与免训练KV缓存压缩器，用于高效记忆检索
+2. [DiD It in 87 Minutes: A Label-Free Softmax-to-Linear Adaptation of Vision Transformers for Object Detection](/202608/25/2608.22368v1-did-it-in-87-minutes-a-label-free-softmax-to-linear-adaptation-of-vision-transformers-for-object-detection)  
    标签：评分：9.0/10、query:la
-   evidence：现代Hopfield检索动力学与注意力联系
-3. [BF1: A Causal Dyadic Sparse-Attention Retrofit for Efficient Long-Context Transformers](/202608/24/2608.20427v1-bf1-a-causal-dyadic-sparse-attention-retrofit-for-efficient-long-context-transformers)  
+   evidence：核心匹配：直接将ViT的Softmax注意力转为线性注意力，是线性注意力需求的核心工作。
+3. [Sigmoid Attention as a Better Substrate for Learned KV Cache Eviction](/202608/25/2608.23296v1-sigmoid-attention-as-a-better-substrate-for-learned-kv-cache-eviction)  
+   标签：评分：9.0/10、query:la
+   evidence：sigmoid注意力作为学习式KV缓存淘汰的更好基底
+4. [SSDi8: Accurate and Efficient 8-bit Quantization for State Space Duality](/202608/25/2608.21952v1-ssdi8-accurate-and-efficient-8-bit-quantization-for-state-space-duality)  
    标签：评分：8.0/10、query:la
-   evidence：面向高效长上下文Transformer的因果二元稀疏注意力改造
-4. [Parametric neural control differentiates top neural network models of primate visual cortex](/202608/24/biorxiv-10-64898-2026-08-16-745063-v1-parametric-neural-control-differentiates-top-neural-network-models-of-primate-visual-cortex)  
+   evidence：针对Mamba-2结构化状态空间对偶SSD这一现代RNN/线性注意力混合架构提出8比特量化框架
+5. [Competitive Memory Readout for Robust Video Object Segmentation: 2nd Place Technical Report for the MOSEv2 Track of the 8th LSVOS Challenge](/202608/25/2608.22064v1-competitive-memory-readout-for-robust-video-object-segmentation-2nd-place-technical-report-for-the-mosev2-track-of-the-8th-lsvos-challenge)  
+   标签：评分：8.0/10、query:la
+   evidence：提出竞争性记忆读出机制，在注意力记忆检索中显式引入同类上下文，提升视频目标分割的鲁棒性
+6. [MegaMem: A Retrieval Solution for Ultra-Large Context Windows](/202608/25/2608.22137v1-megamem-a-retrieval-solution-for-ultra-large-context-windows)  
+   标签：评分：8.0/10、query:la
+   evidence：超大上下文持久记忆检索，为大语言模型的记忆增强架构
+7. [Parametric neural control differentiates top neural network models of primate visual cortex](/202608/25/biorxiv-10-64898-2026-08-16-745063-v1-parametric-neural-control-differentiates-top-neural-network-models-of-primate-visual-cortex)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：利用轴对齐特征增强进行闭环神经控制，区分灵长类视觉皮层的深度网络模型，推进计算神经科学。
+   evidence：视觉皮层计算编码模型与参数化神经控制，属核心计算神经科学
 
 ### 速读区论文标签
-1. [Sparse Token Routing in Efficient Transformers](/202608/24/2608.20632v1-sparse-token-routing-in-efficient-transformers)  
+1. [ProxyFormer: A Dual-Stream Proxy Architecture for Ultra-Long Context and High-Resolution Generation](/202608/25/2608.23463v1-proxyformer-a-dual-stream-proxy-architecture-for-ultra-long-context-and-high-resolution-generation)  
+   标签：评分：8.0/10、query:la
+   evidence：双流代理架构通过压缩代理状态降低注意力二次复杂度，面向高效序列处理
+2. [Dual-Layer Agentic Memory with Fast Write Routing and Slow Consolidation](/202608/25/2608.22215v1-dual-layer-agentic-memory-with-fast-write-routing-and-slow-consolidation)  
    标签：评分：7.0/10、query:la
-   evidence：双流Transformer通过学习式路由门实现令牌级自适应计算，直接面向高效序列处理。
-2. [From Attention Masks to Inert Zero-Vector Tokens: OAttention and O-Closure for Token Dynamics](/202608/24/2608.21174v1-from-attention-masks-to-inert-zero-vector-tokens-oattention-and-o-closure-for-token-dynamics)  
+   evidence：面向LLM智能体的双层层级记忆框架，通过写入路由和参数化整合管理知识生命周期，属于记忆增强网络方向
+3. [WnW: Waxing-and-Waning KV Cache for Long-Form Speech LLMs](/202608/25/2608.22704v1-wnw-waxing-and-waning-kv-cache-for-long-form-speech-llms)  
    标签：评分：7.0/10、query:la
-   evidence：提出OAttention，通过惰性零向量令牌与存在系数实现支撑耦合注意力，属于注意力机制新设计。
-3. [Memory Augmentation Unlocks Efficient Chain-of-Thought Reasoning](/202608/24/2608.21265v1-memory-augmentation-unlocks-efficient-chain-of-thought-reasoning)  
-   标签：评分：7.0/10、query:la
-   evidence：链式推理中的记忆增强与检索
-4. [Progressive neural organization across the IFG and pMTG tracks gesture-speech information-theoretic structure](/202608/24/biorxiv-10-1101-2022-11-23-517759-v6-progressive-neural-organization-across-the-ifg-and-pmtg-tracks-gesture-speech-information-theoretic-structure)  
+   evidence：面向长语音大语言模型的KV缓存高效管理
+4. [Working memory impairments in Neurofibromatosis Type 1 are explained by disrupted functional connectivity and network controllability](/202608/25/biorxiv-10-1101-2025-04-10-648210-v4-working-memory-impairments-in-neurofibromatosis-type-1-are-explained-by-disrupted-functional-connectivity-and-network-controllability)  
    标签：评分：7.0/10、query:comp-neuro
-   evidence：基于信息论的脑语义表征计算分析，属计算神经科学范畴
-5. [Efficient Audio-Visual Generation via Synchrony-Aware Cross-Modal Sparse Attention](/202608/24/2608.15522v1-efficient-audio-visual-generation-via-synchrony-aware-cross-modal-sparse-attention)  
+   evidence：工作记忆损伤的功能连接与网络可控性分析
+5. [The Retriever Should Remember: Experience-Amortized Reranking for Long-Term Agent Memory](/202608/25/2608.22767v1-the-retriever-should-remember-experience-amortized-reranking-for-long-term-agent-memory)  
    标签：评分：6.0/10、query:la
-   evidence：同步感知跨模态稀疏注意力用于高效生成
-6. [Weighted Memory Tree: Remembering What Matters for Long-Horizon LLM Agents](/202608/24/2608.20631v1-weighted-memory-tree-remembering-what-matters-for-long-horizon-llm-agents)  
-   标签：评分：6.0/10、query:la
-   evidence：为长周期LLM智能体设计的分层记忆系统与动态保留分数，与记忆增强检索相关。
+   evidence：将大模型相关性分数作为可复用检索经验存入外部记忆，与带注意力的记忆增强网络方向一致
+6. [Distributed range adaptation in human parietal encoding of numbers](/202608/25/biorxiv-10-1101-2025-09-25-675916-v3-distributed-range-adaptation-in-human-parietal-encoding-of-numbers)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：顶叶神经群体编码的自适应fMRI研究，与计算神经科学的表征计算相关。
+7. [A unified multiscale modelling framework to explore the brain excitatory-inhibitory balance: application to multiple sclerosis](/202608/25/biorxiv-10-64898-2025-12-03-692031-v2-a-unified-multiscale-modelling-framework-to-explore-the-brain-excitatory-inhibitory-balance-application-to-multiple-sclerosis)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：结合动态因果建模与虚拟大脑的统合多尺度脑建模范式，属于计算神经科学核心主题
+8. [Spatially resolved mapping of tau amplification rates via differentiable simulation of prion-like propagation](/202608/25/biorxiv-10-64898-2026-06-02-729568-v2-spatially-resolved-mapping-of-tau-amplification-rates-via-differentiable-simulation-of-prion-like-propagation)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：通过可微分模拟推断tau蛋白扩增速率的神经退行性研究
+9. [Within-Subject Optogenetic Model Reveals Spatiotemporal Cortical Reorganization in Artificial Vision](/202608/25/biorxiv-10-64898-2026-08-19-745677-v1-within-subject-optogenetic-model-reveals-spatiotemporal-cortical-reorganization-in-artificial-vision)  
+   标签：评分：6.0/10、query:comp-neuro
+   evidence：光遗传模型结合CNN解码揭示人工视觉皮层表征重组
 
 
 <div class="dpr-home-promo-card">
