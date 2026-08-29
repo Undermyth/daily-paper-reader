@@ -6,63 +6,42 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-26
-- 运行时间：2026-08-26 22:04:38 UTC
+- 最新运行日期：2026-08-29
+- 运行时间：2026-08-29 02:50:59 UTC
 - 运行状态：成功
-- 本次总论文数：13
-- 精读区：5
-- 速读区：8
+- 本次总论文数：6
+- 精读区：2
+- 速读区：4
 
 ### 今日简报（AI）
-今日共读13篇论文，精读5篇、速读8篇，重点聚焦高效Transformer与长文档问答。
+今日聚焦神经解码与医疗视觉问答，并覆盖注意力加速、视觉检索及LoRA秩分析等方向。
 
-最值得关注的是《Sparse Token Routing》与《EnSI-RAG》两篇8分精读，分别探索稀疏路由和实体结构索引增强生成。
+最值得精读的是《The Von-Neumann State-Space Transformer for neural decoding》（9.0分）与《MedFG-VQA: Low-Frequency Memory and Graph Attention for Lightweight Medical VQA》（8.0分）。
 
-下一步可顺藤摸瓜，优先跟进速读中的KV缓存压缩（PuzzleKV/VisCache）方向，性价比高。
-- 详情：[/202608/26/README](/202608/26/README)
+建议普通读者优先关注这两篇，重点理解状态空间模型在神经信号解码中的优势，以及轻量VQA中的记忆与图注意力机制。
+- 详情：[/202608/29/README](/202608/29/README)
 
 ### 精读区论文标签
-1. [Sparse Token Routing in Efficient Transformers](/202608/26/2608.20632v1-sparse-token-routing-in-efficient-transformers)  
+1. [The Von-Neumann State-Space Transformer for neural decoding](/202608/29/2608.25088v1-the-von-neumann-state-space-transformer-for-neural-decoding)  
+   标签：评分：9.0/10、query:la
+   evidence：用于神经解码的记忆增强Transformer与token专属算子
+2. [MedFG-VQA: Low-Frequency Memory and Graph Attention for Lightweight Medical VQA](/202608/29/2608.26848v1-medfg-vqa-low-frequency-memory-and-graph-attention-for-lightweight-medical-vqa)  
    标签：评分：8.0/10、query:la
-   evidence：高效Transformer中的令牌路由与自适应计算，面向高效序列处理
-2. [EnSI-RAG: Entity-Structure-Indexed Retrieval-Augmented Generation for Long-Document Question Answering](/202608/26/2608.21252v1-ensi-rag-entity-structure-indexed-retrieval-augmented-generation-for-long-document-question-answering)  
-   标签：评分：8.0/10、query:la
-   evidence：用结构化记忆索引的检索增强生成，实现长文档记忆
-3. [TANGO: Token-Aggregated Nonlinear Gating Operators for Natural and Formal Language Modeling](/202608/26/2608.22117v1-tango-token-aggregated-nonlinear-gating-operators-for-natural-and-formal-language-modeling)  
-   标签：评分：8.0/10、query:la
-   evidence：用门控跨令牌聚合替代注意力的现代序列架构
-4. [Brain-Language Alignment During Naturalistic Reading and Its Disruption by Mind-Wandering](/202608/26/biorxiv-10-64898-2026-08-14-744875-v1-brain-language-alignment-during-naturalistic-reading-and-its-disruption-by-mind-wandering)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：自然阅读中大脑-语言对齐的计算编码模型
-5. [Parametric neural control differentiates top neural network models of primate visual cortex](/202608/26/biorxiv-10-64898-2026-08-16-745063-v1-parametric-neural-control-differentiates-top-neural-network-models-of-primate-visual-cortex)  
-   标签：评分：8.0/10、query:comp-neuro
-   evidence：参数化神经控制区分视觉皮层深度网络模型
+   evidence：记忆库检索与图增强交叉注意力用于医学视觉问答
 
 ### 速读区论文标签
-1. [PuzzleKV: Page-Wise Low-Rank Decomposition for KV Cache Compression](/202608/26/2608.23843v1-puzzlekv-page-wise-low-rank-decomposition-for-kv-cache-compression)  
+1. [ClusterAttention: A training-free speedup of bidirectional attention](/202608/29/2608.26965v1-clusterattention-a-training-free-speedup-of-bidirectional-attention)  
    标签：评分：7.0/10、query:la
-   evidence：对KV缓存做分页低秩分解以压缩注意力记忆
-2. [VisCache: Visual KV Cache Pruning for Efficient Vision Large Language Model Inference](/202608/26/2608.24063v1-viscache-visual-kv-cache-pruning-for-efficient-vision-large-language-model-inference)  
+   evidence：通过快速递归聚类实现双向注意力的免训练加速
+2. [Retrieval Heads Meet Vision: Uncovering How VLMs Locate and Extract Visual Information](/202608/29/2608.27417v1-retrieval-heads-meet-vision-uncovering-how-vlms-locate-and-extract-visual-information)  
    标签：评分：7.0/10、query:la
-   evidence：通过视觉KV缓存剪枝实现高效注意力内存检索
-3. [Mahalanobis-Based Multi-Head Attention for Complex State Propagation](/202608/26/2608.24462v1-mahalanobis-based-multi-head-attention-for-complex-state-propagation)  
-   标签：评分：7.0/10、query:la
-   evidence：提出基于马氏距离RBF核的多头注意力机制，用于序列状态传播
-4. [Working memory impairments in Neurofibromatosis Type 1 are explained by disrupted functional connectivity and network controllability](/202608/26/biorxiv-10-1101-2025-04-10-648210-v4-working-memory-impairments-in-neurofibromatosis-type-1-are-explained-by-disrupted-functional-connectivity-and-network-controllability)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：功能连接与网络可控性解释NF1工作记忆缺陷
-5. [Cortical encoding of probabilistic temporal predictions during speech perception](/202608/26/biorxiv-10-64898-2026-08-16-745095-v1-cortical-encoding-of-probabilistic-temporal-predictions-during-speech-perception)  
-   标签：评分：7.0/10、query:comp-neuro
-   evidence：语音感知中概率性时间预测的计算编码
-6. [Beyond Trial Averaging: Anchoring Neural and Visual Representations for Few-Repetition Brain-to-Image Retrieval](/202608/26/2608.19128v1-beyond-trial-averaging-anchoring-neural-and-visual-representations-for-few-repetition-brain-to-image-retrieval)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：神经表征对齐与检索方法，可用于计算神经科学中的表征研究
-7. [Distributed range adaptation in human parietal encoding of numbers](/202608/26/biorxiv-10-1101-2025-09-25-675916-v3-distributed-range-adaptation-in-human-parietal-encoding-of-numbers)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：顶叶数字编码中的分布式范围适应，体现群体编码的高效重调
-8. [A unified multiscale modelling framework to explore the brain excitatory-inhibitory balance: application to multiple sclerosis](/202608/26/biorxiv-10-64898-2025-12-03-692031-v2-a-unified-multiscale-modelling-framework-to-explore-the-brain-excitatory-inhibitory-balance-application-to-multiple-sclerosis)  
-   标签：评分：6.0/10、query:comp-neuro
-   evidence：结合DCM与TVB的统一多尺度脑建模框架，刻画兴奋抑制平衡
+   evidence：识别视觉-语言模型中负责检索的高效注意力头
+3. [How Much Rank Does LoRA Need? Rank-Error Bounds for Transformer Attention](/202608/29/2608.26052v1-how-much-rank-does-lora-need-rank-error-bounds-for-transformer-attention)  
+   标签：评分：6.0/10、query:la
+   evidence：针对Transformer注意力的低秩近似给出理论误差界
+4. [RECAP-Forcing: Retaining Content Appearances for Long Video Generation](/202608/29/2608.26671v1-recap-forcing-retaining-content-appearances-for-long-video-generation)  
+   标签：评分：6.0/10、query:la
+   evidence：面向长视频生成按外观新颖性组织注意力KV缓存记忆
 
 
 <div class="dpr-home-promo-card">
