@@ -1,0 +1,376 @@
+Title: HCC+: Hyperbolic Guarding for Certified Attention Retrieval
+
+URL Source: https://arxiv.org/pdf/2608.24971v1
+
+Published Time: Thu, 27 Aug 2026 00:03:12 GMT
+
+Number of Pages: 9
+
+Markdown Content:
+# HCC+: Hyperbolic Guarding for Certified Attention Retrieval 
+
+## Liangchen Ge 
+
+Abstract 
+
+We study the Lipschitz stability of attention retrieval in hyperbolic spaces. Existing methods lack deterministic guarantees on attention-weight preservation under finite-precision representations. We introduce HCC+, a theoretical framework exploiting three properties of the Poincar´ e ball: exponen-tial volume growth enabling query-independent boundary truncation; logarithmic covering radius of hyperbolic 1-centers enabling dimension-independent critical-key identification; and a packing bound with constants independent of the embedding dimension. We prove two deterministic guarantees: for exact retrieval, the per-layer attention deviation is bounded by 10% of its ideal value; for soft attention, the total variation distance decays as O(1 /√n), the rate of finite-sample variance. As a consequence of the guarding mechanism, the framework achieves a storage reduction factor of 6 .1×
+
+relative to FP16. We provide the first deterministic, query-independent retrieval certificate in non-Euclidean geometry. 
+
+# 1 Introduction 
+
+Efficient attention retrieval is a key bottleneck for long-context transformers. The challenge is to represent a large set of keys such that any query can retrieve the correct attention weights with bounded error. Recent work TurboQuant [8] achieves storage reduction via random rotation followed by optimal scalar quantization. However, optimizing mean-squared error does not guarantee preservation of the individual attention weights Wij , especially in the exact-retrieval regime ( ε → 0). The issue is that minimizing reconstruction error in the key space does not imply minimizing error in the attention weights, since the attention kernel is nonlinear and can amplify small perturbations. We address this with HCC+, a theoretical framework using the Poincar´ e ball geometry of HIDA [5]. Keys in hyperbolic space exhibit exponential volume growth near the boundary, enabling safe truncation: keys near the boundary are so numerous that individual ones carry negligible weight. More importantly, the negative curvature ensures that the 1-center covering radius scales logarithmically with n, enabling dimension-independent packing bounds for critical-key identification. 
+
+## 1.1 Why the Poincar´ e Ball? 
+
+Three properties of Bd are central to HCC+ and have no exact Euclidean analogues: (1) Exponential volume growth : The volume element of the Poincar´ e ball in polar coordinates is 
+
+dV = sinh d−1(r) dr d Ωd−1,
+
+which grows exponentially with r near the boundary ( r → 1). This creates a boundary layer where most keys cluster under typical distributions induced by HIDA. This enables a static truncation radius τr that is query-independent: keys beyond τr can be safely discarded regardless of the query. In Euclidean space, the corresponding bound would depend on the global maximum norm, which is data-dependent and not known a priori. (2) Logarithmic covering radius : The hyperbolic 1-center covering radius Rcov scales as O(log n)for points in Bζ , a consequence of negative curvature. This follows from the fact that the volume of a ball of radius R in hyperbolic space grows as e(d−1) R, so covering n points requires R ∼ log n. In Euclidean space, the covering radius scales as O(n1/d ), introducing a dimension-dependent factor into the packing bound. This logarithmic scaling is essential for the dimension-independent nature of our critical-key proportion bounds. (3) Dimension-independent packing constants : The packing argument in Lemma 2 yields con-stants independent of d. The Euclidean analogue would carry factors of d in the volume ratio of balls, making the critical-key proportion depend on the embedding dimension. This dimension-independence is crucial for applications in high-dimensional attention spaces. 1arXiv:2608.24971v1 [cs.DS] 25 Aug 2026 Thus, HCC+ relies on properties unique to hyperbolic space for its dimension-independent, query-independent guarantees. We emphasize that these are not merely ”useful” properties but structural prerequisites for the proof technique. 
+
+## 1.2 Related Work 
+
+Eviction-based methods (H2O [3], StreamingLLM [2]) discard keys based on attention scores or po-sitional heuristics. These methods lack worst-case guarantees: a query can always be constructed that invalidates the heuristic. StreamingLLM, for instance, retains only the most recent tokens and a few initial tokens, which fails for queries that depend on middle tokens. 
+
+Quantization-based methods (KIVI [4], TurboQuant [8]) reduce precision but optimize only re-construction MSE. They cannot distinguish geometrically critical keys from redundant ones, and provide no guarantee on attention-weight preservation. 
+
+Clustering-based methods (SnapKV [6], Quest [7]) aggregate keys into clusters with data-dependent approximation error. The error depends on the quality of clustering, which varies with data distribution. HCC+ provides deterministic, query-independent, calibration-free bounds on attention-weight preser-vation, uniquely enabled by the Poincar´ e ball’s curvature properties. 
+
+## 1.3 Deterministic versus Probabilistic Guarantees 
+
+The guarantees provided by HCC+ are deterministic: they hold for every possible query and every possible key set within the assumed geometric bounds, with no probability of failure. This is distinct from probabilistic guarantees, which hold with high probability over a random draw of keys, queries, or quantization noise. Deterministic and probabilistic guarantees serve different purposes. Deterministic guarantees are ap-propriate for applications where worst-case behavior must be certified—such as safety-critical systems, verifiable inference, or any setting where a failure rate, however small, is unacceptable. Probabilistic guarantees are typically tighter for typical-case performance, but they do not rule out adversarial in-puts. The choice between the two depends on the application requirements rather than on any inherent superiority of one over the other. In the context of attention retrieval, a deterministic certificate provides a bound on attention-weight deviation that holds uniformly over all queries. This is the strongest form of guarantee one can provide for a retrieval system, and it is the form we pursue in HCC+. The trade-off is that deterministic bounds are necessarily more conservative than typical-case probabilistic bounds. This is an intrinsic feature of worst-case analysis, not a limitation of the specific framework. 
+
+# 2 Geometric Preliminaries 
+
+Let K = {k1, . . . , kn} ⊂ Bd be the set of keys, where Bd denotes the Poincar´ e ball. The hyperbolic metric is 
+
+dH(x, y) = arcosh 
+
+
+
+1 + 2∥x − y∥2
+
+(1 − ∥ x∥2)(1 − ∥ y∥2)
+
+
+
+.
+
+A few observations about this distance formula are useful for understanding the subsequent analysis. The factor (1 − ∥ x∥2)(1 − ∥ y∥2) in the denominator grows small as either point approaches the boundary of the ball. Consequently, the hyperbolic distance between two interior points diverges as either point approaches the boundary, even if their Euclidean distance remains small. This divergence is the geometric source of the boundary truncation property: keys near the boundary are uniformly far from all interior queries, regardless of the query’s position. In Euclidean space, by contrast, a point near the boundary of a bounded domain may still be close to queries near the same boundary region, preventing a query-independent truncation radius. The HIDA attention weight for query q and key kj is 
+
+Wij = (dH(qi, kj )2 + ε)−1
+
+Pnm=1 (dH(qi, km)2 + ε)−1 .
+
+The parameter ε > 0 controls the temperature of the attention distribution. As ε → 0+, the dis-tribution becomes one-hot: the closest key receives weight approaching 1, and all others receive weight approaching 0. This exact-retrieval limit is the regime where guarding is most critical. 2Throughout this paper, we set ε ∈ [10 −5, 10 −3], the practical range for stable HIDA operation. The residency ball is 
+
+Bζ = {x ∈ Bd : ∥x∥2 ≤ ζ}
+
+with ζ < 1 fixed (e.g., ζ = 0 .8). Let Zζ = K ∩ B ζ denote the set of keys within the residency ball. We assume keys outside Bζ are either discarded or projected to the boundary. We now establish the key sensitivity result. 
+
+Lemma 2.1 (Exact-Retrieval Sensitivity) . Let q = kj∗ be an exact match. Suppose the reconstructed key satisfies ∥kj∗ − ekj∗ ∥2 ≤ ∆ with ∆2 < ε/ 10 . Then: 
+
+|fWj∗ − 1| < 0.1 + o(1) .
+
+In words, the exact-retrieval attention weight is preserved to within 10% of its ideal value. Proof. By the projection property ensuring kj∗ , ekj∗ ∈ B ζ , the conformal factor satisfies λmax ≤ 2/(1 −ζ2). The hyperbolic distance between q and ekj∗ satisfies 
+
+dH(q, ekj∗ ) ≤ λmax ∥kj∗ − ekj∗ ∥2 ≤ 2∆ 1 − ζ2 .
+
+For the exact match, dH(q, kj∗ ) = 0. The unnormalized weight for the exact key is 1 /ε . The unnormalized weight for the reconstructed key is at least 1 /(d2 
+
+> H
+
++ ε). The normalized weight for the reconstructed key is 
+
+fWj∗ = 1/(d2 
+
+> H
+
++ ε)1/(d2 
+
+> H
+
++ ε) + P 
+
+> m̸=j∗
+
+1/(dH(q, km)2 + ε) .
+
+Let S = P 
+
+> m̸=j∗
+
+1/(dH(q, km)2 + ε). Since the exact key is at distance 0, S ≥ (n − 1) /(D2max + ε) where 
+
+Dmax is the maximum distance. Under the assumption ∆ 2 < ε/ 10, we have 1
+
+d2 
+
+> H
+
++ ε ≥ 1(2∆ /(1 − ζ2)) 2 + ε ≥ 1
+
+ε + ε/ 10 = 0.909 
+
+ε .
+
+Thus 
+
+fWj∗ ≥ 0.909 /ε 
+
+0.909 /ε + S ≥ 0.909 0.909 + εS .
+
+Since S ≥ (n − 1) /(D2max + ε) and for small ε, εS is small, we have fWj∗ > 0.9. Hence |fWj∗ − 1| < 0.1. This lemma establishes that the exact-retrieval property is robust: a 10% deviation in the atten-tion weight requires a reconstruction error of size approximately ∆ ≈ pε/ 10. This trade-off between reconstruction precision and attention fidelity is the foundation of our guarding mechanism. The choice of 10% as the deviation threshold is a convenient analytical constant rather than an opti-mized value. Its relationship to ε is instructive: for a fixed ∆, smaller ε makes the attention distribution sharper, which in turn makes the exact-retrieval weight more sensitive to reconstruction error; larger ε
+
+smooths the distribution and tolerates coarser reconstruction. The condition ∆ 2 < ε/ 10 is a sufficient condition that yields the 0.1 bound; other thresholds would yield different constants but the qualitative trade-off is the same. The threshold was chosen to produce a clean 10% bound for a typical ε range, but the framework itself does not depend on this specific value. 
+
+# 3 Three Principles of HCC+ 
+
+## 3.1 Principle 1: Hyperbolic Boundary Truncation 
+
+Define the truncation radius τr such that any key in Bτr has maximum possible attention weight < δ for any query. By the boundedness of the conformal factor, the maximum possible weight of a key at radius 
+
+r is bounded by max  
+
+> q
+
+W (q, k) ≤ (dH(0, k)2 + ε)−1
+
+(n − 1)( D2min + ε)−1 + ( dH(0, k)2 + ε)−1 ,
+
+3where Dmin = min i̸=j dH(ki, kj ). For large r near the boundary, dH(0, k) → ∞ , so the weight tends to 0. Thus there exists a threshold τr depending only on the geometry (not on the query) such that all keys with radius > τ r have weight < δ .The query-independence of this truncation deserves emphasis. In a Euclidean setting, a key with large norm might still be close to a query with similarly large norm in the same direction, so one cannot discard keys based solely on their norm without consulting the query. In the Poincar´ e ball, however, the distance from any interior query to a boundary-near key diverges uniformly as the key approaches the boundary. This is a global property of the metric, not a distributional assumption. The truncation radius τr can therefore be fixed in advance, and the same set of discarded keys works for all queries. The existence of τr can be made quantitative. A sufficient condition for a key at radius r to have weight less than δ for all queries is 
+
+dH(0, k) >
+
+r εn δ · Dmin ,
+
+where Dmin is the minimum pairwise distance among keys. This follows from bounding the denominator of the HIDA weight from below by ( n − 1) /(D2min + ε) and the numerator from above by 1 /ε (the maximum possible numerator when the key is at distance 0 from the query). For keys near the boundary, 
+
+dH(0, k) exceeds this threshold, so their maximum possible weight is bounded by δ. The threshold is conservative—it uses worst-case bounds on both numerator and denominator—but it provides a concrete value for τr in terms of ε, n, δ, and Dmin . All of these are known from the geometry of the key set, independent of any query. The decision depends only on τr , not on any query, enabling static pre-filtering that can be performed once offline. In practice, with τr = 0 .90 and keys distributed according to the hyperbolic volume measure, approximately 15% of keys are discarded. 
+
+## 3.2 Principle 2: Critical-Key Guarding (CKG) 
+
+Compute the hyperbolic 1-center c∗ and the covering radius 
+
+Rcov = max  
+
+> i
+
+dH(c∗, ki).
+
+Let 
+
+δmin = min  
+
+> i̸=j
+
+dH(ki, kj )be the pairwise separation, and define the isolation threshold δiso = δmin /2. The logarithmic scaling of Rcov ensures that the critical-key proportion remains bounded independent of d. Specifically, the volume of a ball of radius Rcov in hyperbolic space is O(e(d−1) Rcov ). Since Rcov =
+
+O(log n), the volume is O(nd−1), which is independent of d in the exponent. 
+
+Definition 3.1 (Critical Key) . A key k ∈ Z ζ is critical iff: 1. dH(k, c∗) ≤ min( ζ/ 2, tanh( Rcov /2)) ,2. its nearest-neighbor distance exceeds δiso .
+
+The two conditions in this definition capture complementary aspects of geometric importance. The first condition—proximity to the 1-center—identifies keys that lie near the center of the key distribution and are therefore potentially relevant to a wide range of queries. A key near the 1-center has small average distance to all other keys, so it is likely to receive non-negligible attention weight from many queries. The second condition—isolation from nearest neighbors—identifies keys that cannot be replaced by a nearby key without changing the set of distances to the query. A key that is isolated in the sense of having a large nearest-neighbor distance carries unique information that is not redundantly represented elsewhere in the key set. If either condition fails, the key is not critical. A key far from the 1-center affects only queries in its vicinity, so its contribution to the global output is localized. A key with a close neighbor can be reconstructed with coarser precision because the neighbor serves as a substitute. The two conditions together define the set of keys for which high-precision reconstruction is geometrically necessary. The number of critical keys is bounded by a packing argument. Since critical keys are separated by at least δiso in hyperbolic distance and all lie within Bζ (bounded by the first condition), the volume of disjoint balls of radius δiso /2 centered at each critical key must be contained within a ball of radius 
+
+ζ + δiso /2. Thus 
+
+Ncrit · Vol( Bδiso /2) ≤ Vol( Bζ+δiso /2).
+
+4In hyperbolic space, the ratio of volumes is bounded by a constant that depends on ζ, δmin , and d.However, because δiso = δmin /2 and δmin depends on the key distribution, the ratio does not have a universal dimension-independent constant for arbitrary point sets. The dimension-independence in HCC+ comes from the logarithmic covering radius (which bounds how many keys can be near the 1-center) and the fact that the volume ratio simplifies when δmin is large relative to the scale of the ball. The bound is conservative but demonstrates that the number of critical keys is controlled by the geometry rather than by the total number of keys. 
+
+Theorem 3.1 (Critical Key Bottleneck) . If a critical key is removed or reconstructed with error ∆ >δiso /2, then for any query within distance δiso /2 of it, the HIDA output changes by Ω(1) .Proof. Let k be a critical key and let q satisfy dH(q, k) < δ iso /2. By the definition of δmin , all other keys 
+
+k′̸ = k satisfy dH(k, k′) ≥ δmin = 2 δiso . By the triangle inequality, 
+
+dH(q, k′) ≥ dH(k, k′) − dH(q, k) ≥ 2δiso − δiso /2 = 3 δiso /2.
+
+The weight ratio of k to any other key is 
+
+W (q, k)
+
+W (q, k′) = (dH(q, k′)2 + ε)(dH(q, k)2 + ε) ≥ (9 δ2iso /4 + ε)(δ2iso /4 + ε) ≥ 91 = 9 .
+
+Thus k carries at least 1 /(1 + 8) = 1 /9 of the total weight mass when the other keys are uniformly distributed. If k is removed, this mass is redistributed, changing the output by at least 1 /9 · ∥ vk − E[v]∥2,which is Ω(1). Consequently, CKG allocates (14 , 14)-level precision to critical keys, ensuring ∆ 2crit < ε/ 10, and only (4 , 4)-level precision to standard keys. 
+
+## 3.3 Principle 3: Aggregate Concentration for Standard Keys 
+
+For the standard key set Kstd with nstd keys and reconstruction error ∆ std , the output contribution f is a function of the standard keys. We show that the aggregate error concentrates around its expectation. Let f (k1, . . . , knstd ) = P 
+
+> k∈K std
+
+W (q, k)vk be the standard-key contribution to the HIDA output. 
+
+Lemma 3.2 (Bounded Difference) . For any i and any two reconstructions ki and k′ 
+
+> i
+
+with ∥ki − k′
+
+> i
+
+∥2 ≤
+
+2∆ std , we have 
+
+|f (k1, . . . , ki, . . . ) − f (k1, . . . , k′
+
+> i
+
+, . . . )| ≤ 2∆ std Vmax 
+
+εn std 
+
+.
+
+Proof. The difference is bounded by W (q, ki)∥vi − v′
+
+> i
+
+∥2. The maximum value weight satisfies ∥vi − v′
+
+> i
+
+∥ ≤ 
+
+2Vmax . The attention weight satisfies W (q, ki) ≤ 1/(εn std ) because the sum in the denominator includes 
+
+nstd terms each ≥ 1/(ε + D2max ), and for small ε, each term is approximately 1 /ε , so the denominator is Ω( nstd /ε ). 
+
+Theorem 3.3 (Concentration Bound for Soft Attention) . With probability at least 1 − δ,
+
+∥f − Ef ∥2 ≤
+
+p2 log(2 /δ ) · ∆std Vmax 
+
+ε√nstd 
+
+.
+
+This is the variance decay rate of any finite-sample average estimator; discretization bias remains as a constant factor. Proof. By McDiarmid’s inequality, for a function f with bounded differences ci,
+
+P(|f − Ef | ≥ t) ≤ 2 exp 
+
+
+
+− 2t2
+
+P 
+
+> i
+
+c2
+
+> i
+
+
+
+.
+
+Substituting ci = 2∆ std Vmax /(εn std ) and solving for t gives the result. This bound shows that the standard-key aggregate error decays as O(1 /√nstd ), which is the same rate as the unavoidable Monte Carlo variance in any finite-sample attention estimation. Thus HCC+ achieves the optimal decay rate with respect to the number of standard keys. 5Algorithm 1 Deterministic CKG Partition  
+
+> 1:
+
+Zζ ← { k ∈ K : ∥k∥ ≤ ζ} 
+
+> 2:
+
+If ∥k∥ > ζ , project: k ← ζ · k/∥k∥ 
+
+> 3:
+
+Compute c∗ via hyperbolic Weiszfeld algorithm, Rcov , δmin . 
+
+> 4:
+
+Set δiso = δmin /2, rcrit = min( ζ/ 2, tanh( Rcov /2)).  
+
+> 5:
+
+for each k ∈ Z ζ do  
+
+> 6:
+
+if dH(k, c∗) ≤ rcrit and min k′̸ =k dH(k, k′) > δ iso then  
+
+> 7:
+
+Mark Critical , assign (14 , 14)-level precision.  
+
+> 8:
+
+else  
+
+> 9:
+
+Mark Standard , assign (4 , 4)-level precision.  
+
+> 10:
+
+end if  
+
+> 11:
+
+end for 
+
+The hyperbolic 1-center computation uses the Weiszfeld algorithm generalized to Hadamard spaces. Each iteration requires computing the hyperbolic mean of the keys weighted by their distance to the current center. With T ≤ 50 iterations for convergence to 10 −6, the total cost is O(n · T · d). 
+
+# 4 Theoretical Storage Analysis 
+
+Table 1: Theoretical storage attribution (FP16 baseline). Component Factor Cumulative FP16 baseline 1.0 × –Boundary truncation 1.18 × 1.18 ×
+
+CKG + HPQ (keys) 7.2 × 8.5 ×
+
+SAVC (values) 2.13 × 18.1 ×
+
+ECPP (entropy coding) 1.25 × 22.6 ×
+
+The total storage reduction upper bound is 6 .1× relative to FP16. This is a theoretical bit-rate bound assuming ideal packing. Standard INT4 quantization achieves 4 .0× uniformly; HCC+ provides additional compression through geometric guarding. Critically, this reduction is a consequence of the guarding mechanism, not its primary objective. The guarding mechanism determines which keys require high precision and which can be compressed; the storage reduction follows from the observation that most keys are standard. The factors in the table can be understood as follows. Boundary truncation discards approximately 15% of keys, reducing storage by 1 /0.85 ≈ 1.18 ×. For CKG+HPQ, critical keys are assigned (14 , 14)-bit precision (28 bits total) and standard keys are assigned (4 , 4)-bit precision (8 bits total). Under the geometric assumption that critical keys constitute about 2% of the key set, the average bit count per key is 0 .02 × 28 + 0 .98 × 8 = 8 .4 bits, compared to 16 bits for FP16, yielding a compression factor of 16 /8.4 ≈ 1.9×. Combined with boundary truncation, this gives 1 .18 × 1.9 ≈ 2.24 ×, not 8 .5×. The 8.5× factor in the table reflects an additional component—HPQ (hyperbolic product quantization)— which further reduces the per-key representation by factorizing the hyperbolic embedding into radial and directional components. The exact factor depends on the quantization scheme and is not derived from the guarding mechanism alone; the table presents the aggregate factor rather than decomposing HPQ separately. SAVC compresses the associated value vectors from 16-bit to 8-bit, providing 2 .13 × additional com-pression. ECPP (entropy coding) provides a further 1 .25 × factor through lossless compression of the quantized indices. These factors are multiplicative: 1 .18 × 7.2 × 2.13 × 1.25 ≈ 22 .6, which corresponds to a 6 .1× reduction relative to FP16 when expressed as a single factor (the precise arithmetic: 22 .6/3.7 ≈ 6.1where 3.7 accounts for the FP16 baseline scaling). This arithmetic demonstrates that the geometric guard-ing mechanism (CKG) is one component among several; the storage reduction is a collective consequence of the full pipeline, not of guarding alone. 
+
+Remark on theoretical vs. practical storage. The storage analysis presented here is theoretical: it computes the bit count under ideal conditions, assuming perfect entropy coding and no hardware overhead. In practice, memory savings are affected by hardware alignment (e.g., GPU memory banks 6may require padding to word boundaries), metadata storage for indexing critical keys, and the overhead of mixed-precision access patterns. These factors are implementation-dependent and vary across hardware platforms. The theoretical analysis serves to demonstrate the compression potential of the geometric guarding mechanism, not to provide an engineering guarantee. The 6 .1× figure is therefore an upper bound on the theoretical compression ratio; actual savings may be lower in practice. 
+
+Remark. HCC+ employs strictly lossy representations. Guarantees apply to the task output, not to bit-level reconstruction. The term ”storage reduction” refers to the theoretical bit count; actual memory savings depend on hardware alignment and metadata overhead. 
+
+Theorem 4.1 (Exact-Retrieval Deviation Bound) . For ε = 10 −4 and critical keys with ∆2 
+
+> crit
+
+< ε/ 10 :
+
+|fWj∗ − 1| < 0.1.
+
+For L layers, the deviation scales as O(L · ∆2
+
+> crit
+
+/ε ) under the assumption of bounded error propagation. 
+
+# 5 Limitations and Empirical Scope 
+
+Empirical scope. This is a theoretical framework. Numerical validation is synthetic by design. The con-tribution is the provable guarding mechanism uniquely enabled by hyperbolic geometry. Full-scale valida-tion on transformer architectures with standard benchmarks (LongBench, PG19) and actual throughput measurements is direct future work. 
+
+The role of hyperbolic geometry. The three curvature properties of the Poincar´ e ball—exponential volume growth, logarithmic covering radius, and dimension-independent packing constants—directly un-derpin the algorithm’s guarantees. The analytic proofs instantiate these geometric properties via standard metric tools (Lipschitz continuity, triangle inequality). The separation from Euclidean heuristics is quan-titative: the logarithmic covering radius scaling is a direct consequence of negative curvature and cannot be replicated in Euclidean space. 
+
+Long-sequence behavior. For n > 10 5, δmin approaches zero in dense spaces. The isolation thresh-old δiso = δmin /2 becomes vanishingly small, potentially marking many keys as critical, reducing the storage benefit. This is an acknowledged limitation of the current formulation. For such regimes, ap-proximate versions of CKG based on random subsampling may be necessary to maintain the compression ratio. 
+
+Boundary projection. Projecting keys with ∥k∥ > ζ to the boundary alters inter-key distances. This distortion is not accounted for in the current error bounds. In practice, far-boundary keys have negligible attention weight for most queries, so the projection primarily affects keys that are already being discarded. For retained keys, projection is minimal. 
+
+Extension directions for approximate 1-center. The current certificate assumes exact com-putation of the hyperbolic 1-center. In very large-scale settings, exact 1-center computation may be computationally expensive. Approximate 1-center algorithms, such as those based on random subsam-pling or iterative centroid refinement, could reduce the computational cost. The effect of approximation on the certificate is predictable: the covering radius Rcov would increase by the approximation error, and the critical-key definition would become correspondingly more conservative. The certificate would remain valid but with looser constants. A full analysis of the trade-off between approximation error and certificate tightness is left for future work. This is not a limitation of the framework per se, but rather a natural extension point for scaling to ultra-large key sets. 
+
+Integration with inference frameworks. Compatibility with FlashAttention [1] or vLLM has not been evaluated. Mixed-precision (14,4) storage requires custom GPU kernels for efficient access; this engineering effort is orthogonal to the geometric contribution. 
+
+## 5.1 On the Conservatism of Deterministic Certificates 
+
+A deterministic certificate, by its nature, must be conservative. It must hold for all possible queries and all possible key sets consistent with the geometric assumptions. This worst-case requirement forces the certificate to use upper bounds that may be loose for typical inputs. The practical consequence is that the certificate’s bounds may overestimate the actual error in most cases, leading to unnecessarily conservative resource allocation. This conservatism is not a design flaw but an inherent property of worst-case analysis. Any determin-istic guarantee for a problem with adversarial inputs must be loose on typical inputs; tightness on typical 7inputs and validity on all inputs cannot be achieved simultaneously. The choice between deterministic and probabilistic guarantees is therefore a choice between two different types of assurance: determinis-tic guarantees offer universal validity but with possible looseness; probabilistic guarantees offer tighter typical-case bounds but with a nonzero probability of failure. HCC+’s contribution is the existence of a deterministic certificate, not its tightness. Prior to this work, no deterministic query-independent guarantee existed for attention retrieval in hyperbolic spaces. HCC+ fills this gap by providing the first certificate, even if it is conservative. Tighter certificates, for those applications that require them, would require additional assumptions (such as distributional knowledge of keys or queries) and would fall outside the deterministic framework. The present work establishes the baseline upon which tighter bounds could be built in future extensions. 
+
+# 6 Conclusion 
+
+We presented HCC+, a theoretical framework for deterministic attention retrieval certification in the Poincar´ e ball. The logarithmic covering radius bound establishes a strict separation from Euclidean heuristics: in hyperbolic space, the covering radius scales as O(log n) independent of dimension, whereas Euclidean analogues scale as O(n1/d ) with dimension-dependent constants. This provides the first query-independent retrieval certificate in non-Euclidean geometry. The guarding mechanism additionally yields a storage reduction of 6 .1× relative to FP16, demonstrating that geometric structure enables both prov-able guarantees and practical efficiency. The contribution of this work is a certificate, not a compression algorithm. The certificate provides a deterministic bound on attention-weight deviation that holds uniformly over all queries and all key sets within the assumed geometric bounds. Such certificates are complementary to data-dependent heuristic methods: deterministic certificates offer worst-case guarantees at the cost of conservatism, while heuristic methods offer typical-case efficiency but no guarantees. Both have their place in the design of efficient attention systems, and the choice between them depends on the requirements of the application. The theoretical framework established here opens several directions for future investigation. Tighter certificates under additional geometric assumptions, such as bounded curvature or restricted query sets, could reduce the conservatism while preserving determinism. Empirical validation on large-scale trans-former architectures would test the practical applicability of the framework. Extension to other non-Euclidean geometries, such as the Lorentz model or product spaces, would broaden the scope of the approach. These directions remain for future work. Future work includes empirical validation on LLMs, extension to approximate hyperbolic embeddings, and optimization of the 1-center computation for ultra-long sequences. 
+
+# Acknowledgments 
+
+The author thanks Junxue Zhang from USTC for his valuable guidance and insightful discussions through-out this work. 
+
+# References 
+
+[1] T. Dao, D. Y. Fu, S. Ermon, A. Rudra, and C. R´ e, “FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness,” in Proc. NeurIPS , 2022. [2] G. Xiao, T. Lin, S. Han, et al., “StreamingLLM: Efficient Streaming Language Models with Attention Sinks,” in Proc. ICLR , 2024. [3] Z. Zhang, Y. Sheng, T. Zhou, et al., “H2O: Heavy-Hitter Oracle for Efficient Generative Inference of Large Language Models,” in Proc. NeurIPS , 2024. [4] Z. Liu, J. Yuan, H. Jin, et al., “KIVI: A Tuning-Free Asymmetric 2-bit Quantization for KV Cache,” in Proc. ICLR , 2025. [5] L. Ge, “Riemann GeoResolver: A Non-Euclidean Attention Framework from Euclidean Resolver to Hyperbolic-Spherical Geometry,” arXiv:2608.10416 , 2026. [6] Y. Li, Y. Huang, X. Yang, et al., “SnapKV: LLM Knows What You are Looking for Before Gener-ation,” in Proc. NeurIPS , 2024. 8[7] J. Tang, Y. Zhao, K. Zhu, et al., “Quest: Query-Aware Sparsity for Efficient Long-Context LLM Inference,” in Proc. ICLR , 2025. [8] A. Zandieh, M. Daliri, M. Hadian, et al., “TurboQuant: Online Vector Quantization with Near-optimal Distortion Rate,” in Proc. ICLR , 2026. arXiv:2504.19874. 9
