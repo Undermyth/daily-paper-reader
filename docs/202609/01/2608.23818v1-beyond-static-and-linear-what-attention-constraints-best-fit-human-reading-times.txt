@@ -1,0 +1,393 @@
+Title: Beyond Static and Linear: What Attention Constraints Best Fit Human Reading Times?
+
+URL Source: https://arxiv.org/pdf/2608.23818v1
+
+Published Time: Wed, 26 Aug 2026 00:14:09 GMT
+
+Number of Pages: 14
+
+Markdown Content:
+# Beyond Static and Linear: What Attention Constraints Best Fit Human Reading Times? 
+
+Lanni Bu 1, Xiulin Yang 1, Christian Clark 2, Alex Warstadt 3, Ethan Gotlieb Wilcox 1,
+
+> 1
+
+Georgetown University, 2The Ohio State University, 3UC San Diego,  
+
+> Correspondence: lb1437@georgetown.edu
+
+Abstract 
+
+Transformer-based language models are widely used as models of human language processing, yet their attention mechanisms allow lossless access to the full preceding context, unlike the limited memory systems of humans. We hy-pothesize that installing memory constraints into transformers’ attention mechanisms can improve their fit to human behavioral data. While previous work has explored individual constraints in isolation, we conduct a system-atic comparison of multiple attention-based memory mechanisms across different model sizes and training corpora, evaluating both psy-chometric predictive power for human reading times and grammatical competence. We addi-tionally compare static constraints, in which the constraint strength is fixed throughout train-ing, to dynamic memory curricula. We find that constraints that are sensitive to the content of intervening tokens consistently achieve the highest alignment with human reading times, outperforming distance-based constraints. We observe a dissociation between psychometric fit and grammatical competence under dynamic memory curricula, suggesting that Transform-ers cannot serve as a one-size-fits-all cognitive model. 1
+
+1 Introduction 
+
+One longstanding hypothesis in cognitive science is that constraints on cognition lead to more robust and generalizable cognitive processes (Hertwig and Todd, 2003; Newport, 1990; Elman, 1993). Re-cently, Artificial Neural Network (ANN)–based language modeling has been used as a testbed for this proposal, specifically in the domain of linguis-tic cognition. In this line of work, limitations akin to memory limitations in humans are integrated into ANN language models, and the resulting mod-els are evaluated on their ability to predict human  
+
+> 1Code is available at https://github.com/Lanni-ni/ different-attention-mechanisms-transformers .
+
+linguistic behaviors. Contributions have found that limitations in transformers’ attention mechanism (Clark et al., 2025; Mita et al., 2025; Kuribayashi et al., 2022; De Varda and Marelli, 2024), as well as representational capacity (Timkey and Linzen, 2023; Xu et al., 2026), have led to gains in pre-dicting human grammatical and sentence process-ing behaviors. Furthermore, one recent study has found that a curriculum of constraint relaxation over training improves cognitive fit above static model architecture (Mita et al., 2025), in line with well-studied theories from the cognitive science literature (Newport, 1990). While these results are exciting, they provide only a limited empirical picture. In particular, pre-vious work has tested only a couple of memory constraints: n-gram-like cutoffs (Kuribayashi et al., 2022) or distance-based decay (Clark et al., 2025; De Varda and Marelli, 2024). However, there are many other theories about how memory constrains language processing (e.g., intervener-based inter-ference; Lewis and Vasishth, 2005). These alter-native theories remain untested in this paradigm. Furthermore, existing studies have explored a lim-ited range of models and datasets, making it un-clear whether the observed improvements in cog-nitive fit are generalizable or specific to particular training and modeling choices. The same limita-tions apply to work on dynamic memory curric-ula: only one type of constraint has been tested un-der a dynamic training regime, and it is unknown how other memory limitations interact with dy-namic versus static training schedules. Concurrent with our work, Madhyastha and Adamcova (2026) also investigate memory constraints in Transform-ers trained on human-scale data, but focus exclu-sively on distance-based mechanisms such as fixed-width windows and temporal decay, without testing content-based constraints or dynamic curricula. In this paper, we test multiple attention-based memory constraints drawn from the pre-existing 1arXiv:2608.23818v1 [cs.CL] 24 Aug 2026 machine learning literature that have been argued to improve generic language modeling (Press et al., 2022; Lin et al., 2025; Tan et al., 2025). Even though these models were not originally proposed as cognitive models, we select them because each, we argue, has a plausible cognitive interpretation (see Section 2.2). We vary between two model sizes and three pre-training corpora to assess the generalizability of our findings across different modeling conditions. In addition, we compare static memory constraints, in which the constraint strength remains fixed through-out training, to dynamic memory constraints, in which the constraint changes over the course of training. We evaluate the model’s ability to predict psycholinguistic behavioral data across six reading time corpora, following well-established methods (Smith and Levy, 2013; Goodkind and Bicknell, 2018; Wilcox et al., 2020). Our interpretation is that if adding a constraint into the model improves its fit to human behavior, then this provides sim-ulational evidence in favor of the corresponding psycholinguistic theory. We find constraints that limit models’ attention based on the content of intervening material con-sistently achieve the highest alignment with human reading times across the majority of training config-urations. These models outperform distance-based constraints, which have been the focus of prior work. For dynamic memory curricula, we observe a dissociation between psychometric predictive power and grammatical competence: static mod-els better predict human reading times, whereas dynamic models show stronger performance on grammatical benchmarks. Surprisingly, a curricu-lum in which constraints are gradually imposed, outperforms other curricula, challenging a straight-forward application of previous cognitive theories to neural language learners. 
+
+2 Background 
+
+2.1 Theories of Memory Limitations in Language Processing 
+
+Cognitive constraints are limitations on the speed, accuracy, and type of mental operation that minds can perform. Several influential works have argued that, rather than a mere hindrance, cognitive con-straints are advantageous, insofar as they lead to better generalization and robustness (Hertwig and Todd, 2003; Newport, 1990; Elman, 1993). One domain where this has been argued to be opera-tive is in linguistic cognition (e.g., Hitczenko and Jarosz, 2014, Yang, 2016), with many works inves-tigating the role of memory limitations in language representation (Hawkins, 2004; Gibson et al., 2019) and language processing (Gibson, 1998; Just and Carpenter, 1992; Futrell et al., 2020; Lewis and Vasishth, 2005; Lewis et al., 2006). In this area, one current frontier involves proposing and test-ing computational-level theories, in the sense of Marr (1982), for how memory is limited, by us-ing LMs as platforms for instantiating concrete operationalizations of a given theory. We review several such theories below, grouping them into two distinct accounts for how memory functions during online processing— distance -based and con-tent -based. We broadly frame each account within a cue-based retrieval framework of language pro-cessing (Lewis and Vasishth, 2005; Lewis et al., 2006). 
+
+Distance-based Accounts Within the cue-based retrieval framework, one factor affecting retrieval success is activation decay: memory representa-tions lose activation as a function of time since encoding (Lewis and Vasishth, 2005; Lewis et al., 2006). This can be operationalized as the distance between a target and the retrieval cue. A linear de-cay function has been adopted in computational models of sentence processing, including lossy context surprisal (Futrell et al., 2020). A related proposal is that memory representations become unavailable beyond a fixed distance, rather than decaying gradually (Cowan, 2001). Recent com-putational support for the distance-based account comes from work showing that a linear recency bias in Transformer attention improves a model’s ability to predict human reading times (Clark et al., 2025), that locally biased transformers with exponential decay show similar improvements (De Varda and Marelli, 2024), and that restricting language mod-els’ context access to an n-gram-like window re-sults in a similar predictive improvement (Kurib-ayashi et al., 2022). 
+
+Content-based Accounts Under content-based accounts, retrieval difficulty arises not from tem-poral or linear distance, but from featural over-lap between the retrieval target and other items in memory, typically those that (linearly) intervene between the two. Van Dyke and Lewis (2003) pro-posed a cue-based parsing framework and provided experimental evidence that processing difficulty stems from cue overload at the point of retrieval, 2rather than from simple temporal decay. Lewis and Vasishth (2005) subsequently formalized this framework in a computational model built within the ACT-R cognitive architecture, in which sen-tence comprehension consists of a series of cue-driven retrieval operations from working mem-ory. When retrieval cues fail to uniquely iden-tify the target the result is similarity-based inter-ference, which can lead to processing disruptions and slowdowns. The predictions of this account have been validated in controlled psycholinguistic experiments across a range of syntactic phenom-ena including featural agreement (Wagers et al., 2009) and thematic binding (Van Dyke and McEl-ree, 2006; Van Dyke, 2007) among others. (See Jäger et al., 2017 for a meta-analysis of this liter-ature.) Despite this strong experimental founda-tion, content-based interference has not yet been systematically tested within the transformer-based cognitive modeling paradigm. 
+
+2.2 Cognitive Modeling with Transformer Attention 
+
+We look for evidence for the above theories by im-plementing the constraining mechanism they pro-pose inside a computational learning model and comparing it to an unconstrained baseline model. We evaluate the cognitive fit of our models based on their predictive power for modeling human syn-tactic judgements and reading time data. For a fair comparison, we make all modifications to the same baseline model, in our case, a vanilla Transformer (Vaswani et al., 2017). We focus on decoder-only transformers because of their previous success as cognitive models, and the parallels between their at-tention mechanism and cue-based memory retrieval (Ryu and Lewis, 2021). Below, we provide formal definitions of the at-tention mechanisms we use, along with a cognitive interpretation for each. One important caveat is that none of these models was originally designed specifically as a cognitive model of human lan-guage processing. Rather, each has been selected because it has been found to improve performance on language modeling tasks, and because we argue it can be mapped onto a plausible cognitive theory of memory limitation. 
+
+Vanilla Attention (Vaswani et al., 2017) The attention ai,j between a cue token at index i, and a target token at index j, determines to what extent the former is copied over to the latter, changing its in-context representation. In its vanilla imple-mentation, the attention between two tokens is de-termined solely by the token-wise key and query vectors, k, q ∈ Rd:
+
+aij = softmax j
+
+ qi⊤kj
+
+√d
+
+
+
+(1) 
+
+Attention with Linear Biases (ALiBi; Press et al., 2022) This modification adds a linear penalty to attention scores based on the distance between to-kens: 
+
+aij = softmax j
+
+ q⊤ 
+
+> i
+
+kj
+
+√d − mh(i − j)
+
+
+
+(2) Where mh is a hard-coded head-specific scalar. As ALiBi adds a linear bias to the attention score, we use it to instantiate a distance-based memory con-straint. 
+
+N -gram attention Also called sliding window attention , this restricts the model’s context window to a fixed number of preceding tokens at each layer, implementing a cutoff:               
+
+> aij = softmax j
+> q⊤
+> ikj
+> √d+Mij
+> 
+> (3) where
+> Mij =
+> (
+> 0,i−j < N,
+> −∞ ,i−j≥N.
+
+Note that N provides a cutoff only per layer .Attention can flow between tokens separated by more than N positions by propagating information through multiple layers. Therefore, this attention should be thought of as a soft, rather than a hard, cutoff. However, the relatively shallow models we use in our experiments ( 2 and 4 layers) ensure rela-tively local information sharing. We take n-gram attention as instantiating distance-based memory constraints. 
+
+Forgetting Gate (FoX; Lin et al., 2025) This modification also adds a bias term to each attention score. However, the bias term is sensitive to the identity of interveners, k:
+
+aij = softmax j
+
+ q⊤ 
+
+> i
+
+kj
+
+√d +
+
+> i
+
+X
+
+> k=j+1
+
+log fk
+
+ (4) where fk = σ(w⊤ 
+
+> f
+
+xk + bf ) for a given embedding, 
+
+x, layer-specific learnable weights, w and bias, b.3Attention in this model is no longer solely a func-tion of the identities of words at index i and j but also the identities of words that occur in between them. Because, in cue-based retrieval theories, lin-early intervening words with certain features are hypothesized to interfere with search in memory, we take FoX as an instantiation of content-based memory constraints. 
+
+Stick-Breaking attention (Tan et al., 2025) This modification down-weights attention scores based on the presence of high-attention intervening to-kens: 
+
+aij = gij 
+
+Y
+
+> j<k<i
+
+(1 − gik ); gij = σ
+
+ qi⊤kj
+
+√d
+
+
+
+(5) Like FoX, attention decrease is not tied to token po-sitions, although it may be influenced by distance indirectly, insofar as tokens that are more distal from each other will have more interveners. Unlike FoX, the model does not learn additional parame-ters that modulate the extent of attention decrease; rather, it gates information using existing k and 
+
+q parameters. We take stick-breaking attention as another case of content-based memory constraint. 
+
+2.3 Dynamic vs. Static Memory Constraints 
+
+The attention mechanisms described above can be applied as fixed constraints throughout training. However, an alternative approach is to vary the strength of these constraints over the course of training, motivated by developmental theories of language acquisition. The Less is More hypothesis (Newport, 1990) proposes that the reason cognitive limitations are useful is that they are embedded within dynamic maturational trajectories. When young, infants’ attention and memory constraints force them to attend to certain types of local relationships in their input data. This supports early linguistic analysis, including learning word boundaries, word-to-word transitions, and chunking. This early analysis enables later generalization, which onsets as cognitive capacity matures (Elman, 1993). Support for this hypothesis comes from both behavioral studies, which have shown that adults learn artificial languages more effectively when first exposed to simplified input (Kersten and Ear-les, 2001), and that children, but not adults, tend to regularize inconsistent input, suggesting that their limited memory capacity leads to more systematic linguistic representations (Hawkins, 2004; Kam and Newport, 2009), as well as computational simu-lations demonstrating that restricting a model’s pro-cessing capacity improves its ability to acquire mor-phological rules (Goldowsky and Newport, 1993). Recently, in Transformer LMs, Mita et al. (2025) found that slowly relaxing a linear attention con-straint led to improved grammatical competence. However, their setup tested only one model config-uration and did not assess cognitive fit to human real-time language processing data. We test the Less is More hypothesis by embed-ding our attention-based memory constraints within a dynamic memory curriculum. For each model, we start with a fully constrained attention mech-anism and gradually relax it over the course of training ( Less-to-More ), following the setup pro-posed by Mita et al. (2025). We contrast each case with an inverse memory curriculum ( More-to-Less ), in which we slowly impose the constraint over the course of training. If the Less is More hypothesis holds for our neural learners, we expect the Less-to-More curriculum to improve cognitive fit over the More-to-Less curriculum. We operationalize the dynamic curricula for the two attention mech-anisms that involve adding additional bias terms, which were straightforward to implement. 2
+
+Dynamic ALiBi We scale each fixed head-specific slopes of static ALiBi by a shared factor that changes across epochs: 
+
+aij = softmax j
+
+ qi⊤kj
+
+√d − mt · mh(i − j)
+
+
+
+(6) where mh is the original head-specific slope, m0 is the initial scaling factor, and r is a scaling rate. In the Less-to-More condition, r < 1 (we use r = 0 .6
+
+following the original setting in Mita et al., 2025), so mt decreases over epochs, gradually relaxing the distance penalty. In the More-to-Less condition, 
+
+r > 1 (we use m0 = 0 .0101 , r = 1 .6667 ), so 
+
+mt increases over epochs, gradually imposing the penalty. 
+
+Dynamic Forgetting Transformer We scale the forgetting bias by a parameter λt that controls the strength of the content-based constraint and    
+
+> 2We explored a curriculum-based version of the n-gram attention model, but found that step-changes in nlead to instability during training. We leave a dynamic version of this model and the stick-breaking attention for future work.
+
+4changes across training epochs: 
+
+aij = softmax j
+
+ qi⊤kj
+
+√d + λtiX
+
+> k=j+1
+
+log fk
+
+
+
+(7) where λ0 is the initial scaling factor and r is a scal-ing rate. In the Less-to-More condition, r < 1
+
+(we use r = 0 .6 following Mita et al.), so λt de-creases over epochs, gradually relaxing the con-straint. In the More-to-Less condition, r > 1 (we use λ0 = 0 .0101 , r = 1 .6667 ), so λt increases over epochs, gradually imposing the constraint. 
+
+3 Methods 
+
+3.1 Language Model Training Data 
+
+We train our models on three corpora of vary-ing sizes. The first two are drawn from BabyLM (Warstadt et al., 2023), and are designed to approx-imate the quantity and quality of linguistic input available to children during language acquisition: BabyLM-10M (10 million tokens) and BabyLM-100M (100 million tokens). We additionally train models on a 2-billion token subset of the Pile (Gao et al., 2020), a large-scale web-based English cor-pus. The inclusion of multiple training corpora allows us to assess whether the effects of mem-ory constraints on cognitive fit are robust across different data scales and compositions. 
+
+3.2 Models and Training 
+
+We use a decoder-only Transformer architecture based on OPT (Zhang et al., 2022) as the basis for all our models. For each attention variant, we train models in two sizes: a 2-layer and a 4-layer con-figuration. All models are trained from scratch on each of the three corpora described in section 3.1. We train versions for all the attention mechanisms described in section 2.2, and include N ∈ { 2, 3, 5}
+
+for our n-gram models. For dynamic models, we implement the curricula described in section 2.3 for ALiBi and the Forgetting Transformer. Each dynamic model is trained under both the Less-to-More and More-to-Less conditions. For static mod-els, we use the final checkpoint after 10 epochs of training. For dynamic models, we save and eval-uate all checkpoints to examine the trajectory of cognitive fit across training. 
+
+3.3 Human Sentence Processing Datasets 
+
+We evaluate our models on six English reading time corpora using two experimental paradigms. For self-paced reading (SPR), we use the Brown (Smith and Levy, 2013), Natural Stories (Futrell et al., 2018), and UCL (Frank et al., 2013) datasets. For eye-tracking (ET), we use the Dundee (Kennedy et al., 2013), GECO (Cop et al., 2017), and Provo (Luke and Christianson, 2018) datasets. Brown comprises SPR data from 35 participants reading 13 passages (7,188 words); Natural Stories, SPR data from 181 participants reading 10 natural-istic stories (10,256 words); UCL, SPR data from 117 participants and ET fixation durations from 48 participants reading isolated sentences (4,957 words); GECO, fixation durations from 14 monolin-gual participants reading a full-length novel (56,441 words); Dundee, fixation durations from 10 par-ticipants reading 67 newspaper editorials (51,501 words); and Provo, fixation durations from 84 par-ticipants reading 55 short passages (2,746 words). For SPR corpora, we exclude reading times for sentence-initial and sentence-final words, as well as observations shorter than 50 ms or longer than 1000 ms. For ET corpora, we analyze first-pass and go-past durations, excluding data points for unfix-ated words, words following saccades longer than four words, and words at sentence and document boundaries. Each corpus is split into fit (50%), exploratory (25%), and held-out (25%) partitions. Regression models are trained on the fit partition, Results are reported for the exploratory portion, except for statistical tests, which are conducted on the held-out portion. 
+
+3.4 Measuring Human Cognitive Fit 
+
+We measure human cognitive fit using Delta Log Likelihood or ∆llh (Goodkind and Bicknell, 2018; Wilcox et al., 2023), which quantifies the improve-ment in predicting human reading times when model-derived surprisal is added as a predictor to a regression model with baseline predictors. The surprisal of a word wt in context w<t is defined as: 
+
+ιt(wt) = − log 2 p(wt | w<t ) (8) where p(wt | w<t ) is estimated using our language models. For each corpus, we fit two linear mixed-effects models (Bates et al., 2015) to reading times; one model with just baseline predictors, and one model with baseline predictors plus surprisal. For SPR corpora, the baseline model includes word length in characters, sentence position, unigram surprisal es-timated using KenLM (Heafield et al., 2013) on the 5BabyLM-100M 2-layer BabyLM-100M 4-layer BabyLM-10M 2-layer BabyLM-10M 4-layer Pile-2B 2-layer Pile-2B 4-layer 
+
+> Training Setting
+> Forgetting Gate Stick-breaking ALiBi 5-gram 3-gram 2-gram Vanilla
+> Model
+> 370.3* (#1) 367.3* (#1) 325.8* (#1) 325.4* (#1) 311.7* (#2) 351.9 (#1) 354.8 (#2) 346.2 (#3) 299.9 (#2) 295.9* (#3) 301.9* (#3) 320.7* (#4) 275.3* (#4) 364.5* (#2) 263.8* (#4) 312.5* (#2) 277.9* (#4) 340.3 (#3) 182.7* (#5) 157.3* (#7) 203.6* (#5) 185.1* (#5) 225.2* (#5) 233.1* (#5) 177.2* (#7) 178.7* (#5) 183.2* (#6) 182.8* (#6) 211.4* (#6) 211.0* (#6) 178.6* (#6) 167.2* (#6) 172.5* (#7) 169.6* (#7) 205.4* (#7) 202.3* (#7) 349.4 (#3) 341.5 (#4) 291.6 (#3) 274.7 (#4) 329.9 (#1) 342.6 (#2)
+> 150 200 250 300 350 Total Delta Log-Likelihood
+
+Figure 1: Total ∆llh and rank across training settings. Outline boxes indicate mechanism type: solid = baseline, dashed = distance-based, dotted = interference-based. * indicates significance of a permutation test ( p < . 05 )against vanilla ∆llh scores within each setting. Text color differences are for visual clarity only. 
+
+OpenWebText Corpus (Gokaslan et al., 2019), and unigram surprisal of the previous word to account for potential spillover effects. For ET corpora, the baseline additionally includes whether the previ-ous word was fixated and the previous word length. All models include by-subject and by-item random intercepts. The target model extends the baseline by adding model-derived surprisal at the current and previous word, also to capture spillover effects. Models are fit on the fit partition using maximum likelihood estimation, and ∆llh is evaluated on the exploratory partition, T . If llh () gives a models’ log likelihood for a single test point, then: 
+
+∆llh = X
+
+w∈T 
+
+llh target (w) − llh baseline (w) (9) Models whose surprisal leads to higher values of ∆llh can be said to have higher cognitive fit, or psychological accuracy (Frank and Bod, 2011; Fossum and Levy, 2012). 
+
+3.5 Measuring Grammatical Competence 
+
+We additionally evaluate our models on the BLiMP benchmark (Warstadt et al., 2020), which tests grammatical knowledge across 12 linguistic phe-nomena including subject-verb agreement, argu-ment structure, binding, and filler-gap dependen-cies. BLiMP consists of minimal pairs of sentences that differ in grammaticality, and a model is scored based on whether it assigns higher probability to the grammatical sentence. We report overall accu-racy averaged across all 12 categories. Our BLiMP scores are not high compared to at-scale LLMs, but well within the typical range reported for models of our size and data scale (for example, against 10 2 10 3
+
+> Perplexity (log scale)
+> 150 200 250 300 350
+> Total Delta Log-Likelihood
+> Forgetting Gate Stick-breaking ALiBi Vanilla 5-gram 3-gram 2-gram BabyLM-10M BabyLM-100M Pile-2B
+
+Figure 2: Perplexity vs. ∆llh for static models. Black dashed line is the line of best fit. 
+
+comparable models from the BabyLM challenge; Hu et al., 2024, Fig. 2). 
+
+4 Results 
+
+4.1 Exp. 1: Static Memory Constraints 
+
+Figure 1 reports the summed ∆llh for each static model across all reading time datasets and train-ing settings. We test whether ∆llh is significantly above the vanilla baseline with a paired permuta-tion test with significance at the p < 0.05 level. We find that content-based attention mechanisms consistently achieve the highest alignment with hu-man reading times: The Forgetting Transformer ranks first in five out of six training configura-tions, with ∆llh that is significantly higher than the vanilla model in all settings. Stick-breaking attention consistently ranks second or third, and demonstrates ∆llh significantly above the vanilla model’s in three settings. In contrast, distance-based mechanisms show more mixed results. Al-though previous work (Clark et al., 2025) found 61 2 3 4 5 6 7 8 9 10              
+
+> Epoch
+> 54 55 56 57 58 59 60
+> BLiMP Overall Accuracy
+> Grammatical Competence
+> 12345678910
+> Epoch
+> 150 175 200 225 250 275 300 325 350
+> Total Delta Log-Likelihood
+> Psychometric Predictive Power
+> ALiBi (static) Forgetting Gate (static) Vanilla (static) Stick-breaking (static) ALiBi (Less More)
+> ALiBi (More Less)
+> Forgetting Gate (Less More)
+> Forgetting Gate (More Less)
+
+Figure 3: Average ∆llh (right) and BLiMP scores (left) across training epochs, averaged over four BabyLM training configurations. Line type indicates training regime: solid = Less-to-More, dashed = More-to-Less, dotted = static baseline (final epoch only). Color indicates model. 
+
+that ALiBi produces higher ∆llh than the vanilla model, we find that this improvement is sensitive to model size: ALiBi achieves strong performance with 4-layer models but shows weaker or incon-sistent gains with 2-layer models. ALiBi ∆llh is significantly higher than the vanilla models’ for 2-layer variants trained on BabyLM corpora. The 
+
+n-gram models achieve ∆llh values that are signifi-cantly lower from the vanilla baseline in all but one setting. These results suggest that content-based memory constraints—instantiated by our FoX and Stick-breaking attention mechanisms—provide a more robust and consistent improvement in cog-nitive fit than distance-based constraints across a range of training conditions. Figure 2 shows the relationship between per-plexity and ∆llh across all static models. Lower perplexity is generally associated with higher ∆llh 
+
+(r = −.69 , p < . 001 ), which is in line with pre-vious work investigating models at this data scale (Wilcox et al., 2020). However, the Forgetting Transformer and Stick-breaking attention consis-tently perform above the regression line, suggest-ing that these models capture aspects of human sentence processing that are not fully explained by language modeling quality alone. 
+
+4.2 Exp. 2: Dynamic Memory Constraints 
+
+Figure 3 shows the average ∆llh and BLiMP scores across training epochs for dynamic models. Static models, for which only final-epoch scores were recorded, are shown as horizontal bars. Results indicate averages across all four BabyLM training configurations; for by-dataset and by-model size breakdowns see Section B. We observe a dissociation between grammati-cal competence and psychometric predictive power. On the BLiMP benchmark (left panel), dynamic models always outperform their static counterparts, which is consistent with the results reported in Mita et al. (2025). 3 In particular, the More-to-Less For-getting Transformer steadily improves over epochs, reaching the highest BLiMP score of all models by epoch 10. In contrast, the performance of the Less-to-More Forgetting Transformer declines as the constraint is relaxed. Dynamic ALiBi shows more modest BLiMP gains. However, when look-ing at ∆llh (right panel), static models consistently outperform dynamic models. The static Forgetting Transformer and Stick-breaking attention achieve the highest ∆llh values, and no dynamic model reaches the equivalent of their static counterpart by the final epoch. 
+
+5 Discussion 
+
+Overall, our results are broadly in line with pre-vious findings in the literature. Consistent with the results in Clark et al. (2025) and De Varda and Marelli (2024), we find that, in some settings, a linear attention bias can lead to greater cognitive fit over an unbiased model. We also find gains on grammatical competence benchmarks from a dy-namic version of ALiBi, similar to the setup tested in Mita et al. (2025). 
+
+> 3
+
+Note, however, that they use a different grammatical com-petence benchmark, Zorro (Huebner et al., 2021). 
+
+7Our first main contribution is to extend these previous findings across a wider range of atten-tion mechanisms, model sizes, and training corpora. When we do so, we find that the effects reported in prior work are not uniform across configura-tions. Rather, the gains from a distance-based bias are highly susceptible to model architecture and training data configurations, and in many cases, distance-biased models are worse for predicting reading times than vanilla transformers. These re-sults suggest that conclusions from computational psycholinguistic modeling should be treated with caution without extensive validation. Our second main finding is that, for static mod-els, content-based memory constraints consistently outperform distance-based constraints in predict-ing human reading times. This trend holds up re-gardless of model architecture or training dataset size. Our results suggest that intervener-based ac-counts may provide a more accurate characteriza-tion of the memory mechanisms underlying human language processing than distance-based decay ac-counts. However, we don’t interpret these results as providing evidence against cognitive theories that have been traditionally modeled with linear mem-ory decay, such as lossy context surprisal (Futrell et al., 2020). Rather, they suggest that such theories could and should be reworked to rely on intervener-based decay, rather than relying on linear decay alone. Our third main finding is a dissociation between grammatical competence and psychometric pre-dictive power. A similar dissociation has been found, e.g., by Steuer et al. (2023), also looking at BabyLM-type models. This suggests that the goals of modeling real-time sentence processing and modeling language acquisition may require fundamentally different approaches. Static con-straints may be better suited for psychometric mod-eling, whereas dynamic curricula, which mimic a developmental trajectory, instead lead to stronger grammatical competence, Note that this conclusion is consistent with the original formulation of the Less is More hypothesis. These results raise questions about the purpose of cognitive modeling. They suggest that it may not be possible to find a one-size-fits-all cognitive model, at least using autoregressive Transformers. Rather, different modeling architectures may be needed to model different linguistic mechanisms. A similar conclusion was recently reached by Kurib-ayashi et al. (2026), albeit for different types of real-time processing phenomena. Finally, we find that the More-to-Less Forgetting Transformer emerged as the dynamic model with the strongest fit to human data. At first glance, this is the opposite of what the Less is More hypoth-esis predicts. One possible explanation for why this approach works is that gradually introducing a constraint may function similarly to simulated annealing (Kirkpatrick et al., 1983), allowing the model to first explore the parameter space freely be-fore settling into a more constrained solution. We note, however, that such results should not be in-terpreted too strongly. Computational simulations of cognitive processes may lead to negative results for multiple reasons: it may be that the underlying scientific hypothesis is incorrect, or that the model does not reach sufficient ecological validity. In our case, there are important differences between our models and human learners. In particular, our mod-els lack the multimodal input and social interaction that characterize human language learning environ-ments, and it is possible that the absence of these factors changes the optimal learning trajectory. 
+
+6 Conclusion 
+
+We set out to investigate which types of mem-ory constraints in transformer language models best capture human sentence processing behavior, and whether dynamic memory curricula improve cognitive fit over static constraints. We find that content-based constraints, particularly the Forget-ting Transformer, consistently yield the strongest alignment with human reading time data, outper-forming distance-based constraints across the ma-jority of training configurations. For dynamic mem-ory curricula, the picture is more nuanced: dynamic models do not improve psychometric fit over static models, but do show stronger grammatical compe-tence, revealing a dissociation between modeling real-time processing and modeling language ac-quisition. These results underscore the value of systematically testing multiple cognitive theories across different modeling conditions, and suggest that intervener-based memory mechanisms deserve further attention in future computational modeling work. 
+
+Limitations 
+
+This study has several limitations. First, the atten-tion mechanisms we test are proxies for cognitive theories, not direct implementations. While we 8have argued for plausible mappings between each mechanism and a corresponding theory, other im-plementations are possible and may yield different results. Second, for our models, we report results from a single random seed due to computational constraints. Third, our evaluation is limited to En-glish reading time corpora, and it remains an open question whether our findings generalize to other languages. Fourth, static models are evaluated only at the final training checkpoint (epoch 10), whereas dynamic models are evaluated at every epoch. This makes direct comparisons between static and dy-namic BLiMP scores difficult, as grammatical com-petence may peak before the final epoch for all models. 
+
+Use of AI Assistants 
+
+AI assistants were used during the preparation of this work for code development and editing sup-port. Writing and code was subsequently checked, validated, and edited. All scientific content, anal-ysis, conclusions, and of course mistakes, are the authors’ own. 
+
+References 
+
+Douglas Bates, Martin Mächler, Ben Bolker, and Steve Walker. 2015. Fitting linear mixed-effects models using lme4. Journal of statistical software , 67:1–48. Christian Clark, Byung-Doh Oh, and William Schuler. 2025. Linear recency bias during training improves transformers’ fit to reading times. In Proceedings of the 31st International Conference on Computational Linguistics , pages 7735–7747. Uschi Cop, Nicolas Dirix, Denis Drieghe, and Wouter Duyck. 2017. Presenting geco: An eyetracking cor-pus of monolingual and bilingual sentence reading. 
+
+Behavior research methods , 49(2):602–615. Nelson Cowan. 2001. The magical number 4 in short-term memory: A reconsideration of mental storage capacity. Behavioral and brain sciences , 24(1):87– 114. Andrea De Varda and Marco Marelli. 2024. Locally biased transformers better align with human reading times. In Proceedings of the Workshop on Cogni-tive Modeling and Computational Linguistics , pages 30–36, Bangkok, Thailand. Association for Compu-tational Linguistics. Jeffrey L Elman. 1993. Learning and development in neural networks: The importance of starting small. 
+
+Cognition , 48(1):71–99. Victoria Fossum and Roger Levy. 2012. Sequential vs. hierarchical syntactic models of human incremen-tal sentence processing. In Proceedings of the 3rd Workshop on Cognitive Modeling and Computational Linguistics (CMCL 2012) , pages 61–69, Montréal, Canada. Association for Computational Linguistics. Stefan L. Frank and Rens Bod. 2011. Insensitivity of the human sentence-processing system to hierarchical structure. Psychological Science , 22(6):829–834. Stefan L Frank, Irene Fernandez Monsalve, Robin L Thompson, and Gabriella Vigliocco. 2013. Read-ing time data for evaluating broad-coverage models of english sentence processing. Behavior research methods , 45(4):1182–1190. Richard Futrell, Edward Gibson, and Roger P Levy. 2020. Lossy-context surprisal: An information-theoretic model of memory effects in sentence pro-cessing. Cognitive science , 44(3):e12814. Richard Futrell, Edward Gibson, Harry J Tily, Idan Blank, Anastasia Vishnevetsky, Steven Piantadosi, and Evelina Fedorenko. 2018. The natural stories corpus. In Proceedings of the Eleventh International Conference on Language Resources and Evaluation (LREC 2018) .Leo Gao, Stella Biderman, Sid Black, Laurence Gold-ing, Travis Hoppe, Charles Foster, Jason Phang, Horace He, Anish Thite, Noa Nabeshima, and 1 others. 2020. The pile: An 800gb dataset of di-verse text for language modeling. arXiv preprint arXiv:2101.00027 .Edward Gibson. 1998. Linguistic complexity: Locality of syntactic dependencies. Cognition , 68(1):1–76. Edward Gibson, Richard Futrell, Steven P Piantadosi, Isabelle Dautriche, Kyle Mahowald, Leon Bergen, and Roger Levy. 2019. How efficiency shapes human language. Trends in cognitive sciences , 23(5):389– 407. Aaron Gokaslan, Vanya Cohen, Ellie Pavlick, and Ste-fanie Tellex. 2019. Openwebtext corpus. Boris N Goldowsky and Elissa L Newport. 1993. Mod-eling the effects of processing limitations on the ac-quisition of morphology: the less is more hypothesis. In The proceedings of the 24th annual child language research forum , pages 124–138. Adam Goodkind and Klinton Bicknell. 2018. Predic-tive power of word surprisal for reading times is a linear function of language model quality. In Pro-ceedings of the 8th workshop on cognitive modeling and computational linguistics (CMCL 2018) , pages 10–18. John A Hawkins. 2004. Efficiency and complexity in grammars . OUP Oxford. 
+
+9Kenneth Heafield, Ivan Pouzyrevsky, Jonathan H Clark, and Philipp Koehn. 2013. Scalable modified kneser-ney language model estimation. In Proceedings of the 51st Annual Meeting of the Association for Computational Linguistics (Volume 2: Short Papers) ,pages 690–696. Ralph Hertwig and Peter M Todd. 2003. More is not always better: The benefits of cognitive limits. Think-ing: Psychological perspectives on reasoning, judg-ment and decision making , pages 213–231. Kasia Hitczenko and Gaja Jarosz. 2014. Cognitive lim-itations impose advantageous constraints on word segmentation. Cognitive Science , 36. Michael Y. Hu, Aaron Mueller, Candace Ross, Ad-ina Williams, Tal Linzen, Chengxu Zhuang, Ryan Cotterell, Leshem Choshen, Alex Warstadt, and Ethan Gotlieb Wilcox. 2024. Findings of the sec-ond BabyLM challenge: Sample-efficient pretraining on developmentally plausible corpora. In The 2nd BabyLM Challenge at the 28th Conference on Com-putational Natural Language Learning , pages 1–21, Miami, FL, USA. Association for Computational Lin-guistics. Philip A. Huebner, Elior Sulem, Fisher Cynthia, and Dan Roth. 2021. BabyBERTa: Learning more gram-mar with small-scale child-directed language. In Pro-ceedings of the 25th Conference on Computational Natural Language Learning , pages 624–646, Online. Association for Computational Linguistics. Lena A Jäger, Felix Engelmann, and Shravan Vasishth. 2017. Similarity-based interference in sentence com-prehension: Literature review and bayesian meta-analysis. Journal of Memory and Language , 94:316– 339. Marcel A Just and Patricia A Carpenter. 1992. A ca-pacity theory of comprehension: individual differ-ences in working memory. Psychological review ,99(1):122. Carla L Hudson Kam and Elissa L Newport. 2009. Getting it right by getting it wrong: When learners change languages. Cognitive psychology , 59(1):30– 66. Alan Kennedy, Joël Pynte, Wayne S Murray, and Shirley-Anne Paul. 2013. Frequency and predictabil-ity effects in the dundee corpus: An eye movement analysis. Quarterly Journal of Experimental Psychol-ogy , 66(3):601–618. Alan W Kersten and Julie L Earles. 2001. Less really is more for adults learning a miniature artificial lan-guage. Journal of Memory and Language , 44(2):250– 273. Scott Kirkpatrick, C Daniel Gelatt Jr, and Mario P Vec-chi. 1983. Optimization by simulated annealing. sci-ence , 220(4598):671–680. Tatsuki Kuribayashi, Yohei Oseki, Ana Brassard, and Kentaro Inui. 2022. Context limitations make neural language models more human-like. In Proceedings of the 2022 Conference on Empirical Methods in Natural Language Processing , pages 10421–10436. Tatsuki Kuribayashi, Alex Warstadt, Yohei Oseki, and Ethan Gotlieb Wilcox. 2026. Dual alignment be-tween language model layers and human sentence processing. arXiv preprint arXiv:2604.18563 .Richard L Lewis and Shravan Vasishth. 2005. An activation-based model of sentence processing as skilled memory retrieval. Cognitive science ,29(3):375–419. Richard L Lewis, Shravan Vasishth, and Julie A Van Dyke. 2006. Computational principles of work-ing memory in sentence comprehension. Trends in cognitive sciences , 10(10):447–454. Zhixuan Lin, Evgenii Nikishin, Xu He, and Aaron Courville. 2025. Forgetting transformer: Softmax attention with a forget gate. In International Con-ference on Learning Representations , volume 2025, pages 69704–69738. Steven G Luke and Kiel Christianson. 2018. The provo corpus: A large eye-tracking corpus with predictabil-ity norms. Behavior research methods , 50(2):826– 833. Pranava Madhyastha and Dagmar Adamcova. 2026. Working memory constraints scaffold learning in transformers under data scarcity. arXiv preprint arXiv:2604.20789 .David Marr. 1982. Vision: A computational investiga-tion into the human representation and processing of visual information . MIT press. Masato Mita, Ryo Yoshida, and Yohei Oseki. 2025. Developmentally-plausible working memory shapes a critical period for language acquisition. In Proceed-ings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Pa-pers) , pages 9386–9399. Elissa L Newport. 1990. Maturational constraints on language learning. Cognitive science , 14(1):11–28. Ofir Press, Noah Smith, and Mike Lewis. 2022. Train short, test long: Attention with linear biases enables input length extrapolation. In Proceedings of the 2022 International Conference on Learning Repre-sentations .Soo Hyun Ryu and Richard L Lewis. 2021. Accounting for agreement phenomena in sentence comprehen-sion with transformer language models: Effects of similarity-based interference on surprisal and atten-tion. In Proceedings of the workshop on cognitive modeling and computational linguistics , pages 61– 71. 
+
+10 Nathaniel J Smith and Roger Levy. 2013. The effect of word predictability on reading time is logarithmic. 
+
+Cognition , 128(3):302–319. Julius Steuer, Marius Mosbach, and Dietrich Klakow. 2023. Large GPT-like models are bad babies: A closer look at the relationship between linguistic com-petence and psycholinguistic measures. In Proceed-ings of the BabyLM Challenge at the 27th Confer-ence on Computational Natural Language Learning ,pages 142–157, Singapore. Association for Compu-tational Linguistics. Shawn Tan, Songlin Yang, Aaron Courville, Rameswar Panda, and Yikang Shen. 2025. Scaling stick-breaking attention: An efficient implementation and in-depth study. In International Conference on Learning Representations , volume 2025, pages 4030– 4046. William Timkey and Tal Linzen. 2023. A language model with limited memory capacity captures in-terference in human sentence processing. In Find-ings of the association for computational linguistics: EMNLP 2023 , pages 8705–8720. Julie A Van Dyke. 2007. Interference effects from gram-matically unavailable constituents during sentence processing. Journal of Experimental Psychology: Learning, Memory, and Cognition , 33(2):407. Julie A Van Dyke and Richard L Lewis. 2003. Distin-guishing effects of structure and decay on attachment and repair: A cue-based parsing account of recovery from misanalyzed ambiguities. Journal of Memory and Language , 49(3):285–316. Julie A Van Dyke and Brian McElree. 2006. Retrieval interference in sentence comprehension. Journal of memory and language , 55(2):157–166. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. Advances in neural information processing systems , 30. Matthew W Wagers, Ellen F Lau, and Colin Phillips. 2009. Agreement attraction in comprehension: Rep-resentations and processes. Journal of memory and language , 61(2):206–237. Alex Warstadt, Aaron Mueller, Leshem Choshen, Ethan Wilcox, Chengxu Zhuang, Juan Ciro, Rafael Mos-quera, Bhargavi Paranjabe, Adina Williams, Tal Linzen, and 1 others. 2023. Findings of the babylm challenge: Sample-efficient pretraining on develop-mentally plausible corpora. In Proceedings of the babylm challenge at the 27th conference on compu-tational natural language learning , pages 1–34. Alex Warstadt, Alicia Parrish, Haokun Liu, Anhad Mo-hananey, Wei Peng, Sheng-Fu Wang, and Samuel R Bowman. 2020. Blimp: The benchmark of linguistic minimal pairs for english. Transactions of the Asso-ciation for Computational Linguistics , 8:377–392. Ethan G Wilcox, Tiago Pimentel, Clara Meister, Ryan Cotterell, and Roger P Levy. 2023. Testing the pre-dictions of surprisal theory in 11 languages. Transac-tions of the Association for Computational Linguis-tics , 11:1451–1470. Ethan Gotlieb Wilcox, Jon Gauthier, Jennifer Hu, Peng Qian, and Roger Levy. 2020. On the predictive power of neural language models for human real-time com-prehension behavior. Proceedings of the Annual Meeting of the Cognitive Science Society .Weijie Xu, Brian Dillon, and Richard Futrell. 2026. Memory efficiency and resource-rational encoding in sentence processing. In Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 33603– 33618, San Diego, California, United States. Associ-ation for Computational Linguistics. Charles Yang. 2016. The price of linguistic productivity: How children learn to break the rules of language .MIT press. Susan Zhang, Stephen Roller, Naman Goyal, Mikel Artetxe, Moya Chen, Shuohui Chen, Christopher De-wan, Mona Diab, Xian Li, Xi Victoria Lin, and 1 others. 2022. Opt: Open pre-trained transformer language models. arXiv preprint arXiv:2205.01068 .
+
+A Training Hyperparameters 
+
+All models are based on the OPT architecture (Zhang et al., 2022) and trained from scratch. We use two model sizes: a 2-layer model with 256 hidden dimensions and 4 attention heads, and a 4-layer model with 384 hidden dimensions and 6 attention heads. All models are trained for 10 epochs using the AdamW optimizer with a learn-ing rate of 0.001, weight decay of 0.1, and betas of (0.9, 0.95). We use a cosine learning rate schedule with 1% warmup. The context length is 512 tokens for BabyLM-10M and 1024 tokens for BabyLM-100M and Pile-2B. All models are trained with fp16 mixed precision and a single random seed (42). For dynamic models, the constraint parameter λ is up-dated at the beginning of each epoch following the exponential decay schedule described in Sec-tion 2.3. Full hyperparameters are summarized in Table 1. 
+
+B Full Dynamic Results 
+
+Figures 4 and 5 show per-setting ∆llh and BLiMP results for Experiment 2, broken down by training data size and model size. 11 1 2 3 4 5 6 7 8 9 10 Epoch 180 200 220 240 260 280 300 320 Total  LL 
+
+BabyLM-10M 2layer          
+
+> 12345678910 Epoch 160 180 200 220 240 260 280 300 320 Total  LL
+
+BabyLM-10M 4layer          
+
+> 12345678910 Epoch 100 150 200 250 300 350 Total  LL
+
+BabyLM-100M 2layer          
+
+> 12345678910 Epoch 100 150 200 250 300 350 Total  LL
+
+BabyLM-100M 4layer 
+
+DLL per Setting (Experiment 2)     
+
+> ALiBi (static) Forgetting Gate (static) Vanilla (static) Stick-breaking (static) 2-gram (static) 3-gram (static) 5-gram (static) ALiBi (Less More)
+> ALiBi (More Less)
+> Forgetting Gate (Less More)
+> Forgetting Gate (More Less)
+
+Figure 4: Per-setting ∆llh across training epochs for dynamic models. 
+
+C Perplexity and Cognitive Fit over Training 
+
+As a verification, we plot the relationship between training epoch and test set perplexity for dynamic models (Figure 6). We observe the expected re-lationship: models gain lower perplexity over the course of training. Color indicates total ∆llh , visu-alizing the dissociation between training epoch and cognitive fit observed in Figure 3. 
+
+Hyperparameter 2-layer 4-layer 
+
+Hidden size 256 384 Attention heads 4 6Learning rate 0.001 0.001 Optimizer AdamW AdamW Betas (0.9, 0.95) (0.9, 0.95) Weight decay 0.1 0.1 Warmup 1% of tokens 1% of tokens LR schedule cosine cosine Epochs 10 10 Precision fp16 fp16 Seed 42 42 
+
+Context length by corpus 
+
+BabyLM-10M 512 512 BabyLM-100M 1024 1024 Pile-2B 1024 1024 
+
+Table 1: Training hyperparameters. 
+
+12 1 2 3 4 5 6 7 8 9 10 Epoch 54 55 56 57 58 59 BLiMP Accuracy 
+
+BabyLM-10M 2layer 
+
+1 2 3 4 5 6 7 8 9 10 Epoch 54 55 56 57 58 BLiMP Accuracy 
+
+BabyLM-10M 4layer 
+
+1 2 3 4 5 6 7 8 9 10 Epoch 54 56 58 60 62 BLiMP Accuracy 
+
+BabyLM-100M 2layer 
+
+1 2 3 4 5 6 7 8 9 10 Epoch 52 54 56 58 60 62 64 BLiMP Accuracy 
+
+BabyLM-100M 4layer 
+
+BLiMP per Setting (Experiment 2) 
+
+ALiBi (static) Forgetting Gate (static) Vanilla (static) Stick-breaking (static) 2-gram (static) 3-gram (static) 5-gram (static) ALiBi (Less More) 
+
+ALiBi (More Less) 
+
+Forgetting Gate (Less More) 
+
+Forgetting Gate (More Less) Figure 5: Per-setting BLiMP scores across training epochs for dynamic models. 
+
+13 1 2 3 4 5 6 7 8 9 10 
+
+Training Epoch 
+
+> 10 2
+> 10 3
+> Test Set Perplexity (log scale)
+
+Less More          
+
+> 12345678910
+
+Training Epoch 
+
+More Less      
+
+> 100 150 200 250 300 350
+
+Total Delta Log-Likelihood 
+
+ALiBi Forgetting Gate Figure 6: Training epoch vs. test set perplexity for dynamic models. Color indicates total ∆llh .
+
+14

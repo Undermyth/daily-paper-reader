@@ -1,0 +1,702 @@
+Title: All You Need Is Non-Commutative Words
+
+URL Source: https://arxiv.org/pdf/2608.29314v1
+
+Published Time: Tue, 01 Sep 2026 00:47:56 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# All You Need Is Non-Commutative Words 
+
+Carla M. Quispe Flores, 1, ∗ Stanley Salvatierra, 2, † and Renan Cabrera 3
+
+> 1
+
+Department of Physics, Colorado School of Mines, Golden, Colorado 80401, USA 
+
+> 2
+
+Lookia MX, OR 0401, BO 
+
+> 3
+
+Yardley, PA 19067, USA 
+
+We represent lexical tokens as unitary matrices and encode each sentence as their ordered product. The noncommutativity of matrix product captures word order without positional encodings (PEs). The same alge-bra yields several capabilities, including antisymmetric self-attention with no query, key, or value projections, and parallel composition of variable-length text chunks at a reduced attention cost. Furthermore, it provides a canonical-coset readout layer that encodes all true unitary degrees of freedom compactly, while supporting con-tinual learning through nested group extensions that enlarge the operator space with each new task preserving prior representations exactly. Across standard text-classification benchmarks, the method matches or exceeds bag-of-words baselines. Achieving higher accuracy on IMDB and comparable performance on AG News. No-tably, this is accomplished by replacing the conventional ∼30,000-dimensional vocabulary space with a dense, 64-parameter real-valued encoding, highlighting the expressive efficiency of our parameterization. 
+
+I. INTRODUCTION 
+
+Although sentences are inherently structured by sequence, widely adopted text representations exhibit permutation in-variance. Bag-of-words (BoW) [1] aggregate word vectors by addition or averaging, and are therefore invariant under any permutation of the input. Transformer-based large lan-guage models (LLMs) encounter a complementary problem: the self-attention mechanism is insensitive to token order-ing. Thus, positional information must be added separately, through additive encodings, relative-position biases, or rotary embeddings (RoPE) [2]. In both cases sequential structure is grafted onto the model via added parameters. In contrast, group theory offers a natural framework to rep-resent sequence structure intrinsically. Unitary evolution re-current networks [3] and their efficient parametrizations [4] constrained hidden-to-hidden weights to the unitary group, resolving the vanishing- and exploding-gradient problem [5]; non-normal extensions [6] relaxed strict orthogonality to ad-mit transient dynamics and reached state-of-the-art character-level modeling among non-gated architectures. In all of these models, the unitary matrix is a hidden-state transition opera-tor: order is handled by the recurrence, and the word embed-ding remains a conventional vector. Non-commutativity has also been recognized as a mecha-nism for encoding order directly. PaTH [7] represents posi-tion through accumulated, input-dependent Householder re-flections, and such non-commutative products substantially improve state tracking and length extrapolation; yet the prod-ucts serve strictly as a position code inside standard attention, with query, key, and value projections intact. Closer to our view, Bernardy and Lappin [8, 9] encode words as orthogonal matrices obtained by exponentiating skew-symmetric gener-ators and compose sentences by sequential matrix products, achieving rule-like accuracy on subject-verb agreement and generalized Dyck bracket matching; their model, however, is   
+
+> ∗carlaquispeflores@mines.edu
+> †C. M. Quispe Flores and S. Salvatierra contributed equally to this work.
+
+a purely recurrent cell over real orthogonal matrices, evalu-ated only on syntactic prediction. The appeal of algebraically structured sentence spaces extends beyond order: [10] obtain interpretable and controllable sentence representations by dis-entangling the latent space of a language autoencoder with in-vertible neural networks, though the geometry there is learned from data, not fixed by a group. Quantum-inspired language models pursue a complemen-tary direction, modeling sentence semantics as the sequen-tial unitary evolution of lexical superposition states and re-porting parameter-efficient gains on question answering and text classification [11, 12]. In contrast, Anschuetz et al. [13] study genuinely quantum models: recurrent architectures built from unitary dynamics with non-Gaussian measurements, and proved an unconditional memory separation over trainable classical sequence models. Identifying quantum contextual-ity as the interpretable source of the advantage. Most of these efforts remain small in scale [12], and they retain the quantum state as the object of representation: the sentence is a density matrix updated word by word through a serial recursion that admits no parallel regrouping. Despite these effords, no existing framework simultane-ously represents every token as a learnable unitary group ele-ment, encodes word order through matrix non-commutativity instead of added positional signals, and derives self-attention, chunk-parallel composition, and continual learning as direct consequences of the same algebraic structure. In this work we introduce such an architecture, implemented as a single for-ward network. Input token identifiers are mapped to real co-ordinates in a Chevalley basis; the coordinates assemble one Hermitian generator per word; matrix exponentiation, regu-lated by an adaptive per-word rotation budget εw, turns each generator into a unitary word operator; a time-ordered ma-trix product composes the operators into a single document unitary; and a canonical-coset readout extracts its intrinsic co-ordinates, which a batch-normalized linear head classifies, as shown in Fig. 1. Order sensitivity follows from the non-commutativity of the composed operators, requiring neither positional encodings nor causal masks. The same algebra yields an exactly an-tisymmetric self-attention score computed from one learned arXiv:2608.29314v1 [cs.CL] 29 Aug 2026 2  
+
+> FIG. 1. Word order is captured natively by representing each word as a unitary matrix and composing the sentence via their ordered product. Because matrix multiplication is noncommutative, the resulting document state PLpreserves token ordering without positional encodings (PEs). A flattened readout followed by a single linear head then maps this state to the target label.
+
+Hermitian matrix, with no query, key, or value projections; group closure lets variable-length chunks be composed in parallel at reduced attention cost; and the nesting U (n) ⊂
+
+U (n+k) supports continual learning that preserves prior tasks exactly. This construction is inspired by the mathematics of quantum mechanics, but every computation here is classical and we claim no quantum advantage. The model matches bag-of-words baselines on standard text-classification bench-marks, while replacing a ∼30,000-dimensional vocabulary space with a dense 64-coordinate encoding. The remainder of this paper is organized as follows. Sec-tion II develops the framework and the full network architec-ture, Section III presents and discusses the results, and Sec-tion IV concludes with contributions and outlook.   
+
+> II. METHODS A. Input Representation
+
+The framework maps discrete vocabulary words to a set of unitary operators with continuous parametrization. Each vocabulary word is assigned a learned Hermitian generator 
+
+Hw ∈ Cn×n, which is then exponentiated to produce a uni-tary matrix Uw with a per-word rotation budget εw
+
+Uw = exp 
+
+
+
+iε w ˆHw
+
+
+
+∈ U( n), ˆHw = ˆH†
+
+> w
+
+. (1) We normalize bHw to unit Frobenius norm, ∥ bHw∥F = 1.The effective generator ε bHw has eigenvalues λa satisfying P 
+
+> a
+
+λ2 
+
+> a
+
+= ε2
+
+> w
+
+, hence |λa| ≤ εw. Each word induces a small rotation, with the per-word rotation budget εw scaling the ro-tation magnitude. A detailed derivation of the corresponding 
+
+εw bound is provided in Appendix A. The Hermitian generators are defined via a Chevalley ba-sis [14], which provides a complete, real, orthonormal coordi-nate system for the Lie algebra. Any real linear combination of its elements is therefore a valid Hermitian operator. In this work, we consider the Lie algebra u(n) with n = 8 , whose Chevalley basis comprises 64 Hermitian generators {Tk}: 8 diagonal Eii , 28 symmetric Xij = ( Eij + Eji )/√2, and 28 antisymmetric Yij = i( Eij − Eji )/√2 for i < j ,
+
+{Tk}64  
+
+> k=1
+
+= {Eii }8 
+
+> i=1
+
+∪ { Xij }i<j ∪ { Yij }i<j . (2) These 64 basis elements Tk are 8×8 Hermitian matrices span-ning the 64-dimensional real vector space of all 8 × 8 Hermi-tian matrices, so any Hermitian generator Hw can be written uniquely as a real linear combination of them 
+
+Hw =
+
+> 64
+
+X
+
+> k=1
+
+(Cw)kTk, (3) where Cw ∈ R64 is the coordinate vector for word w in the Chevalley basis. Cw can be supplied in two ways: the 
+
+free-table method, a free lookup table learns unique param-eters per word, acting as an independent Hermitian table that costs 1,279 ,872 parameters across the vocabulary. Al-ternatively, in the distilled-map method, a shared linear map projects a frozen, 300-dimensional Word2Vec embedding vw
+
+(GoogleNews) into the same 64-dimensional coordinate space spanned by the Chevalley basis 
+
+Cw = W v w + b (4) with W ∈ R64 ×300 and b ∈ R64 (19 ,328 shared parameters in total), trained end-to-end on the classification loss, and there-fore independent of vocabulary size. Thus, “distillation” in this context refers to reusing pretrained features via a learned projection into the operator algebra.  
+
+> B. Adaptive Per-Word Rotation Budget
+
+A global rotation budget ε treats all words equally, but con-tent words (“excellent”, “terrible”) carry strong discriminative signals and therefore benefit from larger rotations, whereas function words (“the”, “and”) contribute little and should ro-tate less. Therefore, we let each word predict its own rotation 3budget from its embedding as 
+
+εw = ε · softplus( u · vw + c), (5) this introduces only ∼301 extra parameters: u ∈ R300 is a learned weight vector, c ∈ R is a learned scalar bias, 
+
+vw ∈ R300 is the frozen Word2Vec [15] embedding for word 
+
+w, and softplus (x) = log(1 + ex) ensures positivity. The ac-cumulated eigenphase for a sequence of lenght L accumulates as PLi=1 εwλa, where λa are the eigenvalues of the normal-ized generator. This linear accumulation requires careful con-trol of εw to prevent phase aliasing at long sequences. A fixed global ε induces systematic over-rotation in long documents, driving phases toward wrap-around, whereas the learned ϵw
+
+dynamically allocates phase budget magnitude based on word importance.  
+
+> C. Order for Free: Non-Commutative Matrix Product
+
+This stage composes word unitaries Uw into a document representation PL by time-ordered matrix product. Group clo-sure guarantees that the whole document collapses to a sin-gle unitary PL ∈ U(8) , so variable-length sequences are sup-ported with no padding to a fixed dimension. A sequence of j words {w1, w 2, . . . , w j } is represented by the prefix products 
+
+Pj = Uj Uj−1 · · · U1 ∈ U(8) , i = 1 , 2, . . . , j, (6) which serve as the “hidden states” of the construction of the document operator PL. Because matrix multiplication gener-ally does not commute ( UiUj̸ = Uj Ui), the product PL de-pends on word order. Swapping words changes the final uni-tary, making the representation order-sensitive without requir-ing positional encodings. Then the final document operator 
+
+PL is the single object flattened into [Re PL, Im PL] ∈ R128 . 
+
+> D. QKV-Free Self-Attention
+
+Conventional transformer attention computes a score for each pair of positions using the scaled dot product between a query and a key projections [16] Sij = qi · kj /√dk, with 
+
+dk denoting the dimensionality of the key (and query) vec-tors and serving as a normalization factor to stabilize gradi-ents during training. Because the dot product is permutation-invariant, positional encodings must be added by hand, and capturing directed relations ( Sij ̸ = Sji ) requires three full projection matrices, roughly 3d2 
+
+> model
+
+parameters. Our operator representation removes the first overhead: the prefix product 
+
+Pi already encodes word order through the non-commutativity of matrix product, so attention runs directly over prefix prod-ucts with no positional encoding. For Hermitian A = A† and unitary prefix operators Pi and Pj , the self-attention score is exactly antisymmetric 
+
+Sij = 1
+
+n Im Tr  A P † 
+
+> i
+
+Pj
+
+. (7) This yields a parameter-efficient, direction-sensitive scoring mechanism with n2 = 64 parameters in a single Hermi-tian learned matrix A, rather than three projection matrices (∼ 3d2 
+
+> model
+
+in a standard Q/K/V stack). This is consistent with prior work showing that shared query–key maps are necessar-ily symmetric [17] and that directional information resides in the antisymmetric part of attention [18], here recovered from first principles. Appendix B gives the spectral interpretation of A as a weighted sum of overlaps between reference states trans-ported by Pi and Pj , together with its density-operator inter-pretation. Figure 2 compares the two self-attention mecha-nisms step by step, highlighting the removal of positional en-codings and the WQ/W K /W V projections, and the replace-ment of these components by a single learned Hermitian op-erator A. 
+
+> E. Scalability: Variable-Length Document Chunking
+
+Group closure offers a path to long-context scalability, an objective shared by linear attention [19] and structured state-space models [20, 21]. In our setting, we let c denote the num-ber of consecutive words per chunk, partitioning a document of length L into L/c chunks. Since the ordered product of c
+
+consecutive n × n unitaries remains a single unitary, a chunk collapses into 
+
+ePk = Uck Uck −1 · · · Uc(k−1)+2 Uc(k−1)+1 . (8) Here ePk is an independent ordered product with no state prop-agated between chunks. As a result, matrix associativity al-lows these ordered products to be evaluated in parallel at any granularity, while group closure ensures the resulting docu-ment remains a valid unitary operator. However, ePk accumu-lates rotation budget across its c words, much like the final readout PL accumulates across all L. To ensure chunking re-mains wrap-safe, we set the within-chunk budget to εw = ε/c .This choice systematically bounds the total rotation budget per ordered product: by dividing the primary rotation budget 
+
+ε by the chunk size c, we guarantee that the total accumulated phase across the entire chunk cannot exceed the target maxi-mum c · (ε/c ) = ε, safely preventing the phase from wrapping around. This requires that ε sit below the wrap threshold. The chunking likewise reduces the attention cost: the self-attention score Sij operates over the L/c ordered products, reducing the score-pair computation cost by a factor of 1/c 2
+
+relative to the unchunked ( c = 1 ) baseline. Consequently, c
+
+governs the trade-off between attention resolution and com-putational efficiency. While this indicates a pathway to sub-quadratic token-level attention, our claims remain limited to the empirical score-pair counts. 4
+
+FIG. 2. Conventional self-attention mechanics (blue) versus our QKV-Free Self-Attention (orange). The former needs positional encodings and the projections WQ, WK , WV to score token pairs; the latter scores unitary prefix products directly through one Hermitian matrix A, with order supplied by non-commutativity and antisymmetry of Sij built in. 
+
+F. Canonical-Coset Readout Layer 
+
+The standard readout layer flattens the document operator 
+
+PL ∈ U (n) into its real and imaginary parts 
+
+uflat = [ Re PL, Im PL ] ∈ R2n2
+
+(9) which contains 2n2 real numbers. For n = 8 , Eq.(9) yields a 128-dimensional vector. However, PL has only n2 = 64 real degrees of freedom, with the unitarity constraint P †
+
+> L
+
+PL = I
+
+tying exactly half of the entries. The 128-flatten is therefore an overcomplete chart, and the linear head must implicitly learn to navigate the constrain. The canonical coset decomposition [22, 23] provides the n2
+
+intrinsic coset coordinates. The idea is to record PL column by column, retaining only the genuinely new information each column carries. Every element of U (n) factors as 
+
+U (n) = U (n)
+
+U (n − 1) ⊗ U (1) 
+
+U (n − 1) 
+
+U (n − 2) ⊗ U (1) 
+
+· · · U (2) 
+
+U (1) ⊗ U (1) U (1) ⊗n (10) 
+
+where U (1) ⊗n is a diagonal matrix of n residual phases; the 
+
+k-th quotient captures the freedom remaining in the k-th col-umn once all previous columns are fixed, and is parametrized by a single complex vector |Xk⟩ ∈ Cn−k
+
+U (n − k + 1) 
+
+U (n − k) ⊗ U (1) = Ik−1 ⊕
+
+p1 − ⟨ Xk |Xk ⟩ −⟨ Xk ||Xk ⟩ p In−k − | Xk ⟩⟨ Xk |
+
+!
+
+(11) 
+
+Two aspects of Eq. (11) capture the essential structure. First, the top-left entry enforces a ball constraint: p1 − ⟨ Xk|Xk⟩
+
+is real only if ⟨Xk|Xk⟩ ≤ 1, so the 2( n − k) real Cartesian components of |Xk⟩ range over the closed unit ball B2( n−k).Second, the coordinates carry direct geometric meaning: |Xk⟩
+
+is the part of the k-th column that tilts away from its target axis 
+
+|ek⟩, so the radius rk = p⟨Xk|Xk⟩ runs from rk = 0 (col-umn aligned) to rk = 1 (column fully perpendicular), with p1 − r2 
+
+> k
+
+the surviving alignment. In practice each factor is computed as a product of two Householder reflections [23]. The construction and the one-line derivation of the ball con-straint from column unit-length are given in Appendix C. Counting the coordinates confirms the exact intrinsic di-mension of U (n) is complete: Pn−1 
+
+> k=1
+
+2( n − k) + n =
+
+n(n − 1) + n = n2. For n = 8, the shells 
+
+B14 , B 12 , B 10 , B 8, B 6, B 4 and B2, contribute 14+12+10+ 8 + 6 + 4 + 2 = 56 ball coordinates and the diagonal phases the remaining 8. Hence, the readout vector ucoset ∈ R64 is batch-normalized [24] and passed to the linear head. 5 
+
+> G. Coset-Tower and Continual Learning
+
+Continual-learning methods are commonly grouped into regularization approaches, which penalize movement of weights important to prior tasks [25]; replay approaches, which retain or regenerate past examples [26]; and parameter-isolation approaches, which allocate disjoint capacity per task [27–29]. The coset tower belongs to the third family, but the isolation is exact and algebraic rather than heuristic. The canonical coset decomposition of Section II F plays a second role in the architecture, beyond re-coordinatizing a fixed document operator PL, it organizes the growth of the operator space. Unitary groups nest canonically, U (n) ⊂
+
+U (n + k), and the decomposition makes the nesting explicit: each step of the resulting coset tower appends one shell of new coordinates while everything already trained persists intact as the top-left block. Extending U (n) to U (n + k) adds 
+
+(n + k)2 − n2 = 2 nk + k2 (12) new real coordinates. The shell , and a trained block GA ∈
+
+U (n) embeds as 
+
+GA 7 −→ 
+
+GA 00 Ik
+
+
+
+∈ U (n + k). (13) The embedding (13) is a group homomorphism, 
+
+diag( G, I k) diag( G′, I k) = diag( GG ′, I k): products of embedded operators are embedded products. Consequently, every prefix product, Pj , and every document operator, PL,assembled from embedded word operators is itself exactly of the form (13). The coset factorization organizes the new coordinates, now applied block-wise rather than column by column: every V ∈
+
+U (n + k) factors as 
+
+V = Ω( X)
+
+G 00 G′
+
+
+
+, G ∈ U (n), G ′ ∈ U (k), (14) where the coset representative Ω( X) ∈ U (n + k)/ U (n) ⊗
+
+U (k) carries the block form [22] 
+
+Ω( X) = 
+
+p In − XX † X
+
+− X† p Ik − X†X
+
+!
+
+, (15) 
+
+X ∈ Cn×k, X†X ⪯ Ik.
+
+The constraint X†X ⪯ Ik is a matrix ball : the singular values of X lie in [0 , 1] and measure the mixing between the old and new sectors, exactly as the radii of the vector balls of Section II F measure the tilt of a single column; set-ting k = 1 in (15) recovers a factor of the form (11). The count agrees with (12): the coset contributes dim R U (n +
+
+k)/ U (n) ⊗ U (k) = 2 nk real coordinates and the inter-nal U (k) block the remaining k2; equivalently, iterating the elementary chain (10) resolves the shell into k vector shells plus k phases (for n = 8 , k = 4 : B22 , B20 , B18 , B16 and four phases, 76 + 4 = 80 ). Two facts anchor the tower: 
+
+Ω(0) = In+k, so a vanishing shell ( X = 0 and G′ = Ik)returns V exactly to the image of the embedding (13); and this configuration is reached by a linear projection of the shell coordinates, not by an optimization. The Hermitian generators of the model decompose in the same blocks, 
+
+H =
+
+HA MM † Hk
+
+
+
+, (16) with HA = H† 
+
+> A
+
+∈ Cn×n, Hk = H† 
+
+> k
+
+∈ Ck×k, and M ∈
+
+Cn×k. The 2nk real coordinates of the mixing block M span the coset directions of (15), and the k2 coordinates of Hk span the new internal block. The tower imposes exactly one con-straint: HA receives zero gradient. Training touches only the shell (M, H k), and deletion projects (M, H k) → 0, which by (16) and the homomorphism property of (13) restores ev-ery word operator, every prefix product, and the document op-erator to its embedded, pre-extension value.   
+
+> III. RESULTS AND DISCUSSION A. Global vs. Adaptive Per-Word Rotation Budget
+
+This subsection shows how sentence sequences can be cap-tured through the non-commutative structure of matrix mul-tiplication, entirely passing the need for explicit positional embeddings. The core finding is that predicting an adap-tive per-word phase rotation budget dynamically scales the model’s expressivity and manage longer sequences. The sim-ulations primarily use a fixed global rotation budget constraint of ε = 2 .2, but introducing a dynamically predicted εw via a learned weight vector effectively allocates a tailored phase budget based on word importance. Table I compares a single global rotation budget with the predicted per-word rotation budget of Eq. (5) on IMDB [30] and AG News [31] (10,000-word vocabulary, 256-token cap, three-seed means over seeds {1337 , 42 , 7}). Employing the predicted εw mechanism pushes the accuracy to 86.53% on the IMDB dataset and 87.68% on AG News. This clearly sur-passes the flat global budget baseline (85.28% and 87.45%, respectively) and tightly competes with the hashed bag-of-words (BoW) [1] baseline (85.25% and 87.45%). The adap-tive per word rotation budget prevents phase wrap-around (aliasing) in extended sequences by appropriately down-weighting low-information tokens.             
+
+> TABLE I. Accuracy comparison of adaptive per-word rotation bud-get arms on the IMDB and AG News datasets. Description IMDB AG News Global ε= 2 .285.28% 87.45% Predicted εwas in Eq.(5) 86.53% 87.68% BoW baseline 85.25% 87.45%
+
+6 
+
+> B. Attention variants
+
+Parameter-efficient attention scores can be computed from prefix product operators and hermitian operator A, eliminating the need for standard query, key, and value (QKV) projections. The main finding is that a single learned Hermitian ma-trix A can generate an exactly antisymmetric attention score with robust directional awareness. The architecture harnesses an 8 × 8 Hermitian matrix mapping to n2 = 64 param-eters, which substantially reduces the conventional 3d2
+
+> model
+
+parameter overhead while inherently capturing sequence di-rectionality. Table II contrasts these QKV-free self-attention mechanisms against established conventional baselines. The operator-based QKV-free self-attention model realizes an ac-curacy of 84.4% on IMDB and 87.1% on AG News. This parameter-light structure is highly competitive, statistically matching a similarly parameterized conventional transformer (84.6% IMDB, 84.5% AG News) and outperforming the paired PaTH-lite method (83.4% and 84.1%). Although the 60k-parameter bag-of-words ceiling retains a modest edge (85.3% and 87.6%).            
+
+> TABLE II. Accuracy comparison of attention variants on the IMDB and AG News datasets. Model IMDB AG News QKV-Free Self-Attention Eq.(7) 84.4% 87.1% Matched transformer 84.6% 84.5% PaTH-lite [7] 83.4% 84.1% BoW baseline 85.3% 87.6%
+> C. Chunked Attention
+
+Grouping consecutive words into chunk-level unitary op-erators allows the model to scale to longer contexts, which we examine below. By evaluating time-ordered products over consecutive words in parallel, the framework mitigates the quadratic computational cost of full token-level attention while maintaining strict group closure properties. The experi-ment bounds the maximum sequence length to 1024 words. A wrap-safe rotation budget of ε/c is dynamically allocated per chunk of size L/c , confining the accumulated chunk phase to match the fundamental single-word budget. Table III evalu-ates this framework on full IMDB reviews. Building wrap-safe composites at chunk sizes of L/c = 16 (85.8% accu-racy) and L/c = 64 (85.6%) retains near-perfect statistical parity with the unchunked, flat c = 1 baseline (85.7%). Fur-thermore, the c = 64 wrap-safe configuration massively re-duces the relative computational cost of the score-pair to a mere 1/4096 . In contrast, naively composing 16 tokens us-ing the full, unscaled ϵ budget rapidly induces a phase wrap collapse, plunging accuracy down to an unrecoverable chance baseline of 51.7%.                              
+
+> TABLE III. Chunked attention on the IMDB dataset (full reviews, capped at 1024 words). Wrap-safe composites are built at rotation budget ε/c ; at the full εthe composite aliases past 2πand collapses to chance. Configuration Mean accuracy Rel. score-pair cost
+> c= 1 (flat case) 85.7% 1
+> c= 16 (naive full ε)51.7% 1/256
+> c= 16 (wrap-safe ε/c )85.8% 1/256
+> c= 64 (wrap-safe ε/c )85.6% 1/4096 BoW baseline 84.1% —
+> D. Reading out in Canonical Coset Coordinates
+
+Table IV compares the final document operator expressed in an intrinsic geometric coordinate space against the redun-dant flattened tensor array (9). The primary insight is that mapping the document state onto the canonical coset decom-position forms nested Householder spherical shells isolating the exact, non-redundant degrees of freedom in the matrix. Operating with a fixed rotation budget of ε = 0.15 , the model maps its classification readout into an intrinsic 64-dimensional canonical-coset coordinate tensor, avoiding the overparameterized 128-dimensional flattening of the complex matrix entries. Table IV reveals that utilizing the pure 64-dimensional coset readout produces reasonable accuracies of 79.4% on IMDB and 84.8% on AG News. However, it trails the naive 128-dimensional flattened representation (82.6% IMDB, and 84.9% AG News). This discrepancy is entirely attributable to the spherical boundary curvature inherent to Householder balls: longer documents progressively push the unitary points toward highly curved radial boundaries where linear decision boundaries structurally fail. Short texts (AG News) organically remain in the flatter interior, whereas fully mitigating the IMDB boundary distortion necessitates apply-ing lower ε values or adaptative per word rotation budgets εw.         
+
+> TABLE IV. Effect of the readout representation on mean accuracy at a fixed rotation budget ε= 0 .15 : the canonical-coset readout (64 parameters) against the standard flattened 128-dimensional readout Representation IMDB AG News Flatten-128 82.6% 84.9% Coset-64 79.4% 84.8%
+> E. Coset-tower
+
+Table V tests the coset tower on a two-task sequence. Amodel trained on task A in U (8) is frozen and embedded in 
+
+U (12) by Eq. (13); task B is then trained using only the shell coordinates (M, H k) of Eq. (16), with HA receiving zero gra-dient, as shown in Fig.(3). Accuracy on A is unchanged to the reported precision at every stage. This is structural rather than empirical: the em-bedding is a group homomorphism, so every word operator, 7
+
+TABLE V. Coset-tower continual learning on a two-task sequence, U (8) ⊂ U (12) (shell k = 4 , 2nk + k2 = 80 new real coordinates by Eq. (12)). Task A is trained first and then frozen: HA receives zero gradient thereafter, and task B is trained entirely inside the shell (M, H k )
+
+of Eq. (16). Deletion is the linear projection (M, H k ) → 0 of Section II G, not a retraining step. Accuracy on A is unchanged at every stage, whereas standard finetuning of the same model on B, with all of H free, costs 30 .3 pp on A and lands at chance. Trainable coords. counts the real coordinates of the generator of Eq. (16) that receive gradient at that stage, per word operator: n2 = 64 for HA, 2nk + k2 = 80 for the shell (M, H k ), and (n + k)2 = 144 for all of H. The tower thus trains 80 of 144 coordinates and never moves the 64 that carry task A. Dashes mark stages where the task is undefined: B has not yet been added (stage 1), or has been deleted (stage 3). Chance is 50% on A and 
+
+25% on B. Single seed. Stage (trainable block) Trainable coords. Task A Task B 
+
+Coset tower 
+
+1. Train A in U (8) , freeze (HA) 64 83.5% —2. Embed in U (12) , train B (M, H k ) 80 83.5% 69.2% 3. Delete B: (M, H k ) → 0 (none) 0 83.5% 28.8% 
+
+Reference points 
+
+Standard finetuning on B (all of H) 144 53.2% —B alone in unconstrained U (12) 144 — 86.6%         
+
+> u(8)
+> Phase 1
+> train A (IMDB)
+> freeze ⇒83 .5%
+> u(8)
+> new shell ( 80 )
+> Phase 2
+> extend ⊂u(12) ,train B in shell A still 83 .5% ✓
+> u(8)
+> Phase 3
+> project shell →0:B forgotten ( 28 .8% ), A intact ( 83 .5% )
+
+FIG. 3. Coset-Tower and Continual Learning: The U(8) block trained on domain A (blue, inner ring) is frozen and embedded in U(12) ;domain B is learned in the new 80 -coordinate shell (orange) without changing the inner block, such that A is preserved exactly ( 83 .5% →
+
+83 .5% ). Whereas, standard finetuning erase it ( → 53 .2% ). Projecting the shell back to zero deletes B ( → chance) and leaves A unchanged. 
+
+every prefix product and the document operator retain their pre-extension values exactly, with no replay buffer and no reg-ularization penalty. Standard finetuning of the same model on B, with all 144 coordinates free, drops A to 53.2%, at chance for the binary task. Deletion is the linear projection (M, H k) → 0 of Sec-tion II F, reached in one step rather than by optimization. It returns B to 28.8%, at its 25% chance level, while leaving A untouched, so a task can be removed exactly and without re-training. The cost is capacity: B reaches 69.2% inside the 
+
+80 -coordinate shell against 86.6% when trained alone in the full U (12) . That 17 .4 pp gap measures the part of task B that cannot be expressed without mixing into the frozen block, and it sets the practical limit on how far the tower can be iterated at fixed k.
+
+IV. CONCLUSION AND OUTLOOK 
+
+In this work, we formulate a text representation frame-work grounded in the geometry of Lie groups. Our main contribution is to show that capabilities standard architec-tures achieve through separate, engineered modules arise from the algebraic properties of the underlying group action it-self. The non-commutativity of matrix product encodes word order, eliminating the need for explicit positional encod-ings. Building on this structure, we derive a parameter-light, QKV-free self-attention mechanism parameterized by a single learned Hermitian operator A, showing that directional sen-sitivity emerges directly from the antisymmetric trace over-lap of prefix states. Group closure further enables scalable, variable-length chunking that substantially reduces attention costs while preventing aliasing, making parallel composition of long texts a structural consequence. Mapping document operators into canonical-coset coordinates provides a com-pact, intrinsic readout that encodes all true unitary degrees of freedom, eliminating the geometric redundancy of flattened array representations. Finally, the natural nesting structure of unitary groups ( Un ⊂ Un+k) yields a coset tower for ex-act continual learning—unlike regularization approaches that rely on soft statistical constraints, this nested geometric struc-ture preserves prior knowledge. Consequently, removing a learned task is reduced to an orthogonal projection onto a lower-dimensional subspace, avoiding a complete secondary optimization pass. This geometric formulation opens several promising av-enues for future research. While our numerical experiments focused on text classification using small operators in U(8) ,8scaling the framework to higher-dimensional groups U( n) is be critical for increasing representational capacity. Transition-ing from sequence classification to generative language mod-eling stands as a primary milestone. We also plan to apply the antisymmetric scoring mechanism to fundamentally directed tasks, such as question answering and natural language entail-ment, where asymmetrical attention is required. Additionally, integrating contextual embeddings via generator distillation could further enrich the model’s semantic foundations with-out exploding the parameter count. Expanding the coset tower into multi-scale architectures could enable robust, hierarchical learning systems capable of selectively auditable knowledge retention and deletion. Theoretically, our architecture inher-ently is able to integrate classical natural language processing with the analytical tools of random matrix theory by lever-aging the statistical properties of unitary matrices. Lastly, because an 8 × 8 unitary matrix is mathematically equiva-lent to a 3-qubit quantum gate, our framework bridges clas-sical natural language processing with quantum information theory. Although evaluated classically, this equivalence pro-vides a seamless, first-principles blueprint for executing ad-vanced sequence modeling on near-term quantum computing platforms. 
+
+[1] K. Weinberger, A. Dasgupta, J. Langford, A. Smola, and J. At-tenberg, in Proceedings of the 26th annual international con-ference on machine learning (2009) pp. 1113–1120. [2] J. Su, M. Ahmed, Y. Lu, S. Pan, W. Bo, and Y. Liu, Neurocom-puting 568 , 127063 (2024). [3] M. Arjovsky, A. Shah, and Y. Bengio, in International confer-ence on machine learning (PMLR, 2016) pp. 1120–1128. [4] L. Jing, Y. Shen, T. Dubcek, J. Peurifoy, S. Skirlo, Y. LeCun, M. Tegmark, and M. Soljaˇ ci´ c, in International Conference on Machine Learning (PMLR, 2017) pp. 1733–1741. [5] R. Pascanu, T. Mikolov, and Y. Bengio, in International con-ference on machine learning (Pmlr, 2013) pp. 1310–1318. [6] G. Kerg, K. Goyette, M. Puelma Touzel, G. Gidel, E. Vorontsov, Y. Bengio, and G. Lajoie, Advances in neural information pro-cessing systems 32 (2019). [7] S. Yang, Y. Shen, K. Wen, S. Tan, M. Mishra, L. Ren, R. Panda, and Y. Kim, Advances in Neural Information Processing Sys-tems 38 , 62220 (2026). [8] J.-P. Bernardy and S. Lappin, Algebraic Structures in Natural Language , 243 (2022). [9] J.-P. Bernardy and S. Lappin, arXiv preprint arXiv:2208.05719 (2022). [10] Y. Zhang, D. Carvalho, and A. Freitas, in Proceedings of the 62nd Annual Meeting of the Association for Computational Lin-guistics (Volume 1: Long Papers) (2024) pp. 2113–2134. [11] Z. Fan, J. Zhang, P. Zhang, Q. Lin, Y. Li, and Y. Qian, Infor-mation Processing & Management 61 , 103741 (2024). [12] F. Nausheen, K. Ahmed, M. I. Khan, and F. Riaz, arXiv preprint arXiv:2504.09909 (2025). [13] E. R. Anschuetz, H.-Y. Hu, J.-L. Huang, and X. Gao, PRX Quantum 4, 020338 (2023). [14] R. N. Cahn, Semi-simple Lie algebras and their representations 
+
+(Courier Corporation, 2014). [15] T. Mikolov, K. Chen, G. Corrado, and J. Dean, arXiv preprint arXiv:1301.3781 (2013). [16] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, Ł. Kaiser, and I. Polosukhin, Advances in neural infor-mation processing systems 30 (2017). [17] A. Kayyam, A. M. Gopal, and M. A. Lewis, arXiv preprint arXiv:2606.04032 (2026). [18] M. Saponati, P. Sager, P. V. Aceituno, T. Stadelmann, and B. Grewe, arXiv preprint arXiv:2502.10927 (2025). [19] A. Katharopoulos, A. Vyas, N. Pappas, and F. Fleuret, in In-ternational conference on machine learning (PMLR, 2020) pp. 5156–5165. [20] A. Gu and T. Dao, arXiv preprint arXiv:2312.00752 (2023). [21] A. Gu, K. Goel, and C. R´ e, arXiv preprint arXiv:2111.00396 (2021). [22] R. Gilmore, “Group theory: A physicist’s survey,” (2011). [23] R. Cabrera, T. Strohecker, and H. Rabitz, Journal of Mathemat-ical Physics 51 (2010). [24] S. Ioffe and C. Szegedy, in International conference on machine learning (pmlr, 2015) pp. 448–456. [25] J. Kirkpatrick, R. Pascanu, N. Rabinowitz, J. Veness, G. Des-jardins, A. A. Rusu, K. Milan, J. Quan, T. Ramalho, A. Grabska-Barwinska, et al. , Proceedings of the national academy of sciences 114 , 3521 (2017). [26] D. Lopez-Paz and M. Ranzato, Advances in neural information processing systems 30 (2017). [27] A. A. Rusu, N. C. Rabinowitz, G. Desjardins, H. Soyer, J. Kirk-patrick, K. Kavukcuoglu, R. Pascanu, and R. Hadsell, arXiv preprint arXiv:1606.04671 (2016). [28] A. Mallya and S. Lazebnik, in 2018 IEEE/CVF Conference on Computer Vision and Pattern Recognition (IEEE, 2018) pp. 7765–7773. [29] J. Serra, D. Suris, M. Miron, and A. Karatzoglou, in Inter-national conference on machine learning (PMLR, 2018) pp. 4548–4557. [30] A. Maas, R. E. Daly, P. T. Pham, D. Huang, A. Y. Ng, and C. Potts, in Proceedings of the 49th annual meeting of the as-sociation for computational linguistics: Human language tech-nologies (2011) pp. 142–150. [31] X. Zhang, J. Zhao, and Y. LeCun, Advances in neural informa-tion processing systems 28 (2015). [32] M. A. Nielsen and I. L. Chuang, Quantum computation and quantum information , Vol. 2 (Cambridge university press Cam-bridge, 2001). [33] A. S. Householder, Journal of the ACM (JACM) 5, 339 (1958). 
+
+Appendix A 
+
+Appendix A: Bounding εw
+
+This appendix derives the eigenphase bound |λa| ≤ εw quoted in the main text, which follows from the normalization of the Hermitian generator to unit Frobenius norm, and then makes precise how the per-word eigenphases accumulate under the 9prefix product of Eq. 6, quantifying the wrap-safety condition invoked by the chunked construction of Eq. 8. The bound ensures that each word induces a small, controlled rotation on the unitary manifold, preventing phase wrap and maintaining numerical stability. 
+
+The single-word bound : Let Hw ∈ Cn×n, Hw = H†
+
+> w
+
+, be the learned Hermitian generator of word w, with Frobenius norm 
+
+∥Hw∥F =
+
+q
+
+Tr  H†
+
+> w
+
+Hw
+
+ =
+
+ X 
+
+> i,j
+
+(Hw)ij 
+
+> 2
+
+1/2
+
+, (A1) and let ˆHw = Hw/∥Hw∥F denote its normalization to unit Frobenius norm, ∥ ˆHw∥F = 1 , as used in Eq. (1). By the spectral theorem, ˆHw has real eigenvalues ˆλ1, . . . , ˆλn, and since ˆH† 
+
+> w
+
+ˆHw = ˆH2
+
+> w
+
+, the Frobenius norm of a Hermitian matrix equals the Euclidean norm of its eigenvalue vector, 
+
+∥ ˆHw∥2 
+
+> F
+
+= Tr   ˆH2
+
+> w
+
+ =
+
+> n
+
+X
+
+> a=1
+
+ˆλ2 
+
+> a
+
+= 1 . (A2) The effective generator entering Eq. (1) is εw ˆHw; its eigenvalues λa = εw ˆλa therefore obey the sum rule 
+
+> n
+
+X
+
+> a=1
+
+λ2 
+
+> a
+
+= ε2
+
+> w
+
+. (A3) Because every term in Eq. (A3) is non-negative, each term is bounded by the full sum, 
+
+λ2 
+
+> a
+
+≤
+
+> n
+
+X
+
+> b=1
+
+λ2 
+
+> b
+
+= ε2 
+
+> w
+
+=⇒ |λa| ≤ εw, a = 1 , . . . , n. (A4) Equivalently, max a |λa| = ∥εw ˆHw∥2 ≤ ∥ εw ˆHw∥F = εw, where ∥·∥ 2 denotes the operator (spectral) norm, which for Hermitian matrices coincides with the spectral radius. The bound is saturated, |λa| = εw, if and only if all remaining eigenvalues vanish, i.e., if and only if ˆHw = ±| v⟩⟨ v| is rank one for some unit vector |v⟩; for generic full-rank generators the normalization spreads the budget over the whole spectrum, and every individual eigenphase is strictly smaller than εw.Since Uw = exp 
+
+
+
+iε w ˆHw
+
+
+
+is diagonal in the eigenbasis of ˆHw, its eigenvalues are eiλ a : the eigenphases of the word operator are exactly the λa, confined by Eq. (A4) to the interval [−εw, ε w]. Provided εw < π , this interval lies strictly inside the principal branch (−π, π ], so a single word operator never aliases its phases: each word induces a small, unambiguous rotation whose magnitude is set by the budget εw alone. 
+
+Phase accumulation over a document : Consider a sequence {w1, . . . , w L} with per-word budgets εwi given by Eq. (5), word operators Ui = exp 
+
+
+
+iε wi
+
+ˆHwi
+
+
+
+, and document operator PL = UL · · · U1 as in Eq. (6). Write λ(i) 
+
+> a
+
+= εwi
+
+ˆλ(i) 
+
+> a
+
+for the eigenvalues of the i-th effective generator εwi
+
+ˆHwi , and denote the total rotation budget by 
+
+ΦL ≡
+
+> L
+
+X
+
+> i=1
+
+εwi . (A5) If all generators commuted, then PL = exp  i PLi=1 εwi
+
+ˆHwi
+
+ would hold exactly and the eigenphases would be literally additive, 
+
+θa = PLi=1 λ(i) 
+
+> a
+
+(mod 2 π), which is the linear accumulation PLi=1 εwi
+
+ˆλ(i) 
+
+> a
+
+quoted in the main text; the single-word bound (A4) and the triangle inequality then give P 
+
+> i
+
+λ(i) 
+
+> a
+
+≤ ΦL. For non-commuting generators the eigenphases of a product are no longer sums of the eigenphases of its factors: the departure from additivity, entering at order εwi εwj
+
+ ˆHwi , ˆHwj
+
+ in the Baker– Campbell–Hausdorff expansion of log PL, is precisely the structure that encodes word order. The bound, however, survives non-commutativity. Telescoping the product, 
+
+PL − I =
+
+> L
+
+X
+
+> k=1
+
+UL · · · Uk+1 
+
+ Uk − I, (A6) and using the unitary invariance of the operator norm together with the single-word spectral bound, ∥Uk − I∥2 = max a eiλ (k) 
+
+> a
+
+−
+
+1 = 2 max a sin  λ(k) 
+
+> a
+
+/2 ≤ max a λ(k) 
+
+> a
+
+≤ εwk , yields 
+
+∥PL − I∥2 ≤
+
+> L
+
+X
+
+> k=1
+
+∥Uk − I∥2 ≤
+
+> L
+
+X
+
+> k=1
+
+εwk = Φ L. (A7) 10 Since PL ∈ U( n), its eigenvalues are eiθ a with principal eigenphases θa ∈ (−π, π ], and PL − I is normal, so max a |eiθ a − 1| =
+
+∥PL − I∥2. Combining this with Eq. (A7) gives 2 | sin( θa/2) | ≤ ΦL, and hence, whenever ΦL < 2,
+
+|θa| ≤ 2 arcsin  ΦL/2 ≤ π
+
+2 ΦL, 2 arcsin  ΦL/2 = Φ L + O Φ3
+
+> L
+
+. (A8) In particular, ΦL < 2 guarantees |θa| < π for every eigenphase of the document operator: the spectrum of PL remains strictly inside the principal branch, no 2π wrap can occur, and for small total budget the accumulated eigenphase is bounded by ΦL
+
+itself up to cubic corrections. The linear bound (A7) is a worst case, attained only when successive words rotate a common eigenvector coherently in the same direction; for generic non-commuting generators the increments partially cancel, and the accumulated phase grows more slowly than ΦL.
+
+Wrap-safe chunking and the adaptive budget : With a uniform budget, εwi = ε, the total is ΦL = Lε and grows linearly with document length, which is why a fixed global ε drives long documents toward wrap-around. The chunking rule of Eq. (8), 
+
+εw = ε/c , caps the accumulated budget of each ordered product at c·(ε/c ) = ε independently of the chunk size c, so by Eq. (A8) every chunk operator ePk is wrap-safe provided ε < 2; this makes quantitative the requirement that ε sit below the wrap threshold. The adaptive mechanism of Eq. (5) instead replaces the uniform total Lε by the learned quantity ΦL = PLi=1 εwi , allowing the network to assign small increments to low-information function words and to spend the phase budget on discriminative content words, so that the accumulated phase tracks the information content of a document rather than its raw length. All of the bounds above hold verbatim with these word-dependent budgets.  
+
+> Appendix B: Spectral and density-operator interpretation of A.
+
+A single learned operator A, contracted as Tr( A P † 
+
+> i
+
+Pj ), selects which aspects of the relative rotation contribute to the attention score. Writing the spectral decomposition A = P 
+
+> k
+
+λk|k⟩⟨ k|, with real eigenvalues λk and orthonormal eigenvectors |k⟩, makes the role of A concrete 
+
+Tr  A P † 
+
+> i
+
+Pj
+
+ = X
+
+> k
+
+λk ⟨Pik|Pj k⟩. (B1) This is a weighted sum of overlaps between the reference states |k⟩ transported by Pi and by Pj . The constraint A† = A is necessary rather than optional, as Hermiticity is the precise condition under which the imaginary part of the contraction remains exactly antisymmetric. This score admits a natural interpretation within the quantum-mechanical framework [32]: the expectation value Tr( ρ M ) ex-tracts a scalar from an operator M given a state ρ. When A additionally satisfies positive semidefiniteness and unit trace, cycling the trace through ρ = ρ1/2ρ1/2 yields Tr( ρ P † 
+
+> i
+
+Pj ) = Tr  (Piρ1/2)†Pj ρ1/2. The learned A is accordingly a generalization of a mixed-state density operator with positivity and trace normalization relaxed, retaining only the structurally required Hermiticity 
+
+A† = A. Enforcing A = BB † with Tr( BB †) = 1 would make the identification with a learned mixed state exact, at the cost of constraining the score to a positive spectrum; we leave A unconstrained beyond Hermiticity so that the eigenvalues λk of Eq. (B1) may take either sign, allowing the score to subtract as well as add overlap contributions. 
+
+> Appendix C: Householder Construction of the Coset Coordinates and the Ball Constraint
+
+Theorem 1 of [23] expresses each factor of Eq. (10) as a product of two Householder reflections [33], 
+
+U (n − k + 1) 
+
+U (n − k) ⊗ U (1) = R|uk ⟩ R|ek ⟩, R|u⟩ = I − 2 |u⟩⟨ u|⟨u|u⟩ , (C1) where R|ek ⟩ is the identity with its k-th diagonal entry replaced by −1, and the Householder vector 
+
+|uk⟩ = |Wk⟩ + eiφ k |ek⟩, φk = arg ⟨ek|Wk⟩, (C2) is built from the k-th column |Wk⟩ of the partially reduced operator R|uk−1⟩ · · · R|u1⟩PL. Expanding the product R|uk ⟩R|ek ⟩
+
+and collecting blocks yields exactly the matrix of Eq. (11) [23]. 
+
+The ball constraint : The constraint ⟨Xk|Xk⟩ ≤ 1 follows from the unit length of the columns. Split the current column into its component along the target axis and the perpendicular remainder, 
+
+|Wk⟩ = ρk eiφ k |ek⟩ + |Wk⊥⟩, ρk ≥ 0. (C3) 11 Normalizing the Householder vector gives |nk⟩ = |uk⟩/p⟨uk|uk⟩ = γk|ek⟩ + |nk⊥⟩, with ⟨uk|uk⟩ = 2(1 + ρk) and γk =p(1 + ρk)/2 eiφ k . The coset vector appearing in Eq. (11) is |Xk⟩ = 2 γ∗ 
+
+> k
+
+|nk⊥⟩ [23], which simplifies to 
+
+|Xk⟩ = e−iφ k |Wk⊥⟩ : (C4) the perpendicular part of the column with its leading phase stripped off. Since |Wk⟩ has unit norm, ρ2 
+
+> k
+
++ ⟨Wk⊥|Wk⊥⟩ = 1 , and therefore 
+
+⟨Xk|Xk⟩ = 1 − ρ2 
+
+> k
+
+≤ 1. (C5) In real Cartesian coordinates (x1
+
+> k
+
+, . . . , x 2( n−k) 
+
+> k
+
+) the coset vector consequently ranges over the closed unit ball 
+
+Bd =
+
+n
+
+x ∈ Rd : Pdj=1 (xj )2 ≤ 1
+
+o
+
+, d = 2( n − k), (C6) and p1 − r2 
+
+> k
+
+= ρk reproduces the top-left entry of Eq. (11): the radius measures how far the column tilts away from its axis, and what remains of the square root is the surviving alignment. 
+
+The sweep and its inverse: The full chart is produced by one Householder sweep: reflecting with R|uk ⟩ aligns the k-th column, the recursion continues on the remaining (n − k) × (n − k) block, and at each step |Xk⟩ and φk are read off, with the n residual phases collected in the diagonal factor of Eq. (10). The inverse map is equally explicit (Corollary 2 of [23]): the normalized Householder vector is reconstructed from the coset vector as 
+
+|nk⟩ = γk|ek⟩ + 12γ∗
+
+> k
+
+|Xk⟩, |γk|2 = 1 + p1 − ⟨ Xk|Xk⟩
+
+2 , (C7) with the phase of γk taken from the diagonal factor. This explicit inverse is what makes the round-trip reconstruction of Sec-tion II F exact to numerical precision ( 1.1 × 10 −15 ).
