@@ -6,49 +6,62 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-30
-- 运行时间：2026-08-30 22:23:59 UTC
+- 最新运行日期：2026-08-31
+- 运行时间：2026-09-01 00:14:45 UTC
 - 运行状态：成功
-- 本次总论文数：9
-- 精读区：4
-- 速读区：5
+- 本次总论文数：14
+- 精读区：7
+- 速读区：7
 
 ### 今日简报（AI）
-今日精读聚焦检索增强语言模型与记忆机制，速读覆盖多模态智能体与长视频生成。  
-最值得关注：情景记忆可缩小词汇频率敏感度差距，新记忆聚合方法ALPHABET值得细读。  
-建议普通读者优先关注多模态记忆应用与长视频生成的实用进展。
-- 详情：[/202608/30/README](/202608/30/README)
+今日完成14篇论文筛选，其中7篇精读7篇速读，重点关注量化压缩与持续学习方向。最值得看的是DAMP衰减感知混合精度量化与Fast Weight Attention持续学习法，两篇均获9.0高分。建议优先精读这两篇，可顺带浏览StreamEMS、DensityKV等视频理解与生成相关的记忆优化速读。
+- 详情：[/202608/31/README](/202608/31/README)
 
 ### 精读区论文标签
-1. [Does Episodic Memory Help Close the Lexical Frequency Gap in Sensitivity to Syntactic Contrasts? A Test Using Retrieval-Augmented Language Models](/202608/30/2608.23851v1-does-episodic-memory-help-close-the-lexical-frequency-gap-in-sensitivity-to-syntactic-contrasts-a-test-using-retrieval-augmented-language-models)  
+1. [DAMP: Decay-Aware Mixed-Precision Recurrent-State Quantization](/202608/31/2608.27513v1-damp-decay-aware-mixed-precision-recurrent-state-quantization)  
+   标签：评分：9.0/10、query:la
+   evidence：针对Gated DeltaNet和Kimi Delta Attention等现代线性注意力RNN的循环状态量化
+2. [Fast Weight Attention for Continual Learning](/202608/31/2608.27763v1-fast-weight-attention-for-continual-learning)  
+   标签：评分：9.0/10、query:la
+   evidence：快速权重记忆作为联想记忆，用在线学习规则更新状态空间模型
+3. [Sliding-window beats linear attention](/202608/31/2608.28444v1-sliding-window-beats-linear-attention)  
+   标签：评分：9.0/10、query:la
+   evidence：直接比较滑动窗口注意力与线性注意力，发现滑动窗口加sink方法不逊于线性注意力
+4. [Does Episodic Memory Help Close the Lexical Frequency Gap in Sensitivity to Syntactic Contrasts? A Test Using Retrieval-Augmented Language Models](/202608/31/2608.23851v1-does-episodic-memory-help-close-the-lexical-frequency-gap-in-sensitivity-to-syntactic-contrasts-a-test-using-retrieval-augmented-language-models)  
    标签：评分：8.0/10、query:comp-neuro
-   evidence：以检索增强语言模型模拟海马情景记忆，基于互补学习系统理论
-2. [ALPHABET: A Laplace-Pole History Aggregator with Banked Exponential Transport](/202608/30/2608.24051v1-alphabet-a-laplace-pole-history-aggregator-with-banked-exponential-transport)  
+   evidence：海马情节记忆机制、检索增强语言模型、互补学习系统理论
+5. [SOMTab: Set-Order Mamba for Efficient Tabular In-Context Learning](/202608/31/2608.27882v1-somtab-set-order-mamba-for-efficient-tabular-in-context-learning)  
    标签：评分：8.0/10、query:la
-   evidence：线性时间序列模型将时间历史压缩为极点模态，直接关联现代RNN与线性注意力架构设计
-3. [The Von-Neumann State-Space Transformer for neural decoding](/202608/30/2608.25088v1-the-von-neumann-state-space-transformer-for-neural-decoding)  
+   evidence：现代RNN状态空间模型Mamba用于表格上下文学习
+6. [HARTS: Efficient Agentic Reinforcement Learning for Hybrid-Attention Models over Arbitrary Rollout Trees](/202608/31/2608.28158v1-harts-efficient-agentic-reinforcement-learning-for-hybrid-attention-models-over-arbitrary-rollout-trees)  
    标签：评分：8.0/10、query:la
-   evidence：记忆增强Transformer实现神经解码，贴合计算神经科学主题
-4. [LongVU-TTT: Causal Test-Time Training for Visual Resampling in Long Video Understanding](/202608/30/2608.25729v1-longvu-ttt-causal-test-time-training-for-visual-resampling-in-long-video-understanding)  
+   evidence：分块线性注意力用于强化学习中的高效序列处理
+7. [Memristive-Friendly Hadamard Reservoir Computing: Structured, Multiplier-Free Recurrences at Scale](/202608/31/2608.28295v1-memristive-friendly-hadamard-reservoir-computing-structured-multiplier-free-recurrences-at-scale)  
    标签：评分：8.0/10、query:la
-   evidence：提出基于因果测试时训练的快速权重重采样器，等价于线性注意力，性能优于Mamba2，直接相关现代RNN架构。
+   evidence：采用结构化无乘法Hadamard递归的现代RNN架构，直接关联最新线性注意力与现代RNN架构设计。
 
 ### 速读区论文标签
-1. [Dual-Grained Agent Memory and Shapley Context Attribution for Multimodal Agentic Learner](/202608/30/2608.23268v1-dual-grained-agent-memory-and-shapley-context-attribution-for-multimodal-agentic-learner)  
+1. [StreamEMS: Streaming Video Understanding with Self-Evolving Memory Scheme for Vision-Language Models](/202608/31/2608.27881v1-streamems-streaming-video-understanding-with-self-evolving-memory-scheme-for-vision-language-models)  
    标签：评分：7.0/10、query:la
-   evidence：受互补学习系统启发的双粒度外部记忆框架，用于增强冻结多模态大模型
-2. [RECAP-Forcing: Retaining Content Appearances for Long Video Generation](/202608/30/2608.26671v1-recap-forcing-retaining-content-appearances-for-long-video-generation)  
+   evidence：自演进外部记忆用于记忆增强视频理解
+2. [DensityKV: Density-Guided KV Cache Compression for Long Video Generation](/202608/31/2608.27922v1-densitykv-density-guided-kv-cache-compression-for-long-video-generation)  
    标签：评分：7.0/10、query:la
-   evidence：按内容出现新奇度组织KV缓存，用于长视频生成
-3. [Understanding the Energy Scaling of Large Language Model Inference Across Context Lengths and Attention Architectures](/202608/30/2608.25096v1-understanding-the-energy-scaling-of-large-language-model-inference-across-context-lengths-and-attention-architectures)  
+   evidence：面向长视频生成的KV缓存压缩；处理注意力记忆的高效管理与冗余减少。
+3. [LayerRecall: A State-Conditioned Memory Router for Long-Horizon Consistency in Video Generation](/202608/31/2608.28460v1-layerrecall-a-state-conditioned-memory-router-for-long-horizon-consistency-in-video-generation)  
+   标签：评分：7.0/10、query:la
+   evidence：条件式记忆路由器检索历史K/V状态，用于长视频生成的一致性
+4. [HAP: Head-Adaptive Visual Token Pruning via Cross-Modal Alignment](/202608/31/2608.23921v1-hap-head-adaptive-visual-token-pruning-via-cross-modal-alignment)  
    标签：评分：6.0/10、query:la
-   evidence：对不同注意力架构推理能耗的实证研究，与高效注意力设计相关
-4. [How Much Rank Does LoRA Need? Rank-Error Bounds for Transformer Attention](/202608/30/2608.26052v1-how-much-rank-does-lora-need-rank-error-bounds-for-transformer-attention)  
+   evidence：头自适应视觉令牌剪枝用于高效注意力
+5. [GraphMemix: Query-Aware Evidence Forests for Long-Term Multimodal Agent Memory](/202608/31/2608.26983v1-graphmemix-query-aware-evidence-forests-for-long-term-multimodal-agent-memory)  
    标签：评分：6.0/10、query:la
-   evidence：关于低秩注意力近似的理论界，与线性注意力设计相关
-5. [When Memory Takes Gradients: Collaborative Vector Memory for Agentic Recommender Systems](/202608/30/2608.26895v1-when-memory-takes-gradients-collaborative-vector-memory-for-agentic-recommender-systems)  
+   evidence：面向多模态智能体的组合优化图记忆框架，以查询感知的证据森林组织长时记忆
+6. [HubMixer: Progressive Latent Hub Mixing for Parameter-Efficient Feature Interaction in Recommendation](/202608/31/2608.27991v1-hubmixer-progressive-latent-hub-mixing-for-parameter-efficient-feature-interaction-in-recommendation)  
    标签：评分：6.0/10、query:la
-   evidence：协同向量记忆作为智能体推荐系统的联想记忆库
+   evidence：令牌混合架构简化自注意力以实现参数高效特征交互
+7. [The Approximation Rank of Softmax Attention: Sharp Geometric Laws and Robust Interaction Dimension](/202608/31/2608.28150v1-the-approximation-rank-of-softmax-attention-sharp-geometric-laws-and-robust-interaction-dimension)  
+   标签：评分：6.0/10、query:la
+   evidence：softmax注意力逼近秩的理论分析，为线性注意力的低秩近似提供理论基础
 
 
 <div class="dpr-home-promo-card">

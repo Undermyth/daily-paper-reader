@@ -1,0 +1,1149 @@
+Title: Memristive-Friendly Hadamard Reservoir Computing: Structured, Multiplier-Free Recurrences at Scale
+
+URL Source: https://arxiv.org/pdf/2608.28295v1
+
+Published Time: Mon, 31 Aug 2026 00:58:25 GMT
+
+Number of Pages: 56
+
+Markdown Content:
+# Memristive-Friendly Hadamard Reservoir Computing: Structured, Multiplier-Free Recurrences at Scale 
+
+Andrea Ceni a, Gianluca Milano b, Carlo Ricciardi c, Claudio Gallicchio a, ∗
+
+> aDepartment of Computer Science, University of Pisa, Italy
+> bIstituto Nazionale di Ricerca Metrologica (INRiM), Italy
+> cDepartment of Applied Science and Technology, Politecnico di Torino, Italy
+
+Abstract 
+
+Reservoir Computing (RC) designs Recurrent Neural Networks around a fixed, i.e., untrained, recurrent layer, and is a natural candidate for neu-romorphic hardware. Memristive-friendly reservoirs derive the neuron dy-namics from memristive-device kinetics, but still rely on dense recurrent ma-trices, which are expensive to realize physically. In this paper, we replace the dense matrix with a structured orthogonal operator, built from sign diago-nals, a permutation, and a fast Walsh-Hadamard transform. The operator is multiplier-free, requires O(N ) parameters and O(N log N ) operations per step, and is never materialized as a matrix. We instantiate it in a standard and in a memristive-friendly Echo State Network, with one binary input connection per unit. Our mathematical analysis shows that exact orthogonality yields an echo state condition that is tight in the recurrent scaling, and a noise response that is predictable at design time. Moreover, the operator mixes the whole state in a single application. Experiments on twenty classification and seven regres-sion benchmarks, at reservoir sizes up to N = 8192 , show that the structured models match dense orthogonal reservoirs, and achieve better mean perfor-mance than the cycle reservoir by a margin that widens with size. Further-more, we time the recurrent step on three hardware platforms, where it is up to 50 × faster than a dense product and 10 4× smaller in memory. Finally, we ablate the operator and measure the response to noise, quantization, device mismatch and discrete faults.    
+
+> ∗Corresponding author
+> Email address: claudio.gallicchio@unipi.it (Claudio Gallicchio)
+> Preprint submitted to Neurocomputing August 31, 2026 arXiv:2608.28295v1 [cs.AI] 28 Aug 2026
+
+Keywords: Reservoir Computing, Echo State Networks, Hadamard transform, Neuromorphic computing 
+
+1. Introduction 
+
+Neuromorphic computing seeks to overcome the energy and bandwidth limitations of conventional digital architectures by co-locating memory and processing in physical substrates whose intrinsic dynamics carry out the com-putation [1, 2]. Memristive devices provide a fundamental pillar of this pro-gram: their conductance is modulated by the history of the applied stimuli, providing a compact analog state variable with synapse-like plasticity [3, 4], and self-organized networks of such devices have been shown to process tem-poral information in materia , directly in the physics of the substrate [5, 6]. On the algorithmic side, the natural partner of these substrates is Reser-voir Computing (RC) [7, 8, 9], the paradigm in which a recurrent neural layer, the reservoir , is left untrained and acts as a fixed nonlinear filter of the input history, while learning is confined to a (typically linear) readout. Precisely because the recurrent part need not be adapted, it can be dele-gated to a physical dynamical system, and RC has become the reference framework for computing with physical dynamics [10]. Bridging the two levels, the recently proposed memristive-friendly Echo State Network (MF-ESN) [11] derives the neuron update of an otherwise standard reservoir from the potentiation-depression kinetics of real memristive devices, bringing the reservoir abstraction one step closer to a physical implementation. Neuron-level fidelity, however, does not remove the main structural ob-stacle to that implementation, namely the recurrent coupling . Indeed, in the Echo State Network (ESN) architecture, the reservoir units are often coupled by means of a dense random matrix, which entails O(N 2) weights to store, O(N 2) multiply-accumulate operations per step and, in a physical realization, O(N 2) distinct programmable conductances with the associated precision and calibration requirements. This impact is heaviest precisely in the places where RC is most appealing: predictive quality grows with the reservoir size N , so the regime of practical interest is the one in which a dense coupling is least affordable. The hardware-oriented alternatives explored so far sit at two extremes (Section 2.3). On one side we find minimal determin-istic topologies, such as the ring of the Simple Cycle Reservoir (SCR) [12], which maps directly onto a circular shift register (a delay loop), but through 2which information travels one position per step. On the other we find dense 
+
+orthogonal recurrences, which maximize short-term memory [13, 14], but are as expensive to store and to apply as random ones. Between the two lies the family of structured orthogonal operators built from fast transforms, which approximate dense random projections at O(N log N ) multiplier-free cost [15, 16] and have entered RC as efficient input projections and random feature maps [17]. However, the systematic use of this family as the recurrent 
+
+operator of a reservoir is still missing. In that role, its exact orthogonality affects stability and memory, its global mixing affects the quality of the state representation, and its multiplier-free structure affects physical realizability. In this paper, we fill this gap by introducing and analyzing Hadamard reservoirs , i.e., recurrent networks whose coupling is the structured orthog-onal operator M = D2 bHN Π D1, built from two diagonal sign matrices, a permutation, and a normalized Walsh-Hadamard transform. The operator is applied in O(N log N ) additions and subtractions, stores O(N ) parameters, and is never materialized as a matrix. We develop the construction along two tracks. First, we use the operator as a general hardware-friendly primitive, replacing the dense recurrence of a standard leaky ESN [18], which yields the H-ESN. Then, we bring it to the neuromorphic setting, replacing the coupling of the memristive-friendly model, which yields the MF-H-ESN, whose neuron dynamics remain those of memristive devices while the recurrence reduces to sign flips, fixed routing, and pairwise additions. In both cases the substitu-tion concerns the coupling alone and leaves the neuron model untouched. A further simplification of the input pathway, i.e., a single binary input connec-tion per unit, completes a model family in which every analog-valued weight matrix has been removed from the architecture. The reason why so much structure can be imposed at so little functional cost is representational, and runs through the whole paper. The Hadamard operator inherits the uniform memory of dense orthogonal recurrences and the one-step global mixing of dense random ones. A coordinate impulse spreads over the entire state in a single application, at the hardware complexity of a structured, multiplier-free operator. Moreover, its exact orthogonality has direct consequences for the analysis: the echo state condition becomes tight in the single tuned scalar, and the response to runtime perturbations becomes predictable at design time. 3The contributions of this work can be summarized as follows. 1
+
+• We introduce the H-ESN and the MF-H-ESN, whose recurrent coupling is the multiplier-free structured orthogonal operator M, together with input pathways reduced to one binary connection per unit (Section 3). • We derive their echo state condition, which is tight in the recurrent scaling ρM , and a noise gain that is fixed at design time; a spectral and mixing analysis isolates what each randomization element contributes (Section 5). • We measure what the recurrent step costs, in wall-clock time on three hardware platforms and in memory, and find that the crossover with the dense product is a property of the device, while the memory advantage is not (Section 4). • We evaluate the models on twenty classification and seven regression benchmarks, against dense, cycle, dense-orthogonal and fully trainable gated recurrent baselines, up to N = 8192 , with a critical-difference analysis (Section 6). • We ablate the operator, and show that the permutation protects mem-ory near the edge of stability, and the sign diagonals the representa-tional richness of the nonlinear states (Section 6.4). • We assess robustness to state noise, in-loop quantization, device mis-match, and faults in the signs and in the routing, and we report what each of them costs in accuracy (Section 6.5). The rest of this paper is organized as follows. Section 2 recalls ESNs, the memristive-friendly model, and related work on structured and hardware-friendly reservoir topologies. Section 3 introduces the Hadamard reservoir models and analyzes their computational and hardware cost. Section 4 then measures what the recurrent step costs, in wall-clock time across hardware platforms and in memory. Section 5 develops the theoretical analysis, and Section 6 reports the empirical evaluation. Section 7 then puts the proposed models side by side with the reservoir models taken as reference. Finally, Section 8 concludes the paper. 
+
+> 1This paper is an extended version of [19].
+
+42. Background and related work 
+
+In this section we provide the background of the paper. First, in Sec-tion 2.1 we recall the ESN formulation. Then, in Section 2.2 we describe the memristive-friendly reservoir model from which the neuron dynamics of this work are derived. Finally, in Section 2.3 we place the structured recur-rence we propose within the existing landscape of hardware-oriented reservoir topologies. 
+
+2.1. Echo State Networks 
+
+Echo State Networks (ESNs) [20] provide a foundational and popular in-stance of the RC concept: an untrained layer of recurrent non-linear neurons coupled with a trainable layer of linear readout neurons. In the following, we adopt the leaky ESN formulation from [18] to develop the mathematical description. Let ht ∈ RN and xt ∈ Rd denote, respectively, the reservoir state and the external input at time t. Reservoir dynamics are described in terms of an input-driven non-linear iterated map, as follows: 
+
+ht = (1 − α)ht−1 + α tanh  Whht−1 + Wxxt + bh
+
+, (1) where Wh ∈ RN ×N and Wx ∈ RN ×d are, respectively, the recurrent weight matrix and the input weight matrix, while bh ∈ RN is a bias vector. More-over, tanh( ·) indicates an element-wise applied hyperbolic tangent non-linearity. Finally, α ∈ (0 , 1] is the leaking rate, which influences the speed of the reser-voir update with respect to the dynamics in the input signal. All the weights in Wh, Wx, and bh are left untrained after initialization under stability con-straints given by the Echo State Property (ESP) [20, 21]. This essentially ensures that the network’s state is determined by the input history rather than by initial conditions. A commonly adopted strategy for reservoir ini-tialization is to draw the recurrent weights in Wh randomly from a uniform distribution in (−1, 1) and then re-scale them to meet a desired value ρ of the spectral radius (i.e., the maximum among the absolute values of the eigen-values) of Wh. Values of ρ < 1 are typically explored in accordance with a necessary condition for the ESP (see [22] for details), although this con-dition is not sufficient in general, and guaranteeing the property for every input requires the more restrictive constraint ∥Wh∥2 < 1, which describes a conservative regime rarely adopted in practice [22, 21]. The value of ρ is therefore treated as a hyper-parameter, with settings closer to unity corre-sponding to a longer memory of the input history, and smaller values to a 5faster forgetting. The entries of the input matrix Wx and of the bias bh
+
+are drawn from uniform distributions in (−ωx, ω x) and (−ωb, ω b). The two scaling factors ωx and ωb, together with ρ and the leaking rate α, form the set of hyper-parameters that shape the reservoir dynamics. 
+
+2.2. Memristive-friendly Reservoir Computing 
+
+A memristive-friendly formulation of the ESN operation has been intro-duced in [11], where the state update is derived from the effective kinetics of memristive devices, through a potentiation-depression mechanism governed by rates Kp(z) = κp0eηpz and Kd(z) = κd0e−ηdz :
+
+zt = Rescale (Whht−1 + Wxxt + bh), (2) 
+
+ht = γht−1 + εKp(zt) − diag (Kp(zt) + Kd(zt)) ht−1
+
+, (3) where Rescale (z) = ( b − a)/(1 + e−zs ) + a, with a = 0 .35 , b = 1 .15 fixed as in [11], and s a hyper-parameter tuning the nonlinearity of the rescaling. The two equations have a physical reading. The Rescale function maps the linear pre-activation into the voltage window [a, b ] in which the device is operated, with the hyper-parameter s controlling the steepness of the map-ping, hence how sharply the drive is compressed towards the two ends of the window. The rescaled value zt,i plays the role of the voltage applied to the i-th device, and the state ht,i that of its normalized conductance. The rate Kp grows with the applied voltage and drives potentiation, while Kd
+
+decreases with it and drives depression, with κp0 and κd0 setting the two base rates and ηp and ηd their sensitivity to the voltage. With the constants typical of memristive nanowire networks [23], potentiation is negligible at the lower end of the window and dominant at the upper end, so that the effective non-linearity of the neuron arises from the competition between the two rates rather than from an explicitly chosen activation function. In eq. 3, ε acts as the integration step of the underlying kinetics, i.e., as the amount of conductance change produced by a single input presentation. The coefficient γ ∈ (0 , 1] accounts instead for the volatility of the device, with 
+
+γ = 1 describing an ideal non-volatile behavior, and smaller values a state that decays on its own. Past information is thus carried forward with the effective retention factor γ − εS (zt), where S = Kp + Kd, so that γ and ε play jointly the role that the leaking rate α plays in eq. 1, and they control the contraction of the state map (see details in Section 5). Among the quantities above, ε, γ and s are treated as hyper-parameters, while a, b and the rate constants are fixed (see details in Appendix D). 62.3. Structured and hardware-friendly reservoir topologies 
+
+The observation that effective reservoir computation does not require un-constrained random connectivity has a long history. Rodan and Tiňo [12] showed that reservoirs with minimal, fully deterministic topology perform comparably to standard ESNs, while admitting an exact characterization of their memory capacity. The most prominent instance is the SCR [12], a ring of identical weights, with input connections of a single magnitude whose signs are fixed deterministically by an aperiodic sequence. Ring-like topolo-gies have since become a de facto standard in physical reservoir computing, as a cycle requires minimal routing resources and is naturally realized by a single node with delayed feedback [10]. At the opposite end of the spec-trum, dense orthogonal recurrent matrices are known to maximize short-term memory capacity [13, 14], and orthogonal or unitary constraints have been exploited in fully trained recurrent networks as well, to keep gradients from vanishing over long horizons [24, 25]. A generic orthogonal matrix, however, is as expensive to store and to apply as a dense random one, it has to be gen-erated by an O(N 3) factorization, e.g., the QR decomposition of a random matrix, and it offers no route to physical simplification. The family of structured orthogonal operators built from fast transforms lies between these two extremes, i.e., between maximally local structure and maximally unstructured orthogonality. Fastfood [15] and structured orthog-onal random features [16] established that products of diagonal sign matrices, permutations, and Walsh-Hadamard transforms approximate dense Gaussian and orthogonal projections at O(N log N ) cost, and structured transforms have been brought to RC in the context of optical random features and recurrent kernels [17]. Optimized FWHT kernels have since been written outside RC, for the Hadamard-based quantization of large language models [26, 27, 28], and the recurrence studied here can use them directly. The op-erator adopted in this work belongs to this family; differently from [17], we employ it as the recurrent operator of an otherwise standard, or memristive-friendly, ESN, and we focus on its consequences for hardware realizability, stability, and scaling behavior. Finally, the cycle topology also admits a sharp spectral characterization: linear SCRs at the edge of stability have recently been shown to represent the driving signal in the Fourier basis [29], a result that rests on the ex-act periodicity of the cyclic shift. The operator proposed here trades that periodicity for global mixing, whose consequences we analyze in Section 5. 73. Hadamard reservoirs 
+
+In this section we introduce the proposed models. First, in Section 3.1 we define the structured orthogonal operator that replaces the dense recurrent matrix. Then, in Section 3.2 we build two reservoir models on it, i.e., the H-ESN and the memristive-friendly MF-H-ESN, together with the simplified input pathway that completes the construction. Finally, Sections 3.3 and 3.4 quantify the resulting computational cost and discuss what it implies for a physical implementation. 
+
+3.1. Structured orthogonal recurrence 
+
+For a reservoir state dimension N = 2 K , the Hadamard matrix HN ∈{± 1}N ×N is defined recursively by H1 = [1] , H2n =  Hn Hn 
+
+> Hn−Hn
+
+, and the normalized transform bHN = HN /√N is orthogonal. We replace the dense recurrent matrix with the structured orthogonal operator defined as follows: 
+
+M = D2 bHN Π D1, (4) where D1, D2 are diagonal matrices with random independent ±1 entries and Π is a random permutation matrix. Being a product of orthogonal factors, M is exactly orthogonal, i.e., ∥Mh ∥ = ∥h∥ for every h. The three randomization elements inject controlled randomness and heterogeneity while preserving this property, and each of them is necessary, for reasons that we analyze in Section 5 and isolate empirically in the ablation of Section 6.4. In the models of Section 3.2 the recurrent coupling is the scaled operator ρM M,where the single scalar ρM > 0 controls the strength of the recurrence. Figure 1 contrasts the resulting recurrent step with a conventional dense reservoir. Replacing the dense matrix-vector product Whh(t − 1) with the four-stage pipeline D1 → Π → bHN → D2 turns an O(N 2) full-precision analog multiplication into a sequence of sign flips, a fixed routing, and a multiplier-free transform. The recurrent weights reduce to the scalar ρM ,together with the random signs and the permutation drawn at initialization. 
+
+3.2. Model definitions 
+
+The H-ESN is obtained from eq. 1 by replacing the dense recurrence Wh
+
+with the scaled structured operator: 
+
+ht = (1 − α) ht−1 + α tanh  ρM M h t−1 + Wx xt + bh
+
+. (5) 8ht−1                           
+
+> D1
+> sign flip
+> Nsign changes
+> Π
+> routing wiring only ̂
+> HN
+> FWHT
+> Nlog 2Nadd/sub
+> D2
+> sign flip
+> Nsign changes
+> ρM
+> global gain
+> +tanh ht
+> Wxxt+bh
+> M=D2̂HNΠD1
+> ht−1×
+> Wh
+> N×Ndense
+> N2analog weights
+> N2multiply-accumulates
+> +tanh ht
+> Wxxt+bh
+
+(a) Conventional reservoir (b) Hadamard reservoir     
+
+> N2programmable multiplications multiplier-free: sign flips, routing, additions one shared constant gain
+
+Figure 1: Comparison between the recurrent step of a conventional reservoir (a) and of the Hadamard reservoir proposed in this work (b). In (a) the dense matrix Wh stores 
+
+N 2 analog weights and its application costs N 2 multiply-accumulate operations. In (b) the same state mixing is obtained from the structured operator M = D2 bHN ΠD1 (eq. 4), applied as a sequence of sign flips ( D1, D2), a fixed routing ( Π), and a fast Walsh-Hadamard transform ( bHN , detailed in Appendix A). The stored description reduces to the 2N signs of the two diagonals, the N indices of the permutation and the single scalar ρM , and the N log 2 N operations are additions and subtractions. No programmable multiplication is involved, as the recurrence is scaled by one constant gain, common to all the units, which can be absorbed into the entries of D2.
+
+The MF-H-ESN applies the same substitution to the linear pre-activation of the memristive-friendly update, eq. 2: 
+
+zt = Rescale  ρM M h t−1 + Wx xt + bh
+
+, (6) with the state update unchanged from eq. 3. In both models the single scalar 
+
+ρM controls the strength of the recurrence and plays the role of the spectral radius. It does so exactly: indeed, every eigenvalue of ρM M has modulus ρM
+
+(see details in Section 5). Figure 2 depicts the resulting MF-H-ESN state update: the dense recur-rent term of the original memristive-friendly update [11] is replaced by the compact Hadamard pipeline of Figure 1b, while the potentiation-depression kinetics Kp, K d that give the model its memristive character are otherwise untouched. The structured operator only affects how the previous state is mixed before entering the memristive nonlinearity, not the nonlinearity itself. 9ht−1          
+
+> ρMM
+> Hadamard operator (Fig. 1b)
+> +
+> Wxxt+bh
+> Rescale
+> Kp(zt)
+> Kd(zt)diag (Kp+Kd
+> )
+> ×−ε+ht
+> zt
+> ht−1
+> γ
+> ht−1
+> Memristive-friendly update
+
+Figure 2: Computational graph of the memristive-friendly Hadamard reservoir (MF-H-ESN): the linear pre-activation of eq. 2 is replaced by the Hadamard version of eq. 6, while the state update eq. 3 is unchanged. The dense recurrent term of the original memristive-friendly update [11] is replaced by the structured Hadamard operator ρM M
+
+(compact box, detailed in Figure 1b), which feeds the potentiation/depression kinetics 
+
+Kp, K d and the leaky integration (dashed box) exactly as in the original model. 
+
+The input pathway of both models is initialized as in the conventional leaky ESN of Section 2.1, with the entries of Wx and bh drawn uniformly in 
+
+(−ωx, ω x) and (−ωb, ω b). We further consider a hardware-oriented simplified-input variant, denoted by the subscript si (for “simplified input”), in which each reservoir unit is wired to a single input channel, chosen uniformly at random, with weight ±ωx, and the bias entries are ±ωb. This removes every analog-valued parameter from the input path and reduces the input wiring from N d to N physical connections, one per unit. 
+
+3.3. Cost analysis 
+
+Interestingly, the structured operator M is applied without ever storing the full matrix: the diagonal matrices introduce sign changes, the permu-tation reorders coordinates, and the Hadamard transform is computed by the fast Walsh-Hadamard transform (FWHT) in O(N log N ) additions and subtractions, via the radix-2 butterfly decomposition of bHN (Figure A.1 in Appendix A). This reduces the cost of the recurrent step from O(N 2) to 
+
+O(N log N ) operations, and the storage from O(N 2) to O(N ) parameters, i.e., 2N signs, N routing indices and a scaling constant. Those parameters are discrete, and a routing index takes log 2 N bits, so that the operator is described by O(N log N ) bits in total, against the O(N 2) real values of a dense matrix; Section 4.2 turns both counts into explicit figures. Moreover, 10 the operator is multiplier-free : apart from the global scalings, it involves only additions, subtractions, sign flips, and routing. A corresponding reduction applies to the simplified input pathway described in Section 3.2: Wx and 
+
+bh no longer require storing floating-point entries, as they are defined by deterministic scalings of binary patterns, and the input wiring collapses to one connection per unit, with a single global gain. 
+
+3.4. Hardware considerations 
+
+The decomposition of the recurrence into sign flips, routing, and pairwise additive interactions substantially lowers the complexity of a physical imple-mentation compared to a dense analog matrix. In contrast to a conventional dense recurrent weight matrix, which requires O(N 2) distinct conductances and analog multiplications, the operator M can be realized by structured in-terconnects and polarity-controlled summations, simplifying the memristive hardware architecture [2]. The simplified input structures further reduce the number of analog parameters. In the fully simplified models, both the recurrent and the input operations rely entirely on polarity manipulations and simple scalings, which align naturally with the constraints of memristive hardware, and retain the global mixing ensured by the structured recurrence. In this work we study the algorithmic side of this design, i.e., the dynamical, computational and robustness consequences of the structured recurrence. A circuit-level design, and a physical realization of the butterfly operator on a memristive substrate, are left to future work. 
+
+4. Computational cost and memory footprint 
+
+This section quantifies the two costs of the recurrent step. The first one, wall-clock time, is a property of the operator and of the machine that runs it, and we measure it on three hardware platforms. The second one, memory, does not depend on the machine, and it is the quantity that decides whether a reservoir of a given size can be physically instantiated at all. 
+
+4.1. Wall-clock time across hardware platforms 
+
+The cost analysis of Section 3.3 shows that the structured operator com-putes the recurrent step in O(N log N ) additions and subtractions, against 
+
+O(N 2) multiply-accumulates for a dense one. That count is asymptotic, and it leaves open the question that matters in practice, i.e., at which reservoir size the structured step actually becomes faster than the dense product, and 11 whether that size is a property of the operator or of the machine it runs on. We answer it empirically, by timing the recurrent step h 7 → ρM Mh against a dense matmul baseline on three platforms that span two orders of magni-tude in raw throughput: a laptop-class Apple M3 Pro CPU, an entry-level NVIDIA T4 GPU, and a datacenter-class NVIDIA A100 GPU. We time N = 2 8, . . . , 215 in single precision, applying the recurrence to a batch of 256 states at once, as happens when 256 independent sequences are advanced by one time step in parallel, so that the dense baseline is a 
+
+256 ×N by N ×N matrix product. We report wall-clock means over repeated executions after warm-up. The structured step is realized in three ways, i.e., a plain implementation, a compiled one, and a dedicated GPU kernel. Implementation details, and the timings in tabular form, are reported in Appendix A. Figure 3 reports the results, from which three main observations can be drawn. First, on the laptop-class CPU and on the T4 the structured step overtakes the dense product already at N ≈ 1024 , reaching almost identical peak speedups of about 50 × at N = 32768 . The settings closest to edge deployment, where the memristive scenario is targeted, are thus precisely those where the structure pays off earliest. Second, the crossover point is a property of the device, and scales with its raw dense-matmul throughput. On the A100, whose tensor cores make dense products extremely fast, the crossover moves to N ≈ 8192 , and below that size the structured step stays within about ten percent of the dense one. The advantage then grows to 
+
+3.5× at N = 16384 . Third, the operation count alone does not predict the wall-clock time. The plain implementation performs asymptotically fewer operations than the dense product, and yet it does not overtake it on the A100 in the range we tested. 
+
+4.2. Memory footprint 
+
+The size of the timing advantage depends on the platform, as we have just seen. The memory cost does not, i.e., the description a model has to store, and the number of components a physical realization has to instantiate, follow from the operator alone. This is the side of the cost that decides whether a reservoir of a given width can be built at all, and it weighs most in the memristive scenario, where the recurrent coupling occupies device area rather than memory. Figure 4 compares the structured recurrence with the dense one, as the previous subsection did for time, on the two counts that matter, i.e., the description to be stored and the analog values that 12 29 211 213 215 
+
+Reservoir size N     
+
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> Time per step [ms]
+> Apple M3 Pro (laptop CPU)
+> Dense O(N2)FWHT (TF) FWHT (XLA) FWHT (CUDA op)
+> 29211 213 215
+
+Reservoir size N   
+
+> 10 0
+> 10 1
+> Speedup vs dense
+> 29211 213 215
+
+Reservoir size N   
+
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> Time per step [ms]
+> NVIDIA T4 (entry-level GPU) 29211 213 215
+
+Reservoir size N   
+
+> 10 0
+> 10 1
+> Speedup vs dense
+> 29211 213 215
+
+Reservoir size N   
+
+> 10 0
+> Time per step [ms]
+> NVIDIA A100 (datacenter GPU) 29211 213 215
+
+Reservoir size N
+
+> 10 0
+> Speedup vs dense
+
+Figure 3: Wall-clock time per recurrent step (left) and speedup over the dense matmul baseline (right) as a function of the reservoir size N (fp32, 256 states advanced per call), on three hardware platforms. Top: laptop-class Apple M3 Pro CPU; middle: entry-level NVIDIA T4 GPU. On both, the structured recurrence crosses over the dense one at 
+
+N ≈ 1024 with a compiled implementation, and reaches about 50 × at N = 32768 . Bottom: datacenter-class NVIDIA A100 GPU, where the crossover moves to N ≈ 8192 . Below that size all implementations are dominated by a fixed per-call overhead, and the structured step stays within about ten percent of the dense one; beyond it the advantage grows ( 3.5×
+
+at N = 16384 ). Timings in tabular form are in Appendix A. 
+
+13 have to be programmed one by one. The formulas behind the two panels, the assumptions of the count, and the corresponding table are reported in Appendix B. A dense coupling stores 32 N 2 bits and requires as many independently programmed analog values, i.e., 268 MB and 6.7 × 10 7 values at N = 8192 .This is the price of unstructured mixing, and it is what puts the largest sizes of Section 6.3 out of reach of a physical substrate. The structured operator stores instead 2N signs, N routing indices and one gain, i.e., 15 .4 kB at the same size, a reduction by a factor 32 N/ (2 + log 2 N ) that grows essentially linearly with the reservoir size and reaches 1.7 × 10 4 there. Put differently, the memory that a dense recurrence occupies at N = 256 , the reference size of this study, would hold a structured one of more than 10 5 units. Both counts leave out the handful of global hyper-parameters that every model carries, e.g., the leaking rate, which do not grow with N (Appendix B). The right panel carries the point that matters most for a physical real-ization. The analog values to be programmed drop from N 2 to one, i.e., the gain ρM , which can itself be absorbed into D2 or realized as a single am-plifier common to all the units, and with the simplified input pathway they drop to three global scalars, independent of the reservoir size. Everything else is discrete, i.e., signs, routing indices, and the unit-gain connections of the butterfly stages. The dotted line is the ridge readout, which is common to all the reservoir models and is not our concern here, beyond one remark: once the recurrence is structured, the readout becomes the largest object in the model, so that the memory budget is set by the task rather than by the reservoir (Appendix B). Two points carry over to the rest of the paper. First, the accuracy re-ported in Section 6 is obtained at a cost that is lower by four orders of magnitude, so the structure is not a concession made for the sake of hard-ware. Second, a description made of 2N signs, N routing indices and one gain is small and almost entirely discrete, which is what makes the device difficult to corrupt, as Section 6.5 quantifies. 
+
+5. Theoretical analysis 
+
+Having established what the structured recurrence costs, we now turn to what it does. This section proceeds in three steps. First, in Section 5.1 we analyze the stability of the MF-H-ESN dynamics, and derive a sufficient 
+
+condition for the ESP that is tight in the recurrent scaling ρM : thanks to 14 29 211 213 215      
+
+> Reservoir size N
+> 10 3
+> 10 4
+> 10 5
+> 10 6
+> 10 7
+> 10 8
+> 10 9
+> Stored description [bytes]  dense coupling Hadamard Hadamard, simplified input ridge readout
+> 29211 213 215
+> Reservoir size N
+> 10 2
+> 10 4
+> 10 6
+> 10 8
+> Analog values to program
+
+Figure 4: Memory footprint of the structured recurrence against the dense one, on a univariate task ( d = 1 ). Left: bits needed to store the recurrent operator and the input pathway, with real-valued parameters at 32 bits, signs at one bit and routing indices at 
+
+log 2 N bits. Right: analog values that a physical realization has to program individually. The dense curve is the ESN, the dense orthogonal reservoir and the MF-ESN, which coincide, and each Hadamard curve is a tanh and a memristive-friendly model, i.e., H-ESN and MF-H-ESN, and their simplified-input variants, which coincide in the same way, since they share the coupling and the input pathway; the analog values of the simplified-input variants are three at every size. The dotted line is the ridge readout of a five-class task, which every reservoir model carries in addition. Formulas, assumptions and the corresponding table are in Appendix B. 
+
+the exact orthogonality of the structured operator, there is no gap between the quantity that is controlled at design time and the quantity that governs contraction. Then, in Section 5.2 we move to the quality of the state repre-sentation, contrasting the spectral and mixing properties of the Hadamard operator with those of dense reservoirs and of the SCR, and isolating the role of the randomization elements D1, Π, D2; each claim is accompanied there by the measurement that supports it, on synthetic signals at N = 256 . Finally, in Section 5.3 we verify the noise response of the recurrence numerically. 
+
+5.1. Echo state property condition 
+
+We study the MF-H-ESN reservoir as a discrete-time dynamical system, whose state update we write as ht = Φ( ht−1, xt), with 
+
+Φ( h, x) =  γ1 − εS (z) ⊙ h + εK p(z), z = R ρM Mh + Wxx + bh
+
+, (7) where S = Kp + Kd and R denotes the Rescale function, which maps R into 
+
+(a, b ) and is Lipschitz with constant LR = s(b − a)/4.15 Our analysis rests on a single fact, i.e., that z takes values in (a, b ) com-ponentwise. From it, a few elementary bounds follow. On this interval the rates are uniformly bounded, Kp(z) ∈ [K− 
+
+> p
+
+, K + 
+
+> p
+
+] and Kd(z) ∈ [K− 
+
+> d
+
+, K + 
+
+> d
+
+],with extremes attained at the endpoints: K+ 
+
+> p
+
+= κp0eηpb, K− 
+
+> p
+
+= κp0eηpa,
+
+K+ 
+
+> d
+
+= κd0e−ηda, K− 
+
+> d
+
+= κd0e−ηdb; accordingly S(z) ∈ [S−, S +] with S± =
+
+K± 
+
+> p
+
++ K± 
+
+> d
+
+. Moreover, on (a, b ) the maps Kp and S are Lipschitz with con-stants Lp = ηpK+ 
+
+> p
+
+and LS = ηpK+ 
+
+> p
+
++ ηdK+ 
+
+> d
+
+. We first observe that the dynamics are bounded. Indeed, if γ ≤ 1 and εS + ≤ γ, the box [0 , H ]N with 
+
+H = εK +
+
+> p
+
+1 − γ + εS − (8) is forward-invariant for the MF-H-ESN dynamics under any input, so that a trajectory started at h0 = 0 never leaves it (Lemma 1 in Appendix C). We are now in a position to state a sufficient condition for the ESP of the MF-H-ESN. More precisely, the following Proposition 5.1 gathers the constants introduced above into a single scalar C, whose two terms account respectively for the leak and for the recurrent coupling, and characterizes the values of C for which the reservoir is a contraction. 
+
+Proposition 5.1 (Echo state property of the MF-H-ESN) . Let M be the structured operator of eq. 4, assume γ ≤ 1 and εS + ≤ γ, let H be as in eq. 8, and let 
+
+C = max  |γ − εS −|, |γ − εS +| + ε ρ M LR
+
+ LS H + Lp
+
+. (9) 
+
+If C < 1, then the MF-H-ESN satisfies the ESP. 
+
+The proof is reported in Appendix C, and bounds the state difference of two trajectories term by term. We can notice that orthogonality is used at a single step, where ∥M(h − h′)∥2 = ∥h − h′∥2 holds with equality . As a consequence, the recurrent contribution to C is exactly ρM , without any of the slack discussed in Remark 5.1. Moreover, all the constants entering C
+
+depend only on the endpoints a, b , i.e., not on the state nor on the driving signal, so that the contraction is uniform in the input. 
+
+Remark 5.1 (Tightness, and comparison with dense reservoirs) . Contraction arguments involve the spectral norm ∥·∥ 2, whereas the quantity that is tuned in reservoir practice is the spectral radius. For the structured operator the two coincide, i.e., ∥ρM M∥2 = ρM . For a dense random matrix rescaled to 16 spectral radius ρ, instead, ∥Wh∥2 typically exceeds ρ by a factor close to 2
+
+(edge of the circular law vs. largest singular value), so that norm-based suffi-cient conditions are loose by the same factor. Orthogonality thus eliminates the slack between the tuned and the contraction-relevant quantity. We note that this property is shared by any orthogonal recurrence, including the SCR. The Hadamard operator and the SCR therefore share the same stability, and differ in their mixing : a single application of M propagates information from every coordinate to every other, whereas the SCR requires N steps for a full traversal. This difference is measurable, and it grows with the reservoir size. The measurements closing this section quantify it in terms of memory and mixing, and the scaling experiments in terms of accuracy (Section 6.3). 
+
+Remark 5.2 (Standard H-ESN) . In the case of the leaky-tanh H-ESN, the same argument gives the familiar condition. Indeed, since tanh is 1-Lipschitz and ∥ρM M∥2 = ρM , any ρM < 1 guarantees the ESP, again with no slack, in contrast with the dense case. Conversely, since every eigenvalue of ρM M has modulus exactly ρM , the linearization of the update at the origin is unstable for ρM > 1, and the classical necessary condition [22] excludes the ESP (for α = 1 and admissible null input and bias). For α = 1 , the threshold 
+
+ρM = 1 is therefore exact for the H-ESN: the gap between the necessary and the sufficient condition, which for a dense reservoir amounts to the factor discussed in Remark 5.1, closes entirely. 
+
+Remark 5.3 (On the conservativeness of the bound) . With the physics-related constants used in the experiments ( κp0 = 10 −4, ηp = 10 , κd0 = 0 .5, ηd = 1 ,
+
+a = 0 .35 , b = 1 .15 ), the dominant constant is K+ 
+
+> p
+
+= κp0eηpb ≈ 9.9, so that, e.g., for γ = 0 .95 , ε = 10 −2, s = 1 , condition C < 1 guarantees the ESP for ρM ≲ 0.09 . As is typical of global Lipschitz arguments, the condition is sufficient but far from necessary: the bound is dominated by the potentiation rate at the upper end of the Rescale range, a regime that the driven dynamics visit only sporadically, and empirically the models operate stably in the entire explored hyper-parameter range. Sharper conditions could be obtained by a local analysis around the operating regime, which we leave for future work. 
+
+Remark 5.4 (Noise non-amplification) . We can extend the same tightness argument from the contraction of initial conditions to the propagation of runtime perturbations. To this end, we consider additive state noise injected at every step, i.e., ht 7 → ht + σξt, with ξt i.i.d. standard Gaussian. To isolate the recurrent operator, consider the linear, non-leaky perturbation model 
+
+δht = ρM Mδht−1 + σξt, corresponding to α = 1 and a unit activation deriva-17 tive. For ρM < 1, its stationary covariance is P = σ2 P 
+
+> k≥0
+
+ρ2kM Mk(Mk)⊤ =
+
+σ2(1 − ρ2 
+
+> M
+
+)−1I. The value relies on the linearization, the independence of the realization on M being orthogonal for every draw. For a dense random recurrence the same sum is governed by the singular values of Wkh, which non-normality spreads about ρk rather than concentrating at it: the amplifi-cation is no longer uniform across directions, and near the edge of stability, where the slowly decaying terms dominate the sum, the upper tail yields a larger and markedly realization-dependent noise gain. For the MF models, finally, the per-step contraction is dominated by the effective leak γ − εS 
+
+rather than by ρM (eq. 9), so the noise gain is essentially flat in ρM . These qualitative predictions are empirically verified in Section 5.3. For both the Hadamard reservoirs, the practical consequence is that the noise response is 
+
+fixed at design time , i.e., it does not vary across realizations: in the H-ESN it is set by the single scalar ρM , through the exact orthogonality of the opera-tor, and in the MF-H-ESN by the neuron parameters γ and ε, whose effective leak dominates the contraction. A dense random recurrence gives neither, since its gain varies from one realization to the next. 
+
+5.2. Spectral and mixing properties 
+
+We now move from stability to the quality of the state representation, i.e., to the way in which the structure of M shapes the information that the reservoir retains. We make three observations, and we support the first two with measurements on synthetic signals, collected in Figure 5. These compare four recurrent couplings at N = 256 , scaled to a common spectral radius ρ,i.e., the Hadamard operator M, whose scaling ρM plays exactly this role, a dense random orthogonal matrix, the SCR, and the dense random matrix of a standard ESN. The first three are orthogonal, and the last one is not. The third observation concerns instead the ablated variants of the operator, and we validate it together with the rest of the ablation, in Section 6.4. We first look at the spectrum. Since ρM M is a scaled orthogonal matrix, 
+
+all its eigenvalues lie exactly on the circle of radius ρM . A dense random reservoir rescaled to spectral radius ρ has instead eigenvalues spread across the whole disk of radius ρ (circular law): most modes are strongly contrac-tive and forget rapidly, and memory is effectively carried by the few modes near the edge. In the orthogonal case, instead, every direction of the state space retains information at the same uniform rate ρM . This is the spectral mechanism behind the near-optimal memory capacity of orthogonal reser-voirs [13, 14], and the measurement agrees with it. We quantify the mem-18 ory by the short-term memory capacity (MC), measured with the standard protocol [13, 12], i.e., i.i.d. input in U (−0.8, 0.8) , ridge readouts trained to reconstruct xt−k for k ≤ 2N , and MC = P 
+
+> k
+
+r2 
+
+> k
+
+on held-out data ( tanh reser-voirs, ωx = 0 .1, no bias, 3 seeds). At ρ = 0 .99 it is 148 for the Hadamard operator and 151 for the dense random orthogonal matrix, against 45 for the dense random reservoir of a standard ESN, and the ordering holds over the whole range ρ ∈ [0 .80 , 0.99] (Figure 5, left). The structure therefore costs nothing in memory, while the non-orthogonal recurrence retains about three times less, saturating well below the others and degrading near the edge of stability with an increasing variance across realizations. We then turn to the speed at which the coupling spreads information, which the spectrum does not determine. We can notice that the SCR shares this spectral picture (the cycle is itself orthogonal, with eigenvalues on the circle at the N -th roots of unity). Every entry of M equals ±1/√N , so a single application of M propagates each state coordinate to every other coordinate; the cyclic shift instead moves information by one position per step, requiring Θ( N ) steps for a full traversal of the state. This is directly measurable on a coordinate impulse, i.e., by setting a single unit i to 1 and all the others to 0, and following the vector Mtei obtained after t applications of the coupling alone. To count how many units are active in it we use the participation ratio, which for a generic vector v ∈ RN is 
+
+PR( v) = 
+
+  P  
+
+> j
+
+v2
+
+> j
+
+2
+
+P 
+
+> j
+
+v4
+
+> j
+
+, (10) and which equals 1 when a single coordinate carries the whole vector, and N
+
+when all the coordinates carry an equal share, so that it can be read as an effective number of active units. Being homogeneous of degree zero, it does not change if the state is rescaled, i.e., it measures how the state is spread and not how large it is, and its value does not depend on ρ, which we set to 
+
+0.95 . Measured on v = Mtei and averaged over ten choices of the impulsed unit, it confirms the two extremes (Figure 5, right): the Hadamard operator reaches PR = N = 256 after a single step, which is the largest value the measure can take, and then settles at PR ≈ N/ 3 together with the dense couplings, whereas the SCR stays at PR = 1 at every horizon, since a cyclic shift translates the impulse from one unit to the next without ever spreading it. Finally, we can ask what the randomization elements D1, Π and D2
+
+contribute, and we find that they remove two degeneracies. To this end, it is 19 instructive to consider what happens without them, i.e., when the recurrent operator is the bare transform bHN . We can notice that such an operator would already satisfy both observations above, as it is orthogonal and it mixes the whole state in a single step. Interestingly, however, it makes a poor reservoir, and for two distinct reasons. First, bHN is an involution, i.e., bH2 
+
+> N
+
+= I, and applying it twice returns the state where it started. The resulting reservoir alternates between two states instead of exploring the state space, and its whole spectrum collapses onto the two points ±1. Interposing the permutation Π breaks the involution, and spreads the eigenvalues over the circle. Second, bHN cancels any drive that reaches all the units with the same value, and concentrates it onto a single unit. Here a permutation cannot help, as it maps a constant drive into a constant drive, while the sign diagonals can (see Appendix C for details). This second effect is invisible to a linear probe, which can reconstruct a delayed input whichever unit is carrying it. It emerges only under the coordinatewise nonlinearity, where it determines whether the state manifold stays rank one. Both degeneracies are measured empirically in the ablation of Section 6.4. Taken together, the results in Figure 5 show that the Hadamard operator attains the memory of a dense orthogonal recurrence and the one-step mixing of a dense random one, while retaining the cost and the hardware complexity of a structured, multiplier-free operator. It therefore occupies the middle ground described in Section 2.3, between the maximally local topologies, which are cheap but slow to mix, and the dense orthogonal recurrences, which mix in one step but cost O(N 2) to store and to apply. 
+
+5.3. Noise response 
+
+We close the analysis by verifying the noise response predicted by Re-mark 5.4, injecting additive state noise of magnitude σ = 10 −3 at every step in one of two copies driven by the same input, and measuring the noise gain g = ∥˜ht − ht∥2/(σ√N ), i.e., the stationary distance between the per-turbed and the clean state, in units of the noise injected at a single step. Figure 6 reports it as a function of ρ, and confirms the three predictions of the Remark. The gain of the orthogonal recurrences is set by ρ alone, with negligible spread across realizations, and follows (1 − ρ2)−1/2 until the acti-vation saturates near the edge. The dense random reservoir has instead a gain that varies from one realization to the next, which is the non-normality effect discussed in the Remark. The MF models show a gain that does not 20 depend on ρ at all, since their state decay is set by the neuron kinetics rather than by the recurrence. 0.80 0.85 0.90 0.95      
+
+> ρ
+> 50 75 100 125 150
+> Memory capacity  ESN SCR Orth H-ESN
+> 010 20 30 40
+> steps t
+> 10 0
+> 10 1
+> 10 2
+> PR( Mtei) ESN SCR Orth H-ESN
+> Memory and mixing diagnostics (N = 256)
+
+Figure 5: Memory and mixing at N = 256 (mean ± std over 3 seeds). Left: memory capacity vs. the spectral radius ρ. The orthogonal recurrences (SCR, dense orthogonal, Hadamard) dominate the dense random ESN, and the Hadamard operator matches the dense orthogonal one. Right: participation ratio (eq. 10) of Mtei vs. t (log scale), at 
+
+ρ = 0 .95 and averaged over ten choices of the impulsed unit i; PR does not depend on 
+
+ρ. The SCR translates the impulse from one unit to the next without ever spreading it (PR = 1 ), whereas the Hadamard operator attains the maximum PR = N in one step. 
+
+6. Experimental evaluation 
+
+In this section we assess the Hadamard reservoirs empirically, on time-series classification and regression benchmarks. Section 6.1 describes the benchmarks, the baselines and the model-selection protocol. First, in Sec-tion 6.2 we compare all the models at a common reservoir size of N = 256 ,which we take as the reference point of the study. Then, in Section 6.3 we let the reservoir size grow up to N = 8192 , and analyze how the performance of each model scales with it, on both the classification and the regression benchmarks. Finally, we look inside the operator and at its physical real-izability: Section 6.4 ablates its components, and Section 6.5 quantifies the robustness of the models to the perturbations that a physical implementation would encounter. The experiments reported in this section were run on an NVIDIA A100 GPU. The code used for our experiments is written in TensorFlow and Scikit-21 0.80 0.85 0.90 0.95   
+
+> ρ
+> 246810 12 14
+> noise gain  g
+> state-noise gain, σ= 10 −3
+> ESN SCR Orth H-ESN MF-ESN MF-H-ESN
+
+Figure 6: Empirical state-noise gain on synthetic signals, vs. the spectral radius ρ (N =256 , mean ± std over 3 seeds). The three orthogonal recurrences coincide, the dense random reservoir exceeds them at the edge of stability with a large seed variance, and the MF models show a flat gain, independent of ρ.
+
+learn, and is made publicly available online. 2 Further hardware and software details are reported in Appendix D. 
+
+6.1. Experimental setup 
+
+We evaluate the proposed architectures on twenty time-series classifi-cation benchmarks and seven regression ones, drawn from the UEA/UCR classification archive [30] and from the Monash TSER archive [31]. 3 For classification, the original datasets were split into training and test using a stratified 66%–33% division, with a nested stratified 66%–33% split of the training portion for model selection; input sequences were standardized to zero mean and unit variance using statistics computed solely on the train-ing data. For regression, we used the predefined train–test splits and an 80%–20% training–validation split of the training portion. We compare the proposed H-ESN and MF-H-ESN (with their simplified-input variants, Section 3.2) against the following baselines: the conventional dense ESN of eq. 1; the dense MF-ESN of eqs. 2–3; the canonical SCR [12], with identical cycle weights and input signs determined by the decimal digits 
+
+> 2
+
+https://github.com/gallicch/Hadamard 
+
+> 3
+
+Classification datasets from https://timeseriesclassification.com ; regression datasets from http://tseregression.org .
+
+22 of π; a dense random orthogonal reservoir, obtained by QR decomposition of a Gaussian matrix, which isolates the role of orthogonality from that of structure; and a fully trained gated recurrent unit network (GRU) [32]. The GRU is a single recurrent layer with a linear or softmax head, trained with Adam and early stopping on the validation split; its hidden size, up to the same value N = 256 used for the reservoirs, and its learning rate are selected on validation. Reservoir hyper-parameters are selected by random search over 500 con-figurations on the validation split, and the readout is trained on the reservoir state at the final time step by ridge regression with the regularization cho-sen by leave-one-out on the training set. All the baselines undergo the same model-selection protocol. Unless stated otherwise, results are averages and standard deviations over 3 random initializations (the SCR being determin-istic, its repetitions coincide). Appendix D reports further details, including the search spaces and the training details of the GRU baseline. 
+
+6.2. Comparison at fixed reservoir size 
+
+Tables 1 and 2 report test performance at N = 256 , our reference reservoir size and the starting point of the scaling analysis of Section 6.3, for the classi-fication and regression benchmarks respectively; the number of classes of each classification dataset is indicated in parentheses, and the best result per row is in bold. We start from the classification benchmarks of Table 1, where the two simplified-input Hadamard variants lead the comparison. They attain the two best mean accuracies over the twenty tasks (last row of the table), and are the best model on eleven of them. The dense orthogonal baseline is competitive, but it is the best model on a single dataset only. The SCR, equally orthogonal but with a localized cycle coupling, collapses on Epilepsy (0.75 against 0.94 –0.97 for the other reservoirs), which is the clearest case in which global state mixing matters; the comparison between the two an-ticipates the analysis of Section 6.4. We find the trained GRU competitive with the reservoirs on several datasets, and the single best model on three of them. It falls clearly behind, however, on the tasks with the least favorable data-to-class ratio: on Adiac (37 classes, about nine training sequences per class in our experimental settings) it reaches only 0.33 against 0.53 –0.66 for the reservoirs, and it trails on BasicMotions. We attribute this to the small-sample regime of these benchmarks, i.e., to a known strength of RC. Fitting the recurrent weights of a gated network by gradient descent is data-hungry, 23 whereas the reservoir models solve only a convex ridge problem for the read-out. We can also notice that the structured coupling preserves the accuracy of the memristive-friendly models, i.e., MF-H-ESN matches or slightly im-proves MF-ESN on most datasets, while MF-H-ESN si remains competitive on several of them, with more variability due to its fully binary input structure. We then turn to the regression benchmarks of Table 2. Here the mean squared errors depend on the scale of each target, so the rows are best read one at a time. The dense memristive-friendly model is the best on three of the seven rows, i.e., on BeijingPM10 and on two of the three FloodModeling tasks, while on Covid3Month all the models land within a few percent of each other. The Hadamard variants perform similarly to the dense models they replace, with H-ESN close to the conventional ESN and MF-H-ESN close to MF-ESN (the simplified-input variants deviate more, and do so on the FloodModeling tasks). The GRU is the best on three of the remaining four rows, and the SCR on FloodModeling2, while a reservoir outperforms the GRU on the three FloodModeling problems by factors of 2.5 to 13 . On these tasks the GRU also shows a seed-to-seed variability of a different order, which follows from its iterative training, in contrast with the closed-form ridge readout of the reservoir models. 4
+
+Across both types of task, the Hadamard recurrence preserves the perfor-mance of the standard ESN models, and occasionally improves it. We read this as evidence that the structured orthogonal operator is a viable substitute for a dense recurrent matrix in conventional reservoirs as well. 
+
+6.3. Scaling with the reservoir size 
+
+We next ask whether the structured models remain competitive as the reservoir grows, i.e., in the regime where their O(N log N ) compute and their 
+
+O(N ) parameters become decisive. Hyper-parameters are selected once at 
+
+N = 256 , with the protocol of Section 6.1, and reused across sizes, following the common practice of selecting the global parameters on a small reservoir and then scaling it up, as the selected values are usually transferable to bigger reservoirs [33]. Results are averaged over 3 random instantiations, and per-dataset curves are reported in Appendix E. 
+
+> 4The hyper-parameter grid of the GRU was widened, with respect to the classifica-tion experiments, after observing systematic plateaus at the constant predictor. See Ap-pendix D.
+
+24 Dataset (#cl.)  ESN  SCR  Orth  GRU  H-ESN  H-ESN si  MF-ESN  MF-H-ESN  MF-H-ESN si 
+
+> Adiac (37)  0.53 ±0.05  0.50 ±0.00  0.57 ±0.04  0.33 ±0.08  0.57 ±0.05  0.55 ±0.05  0.59 ±0.01  0.60 ±0.04  0.66 ±0.02
+> ArticularyWordRecognition (25)  0.99 ±0.00  0.99 ±0.00  0.99 ±0.00  0.85 ±0.03  0.99 ±0.00  0.99 ±0.00  0.98 ±0.00  0.99 ±0.00  0.99 ±0.00
+> BasicMotions (4)  1.00 ±0.00  1.00 ±0.00  0.93 ±0.06  0.78 ±0.13  1.00 ±0.00  1.00 ±0.00  0.90 ±0.02  1.00 ±0.00  1.00 ±0.00
+> ECG5000 (5)  0.95 ±0.00  0.95 ±0.00  0.95 ±0.00  0.95 ±0.00  0.95 ±0.00  0.95 ±0.00  0.95 ±0.00  0.95 ±0.00  0.95 ±0.00
+> ERing (6)  0.96 ±0.00  0.96 ±0.00  0.95 ±0.01  0.83 ±0.05  0.96 ±0.00  0.98 ±0.00  0.93 ±0.01  0.96 ±0.01  0.98 ±0.01
+> Earthquakes (2)  0.81 ±0.00  0.79 ±0.00  0.81 ±0.01  0.82 ±0.01  0.81 ±0.01  0.84 ±0.00  0.81 ±0.00  0.81 ±0.00  0.83 ±0.00
+> Epilepsy (4)  0.95 ±0.01  0.75 ±0.00  0.94 ±0.01  0.83 ±0.06  0.95 ±0.01  0.97 ±0.00  0.95 ±0.01  0.96 ±0.00  0.96 ±0.01
+> FaceDetection (2)  0.65 ±0.01  0.67 ±0.00  0.65 ±0.01  0.64 ±0.01  0.66 ±0.01  0.67 ±0.01  0.60 ±0.01  0.60 ±0.01  0.60 ±0.00
+> FingerMovements (2)  0.69 ±0.00  0.68 ±0.00  0.65 ±0.01  0.64 ±0.04  0.67 ±0.01  0.71 ±0.01  0.65 ±0.02  0.61 ±0.00  0.67 ±0.05
+> FordA (2)  0.70 ±0.01  0.72 ±0.00  0.70 ±0.00  0.72 ±0.10  0.70 ±0.01  0.71 ±0.00  0.71 ±0.01  0.72 ±0.00  0.71 ±0.00
+> FordB (2)  0.71 ±0.02  0.75 ±0.00  0.71 ±0.00  0.79 ±0.10  0.74 ±0.01  0.74 ±0.01  0.74 ±0.01  0.74 ±0.00  0.74 ±0.01
+> Handwriting (26)  0.67 ±0.02  0.58 ±0.00  0.68 ±0.01  0.57 ±0.03  0.66 ±0.01  0.62 ±0.01  0.67 ±0.00  0.65 ±0.00  0.70 ±0.01
+> LSST (14)  0.52 ±0.00  0.54 ±0.00  0.53 ±0.00  0.62 ±0.01  0.52 ±0.00  0.53 ±0.00  0.59 ±0.00  0.59 ±0.00  0.58 ±0.00
+> Libras (15)  0.82 ±0.01  0.82 ±0.00  0.83 ±0.01  0.67 ±0.03  0.76 ±0.02  0.82 ±0.02  0.83 ±0.03  0.80 ±0.01  0.79 ±0.02
+> MindReading (5)  0.64 ±0.01  0.59 ±0.00  0.62 ±0.02  0.59 ±0.01  0.63 ±0.00  0.64 ±0.01  0.60 ±0.01  0.58 ±0.02  0.63 ±0.01
+> NATOPS (6)  0.95 ±0.01  0.94 ±0.00  0.94 ±0.02  0.94 ±0.01  0.95 ±0.01  0.94 ±0.00  0.96 ±0.01  0.95 ±0.01  0.94 ±0.00
+> PEMS-SF (7)  0.80 ±0.03  0.80 ±0.00  0.78 ±0.02  0.81 ±0.00  0.85 ±0.01  0.81 ±0.01  0.84 ±0.01  0.79 ±0.03  0.88 ±0.01
+> PenDigits (10)  0.99 ±0.00  0.99 ±0.00  0.99 ±0.00  0.99 ±0.00  0.98 ±0.00  0.99 ±0.00  0.99 ±0.00  0.99 ±0.00  0.99 ±0.00
+> PowerCons (2)  0.98 ±0.00  0.99 ±0.00  0.97 ±0.01  0.92 ±0.01  1.00 ±0.00  0.99 ±0.02  1.00 ±0.00  0.99 ±0.00  0.99 ±0.01
+> RacketSports (4)  0.89 ±0.01  0.88 ±0.00  0.89 ±0.01  0.82 ±0.03  0.87 ±0.02  0.90 ±0.01  0.82 ±0.01  0.86 ±0.01  0.86 ±0.02
+> Mean  0.810  0.794  0.804  0.755  0.811  0.818  0.805  0.807  0.823
+> Table 1: Test accuracy (higher is better; mean  ± std over 3 runs) on the time-series classification benchmarks at  N = 256 . The number of classes is in parentheses; best per row (by unrounded mean) in bold, and the last row averages each column over the twenty benchmarks. SCR has zero standard deviation by construction: cycle weights and  π-digit input signs make it fully deterministic [12]. GRU is the only fully trained model (protocol in Section 6.1). The subscript  si  denotes the simplified-input variant defined in Section 3.2.
+
+25 Dataset  ESN  SCR  Orth  GRU  H-ESN  H-ESN si  MF-ESN  MF-H-ESN  MF-H-ESN si 
+
+> AppliancesEnergy  7.83 ±0.62  7.40 ±0.00  7.34 ±1.00  6.78 ±0.54  8.21 ±0.33  9.28 ±2.23  7.41 ±0.88  7.29 ±0.21  7.91 ±0.40
+> BeijingPM10  (×10 3) 9.52 ±0.35  9.87 ±0.00  13 .74 ±3.57  9.67 ±0.36  9.99 ±0.54  9.90 ±0.81  9.26 ±0.09  9.50 ±0.19  9.58 ±0.46
+> BeijingPM25  (×10 3) 4.47 ±0.14  4.30 ±0.00  4.36 ±0.20  3.91 ±0.17  4.37 ±0.27  4.12 ±0.11  4.09 ±0.04  4.21 ±0.22  4.11 ±0.21
+> Covid3M  (×10 −3) 1.86 ±0.00  1.85 ±0.00  1.86 ±0.00  1.81 ±0.07  1.86 ±0.00  1.85 ±0.00  1.84 ±0.00  1.91 ±0.00  1.83 ±0.01
+> FloodM1  (×10 −5) 7.15 ±0.48  10 .61 ±0.00  13 .53 ±3.94  13 .77 ±16 .91  7.30 ±0.25  10 .10 ±0.06  3.56 ±0.79  3.66 ±0.56  5.88 ±0.42
+> FloodM2  (×10 −5) 2.45 ±0.16  1.87 ±0.00  2.31 ±0.13  4.68 ±0.58  2.05 ±0.12  12 .69 ±5.69  2.76 ±0.26  2.60 ±0.21  3.68 ±1.03
+> FloodM3  (×10 −5) 7.28 ±0.11  7.72 ±0.00  7.49 ±0.23  51 .87 ±0.07  7.40 ±0.13  7.55 ±0.03  3.97 ±0.25  5.26 ±0.46  7.67 ±0.72
+> Table 2: Mean squared error (lower is better; mean  ± std over 3 runs) on the time-series regression benchmarks at  N = 256 .Covid3Months is abbreviated Covid3M, FloodModeling FloodM; best per row in bold. As in Table 1, SCR is deterministic and has zero standard deviation by construction. The subscript  si  denotes the simplified-input variant defined in Section 3.2.
+
+26 We start from the classification benchmarks, whose test accuracy for N =28, . . . , 213 is summarized in Figure 7, for the eight reservoir models. The left panel averages accuracy across benchmarks, and the right one averages the rank of each model, computed benchmark by benchmark. We take the rank as the more robust of the two, since averaging accuracies mixes tasks of different difficulty and number of classes. Three trends emerge. First, every model benefits from scale, by a compa-rable amount (between 3.1 and 4.2 accuracy points on average from N = 256 
+
+to N = 8192 ), so in absolute terms the structured recurrence keeps pace with the dense one. Instead, scale changes the ordering among the mod-els. A Hadamard-based model attains the best mean accuracy on twelve of the twenty benchmarks at N = 256 and on thirteen at N = 8192 , and the average-rank panel shows the ordering to be stable across the whole range, rather than the product of a single size. Second, the two simplified-input vari-ants are consistently the best-ranked models at every size, with MF-H-ESN si 
+
+first throughout: at N = 8192 it is 1.7 points above the dense MF-ESN it simplifies (better on 14 of 20 datasets) and 0.7 above the conventional ESN. This is worth emphasizing because that variant is also the most hardware-frugal of the eight: a single binary input wire per unit, a multiplier-free recurrence, and memristive-friendly neuron dynamics. Third, the behavior is explained by mixing on top of orthogonality. H-ESN stays at or above the dense orthogonal reservoir at every size, by up to 1.5 accuracy points, which is consistent with orthogonality being the operative property. However, H-ESN delivers this property without ever materializing the matrix, whereas generating a dense orthogonal one by QR costs O(N 3). Against the equally orthogonal but local SCR, H-ESN gains 2.2 accuracy points at N = 8192 ,which reflects the global mixing anticipated in Section 5 and dissected in the ablation below. We then turn to the seven regression benchmarks of Figure 8, where the reservoir size plays a smaller role than in classification. Averaged over the benchmarks, the mean squared error is nearly flat over the whole range of sizes, against the three to four accuracy points that every model gained on the classification benchmarks. We read this as a property of these tasks rather than of the models, i.e., the targets are scalar and, on several of these benchmarks, weakly determined by the input series, so that additional state dimensions have little to encode, and whatever advantage a larger reservoir confers here is already available at N = 256 .The ordering among the models is compressed accordingly, and two ob-27 256 512 1024 2048 4096 8192 reservoir size N      
+
+> 0.80 0.81 0.82 0.83 0.84 0.85 mean test accuracy
+> average over datasets
+> 256 512 1024 2048 4096 8192 reservoir size N
+> 3.0 3.5 4.0 4.5 5.0 5.5 mean rank (1 = best)
+> average rank among the eight models
+> ESN SCR Orth H-ESN H-ESN si
+> MF-ESN MF-H-ESN MF-H-ESN si
+
+Figure 7: Scaling with the reservoir size N = 2 8, . . . , 213 over the twenty classification benchmarks (3 instantiations each). Left: test accuracy averaged over datasets. Right: average rank among the eight models, computed per dataset (rank 1 is best; the axis is inverted so that better is up). Hyper-parameters are selected at N = 256 and reused across sizes for all models. The subscript si denotes the simplified-input variant defined in Section 3.2. Per-dataset curves: Appendix E. 
+
+servations can be drawn from it. First, on these tasks the memristive-friendly neuron is what pays off, i.e., the dense MF-ESN is the best-ranked model at five of the six sizes, and MF-H-ESN si leads at the remaining one. This is con-sistent with the fixed-size comparison of Section 6.2, where the memristive-friendly models took the three FloodModeling benchmarks. Second, the Hadamard reservoirs remain competitive at every scale, as a Hadamard vari-ant is among the three best-ranked models at each size, MF-H-ESN being the second best at N = 8192 . Its error stays within a few percent of the corresponding dense model, MF-ESN, on most benchmarks and at every size (Appendix E). The structured recurrence therefore keeps pace with the dense one here as well, in a regime in which scale itself brings little to any model. Across both types of task, Figure 9 puts these trends on a statistical footing over all the twenty-seven benchmarks. There the reservoir size is treated as one more hyper-parameter selected on validation, i.e., the same treatment the GRU receives for its hidden size, so that every model enters the comparison at the capacity that validation selects for it. The two selections follow the same protocol, over ranges that are comparable in the number of trainable parameters, i.e., in the quantity that is actually fitted to the data (Appendix B). Following the standard protocol for comparing models over 28 256 512 1024 2048 4096 8192 reservoir size N                
+
+> 1.8 ×10 3
+> 2×10 3
+> 2.2 ×10 3
+> 2.4 ×10 3
+> 2.6 ×10 3
+> mean MSE
+> average over datasets
+> 256 512 1024 2048 4096 8192 reservoir size N
+> 3456mean rank (1 = best)
+> average rank among the eight models
+> ESN SCR Orth H-ESN H-ESN si
+> MF-ESN MF-H-ESN MF-H-ESN si
+
+Figure 8: Scaling with the reservoir size on the seven regression benchmarks (3 instan-tiations each). Left: mean squared error averaged over benchmarks, logarithmic scale. Right: average rank among the eight models, computed per benchmark (rank 1 is best). Compare with Figure 7: here the curves are nearly flat. 
+
+multiple datasets [34], a Friedman test finds the differences among the nine models to be statistically significant. The Nemenyi post-hoc analysis then locates them, i.e., it separates the trained GRU from the four best-ranked reservoirs, while the eight reservoir models all lie within one critical distance of each other. 5 Three of the four Hadamard variants occupy the first three positions by mean rank, and are statistically indistinguishable from the dense baselines. These results confirm that the structured recurrence matches dense reservoirs in accuracy, at a fraction of their cost. 
+
+6.4. Ablation of the structured operator 
+
+To isolate the contribution of each factor of the structured operator 
+
+M = D2 bHN Π D1 (eq. 4), we compare it against four reduced variants ob-tained by switching components off while keeping bHN fixed: D2 bHN D1 (no permutation), bHN Π (no sign diagonals), the bare transform bHN , and the permutation-only control Π (mixing removed). All variants are rescaled to the same spectral norm ρM , so they differ in structure alone and not in con-traction rate. We probe them at N = 256 , from two complementary points 
+
+> 5
+
+A Friedman test restricted to the eight reservoir models does not reject the null hy-pothesis of equal performance ( p = 0 .20 ). 
+
+29 Figure 9: Critical difference diagram over the twenty-seven benchmarks (twenty classifi-cation, seven regression), with the reservoir size selected on validation for the reservoir models and the hidden size selected on validation for the GRU. Lower rank is better; models joined by a bar are not significantly different at the 5% level (Friedman–Nemenyi,     
+
+> CD = 2 .31 ; Friedman test on the nine models, p= 5 ·10 −4).
+
+of view. Figure 10 characterizes each variant as an operator, through the participation ratio of Mtei (top, eq. 10) and the memory capacity as a func-tion of ρM (bottom). Figure 11 then measures the representational richness of the resulting nonlinear states, through their effective rank, as the input map, i.e., the input weight matrix Wx of eq. 1 that injects the driving signal into the reservoir, degrades from well-randomized to degenerate. As anticipated in Section 5, the bare transform bHN is degenerate, and the top panel of Figure 10 shows its involutivity ( bH2 
+
+> N
+
+= I) directly in the mixing, i.e., a coordinate impulse is spread over the whole state and then returned to a single unit, alternating between the two at every step, whereas the variants that combine bHN with a randomization element keep the impulse spread at every horizon. The same degeneracy collapses both the memory ( MC ≈ 2,bottom panel) and the diversity of the states (effective rank ≈ 2 out of N ), which confirms that some randomization is indispensable. We find that the two remaining elements, the permutation Π and the sign diagonals, protect two different properties, which we take in turn. We start from the memory curves of Figure 10 (bottom), where the per-mutation governs the behavior near the edge of stability. At ρM = 0 .95 the full operator reaches MC = 198 .1 ± 1.1, and the diagonal-free operator bHN Π
+
+matches it within seed variability ( 196 .9 ± 1.8). Removing the permutation (D2 bHN D1) lowers it to 190 .8 ± 4.4, i.e., it costs about seven points of mem-ory and multiplies the seed-to-seed spread by four. The same pattern holds 30 at ρM = 0 .99 , with 247 .9 ± 3.1 against 238 .0 ± 8.1. The sign diagonals, in contrast, play no role here: indeed, bHN Π reproduces the full memory curve throughout. We then turn to Figure 11, which asks how much the reservoir relies on its input map being well randomized. We drive the models with a scalar i.i.d. signal, so that Wx reduces to a single column, and we interpolate that column, at fixed norm, between two extremes: entries drawn i.i.d. ( β = 0 ), which is the standard initialization of Section 2.1, and the constant vector 
+
+1 (β = 1 ), along which every unit receives exactly the same drive. On the resulting states we measure two quantities. The first is their effective rank (left panel), i.e., the participation ratio of eq. 10 evaluated on the singular values of the collected states, which counts how many directions of the state space are actually populated. The second is the memory capacity (right panel). Under a well-randomized input all the variants populate about four direc-tions. As the input concentrates on the constant vector, the effective rank of the operators without sign diagonals collapses towards 1, i.e., their states end up confined to a single direction, while the full operator and D2 bHN D1 hold their rank. This confirms what we anticipated in Section 5.2, i.e., that a per-mutation maps a constant drive into a constant drive, so that only the sign diagonals can break it. The memory capacity, in the right panel, stays flat across the whole sweep for every variant that retains the Hadamard mixing, which confirms that the effect is purely nonlinear, i.e., invisible to a linear probe. Taken together, the ablation shows that the three structural elements of M are individually necessary, and each for its own reason. bHN supplies the one-step global mixing, the permutation Π secures the memory near criticality, and the sign diagonals D1, D2 preserve nonlinear state diversity under adverse input conditions. 
+
+6.5. Robustness to quantization and noise 
+
+We conclude the experimental analysis by subjecting the models to the perturbations that a physical realization would encounter, and by measuring what each of them costs in accuracy. We consider two runtime perturba-tions, i.e., additive state noise, injected at every step with a standard de-viation equal to a fraction σ of the root mean square (RMS) of the clean states, so that σ = 1% perturbs a state by one hundredth of its typical mag-nitude, and in-loop uniform quantization of the state to B bits, where ht is 31 0 5 10 15 20 25 30 35 40 
+
+steps t       
+
+> 10 0
+> 10 1
+> 10 2
+> PR( Mtei)
+> 0.800 0.825 0.850 0.875 0.900 0.925 0.950 0.975
+
+ρM 
+
+> 050 100 150 200 250
+> Memory capacity
+> 0.95 0.99 200 250
+
+zoom, ρM → 1
+
+D2̂ HNΠD1 (full) 
+
+D2̂ HND1 (no Π) ̂
+
+HNΠ (no D)̂
+
+HN (bare) Π (no  ̂ HN)Figure 10: The ablation variants as operators ( N = 256 ). Top: participation ratio (eq. 10) of Mtei at ρM = 0 .95 , i.e., the number of active coordinates t steps after a coordinate impulse; the bare transform bHN alternates between the whole state and a single unit, as its involutivity prescribes, and the permutation-only control Π never spreads the impulse. Bottom: memory capacity of the linear reservoir vs. ρM , with an inset zooming near the edge of stability, where removing the permutation lowers the memory and raises its variance, while removing the sign diagonals does not. 
+
+32 0.00 0.25 0.50 0.75 1.00 
+
+input degeneracy β
+
+(0: i.i.d. → 1: constant)     
+
+> 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5
+> Effective rank of states
+> 0.00 0.25 0.50 0.75 1.00
+
+input degeneracy β
+
+(0: i.i.d. → 1: constant)         
+
+> 020 40 60 80 100 120
+> Memory capacity
+> D2̂HNΠD1(full)
+> D2̂HND1(no Π) ̂
+> HNΠ(no D)Π(no  ̂ HN)
+
+Figure 11: Sensitivity to a degenerate input map ( N = 256 , ρM = 0 .9, 20 seeds). The single column of the input weight matrix Wx is interpolated at fixed norm between i.i.d. entries ( β = 0 ) and the constant vector 1 (β = 1 ), along which every unit receives the same drive. Left: the effective rank of the resulting nonlinear states, i.e., the participation ratio (eq. 10) of their singular values, which counts the populated directions of the state space. It collapses for the operators without sign diagonals ( bHN Π and Π), while the full operator and D2 bHN D1 (no permutation) keep it flat. Right: the memory capacity is flat for every variant that retains the Hadamard mixing, so the effect is purely nonlinear; only the mixing-free control Π degrades, and just at β = 1 . Cf. Appendix C. 
+
+quantized before re-entering the recurrence. We also consider two permanent 
+
+perturbations of the recurrent operator, i.e., a multiplicative device mismatch 
+
+w 7 → w(1 + δ) with δ ∼ N (0 , σ 2
+
+> d
+
+), and faults in the discrete elements of the operator, i.e., random flips of a fraction p of the signs in D1, D2 and faulty routing, obtained by drawing a fraction p of the units and permuting their destinations among themselves. The corrupted routing is then again a per-mutation, i.e., the connections are misplaced but neither duplicated nor lost. A fault that left a unit unconnected, or two units driving the same desti-nation, would take Π out of the permutations and M out of the orthogonal matrices, and we do not cover it here. Runtime perturbations are evaluated in two regimes: a deploy regime, with the readout trained on clean states and 33 the perturbation active only at test time, and an on-device regime, with the perturbation active also while the readout is trained, as is standard practice for in-memory computing hardware [2]. Permanent perturbations amount to a different reservoir realization, and we evaluate them with the on-device readout only. Hyper-parameters are reused from the model selection of Sec-tion 6 with no re-tuning, at N = 256 with 3 reservoir realizations, on four of the classification benchmarks, chosen to span short and long sequences, and univariate and multivariate inputs: ECG5000, Epilepsy, RacketSports, and FordA, the last being the longest at T = 500 steps. We start from the accuracy cost of the runtime perturbations, reported in Figure 12 with the three short tasks in the top row and FordA in the bottom one. Three observations emerge. First, in the deploy regime state noise is expensive for every model, i.e., on the short tasks the accuracies fall from about 0.92 to between 0.50 and 0.72 already at σ = 0 .3% , since a ridge readout fitted on clean states amplifies any mismatch in the state distribution. Second, the on-device readout recovers most of this loss on the short tasks, where the memristive-friendly Hadamard model is consistently the most robust, holding 0.84 at σ = 1% against between 0.76 and 0.80 
+
+for the leaky-tanh models, consistently with its leak-dominated noise gain. FordA is the counterexample: over 500 steps the accumulated noise erases the discriminative information itself, so the two regimes nearly coincide and every model sits on the 0.5 level of this binary task from σ = 1% on, the H-ESN being the last to reach it. Third, in-loop quantization at 8 bits is essentially free for every model, which loses at most 4.4 points of its unper-turbed accuracy with the on-device readout, and at 4–6 bits the MF models are the most robust on the short tasks. Table 3 completes the picture with the permanent perturbations. Static variability turns out to be essentially free. The dense reservoirs absorb even 
+
+20% mismatch, since a jittered random matrix is statistically still a random matrix and the recalibrated readout adapts to it. The Hadamard models lose at most 2.3 points at 20% mismatch, whether the error acts on every entry of the materialized operator or on the 2N log 2 N nonzero entries of the butterfly stages, and the loss is concentrated on FordA, where large gain errors visibly break the exact orthogonality on which the guarantees of Section 5 rest. Faults in the discrete elements are nearly free throughout: corrupting 5% of the signs costs at most 0.8 points, and rewiring 5% of the routing costs less than half a point, which is what the construction predicts, for the reason we discuss next. 34 Summarizing, every model tolerates these perturbations well once the readout is trained on the device, the dense baselines included. What distin-guishes the Hadamard reservoir is where its margin comes from, i.e., from the construction rather than from the particular device. Its noise response is fixed at design time by the exact orthogonality of the operator and by the single tuned gain (Section 5.3), so it can be predicted under the model assumptions. Little of its recurrence lives on a continuous scale, and only what lives there can drift, i.e., one programmable value and the 2N log 2 N
+
+unit-gain coefficients of the butterfly stages, against the N 2 conductances of a dense recurrence, which is 4096 quantities against 65536 at N = 256 .The rest of the description is discrete, and the model class is closed under its corruption, i.e., flipped signs return another pair of sign diagonals and a rewired routing returns another permutation, so that the perturbed device is another instance of the same family, with the same spectrum and the same guarantees of Section 5. What the on-device readout absorbs is then a change of realization rather than a degradation of the dynamics, which is why 5% of the signs cost less than one accuracy point, and 5% of the routing less than half a point.                                                                                                     
+
+> Table 3: Permanent device perturbations with on-device readout: change in test accuracy (percentage points, mean over the four benchmarks and 3seeds) with respect to the unperturbed device. Crossbar mismatch applies w7→w(1 + δ)to every entry of the materialized operator; butterfly mismatch applies it to the 2Nlog 2Nnonzero entries of the FWHT stages; sign flips act on D1,D2, and routing faults permute among themselves the destinations of a fraction of the units, leaving Πa permutation (both for the Hadamard models only). crossbar / butterfly mismatch σdsign flips prouting faults p
+> Model 1% 5% 10% 20% 0.1% 1% 5% 0.1% 1% 5%
+> ESN −0.1+0 .0+0 .0−0.6——————SCR +0 .1+0 .1+0 .5+0 .1——————Orth −0.0+0 .0+0 .2−0.6——————MF-ESN −0.0−0.0−0.2−0.4——————H-ESN −0.0−0.2−0.4−2.3−0.4−0.4−0.8+0 .0−0.3+0 .3
+> (butterfly) +0 .2−0.6−1.2−2.3
+> MF-H-ESN −0.1+0 .6−0.3−1.2+0 .1−0.0−0.4+0 .0−0.3−0.2
+> (butterfly) +0 .0−0.2+0 .1−1.0
+
+35 10 −3 10 −2 10 −1                 
+
+> relative state noise σ/ RMS( h)
+> 0.2 0.4 0.6 0.8
+> test accuracy
+> (a) state noise, deploy regime
+> ESN SCR Orth H-ESN MF-ESN MF-H-ESN
+> 10 −310 −210 −1
+> relative state noise σ/ RMS( h)
+> 0.4 0.5 0.6 0.7 0.8 0.9
+> test accuracy
+> short sequences (ECG5000, Epilepsy, RacketSports)
+> (b) state noise, on-device regime 2468
+> state precision (bit)
+> 0.4 0.6 0.8
+> test accuracy
+> (c) quantization, on-device regime 10 −310 −210 −1
+> relative state noise σ/ RMS( h)
+> 0.50 0.55 0.60
+> test accuracy
+> (d) state noise, deploy regime 10 −310 −210 −1
+> relative state noise σ/ RMS( h)
+> 0.50 0.55 0.60 0.65
+> test accuracy
+> FordA ( T= 500)
+> (e) state noise, on-device regime 2468
+> state precision (bit)
+> 0.500 0.525 0.550 0.575 0.600
+> test accuracy
+> (f) quantization, on-device regime
+
+Figure 12: Test accuracy under runtime perturbations at N = 256 (mean ± standard error over 3 seeds; hyper-parameters from Section 6, no re-tuning). Top row: mean over the three short-sequence tasks (ECG5000, Epilepsy, RacketSports), where the unperturbed accuracies lie between 0.91 and 0.93 ; bottom row: FordA ( T = 500 ), where they lie between 0.61 and 0.71 and the dotted line marks the 0.5 level of this binary task. In the first two columns the perturbation grows from left to right, as the injected noise increases, in the deploy regime (a, d) and in the on-device regime (b, e); in the third column it 
+
+shrinks from left to right, as the state is quantized to more bits (c, f). On the short tasks the on-device readout recovers most of the noise cost and the MF-H-ESN is the most robust model; on FordA the accumulated noise destroys the discriminative information for all models and recalibration no longer helps. 
+
+7. Discussion 
+
+Having introduced the models, analyzed them and measured them, we can now put them side by side with the reservoir models that this work takes as reference. Table 4 collects, in one place, the quantities that the previous sections established separately. We start from the dense couplings. The conventional ESN, the dense orthogonal reservoir and the MF-ESN occupy the top half of the table, and they pay for it twice, i.e., with N 2 analog values, which a physical substrate cannot afford, and with 268 MB of memory at N = 8192 , which a digital one can afford only up to a point. The structured operator obtains the same one-step mixing at N log 2 N additions, one programmed gain, and a descrip-36 Table 4: The proposed models against the reference ones, at a glance. The columns are, in order, the conventional dense ESN, the Simple Cycle Reservoir [12], a dense random orthogonal recurrence, the memristive-friendly MF-ESN [11], which shares the dense cou-pling of the ESN and differs in the neuron, and the models introduced here, in their two input variants; in the last two rows, where the two variants of a column differ, the entries refer to the tanh and to the memristive-friendly neuron, in this order. The reservoir mem-ory is the recurrent operator together with the input pathway and the bias, in the form in which they have to be resident to apply the recurrence, in single precision and on a univariate task; the analog values are the entries of the same three objects that a physical realization has to program one by one, and both are detailed in Appendix B. The readout, which is common to every reservoir model and occupies 164 kB in the same setting with five classes, is excluded from both. Mixing, echo state condition and noise gain are from Section 5; the last two rows are the mean rank among the eight models over the twenty classification and the seven regression benchmarks at N = 8192 , where rank 1 is the best (Section 6.3).                                                                                                 
+
+> ESN SCR Orth MF-ESN H-ESN, H-ESN si ,MF-H-ESN MF-H-ESN si
+> Operations per step N2MAC Nshift N2MAC N2MAC Nlog 2Nadd Nlog 2Nadd Construction cost O(N2)O(1) O(N3)O(N2)O(1) O(1)
+> Reservoir memory, N= 8192 268 MB 2.1kB 268 MB 268 MB 80 .9kB 17 .4kB Analog values in the reservoir N2+2 N3N2+2 NN2+2 N2N+1 3
+> Impulse spread in one step yes no yes yes yes yes Tight echo state condition no yes yes no yes yes Noise gain fixed at design time no yes yes yes yes yes Mean rank, classification 4.45.15.15.24.4/4.93.7/3.4
+> Mean rank, regression 4.15.43.93.05.0/3.76.1/4.7
+
+tion of tens of kilobytes, and it does so without loss on the benchmarks, i.e., the best Hadamard variant is the best-ranked of the eight models on the twenty classification benchmarks, and the dense couplings are all behind it. Two qualifications complete the picture. First, the dense orthogonal re-currence is the closest competitor in the properties that the theory isolates, since it is exactly orthogonal as well, but it has to be generated by an O(N 3)
+
+factorization and then stored and applied densely, so what the structured op-erator removes there is the cost, not the behavior. Second, on the regression benchmarks the MF-ESN is the best-ranked model and MF-H-ESN follows it, within a few percent of its error at every size (Section 6.3): on those tasks the memristive-friendly neuron is what pays off, and the structured recurrence keeps pace with the dense one rather than improving on it. We then turn to the cycle. The SCR is the frugality reference of the field, and it remains cheaper than the operator proposed here, i.e., N shifts per step against N log 2 N additions, and a description of kilobytes against tens of 37 them. The comparison to make is the one with the simplified-input variants, since four fifths of the 80 .9 kB of the plain H-ESN are the real-valued input matrix and bias that it inherits from the standard ESN, and only 15 .4 kB are the structured operator; once the input pathway is binarized, as the SCR does with its own, the whole reservoir is 17 .4 kB. Two observations then put the residual advantage in proportion. First, it does not lie where the memristive scenario is decided: measured in analog values, i.e., in quantities that a device has to program one by one and that can then drift, the simplified-input Hadamard models are exactly at the level of the cycle, i.e., three global scalars, independently of the reservoir size. What separates the two is discrete and reproducible, i.e., signs and routing indices. Second, the absolute size of the gap is small in the context of a complete model, i.e., 15 kB at N = 8192 ,which is less than a tenth of the ridge readout that both models carry anyway. Against this, the cycle needs N steps to spread a coordinate impulse over the state, and it ranks 5.1 on the classification benchmarks and 5.4 on the regression ones, against 3.4 and 3.7 for the best Hadamard variant of each. The structured operator therefore buys global mixing, and the accuracy that follows from it, while staying in the same cost regime as the cycle. It is finally worth measuring the structured recurrence per reservoir unit. The operator stores two sign bits, one for each diagonal, and one routing index of log 2 N bits, i.e., fifteen bits per unit at N = 8192 , and N (2 + log 2 N ) = 15 .4 kB for the whole recurrence. The transform itself stores nothing, since bHN is fixed and is realized as a butterfly network; what it costs appears on the other two axes, i.e., N log 2 N additions per step (Section 4.1) and 2N log 2 N connections in a physical realization (Section 6.5). A dense coupling stores 32 N bits per unit in the same setting, i.e., about 33 kB per unit against two bytes. 
+
+8. Conclusions 
+
+We have studied reservoirs whose recurrent coupling is a structured or-thogonal operator built from sign diagonals, a permutation and a fast Walsh-Hadamard transform, as a replacement for the dense random matrices of conventional and memristive-friendly RC. The construction is multiplier-free, costs O(N log N ) operations and O(N ) parameters per step, and never ma-terializes a matrix. Three findings stand out. First, we observe no systematic accuracy loss. Across twenty classification and seven regression benchmarks, at reservoir 38 sizes up to 8192 , the Hadamard reservoirs track a dense random orthogonal recurrence within one accuracy point at every size, while avoiding the O(N 3)
+
+factorization that generates such a matrix, and they are clearly superior to the equally orthogonal SCR by a margin that grows with N . The critical-difference analysis separates only the fully trained GRU from the best-ranked reservoirs, so what these results support is parity at a fraction of the cost. The advantage over the SCR comes from global mixing on top of orthogonality, i.e., a coordinate impulse spreads over the entire state in one step for the Hadamard operator, and never for the cycle. Second, the three components of the operator play distinct roles: the per-mutation protects the memory near the edge of stability, the sign diagonals protect the representational richness of the nonlinear states, and the bare transform, being involutive, is degenerate on both counts. On the classifica-tion benchmarks the two variants with a single binary input wire per unit are the best-ranked models at every reservoir size, and they are also the most hardware-frugal of those we considered. Third, we have measured the computational advantage, and found that its size depends on the device. The structured step overtakes the dense product from N ≈ 1024 on laptop-class CPUs and entry-level GPUs, where it is about 
+
+50 × faster at N = 32768 , and from N ≈ 8192 on an A100. The memory advantage, in contrast, does not depend on the device and holds at every size. The recurrent operator is described by 2N signs, N routing indices and one gain, i.e., 15 .4 kB at N = 8192 against 268 MB for a dense matrix, and with the simplified input pathway the entire reservoir carries three analog values, whatever its width. This is the decisive advantage in the memristive scenario, and it is also what makes the device hard to corrupt, since almost everything that is left to perturb is discrete. On the theoretical side, the exact orthogonality of the operator removes the slack that affects norm-based stability conditions for dense random recur-rences, and the resulting echo state condition is tight in the tuned quantity. On the hardware side, the robustness study gives the numbers behind the hardware-friendly design: the noise response is fixed at design time, eight-bit state precision is essentially free, and in simulation, the models tolerate a 
+
+20% mismatch, corrupted signs or faulty routing at a cost of about two ac-curacy points. The last of these is a property of the construction rather than a measurement, since a flipped sign or a rewired connection returns another valid instance of the same model class, with the same spectrum and the same guarantees. 39 Section 7 places these results next to the reference models, in Table 4. In one sentence, against the dense couplings the structured recurrence keeps the representational properties and the accuracy while removing the N 2 analog weights that stand between a reservoir and a physical substrate, and against the cycle it buys global mixing, and the accuracy that follows from it, while remaining at the same three analog values. Several directions remain open. A physical realization of the butterfly operator on a memristive substrate is the natural continuation of this work, together with an aging study, i.e., how long a readout calibrated once remains valid as the analog components drift, where the reduced analog surface of the structured implementation should pay off. A second direction is archi-tectural, since deep RC stacks several untrained layers to obtain a hierarchy of timescales [35, 36], and the structured operator can serve both within and between layers. A third one concerns the temporal axis. Deep state space models and linear recurrent units [37, 38], and within RC the parallel echo state networks of [39], face the same tension between expressivity and cost, and resolve it by constraining the recurrence to be linear and diagonal, so that it can be unrolled over the time steps by a parallel scan. The operator studied here acts instead within a single step, on the state dimension, so the two are composable rather than alternative, and a structured multiplier-free mixing could replace the dense projections that those models still carry. Fi-nally, linear cycle reservoirs at the edge of stability are known to represent the driving signal in the Fourier basis [29], and establishing which represen-tation the linear Hadamard reservoir realizes in the Walsh domain remains an open problem. 
+
+Acknowledgements 
+
+This research has been partially funded by the EU-EIC EMERGE project (GA 101070918); by NEURONE, a project funded by the European Union – Next Generation EU, M4C1 CUP I53D23003600006, under program PRIN 2022 (prj. code 20229JRTZA); and by the European Research Council (ERC) under the European Union’s Horizon Europe research and innovation pro-gramme (ERC Starting Grant “MEMBRAIN”, GA 101160604). Views and opinions expressed are however those of the authors only and do not neces-sarily reflect those of the European Union or the European Research Council. Neither the European Union nor the granting authority can be held respon-sible for them. 40 Declaration of competing interest 
+
+The authors declare that they have no known competing financial inter-ests or personal relationships that could have appeared to influence the work reported in this paper. 
+
+Data availability 
+
+The code used to reproduce the experiments is publicly available at 
+
+https://github.com/gallicch/Hadamard . The benchmark datasets are publicly available from the UEA/UCR Time Series Classification Archive and the Monash Time Series Extrinsic Regression Archive. 
+
+Appendix A. Implementation of the structured recurrent step 
+
+We detail here the three realizations of the recurrent step h 7 → ρM Mh 
+
+compared in Section 4. The first is a pure TensorFlow FWHT based on the radix-2 butterfly decomposition (Figure A.1), which executes the log 2 N
+
+stages as separate elementwise passes, and therefore launches log 2 N ker-nels per step. The second is the same computation compiled with XLA (jit_compile ), which fuses the stages into a small number of specialized GPU kernels. The third is a dedicated CUDA kernel, exposed as a custom TensorFlow operator, which for N ≤ 8192 executes the whole transform in a single shared-memory kernel, with one thread block per batch row and log 2 N
+
+butterfly stages separated by block-level synchronization, and for larger N
+
+falls back to a multi-stage global-memory implementation. It registers no gradient, since none is back-propagated through the reservoir. Tables A.1–A.3 report the measurements summarized in Figure 3, for the three platforms separately. Software and hardware versions are declared in Appendix D. 
+
+Appendix B. Memory and parameter accounting 
+
+We detail here the counts of Section 4.2, separating two questions that are easily conflated, i.e., how much of a model has to be stored, and how much of it has to be trained. We count the recurrent operator together with the input matrix and the bias, and we keep the readout apart, since it is the same for every reservoir model. Real-valued parameters are counted at 32 bits, a sign at one bit, an 41 −−−−−−−−−−−−                            
+
+> x0(̂HNx)0
+> x1(̂HNx)1
+> x2(̂HNx)2
+> x3(̂HNx)3
+> x4(̂HNx)4
+> x5(̂HNx)5
+> x6(̂HNx)6
+> x7(̂HNx)7
+> input stage 1 stride 1 stage 2 stride 2 stage 3 stride 4 output
+> +(addition)
+> −−(subtraction)
+
+Figure A.1: Fast Walsh-Hadamard transform as a butterfly network, shown for N = 8 
+
+(K = 3 stages, stride 1, 2, 4). Each butterfly combines two inputs into a sum (gray, +)and a difference (red, −). The coordinates need no reordering, neither before nor after the stages, so the network computes exactly the transform bHN of Section 3.1. In general, the 
+
+K = log 2 N stages of N/ 2 butterflies each amount to N log 2 N additions/subtractions and no multiplications, against N 2 multiply-accumulates for the corresponding dense matrix-vector product: at N = 4096 , 4.9 × 10 4 additions against 1.68 × 10 7 multiply-accumulates, a 341 × reduction. 
+
+42 N dense [ms] FWHT (TF) FWHT (XLA) FWHT (C++ op) [ms] speedup [ms] speedup [ms] speedup 256 0.16 0.74 0.21 × 0.31 0.51 × 0.27 0.58 ×
+
+512 0.38 1.16 0.32 × 0.39 0.97 × 0.42 0.90 ×
+
+1024 1.19 2.23 0.53 × 0.56 2.13 × 0.72 1.64 ×
+
+2048 3.28 4.30 0.76 × 0.98 3.35 × 1.47 2.23 ×
+
+4096 11.43 10.09 1.13 × 2.00 5.72 × 2.85 4.01 ×
+
+8192 43.20 19.27 2.24 × 3.82 11.29 × 5.72 7.55 ×
+
+16384 173.60 41.38 4.20 × 8.26 21.02 × 9.66 17.96 ×
+
+32768 830.63 65.47 12.69 × 16.70 49.74 × 22.82 36.40 ×
+
+Table A.1: Time per recurrent step [ms] and speedup vs. dense matmul (batch 256, fp32) on a laptop-class Apple M3 Pro CPU. The crossover occurs at N ≈ 1024 with operator fusion (XLA and C++ custom op) and at N ≈ 4096 for the unfused FWHT; the speedup profile closely mirrors that of the T4 GPU (Table A.2). 
+
+N dense [ms] FWHT (TF) FWHT (XLA) FWHT (CUDA op) [ms] speedup [ms] speedup [ms] speedup 256 0.18 0.71 0.25 × 0.34 0.53 × 0.29 0.62 ×
+
+512 0.38 1.18 0.32 × 0.44 0.87 × 0.43 0.88 ×
+
+1024 1.16 2.12 0.55 × 0.63 1.84 × 0.74 1.57 ×
+
+2048 3.28 4.16 0.79 × 1.10 3.00 × 1.57 2.09 ×
+
+4096 11.74 10.50 1.12 × 2.31 5.09 × 3.08 3.81 ×
+
+8192 48.63 20.90 2.33 × 4.56 10.67 × 6.49 7.49 ×
+
+16384 195.54 33.71 5.80 × 9.05 21.62 × 10.23 19.12 ×
+
+32768 822.16 75.43 10.90 × 16.63 49.43 × 22.42 36.66 ×
+
+Table A.2: Time per recurrent step [ms] and speedup vs. dense matmul (batch 256, fp32, NVIDIA T4). 
+
+N dense [ms] FWHT (TF) FWHT (XLA) FWHT (CUDA op) [ms] speedup [ms] speedup [ms] speedup 256 0.20 0.52 0.39 × 0.22 0.90 × 0.30 0.66 ×
+
+512 0.20 0.61 0.32 × 0.23 0.87 × 0.34 0.58 ×
+
+1024 0.23 0.61 0.38 × 0.24 0.98 × 0.28 0.82 ×
+
+2048 0.22 0.65 0.34 × 0.23 0.94 × 0.30 0.74 ×
+
+4096 0.23 0.68 0.34 × 0.24 0.97 × 0.30 0.78 ×
+
+8192 0.35 0.77 0.46 × 0.30 1.16 × 0.36 0.99 ×
+
+16384 1.38 1.51 0.92 × 0.39 3.53 × 0.47 2.93 ×
+
+32768 5.20 4.69 1.11 × 2.00 2.61 × 2.22 2.34 ×
+
+Table A.3: Time per recurrent step [ms] and speedup vs. dense matmul (batch 256, fp32, NVIDIA A100). On datacenter-class hardware the dense baseline is substantially faster than on the T4 (Table A.2), moving the crossover point from N ≈ 1024 to N ≈ 8192 ;below that size all implementations sit on a common kernel-launch latency floor and the structured step is never slower than the dense one (XLA column). 
+
+43 index into N coordinates at log 2 N bits, and an index into d input channels at ⌈log 2 d⌉ bits. The global scalars of each model, i.e., the recurrent scaling, the leaking rate and the input and bias scalings, are a dozen numbers at most and are invisible in the totals, so we leave them out of the stored description; we do count them among the analog values, where they are the three entries of the simplified-input models. The constants of the memristive-friendly kinetics belong to the neuron rather than to the coupling, and are excluded from both counts. Wiring is not memory, so the butterfly interconnect and the cycle of the SCR appear among the analog connections only. Table B.1 collects the resulting formulas. 
+
+Table B.1: Memory footprint of the reservoir description. Left: bits required to store the recurrent operator and the input pathway, with real-valued parameters at 32 bits, signs at one bit, and indices at log 2 N and ⌈log 2 d⌉ bits; the few global scalars per model are negligible here and are omitted, but they are counted among the analog values, which they exhaust for the simplified-input models. Middle: quantities that a physical realization has to instantiate, i.e., analog values to be programmed individually, and analog connections to carry them; the butterfly interconnect of the FWHT and the cycle of the SCR are wiring, and are counted here only. Right: resulting total for the reservoir description on a univariate task ( d = 1 ), at two reservoir sizes. The readout, which is common to all the reservoir models, is listed separately for a C-class task, with C = 5 .                                                                                                                                     
+
+> stored description (bits) analog quantities total, d= 1
+> Model recurrent input, bias values connections N= 1024 N= 8192
+> ESN 32 N232 N(d+1) N2+N(d+1) N2+N d 4.2MB 268 .5MB SCR 32 N(d+1) 3N+N d 260 B2.1kB Orth 32 N232 N(d+1) N2+N(d+1) N2+N d 4.2MB 268 .5MB MF-ESN 32 N232 N(d+1) N2+N(d+1) N2+N d 4.2MB 268 .5MB H-ESN N(2+ log 2N)32 N(d+1) 1+ N(d+1) 2Nlog 2N+N d 9.7kB 80 .9kB H-ESN si N(2+ log 2N)N(2+ ⌈log 2d⌉)32Nlog 2N+N1.8kB 17 .4kB MF-H-ESN N(2+ log 2N)32 N(d+1) 1+ N(d+1) 2Nlog 2N+N d 9.7kB 80 .9kB MF-H-ESN si N(2+ log 2N)N(2+ ⌈log 2d⌉)32Nlog 2N+N1.8kB 17 .4kB readout 32( N+1) C(N+1) C20 .5kB 163 .9kB
+
+Once the recurrence is structured, the description of a Hadamard reservoir is dominated by its input pathway, already on a univariate task, i.e., of the 
+
+80 .9 kB of the H-ESN at N = 8192 only 15 .4 kB are the operator, and the remaining 65 .5 kB are Wx and bh, real-valued as in a standard ESN. The simplified pathway replaces that term with 2N signs and brings the whole reservoir to 17 .4 kB, of which the operator is now the larger part. On the multivariate benchmarks the effect is more pronounced, i.e., on MindReading (d = 204 ) at N = 8192 the input matrix costs 6.7 MB in the dense pathway 44 and 10 kB in the simplified one. The ridge readout maps the N -dimensional state to the class scores, i.e., 
+
+(N + 1) C weights for a C-class task. On a five-class task it occupies 20 .5 kB at N = 1024 and 164 kB at N = 8192 , which is nine times the entire H-ESN si 
+
+reservoir and less than a thousandth of the dense ESN. Storage, however, is not what is fitted to the data. The reservoir models train the readout alone, whereas in the GRU every weight is trained, i.e., 
+
+3h(d+h+2) in the recurrent cell plus (h+1) C in the head, with h the hidden size selected on validation; at h = 256 , the largest size we select, the recurrent cell alone holds 796 kB of real-valued weights on a univariate task, more than the entire H-ESN reservoir at N = 8192 , readout included. At N = 256 the trained network optimizes more parameters than the reservoir readout on every one of the twenty benchmarks, by a median factor of 26 and by up to 
+
+602 on FaceDetection, and it has to fit them by back-propagation, which is the size of the data-efficiency gap invoked in Section 6.2. At N = 8192 the median ratio is 0.83 instead, and the GRU is the larger model on nine of the twenty benchmarks, i.e., measured in state dimension the two families are not comparable, and measured in trainable parameters they are. The two views differ because enlarging a reservoir costs memory and inference time while leaving the demand for gradients and data unchanged. 
+
+Appendix C. Proofs 
+
+This appendix collects the proofs of the results stated in Section 5, to-gether with two results that are used there but not reproduced in the main text: the invariant-set lemma and the input degeneracy of the diagonal-free operator. Throughout, the notation is that of eq. 7 and of the bounds on 
+
+Kp, K d, S established there. 
+
+Lemma 1 (Invariant set) . Assume γ ≤ 1 and εS + ≤ γ, and let H be as in eq. 8. Then [0 , H ]N is forward-invariant for the MF-H-ESN dynamics: if 
+
+ht−1 ∈ [0 , H ]N then ht ∈ [0 , H ]N , for any input. Proof of Lemma 1. Componentwise, ht,i = ( γ − εS (zt,i )) ht−1,i + εK p(zt,i ),and the coefficient of ht−1,i lies in [γ − εS +, γ − εS −] ⊆ [0 , γ − εS −] by assumption. Hence ht,i ≥ εK − 
+
+> p
+
+> 0 and ht,i ≤ (γ − εS −)H + εK + 
+
+> p
+
+≤ H,where the last inequality is eq. 8. 45 Proof of Proposition 5.1 (echo state property). Let h, h′ ∈ [0 , H ]N and let x
+
+be an arbitrary input. By Lemma 1 the set [0 , H ]N is forward-invariant, and starting from h0 = 0 every trajectory remains in it, so the estimates below may be taken on that set, which, being closed and bounded, is complete. We write z = R(ρM Mh + Wxx + bh) and z′ = R(ρM Mh ′ + Wxx + bh) for the two pre-activations. Adding and subtracting (γ1 − εS (z)) ⊙ h′ gives the exact decomposition 
+
+Φ( h, x)−Φ( h′, x) = ( γ1−εS (z)) ⊙(h−h′)−ε(S(z)−S(z′)) ⊙h′+ε(Kp(z)−Kp(z′)) ,
+
+(C.1) which we bound term by term in the Euclidean norm. (i) Since z takes values in (a, b ) componentwise, each entry of the diagonal factor lies in [γ −εS +, γ −
+
+εS −], so the first term is at most max( |γ−εS −|, |γ−εS +|) ∥h−h′∥2. (ii) Using 
+
+∥u ⊙ v∥2 ≤ ∥ u∥∞∥v∥2 together with h′ ∈ [0 , H ]N , hence ∥h′∥∞ ≤ H, and the Lipschitz property of S on (a, b ), the second term is at most εHL S ∥z − z′∥2.
+
+(iii) Likewise the third term is at most εL p∥z − z′∥2. It remains to bound the pre-activations. The input and bias contributions are identical in z and 
+
+z′ and cancel in the difference, so, R being LR-Lipschitz componentwise, 
+
+∥z − z′∥2 ≤ LR ρM ∥M(h − h′)∥2 = LR ρM ∥h − h′∥2, (C.2) where the last step holds with equality of norms because M is exactly orthog-onal. We can notice that this is the only point at which the structure of the operator is used, and it is what removes the slack discussed in Remark 5.1. Collecting the three bounds yields ∥Φ( h, x) − Φ( h′, x)∥2 ≤ C∥h − h′∥2 with 
+
+C as in eq. 9. Finally, C is built only from ε, γ, ρ M and the constants 
+
+K± 
+
+> p
+
+, K ± 
+
+> d
+
+, L p, L S , L R, which depend on the endpoints a, b of the range of R and not on the state or the driving signal: the contraction is therefore uniform in the input . If C < 1, Φ( ·, x) is thus a uniform contraction of a complete state space, and the ESP follows by standard arguments [18, 40, 41]. For every left-infinite input the state sequence is unique and independent of the initial conditions, and any two trajectories driven by the same input converge at rate Ct.We close with the input degeneracy invoked in the third observation of Section 5.2. Let 1 ∈ RN be the constant direction, along which every unit receives the same drive, and let e1 be the first canonical basis vector. The first row of HN is 1⊤ and the remaining rows are orthogonal to it, so HN 1 = N e1
+
+and bHN 1 = √N e1. Since Π1 = 1, this yields, for every permutation Π,
+
+bHN Π 1 = √N e1, D2 bHN Π D1 1 = D2 bHN
+
+ Πd1
+
+, (C.3) 46 the second identity using D11 = d1, with d1 ∈ {± 1}N the diagonal of D1,and the definition of M. The diagonal-free operator therefore concentrates the constant direction onto a single unit, whatever the permutation. The full operator spreads it instead: ∥ bHN (Π d1)∥ = ∥d1∥ = √N by orthogonality, and each entry of bHN (Π d1) is 1/√N times a sum of N independent signs, hence has zero mean and unit variance, so the energy N is spread evenly across the N units in expectation rather than concentrated on one. 
+
+Appendix D. Experimental protocol: search spaces and baseline training 
+
+We use twenty classification and seven regression tasks, drawn from the UEA/UCR and Monash TSER archives. The datasets were chosen, before inspecting any result on them, to obtain a heterogeneous collection on which to probe the models. They span from 2 to 37 classes, from 8 to 500 time steps, from univariate to 963 -dimensional inputs, and from a few hundred to some ten thousand sequences, and they include both sensor and biomed-ical recordings. Datasets whose sequence length or cardinality would have made the full model-selection protocol impractical, or too small for a reliable estimate, were left out. All experiments use TensorFlow, and datasets are loaded through the aeon toolkit [42]. The model experiments of Section 6 were run on an NVIDIA A100 GPU with TensorFlow 2.21. The wall-clock analysis of Sec-tion 4 spans three platforms by design, with TensorFlow 2.12 on the Ap-ple M3 Pro CPU and 2.21 on both GPUs (NVIDIA T4 and A100); its tim-ings are medians over repeated executions after warm-up, in single precision, with 256 states advanced per call. The random search of Section 6.1 samples 500 configurations from the following ranges: ρ, ρ M ∈ { 0.7, 0.8, . . . , 1.2}; ωx, ω b ∈ { 0.01 , 0.1, 1.0, 2.0, 5.0};
+
+α ∈ { 1, 0.1, 0.01 , 0.001 }; and, for the MF models, ε ∈ { 0.1, 0.01 , 0.001 }, γ ∈{0.5, 0.8, 0.95 , 1.0}, s ∈ { 1, 5}. The physics-related constants are κp0 = 10 −4,
+
+κd0 = 0 .5, ηp = 10 , ηd = 1 , following [23]. The ridge regularization is selected in {10 −5, . . . , 10 2}.The GRU is trained with Adam [43], batch size 32 , for up to 500 epochs, with early stopping (patience 50 ) on validation accuracy for classification and on validation loss for regression; the selected configuration is retrained and evaluated over 3 seeds. The hidden size is selected in {32 , 64 , 128 , 256 }
+
+and the learning rate in {10 −3, 3·10 −4}. On the regression benchmarks the 47 learning-rate grid is extended upwards to {10 −2, 3·10 −3, 10 −3, 3·10 −4}. The reason is that with the classification grid the network converged to the con-stant predictor on every regression benchmark. A sweep over learning rate and batch size showed that this is a property of the learning-rate range rather than of the architecture or of the sequence length: no configuration with η ≤ 10 −3 escapes the plateau at any batch size, whereas η = 10 −2 fits the training set to less than one hundredth of the error of the constant pre-dictor. The wider grid is used for the GRU only and only in regression: the classification results are those obtained with the original grid, under which no such pathology was observed: we verified explicitly that the GRU exceeds the majority-class rate on all twenty classification datasets, although by a narrow margin on Earthquakes ( 0.82 against 0.80 ), whose majority class al-ready accounts for four fifths of the data. Targets are standardized when training the GRU and the predictions are mapped back before computing the error, so that all reported errors are in the original scale; this affects the baseline only marginally and is not what determines whether it escapes the plateau. The comparison at fixed reservoir size of Section 6.2 is set up to be fair to the trained baseline, and we record here the two points where the two families are treated differently. The reservoir size is fixed to N = 256 for all the reser-voir models, whereas the GRU hidden size is itself selected on validation, up to that same value: the two are therefore matched in state dimension, and if anything the choice favors the trained network, since smaller hidden sizes are typically selected because larger recurrent layers overfit these small datasets. The GRU keeps instead the internal train/validation split at assessment time, as early stopping requires a held-out set, whereas the readout of the reservoir models is refit on the full training set after model selection. The critical-difference analysis of Section 6.3 treats the reservoir size as one more hyper-parameter, selected on the same validation split already used for the others. The additional selection is over six values only, against the 500 configurations already searched there, and it requires no further model selection, i.e., the validation accuracies per size are obtained by reloading the selected hyper-parameters and refitting. The GRU receives the same treatment for its hidden size, so that the two selections follow the same protocol. The reservoirs may reach N = 8192 and the GRU hidden size is capped at 256 , and the two ranges remain comparable in the number of trainable parameters, which is the quantity fitted to the data, as we quantify in Appendix B. 48 Appendix E. Per-dataset scaling curves 
+
+Figures E.1 and E.2 report, for each of the twenty classification bench-marks separately, the test accuracy of the eight reservoir models as a function of N ; Figure 7 in the main text is the aggregate of these curves. The per-dataset view makes visible what the averages hide. On several benchmarks accuracy saturates well before N = 8192 , on a few it degrades at the largest sizes, and the spread between models is much wider on the hardest tasks than the average suggests. Figure E.3 does the same for the seven regression benchmarks. It makes visible what Section 6.3 reports in aggregate. On most of these tasks the error is essentially flat in N , and on Covid3Month the whole vertical range spans less than 6% of the error, so the apparent separations there are not meaningful. 
+
+References 
+
+[1] V. K. Sangwan, M. C. Hersam, Neuromorphic nanoelectronic materials, Nature nanotechnology 15 (7) (2020) 517–528. [2] A. Sebastian, M. Le Gallo, R. Khaddam-Aljameh, E. Eleftheriou, Mem-ory devices and applications for in-memory computing, Nature nan-otechnology 15 (7) (2020) 529–544. [3] E. Miranda, G. Milano, C. Ricciardi, Modeling of short-term synaptic plasticity effects in zno nanowire-based memristors using a potentiation-depression rate balance equation, IEEE Transactions on Nanotechnology 19 (2020) 609–612. [4] G. Milano, L. Boarino, I. Valov, C. Ricciardi, Memristive devices based on single zno nanowires—from material synthesis to neuromorphic func-tionalities, Semiconductor Science and Technology 37 (3) (2022) 034002. [5] G. Milano, G. Pedretti, K. Montano, S. Ricci, S. Hashemkhani, L. Boarino, D. Ielmini, C. Ricciardi, In materia reservoir computing with a fully memristive architecture based on self-organizing nanowire networks, Nature materials 21 (2) (2022) 195–202. [6] G. Milano, C. Ricciardi, Nanowire memristor as artificial synapse in random networks, in: Intelligent Nanotechnology, Elsevier, 2023, pp. 219–246. 49 29 211 213 
+
+0.50 0.55 0.60 0.65 0.70 
+
+> Test accuracy
+
+Adiac 
+
+29 211 213 
+
+0.975 0.980 0.985 0.990 0.995 1.000 ArticularyWordRecognition 
+
+29 211 213 
+
+0.85 0.90 0.95 1.00 
+
+> Test accuracy
+
+BasicMotions 
+
+29 211 213 
+
+0.9450 0.9475 0.9500 0.9525 0.9550 
+
+ECG5000 
+
+29 211 213 
+
+0.92 0.94 0.96 0.98 
+
+> Test accuracy
+
+ERing 
+
+29 211 213 
+
+0.79 0.80 0.81 0.82 0.83 0.84 
+
+Earthquakes 
+
+29 211 213 
+
+0.75 0.80 0.85 0.90 0.95 
+
+> Test accuracy
+
+Epilepsy 
+
+29 211 213 
+
+0.60 0.65 0.70 
+
+FaceDetection 
+
+29 211 213 
+
+Reservoir size N
+
+0.60 0.65 0.70 0.75 
+
+> Test accuracy
+
+FingerMovements 
+
+29 211 213 
+
+Reservoir size N
+
+0.70 0.75 0.80 
+
+FordA 
+
+ESN SCR Orth H-ESN H-ESN-si MF-ESN MF-H-ESN MF-H-ESN-si Figure E.1: Test accuracy (mean ± std over 3 instantiations) versus reservoir size, one panel per classification benchmark (first ten, in alphabetical order; the remaining ten in Figure E.2). 
+
+50 29 211 213 
+
+0.70 0.75 0.80 
+
+> Test accuracy
+
+FordB 
+
+29 211 213 
+
+0.60 0.65 0.70 0.75 
+
+Handwriting 
+
+29 211 213 
+
+0.55 0.60 0.65 
+
+> Test accuracy
+
+LSST 
+
+29 211 213 
+
+0.75 0.80 0.85 0.90 Libras 
+
+29 211 213 
+
+0.55 0.60 0.65 0.70 0.75 
+
+> Test accuracy
+
+MindReading 
+
+29 211 213 
+
+0.92 0.94 0.96 0.98 
+
+NATOPS 
+
+29 211 213 
+
+0.80 0.85 0.90 
+
+> Test accuracy
+
+PEMS-SF 
+
+29 211 213 
+
+0.985 0.990 0.995 
+
+PenDigits 
+
+29 211 213 
+
+Reservoir size N
+
+0.96 0.97 0.98 0.99 1.00 
+
+> Test accuracy
+
+PowerCons 
+
+29 211 213 
+
+Reservoir size N
+
+0.85 0.90 0.95 
+
+RacketSports 
+
+ESN SCR Orth H-ESN H-ESN-si MF-ESN MF-H-ESN MF-H-ESN-si Figure E.2: Test accuracy versus reservoir size, remaining ten classification benchmarks. Continuation of Figure E.1. 
+
+51 29 211 213 
+
+> 10 1
+
+6 × 10 0
+
+7 × 10 0
+
+8 × 10 0
+
+9 × 10 0
+
+> Test MSE
+
+AppliancesEnergy   
+
+> 29211 213
+> 10 4
+
+8 × 10 3
+
+9 × 10 3
+
+BeijingPM10Quality   
+
+> 29211 213
+
+4 × 10 3
+
+5 × 10 3
+
+6 × 10 3
+
+> Test MSE
+
+BeijingPM25Quality   
+
+> 29211 213
+
+1.82 × 10 −3
+
+1.84 × 10 −3
+
+1.86 × 10 −3
+
+1.88 × 10 −3
+
+1.9 × 10 −3
+
+1.92 × 10 −3
+
+Covid3Month   
+
+> 29211 213
+> 10 −4
+> Test MSE
+
+FloodModeling1   
+
+> 29211 213
+> 10 −4
+
+FloodModeling2   
+
+> 29211 213
+
+Reservoir size N
+
+> 10 −4
+
+3 × 10 −5
+
+4 × 10 −5
+
+6 × 10 −5
+
+> Test MSE
+
+FloodModeling3 
+
+ESN SCR Orth H-ESN H-ESN-si MF-ESN MF-H-ESN MF-H-ESN-si Figure E.3: Test mean squared error (mean ± std over 3 instantiations, logarithmic scale) versus reservoir size, one panel per regression benchmark. Lower is better. Note the different vertical ranges: on Covid3Month all models lie within a few percent of each other, as discussed in Section 6.2. 
+
+52 [7] M. Lukoševičius, H. Jaeger, Reservoir computing approaches to recur-rent neural network training, Computer science review 3 (3) (2009) 127– 149. [8] K. Nakajima, I. Fischer, Reservoir computing, Springer, 2021. [9] M. Yan, C. Huang, P. Bienstman, P. Tino, W. Lin, J. Sun, Emerging op-portunities and challenges for the future of reservoir computing, Nature Communications 15 (1) (2024) 2056. [10] G. Tanaka, T. Yamane, J. B. Héroux, R. Nakane, N. Kanazawa, S. Takeda, H. Numata, D. Nakano, A. Hirose, Recent advances in physi-cal reservoir computing: a review, Neural Networks 115 (2019) 100–123. [11] V. Pistolesi, A. Ceni, G. Milano, C. Ricciardi, C. Gallicchio, A mem-ristive computational neural network model for time-series processing, APL Machine Learning 3 (1) (2025). [12] A. Rodan, P. Tiňo, Minimum complexity echo state network, IEEE Transactions on Neural Networks 22 (1) (2011) 131–144. [13] O. L. White, D. D. Lee, H. Sompolinsky, Short-term memory in orthog-onal neural networks, Physical Review Letters 92 (14) (2004) 148102. [14] I. Farkaš, R. Bosák, P. Gergel’, Computational analysis of memory ca-pacity in echo state networks, Neural Networks 83 (2016) 109–120. [15] Q. Le, T. Sarlós, A. Smola, Fastfood: approximating kernel expansions in loglinear time, in: International Conference on Machine Learning (ICML), 2013. [16] F. X. Yu, A. T. Suresh, K. Choromanski, D. Holtmann-Rice, S. Ku-mar, Orthogonal random features, in: Advances in Neural Information Processing Systems (NeurIPS), 2016. [17] J. Dong, R. Ohana, M. Rafayelyan, F. Krzakala, Reservoir computing meets recurrent kernels and structured transforms, Advances in Neural Information Processing Systems 33 (2020) 16785–16796. [18] H. Jaeger, M. Lukoševičius, D. Popovici, U. Siewert, Optimization and applications of echo state networks with leaky-integrator neurons, Neu-ral networks 20 (3) (2007) 335–352. 53 [19] A. Ceni, G. Milano, C. Ricciardi, C. Gallicchio, Memristive-friendly Hadamard reservoirs, in: Proceedings of the European Symposium on Artificial Neural Networks, Computational Intelligence and Machine Learning (ESANN), 2026. [20] H. Jaeger, H. Haas, Harnessing nonlinearity: Predicting chaotic systems and saving energy in wireless communication, Science 304 (5667) (2004) 78–80. doi:10.1126/science.1091277. [21] I. B. Yildiz, H. Jaeger, S. J. Kiebel, Re-visiting the echo state property, Neural networks 35 (2012) 1–9. [22] H. Jaeger, The “echo state” approach to analysing and training recur-rent neural networks-with an erratum note, Bonn, Germany: German national research center for information technology gmd technical report 148 (34) (2001) 13. [23] G. Milano, E. Miranda, C. Ricciardi, Connectome of memristive nanowire networks through graph theory, Neural Networks 150 (2022) 137–148. [24] M. Arjovsky, A. Shah, Y. Bengio, Unitary evolution recurrent neural networks, in: Proceedings of the 33rd International Conference on Ma-chine Learning (ICML), Vol. 48, 2016, pp. 1120–1128. [25] A. Ceni, Random orthogonal additive filters: a solution to the vanish-ing/exploding gradient of deep neural networks, IEEE Transactions on Neural Networks and Learning Systems 36 (6) (2025) 10794–10807. [26] T. Dao, et al., Fast Hadamard transform in CUDA, with a PyTorch in-terface, https://github.com/Dao-AILab/fast-hadamard-transform 
+
+(2023). [27] K. Agarwal, R. Astra, A. Hoque, M. Srivatsa, R. Ganti, L. Wright, S. Chen, HadaCore: tensor core accelerated Hadamard transform kernel, arXiv preprint arXiv:2412.08832 (2024). [28] S. Ashkboos, A. Mohtashami, M. L. Croci, B. Li, P. Cameron, M. Jaggi, D. Alistarh, T. Hoefler, J. Hensman, QuaRot: Outlier-free 4-bit infer-ence in rotated LLMs, in: Advances in Neural Information Processing Systems (NeurIPS), 2024. 54 [29] R. S. Fong, B. Li, P. Tiňo, Linear simple cycle reservoirs at the edge of stability perform Fourier decomposition of the input driving signals, Chaos: An Interdisciplinary Journal of Nonlinear Science 35 (4) (2025) 043109. [30] A. Bagnall, H. A. Dau, J. Lines, M. Flynn, J. Large, A. Bostrom, P. Southam, E. Keogh, The UEA multivariate time series classification archive, 2018, arXiv preprint arXiv:1811.00075 (2018). [31] C. W. Tan, C. Bergmeir, F. Petitjean, G. I. Webb, Time series extrinsic regression, Data Mining and Knowledge Discovery 35 (3) (2021) 1032– 1060. doi:10.1007/s10618-021-00745-9. [32] K. Cho, B. van Merriënboer, C. Gulcehre, D. Bahdanau, F. Bougares, H. Schwenk, Y. Bengio, Learning phrase representations using RNN encoder–decoder for statistical machine translation, in: Proceedings of the 2014 Conference on Empirical Methods in Natural Language Pro-cessing (EMNLP), 2014, pp. 1724–1734. [33] M. Lukoševičius, A practical guide to applying echo state networks, in: G. Montavon, G. B. Orr, K.-R. Müller (Eds.), Neural Networks: Tricks of the Trade, Vol. 7700 of Lecture Notes in Computer Science, Springer, Berlin, Heidelberg, 2012, pp. 659–686. [34] J. Demšar, Statistical comparisons of classifiers over multiple data sets, Journal of Machine Learning Research 7 (2006) 1–30. [35] C. Gallicchio, A. Micheli, L. Pedrelli, Deep reservoir computing: A critical experimental analysis, Neurocomputing 268 (2017) 87–99. doi:10.1016/j.neucom.2016.12.089. [36] C. Gallicchio, A. Micheli, Echo state property of deep reservoir comput-ing networks, Cognitive Computation 9 (3) (2017) 337–350. [37] A. Gu, K. Goel, C. Ré, Efficiently modeling long sequences with struc-tured state spaces, in: International Conference on Learning Represen-tations (ICLR), 2022. [38] A. Orvieto, S. L. Smith, A. Gu, A. Fernando, C. Gulcehre, R. Pascanu, S. De, Resurrecting recurrent neural networks for long sequences, in: Proceedings of the 40th International Conference on Machine Learning 55 (ICML), Vol. 202 of Proceedings of Machine Learning Research, 2023, pp. 26670–26698. [39] M. Pinna, G. Lagomarsini, A. Ceni, C. Gallicchio, ParalESN: Enabling parallel information processing in reservoir computing, in: International Conference on Machine Learning (ICML), 2026, arXiv:2601.22296. [40] G. Manjunath, H. Jaeger, Echo state property linked to an input: Ex-ploring a fundamental characteristic of recurrent neural networks, Neu-ral computation 25 (3) (2013) 671–696. [41] A. Ceni, P. Ashwin, L. Livi, C. Postlethwaite, The echo index and multi-stability in input-driven recurrent neural networks, Physica D: Nonlinear Phenomena 412 (2020) 132609. [42] M. Middlehurst, A. Ismail-Fawaz, A. Guillaume, C. Holder, D. Guijo-Rubio, G. Bulatova, L. Tsaprounis, L. Mentel, M. Walter, P. Schäfer, A. Bagnall, aeon: a Python toolkit for learning from time series, Journal of Machine Learning Research 25 (289) (2024) 1–10. [43] D. P. Kingma, J. Ba, Adam: A method for stochastic optimization, in: Proceedings of the 3rd International Conference on Learning Represen-tations (ICLR), 2015. 56

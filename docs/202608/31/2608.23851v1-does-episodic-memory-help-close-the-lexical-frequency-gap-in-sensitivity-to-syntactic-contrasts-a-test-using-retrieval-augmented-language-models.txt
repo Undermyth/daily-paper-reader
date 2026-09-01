@@ -1,0 +1,945 @@
+Title: Does Episodic Memory Help Close the Lexical Frequency Gap in Sensitivity to Syntactic Contrasts? A Test Using Retrieval-Augmented Language Models
+
+URL Source: https://arxiv.org/pdf/2608.23851v1
+
+Published Time: Wed, 26 Aug 2026 00:16:49 GMT
+
+Number of Pages: 26
+
+Markdown Content:
+Preprint. Under review. 
+
+## Does Episodic Memory Help Close the Lexical Frequency Gap in Sensitivity to Syntactic Contrasts? A Test Using Retrieval-Augmented Language Models 
+
+Jing Liu 
+
+CoML Team, LSCP ENS, Université PSL, EHESS, CNRS 
+
+jing.liu@psl.eu 
+
+Najoung Kim 
+
+Department of Linguistics Boston University 
+
+najoung@bu.edu 
+
+Abstract 
+
+Grammatical knowledge and how it is empirically tested are typically con-sidered robust to the frequency of the lexical items in the expressions. How-ever, neural network-based models of grammaticality exhibit high sensitiv-ity to lexical frequency. We draw upon Complementary Learning Systems theory to test the hypothesis that robustness to lexical frequency can arise via a hippocampal episodic memory mechanism, which enables rapid en-coding and retrieval of specific experiences and allows learners to leverage them when processing rare patterns. We use retrieval-augmented language models as an instantiation of such an episodic memory mechanism (specifi-cally, k-nearest-neighbor language models that augment parametric models with explicit instance storage), and test whether this augmentation helps close the lexical frequency gap that vanilla language models exhibit in syn-tactic contrast tests. Using syntactic contrasts with frequency-stratified test items, we find that retrieval augmentation narrows the performance gap between high- and low-frequency items, consistent with episodic memory compensating for weak parametric representations. This benefit is consis-tent across different syntactic phenomena and across models pretrained on child-realistic and large-scale data. Additionally, we show that structural information is critical for effective retrieval, whereas semantic similarity alone provides little benefit. While these are promising proof-of-concept re-sults supporting our hypothesis, the frequency gap is narrowed rather than fully closed. Based on our analyses, we propose preferential reweighting of retrieved instances, better representations and retrieval strategies for struc-tural information, and flexible configurations of storage and retrieval as promising future directions for improving the implementation of episodic memory in language models. 1
+
+1 Introduction 
+
+Language models are known to exhibit systematic lexical frequency biases: their perfor-mance on linguistic evaluations correlates with how often the lexical items in the test examples appear in training data, leading to low-frequency items posing a persistent chal-lenge (Wei et al., 2021; Kim et al., 2022; Diehl Martinez et al., 2024). While frequency does influence human performance in empirical tests of grammatical knowledge such as accept-ability judgments (Kempen & Harbusch, 2005; Bader & Häussler, 2010; Lau et al., 2017, i.a.), recent work (Christensen & Kizach, 2024) has shown evidence for robustness to lexical frequency in delineating the critical contrasts. What accounts for this gap between human robustness and model fragility? One possible answer comes from Complementary Learning Systems (CLS) theory (Mc-Clelland et al., 1995; Kumaran et al., 2016), which proposes that the brain employs two 
+
+> 1
+
+Code is available at https://github.com/Jing-L97/Generative_replay .
+
+1arXiv:2608.23851v1 [cs.CL] 24 Aug 2026 Preprint. Under review. distinct memory systems: a hippocampal system that rapidly encodes and retrieves specific experiences, and a neocortical system that gradually extracts generalizable statistical pat-terns. When parametric knowledge is weak, as it is for rare items, episodic memory can compensate by directly retrieving relevant past encounters (Davis & Gaskell, 2009). This division of labor has also been proposed to be relevant to linguistic processing (Borensztajn & Zuidema, 2011; Duff & Brown-Schmidt, 2012), leading us to hypothesize that episodic retrieval may reflect the mechanism that underlies human robustness to lexical frequency in syntactic processing. In this work, we computationally test this hypothesis by asking whether augmenting language models with an explicit retrieval mechanism helps close the lexical frequency gap in syntactic contrast evaluations. We adopt k-nearest-neighbor language models ( kNN-LM; Khandelwal et al. 2020) as our proxy for episodic memory: the non-parametric datastore caches training instances for direct retrieval at inference time (analogous to hippocampal episodic traces), while the underlying parametric network consolidates statistical patterns through training (analogous to neocortical learning). The original kNN-LM has already been shown to be particularly helpful for rare patterns (Mallen et al., 2023; Kandpal et al., 2023), and recent work shows that the information available in the context can be used more flexibly than the same information stored parametrically (Lampinen et al., 2025; Chan et al., 2022), both consistent with the CLS prediction. At the same time, a recent finding that kNN-LMs do not improve prediction of low-frequency tokens in standard language modeling evaluation (Nishida et al., 2025) makes it a non-trivial and empirically open question whether retrieval benefits extend to the domain of syntactic knowledge. We investigate this question through syntactic contrast tests across three different phenom-ena (subject-verb agreement, wh-questions, relative clauses) using frequency-stratified test items, under both child-realistic and large-scale pretraining. We further analyze what drives retrieval effectiveness by contrasting full versus semantics-only retrieval, by examining the role of structural similarity in retrieved instances, and by varying the configurations of retrieval (retrieval granularity, context window size, and number of retrieved neighbors). Our results show that retrieval augmentation consistently narrows the lexical frequency gap across all phenomena and both model scales, with greater gains for more syntactically com-plex phenomena. Nevertheless, the gap remains not fully closed. To this end, we analyze the limitations of the current modeling approach and posit preferential reweighting, im-proved representations and retrieval for structural information, and flexible configurations of storage and retrieval as promising future directions. 
+
+2 Related Work 
+
+Frequency effects on linguistic evaluation in language models. Language models exhibit systematic frequency biases, where performance on linguistic evaluation often degrades when the test items contain low-frequency lexical items (Wei et al., 2021; Kim et al., 2022). In the context of syntactic contrasts, models perform worse on minimal pairs that contain low-frequency words, even when the underlying grammatical contrast is identical to high-frequency cases. Diehl Martinez et al. (2024) directly quantify this frequency bias in BLiMP (one of our syntactic test datasets) and propose a training-time intervention (Syntactic Smoothing) to reduce it, finding that substantial gaps persist even after mitigation. Wettig et al. (2023) examine how the masking rate during training determines which co-occurring token pairs (measured via pointwise mutual information) are exposed to the model, shaping both convergence speed and final performance. Since pointwise mutual information is itself derived from corpus-level token frequencies, these findings are consis-tent with frequency distributions in pretraining data influencing model behavior, though this connection is inferential. More directly, Kandpal et al. (2023) show that language mod-els struggle to acquire long-tail knowledge whose supporting documents are rare in the pretraining corpus, establishing a clear link between corpus frequency and what is learned. Together, these findings establish that (lexical) frequency creates differential strength in para-metric representations, with low-frequency items learned far less robustly. Our work asks a 2Preprint. Under review. related question from a different methodological angle: rather than reducing frequency bias through better training, can it be compensated for at inference time through retrieval? 
+
+Complementary Learning Systems theory. Complementary Learning Systems (CLS) theory (McClelland et al., 1995; Kumaran et al., 2016) proposes that the human brain employs two specialized memory systems: a hippocampal system that rapidly encodes specific episodes, and a neocortical system that gradually extracts statistical regularities across experiences. This allows new information to be acquired quickly without disrupting slower cortical learning, and computational implementations of CLS show that it enables both rapid mem-orization and gradual generalization (McClelland et al., 1995). Critically for our purposes, Eichenbaum (2001) argues that the hippocampus does not merely store episodes but actively supports flexible use of past experiences through retrieval, enabling inferences that paramet-ric learning alone may fail to achieve. Applied to language models, this predicts that when parametric representations are weak (as for low-frequency items), episodic retrieval should provide compensatory benefits by making specific relevant experiences directly accessible. Lampinen et al. (2025) in particular demonstrates that language models fail to generalize certain types of knowledge learned parametrically (e.g., relation reversals) but succeed when the same information is available in context, suggesting that episodic retrieval enables more flexible use of past experiences than parametric consolidation. Similarly, studies of in-context learning show that Transformers can apply procedures to information presented in context that they cannot apply to parametrically-stored knowledge (Chan et al., 2022). Our work extends these insights to syntactic processing by testing whether retrieval enables more robust generalization across frequency bands than parametric-only inferences. 
+
+Retrieval-augmented language models. Retrieval-augmented methods enhance language models by supplementing parametric knowledge with information drawn from an explicit memory at inference time. kNN-LMs (Khandelwal et al., 2020), which we adopt in this work, interpolate the base model’s next-token distribution with a distribution computed from nearest-neighbor contexts retrieved from a datastore of training instances. While prior work shows benefits for rare patterns and knowledge-intensive tasks (Borgeaud et al., 2022; Kandpal et al., 2023; Mallen et al., 2023), recent work finds that standard kNN-LMs do not improve prediction performance for low-frequency tokens in language modeling evaluation (Nishida et al., 2025), leaving open questions about retrieval benefits for linguistic processing. 
+
+3 Method 
+
+We first show that frequency gaps in tests of grammatical knowledge exist in vanilla lan-guage models (“base models”), and then test whether kNN-LMs help close these gaps. To this end, we use targeted syntactic contrast datasets where we divide test instances based on the frequency of the content words they contain. We describe the details of the models, datasets, evaluation tasks and the retrieval procedure below. 
+
+3.1 Models and Training Base models. We evaluate two decoder-only Transformer models that vary in parameter size and training data scale: (1) GPT-2 XL (1.5B parameters), pretrained on large-scale web text (Radford et al., 2019), and (2) GPT-2 Small (124M parameters) pretrained on child-directed speech corpora with 50M words selected from the BabyLM Challenge (Hu et al., 2024). Both use a standard autoregressive objective and serve as parametric-only baselines. Further details are provided in Appendix A.1. 
+
+kNN language models. Following Khandelwal et al. (2020), we augment base models with a datastore D containing context–target pairs. For each token xt, we store the key-value pair: 
+
+( fθ (x<t), xt), where fθ (x<t) is the layer-normalized contextual representation fed as input to the feed-forward sublayer of the final Transformer block. For GPT-2, this corresponds to the output of the final block’s second layer-normalization module and the input to its MLP. At inference time, we: 1. Compute the query: qt = fθ (x<t)
+
+3Preprint. Under review. 2. Retrieve k nearest neighbors via squared L2 distance 3. Compute the kNN probability: pkNN (xt|x<t) ∝ ∑ (k,v)∈N 1xt =v exp (−d(k, qt)/τ)
+
+4. Interpolate: p(xt|x<t) = λpkNN + ( 1 − λ)pLM 
+
+We fix λ = 0.25 following Khandelwal et al. (2020) and vary k ∈ { 1, 16, 1024 }, using FAISS (Johnson et al., 2019) for retrieval. 
+
+3.2 Evaluation Task Syntactic contrasts. We evaluate sensitivity to three syntactic phenomena: Subject-Verb agreement (SV), Wh-questions (Wh), and Relative Clauses (RC). We collect examples in these categories from BLiMP (Warstadt et al., 2020), Zorro (Huebner et al., 2021), and BIG-bench (Srivastava et al., 2023), filtering examples containing out-of-vocabulary items for each model. Each test item is a minimal pair with one grammatical and one ungrammatical sentence, where models must assign a higher probability to the grammatical sentence. 
+
+Frequency stratification. To test our hypothesis regarding lexical frequency, we further divided the evaluation data based on mean frequency across all the content words in the sentences ( high-frequency ( f > 10 4) versus low-frequency ( f < 10 3); everything in-between 
+
+mid-frequency ). Our main hypothesis concerns the contrast between the high- and low-frequency bands; we report the mid-frequency band throughout to give a complete picture of how retrieval benefits scale with frequency. We emphasize that all frequency gap claims are scoped within a single model/corpus: each gap and its narrowing under retrieval is measured against the same model’s own baseline. Because the two pretraining corpora differ substantially in size and composition, the absolute frequency thresholds do not render items in the same band directly comparable across pretraining settings, and we therefore do not compare numerical trends across the two settings. 
+
+3.3 Retrieval Procedure 
+
+Table 1: Syntactic contrast accuracy and perplexity (PPL) for baseline and kNN-LM models ( k = 16, τ = 3, sequence-level re-trieval). kNN augmentation improves ac-curacy across all phenomena and both pre-training scales, with relative clauses show-ing the largest gains. Perplexity reductions are larger for the large-scale model. Bold indicates improvement over baseline.                         
+
+> Child-realistic Large-scale
+> baseline kNN baseline kNN
+> PPL. ↓14.88 14.30 13.68 11.60 SV ↑0.76 0.82 0.84 0.89 Wh ↑0.77 0.81 0.81 0.86 RC ↑0.68 0.78 0.65 0.84
+
+We construct three datastore variants to dis-entangle the contributions of structural and semantic information: (1) Full Retrieval : stan-dard contextualized embeddings encoding both semantic and syntactic information; (2) 
+
+Semantics-only (averaged) : position-averaged contextualized embeddings from (1); 2 and (3) Semantics-only (uncontextualized) : summed GloVe (Pennington et al., 2014) and fastText (Bojanowski et al., 2017) embeddings, cap-turing lexical semantics without structural information. We additionally vary three re-trieval configuration parameters: granularity of retrieved instances (token, phrase, or se-quence), context window size ( τ), and num-ber of retrieved neighbors ( k), to characterize which retrieval configurations are most effec-tive across syntactic phenomena. 
+
+> 2In practice, averaging contextualized embeddings may not fully scrub syntactic information; we return to this issue later.
+
+4Preprint. Under review. 
+
+4 Results 
+
+4.1 Retrieval Benefits Syntactic Contrasts 
+
+We begin by investigating the general effectiveness of retrieval augmentation on syntactic contrasts. Table 1 3 shows that kNN augmentation improves performance across all three syntactic phenomena and both pretraining scales, as well as replicating previously reported perplexity improvements (Khandelwal et al., 2020). Relative clauses benefit the most from retrieval augmentation across both model scales. This pattern holds consistently regardless of pretraining scale, though perplexity reductions are larger for the large-scale model. The disproportionate benefit for relative clauses suggests that retrieval is most helpful where parametric representations are weakest, which motivates us to analyze the performance gains stratified by frequency. 
+
+4.2 Frequency Gap is Narrowed but not Fully Closed 
+
+Table 2: Frequency-stratified syntactic contrast performance( k = 16, τ = 3; sequence-level re-trieval). ER denotes error reduction, ∆acc/ (1 −
+
+acc base ). Bold indicates improvement over base-line.          
+
+> Child-realistic Large-scale
+> base kNN ER (%) base kNN ER (%)
+> SV
+> high 0.91 0.90
+
+−11.1 0.96 0.95 −25.0 mid 0.82 0.83 5.6 0.90 0.89 −10.0 low 0.60 0.76 40.0 0.71 0.83 41.4    
+
+> Wh
+> high 0.92 0.88
+
+−50.0 0.93 0.93 0.0 mid 0.83 0.86 17.6 0.90 0.91 10.0 low 0.61 0.70 23.1 0.69 0.74 16.1                   
+
+> RC
+> high 0.88 0.89 8.3 0.89 0.95 54.5 mid 0.73 0.81 29.6 0.82 0.89 38.9 low 0.48 0.65 32.7 0.41 0.70 49.2
+
+Next, we examine whether retrieval helps close the lexical frequency gap. Table 2 confirms the existence of fre-quency gaps in both baseline mod-els across three syntactic phenomena, with performance on low-frequency items consistently lower than on high-frequency items, and mid-frequency items falling in between. With retrieval augmentation, the high–low perfor-mance gap narrows across all phenom-ena and both model scales. In terms of error reduction ( ∆acc/ (1 − acc base )), low-frequency items show substan-tial relative gains (e.g., 49.2% for RCs in the large-scale model), though we note that this metric can be mislead-ing near ceiling, where small abso-lute changes in already-high accuracy produce large negative percentages (e.g., child-realistic high-frequency Wh, 0.92 → 0.88, yields −50%). Raw accuracies should be used to adjust the interpretations in such cases. Statistical analysis supports the interpretation that narrowing is driven primarily by gains on low-frequency items. Bootstrapped 95% confidence intervals on the per-frequency band performance delta (kNN − baseline) confirm a robust separation: for the child-realistic model, low-frequency items show ∆ = 0.140 (95% CI [0.115, 0.166 ]) versus ∆ = −0.013 (95% CI [−0.030, 0.004 ]) for high-frequency items, with non-overlapping intervals (large-scale model shows the same pattern; see Appendix A.3). A mixed-effects logistic regression using treatment coding with high-frequency items and the baseline model as reference levels ( correct ∼ Frequency * ModelType + (1 |item) + (1 |phenomenon) ) further shows that the retrieval effect is significantly larger for low-frequency than for high-frequency items (Frequency [low] × ModelType [kNN] interaction: 
+
+β = 0.52, p < 0.001. The effect of retrieval within the high-frequency band is not significant (ModelType [kNN]: β = −0.04, p = 0.62; Appendix A.3).   
+
+> 3Note for all tables in this section: Baseline models use parametric knowledge only; kNN models are retrieval-augmented. Abbreviations: SV (subject-verb agreement), Wh (wh-questions), RC (relative clauses), PPL (perplexity). We use k
+
+= 16, τ = 3, and sequence-level retrieval (see Section 3.3) as the representative configuration, since this setting yields general gains in low-frequency conditions. However, as discussed in Section 5.2, there may exist alternative configurations that outperform this representative configuration for individual phenomena. 
+
+5Preprint. Under review. Nevertheless, this compensation is not sufficient to eliminate the frequency gap: low-frequency items still yield lower accuracy than high-frequency items across all tested phenomena and both model scales, even after retrieval augmentation. 
+
+5 Analysis 
+
+The analyses in this section fix the retrieval configuration to k = 16, τ = 3 with sequence-level retrieval, which isolates the contribution of the factors studied from the effects of configuration. 
+
+5.1 Importance of Structural vs. Semantic Information 
+
+We proceed to investigate which aspects of the retrieved information drive the observed benefits by examining (1) the effect of semantics-only retrieval, and (2) the effect of retrieving structurally similar instances. 
+
+Semantics-only retrieval is mostly ineffective. Figure 1 shows that semantics-only retrieval (FastText, GloVe, G-Avg; see Section 3.3) performs at or substantially below the baseline without retrieval across most conditions. This shows that semantic similarity of the retrieved examples alone does not reliably improve syntactic judgments. One partial exception is GPT2-Averaged (G-Avg), where retrieval does lead to substantive gains over the baseline for low-frequency items for RCs, although performance on high-frequency items degrades by a large margin. FastText and GloVe also yield gains for low-frequency RCs in the large-scale setting, although relatively minor. There are two possible, non-mutually exclusive interpretations for this: (1) semantic information does sometimes yield benefits, as discussed in the next paragraph; or (2) that averaging of contextualized embeddings does not totally remove structural information. Baseline FastText GloVe G-Avg G-Context 0.4 0.5 0.6 0.7 0.8 0.9 1.0             
+
+> Syntactic Contrast Score  High Low Baseline FastText GloVe G-Avg G-Context 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score  High Low Baseline FastText GloVe G-Avg G-Context 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score  High Low Baseline FastText GloVe G-Avg G-Context 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score  High Low
+
+(a) Subject-verb agreement Baseline FastText GloVe G-Avg G-Context 0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score  High Low
+
+(b) Wh-questions Baseline FastText GloVe G-Avg G-Context 0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score  High Low
+
+(c) Relative Clauses Figure 1: Performance on syntactic contrasts using semantics-only retrieval strategies com-pared to full retrieval ( k = 16, τ = 3) of the child-realistic (top row) and large-scale (bottom row) models. Blue bars indicate high-frequency items and orange bars low-frequency items. 
+
+Structural information is critical, and similarity-based example selection does not com-pensate for missing structure. Figure 2 examines retrieval benefits from two angles: whether the set of retrieved items contains structurally matching examples ( with (w) vs. without (w/o) ), 4 and whether retrieval ranks them by embedding similarity or at random ( +r ). Across all phenomena and both model scales, the w bars consistently exceed w/o for low-frequency 
+
+4See Appendix A.4 for our structural match metric. 
+
+6Preprint. Under review. items (orange bars) with the strongest effects for relative clauses. This illustrates the impor-tance of structure-matched examples in the retrieved set. For low-frequency items, both structural matches and similarity-based selection contribute. However, similarity does not compensate for missing structural information. While it does add smaller, consistent gains overall, similarity-based selection without structural matches ( w/o : middle orange bars with hatched gains) consistently fails to outperform random selection with structural matches (w/+r : right orange bars without hatched gains) for any model or phenomenon. Thus, struc-turally matched examples are the primary driver of frequency-selective retrieval benefits, with secondary contributions from similarity-based selection. Given the ineffectiveness of semantics-only retrieval discussed above, the embedding similarity gains likely reflect partial structural similarity between the retrieved examples and the target, in addition to semantic similarity. base w/o+r → w/o w/+r → w/ 0.4 0.5 0.6 0.7 0.8 0.9 1.0               
+
+> Syntactic Contrast Score
+> High Low Improvement base w/o+r → w/o w/+r → w/ 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+> High Low Improvement base w/o+r → w/o w/+r → w/ 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+> High Low Improvement base w/o+r → w/o w/+r → w/ 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+> High Low Improvement
+
+(a) Subject-verb agreement base w/o+r → w/o w/+r → w/ 0.4 0.5 0.6 0.7 0.8 0.9 1.0    
+
+> Syntactic Contrast Score
+> High Low Improvement
+
+(b) Wh-questions base w/o+r → w/o w/+r → w/ 0.4 0.5 0.6 0.7 0.8 0.9 1.0    
+
+> Syntactic Contrast Score
+> High Low Improvement
+
+(c) Relative clauses Figure 2: Performance when retrieved sequences contain target syntactic structures (with: w/) versus when they do not (without: w/o). Top row: child-realistic model; bottom row: large-scale model ( k = 16, τ = 3, sequence-level). Blue and orange bars correspond to high- and low-frequency items, respectively. Within each panel, the x-axis shows three conditions: base (no retrieval), w/o+r → w/o (retrieved set does not contain structurally matched examples, random selection → embedding-similarity), and w/+r → w/ (retrieved set contains structurally matched examples, random selection → embedding-similarity). Solid bars denote random selection ( +r ); hatched segments denote the additional gain from embedding-similarity ranking over random selection. 
+
+5.2 Effects of Retrieval Configuration 
+
+We next analyze whether and how retrieval effectiveness is modulated by three configuration parameters: retrieval granularity (token, phrase, or sequence), number of neighbors ( k), and context window size ( τ). 
+
+Effects of retrieval granularity. Figure 3 shows that, at k = 16 and τ = 3, sequence-level retrieval numerically provides the strongest or tied-strongest performance for low-frequency items across all phenomena and both model settings, but the effect of retrieval granularity overall is small. 
+
+Effects of context window size. Figure 4 shows that the effect of context window size is idiosyncratic. For RC, τ = 10 yields the highest accuracy across both model scales and both frequency bands, whereas for SV, τ = 3 yields the strongest performance for low-frequency. For Wh, the effect of τ is minimal, except τ = 3 leading to degradation in high-frequency items in the child-realistic model. Thus, increasing context window size does not uniformly improve performance, and the preferred window size depends on the phenomenon, frequency band, and model. 7Preprint. Under review. Baseline Token Phrase Sequence 0.4 0.5 0.6 0.7 0.8 0.9 1.0          
+
+> Syntactic Contrast Score Baseline Token Phrase Sequence 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score Baseline Token Phrase Sequence 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score Baseline Token Phrase Sequence 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(a) Subject-verb agreement Baseline Token Phrase Sequence 0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(b) Wh-questions Baseline Token Phrase Sequence 0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(c) Relative clauses Figure 3: Performance across retrieval granularities (token, phrase, sequence) in child-realistic (top row) and large-scale (bottom row) models ( k = 16, τ = 3). Blue bars indicate high-frequency items and orange bars low-frequency items. Sequence-level retrieval is numerically the overall strongest, but the effect of retrieval granularity is overall small. Baseline 1 3 10          
+
+> Context Window Size ( τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score Baseline 1310
+> Context Window Size ( τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score Baseline 1310
+> Context Window Size ( τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score Baseline 1310
+> Context Window Size ( τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(a) Subject-verb agreement Baseline 1 3 10  
+
+> Context Window Size ( τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(b) Wh-questions Baseline 1 3 10  
+
+> Context Window Size ( τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(c) Relative clauses Figure 4: Performance across context-window sizes for the child-realistic (top row) and large-scale (bottom row) settings, using sequence-level retrieval with k = 16. Blue bars indicate high-frequency items and orange bars indicate low-frequency items. The effects of context size are non-monotonic and phenomenon-, frequency band- and model-dependent. 
+
+Effects of number of retrieved instances. Figure 5 shows that the number of retrieved instances has a non-monotonic effect on performance in the low-frequency regime. Moving from k = 1 to a moderate number ( k = 16) consistently improves performance across most conditions, indicating the benefit of aggregating evidence from multiple exemplars. However, further increasing the number of neighbors ( k = 1024) leads to performance degradation, likely due to noise from distant and less relevant neighbors. This pattern holds across models, granularities, and syntactic phenomena, suggesting the optimal choice lies at intermediate values of k. The effect for high-frequency items is smaller and mixed. 
+
+No cross-phenomena optimal configuration. Across the three parameters (retrieval gran-ularity, context window size, and number of retrieved instances), no single configuration consistently yields optimal performance across all syntactic phenomena, model, and fre-8Preprint. Under review. Baseline 1 16 1024          
+
+> Number of Retrieved Neighbors ( k)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score Baseline 116 1024
+> Number of Retrieved Neighbors ( k)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score Baseline 116 1024
+> Number of Retrieved Neighbors ( k)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score Baseline 116 1024
+> Number of Retrieved Neighbors ( k)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(a) Subject–verb agreement Baseline 1 16 1024  
+
+> Number of Retrieved Neighbors ( k)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(b) Wh-questions Baseline 1 16 1024  
+
+> Number of Retrieved Neighbors ( k)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(c) Relative clauses Figure 5: Performance across numbers of retrieved neighbors ( k ∈ { 1, 16, 1024 }) for the child-realistic (top row) and large-scale (bottom row) settings, using τ = 3 and sequence-level retrieval. Blue bars indicate high-frequency items and orange bars indicate low-frequency items. For all six low-frequency conditions, k = 16 outperforms both k = 1 and 
+
+k = 1024. Effects on high-frequency items are smaller and mixed. quency strata. While sequence-level retrieval, larger context windows, and a moderate number of neighbors ( k = 16) provide the most robust overall performance (and there-fore serves as our representative configuration), it does not uniformly dominate across all settings, particularly for simpler or high-frequency dependencies where more localized representations or smaller contexts can be competitive. These results suggest that effective retrieval is jointly modulated by dependency complexity, data frequency, and model capac-ity, and that optimal retrieval configurations are likely to be phenomenon-dependent rather than universally fixed. 
+
+6 Discussion 
+
+We tested whether an episodic retrieval mechanism as implemented via kNN-LMs can help close the lexical frequency gap that language models exhibit in syntactic contrast tests. Our findings reveal that retrieval augmentation provides substantial compensatory benefits for low-frequency items, and that both structural and semantic information contribute to the gains, although the role of structural information is more critical. However, the compensation is insufficient: the frequency gap is narrowed but not fully closed. In the spirit of Sullivan (2024), we regard the kNN-LM as one instantiation of episodic retrieval that supports a how-possibly explanation. Specifically, our model focuses on one functional analogy to CLS, without making more specific implementation commitments. In this section, we discuss which modeling considerations may help narrow the empirical gap further in the future based on the limitations we observe in our analyses. Specifically, our analyses suggest that preferential reweighting of retrieved instances, improved representations and retrieval strategies for structural information, and an adaptive storage and retrieval mechanism that allows for flexible configurations of instances may be promising next steps. 
+
+Preferential reweighting. The hippocampus has been proposed to engage in preferential reweighting, where novel or rewarding instances are prioritized during replay and con-solidation (Kumaran et al., 2016). This kind of modulation is consistent with error-driven learning accounts (Chang et al., 2006; Rescorla & Wagner, 1972), which predict that unex-pected or surprising items trigger stronger updates. Standard kNN-LM as implemented in this study retrieves instances by similarity alone, without modulating retrieval by the rarity or informativeness of stored instances. This leads to suboptimal retrieval of relevant examples especially for more difficult phenomena like RCs in the child-realistic regime 9Preprint. Under review. (e.g., the low rate of structurally similar instances retrieved for RCs: Table 8). Thus, im-proving strategies for retrieval and storage to identify better retrieval targets could close the frequency gap further. Related work on example selection and pruning (Toneva et al., 2019) and domain-level data reweighting and resampling (Xie et al., 2023) shows that non-uniform treatment of training data can improve efficiency or performance. Although these studies do not examine retrieval or lexical frequency, they motivate testing whether rarity-or informativeness-aware weighting of retrieved instances benefits low-frequency items. 
+
+Better representations and retrieval strategies for structural information. Our analysis shows that structural information is critical for retrieval benefits we observe, which is in line with episodic accounts of syntactic processing that focus on the structural aspects of the retrieved content (Borensztajn & Zuidema, 2011). In light of this observation, we note two potential issues that may contribute to the persistent frequency gap. First, as discussed above, retrieval based on representation similarity is not always effective in identifying structurally relevant instances, particularly in child-realistic models. Second, even when relevant instances are retrieved, the structural signals encoded in the representations may be too weak to fully bootstrap processing of low-frequency instances. Addressing the first issue may benefit from selective indexing and constraint-based filtering strategies (He et al., 2021; Drozdov et al., 2022), and the second may require expanding the datastore to maintain the full residual stream representations or exploring alternative pooling strategies in the datastore. 
+
+Flexible configurations of storage and retrieval. The absence of a universal retrieval con-figuration across different syntactic phenomena suggests that maximally effective episodic retrieval requires adaptive mechanisms that modulate granularity, context scope, and neigh-bor count. Indeed, human episodic memory has been proposed to support this kind of flexibility (Duff & Brown-Schmidt, 2012) and adaptive retrieval mechanisms grounded in metacognitive monitoring have been discussed in memory theory (Nelson, 1990). Our 
+
+kNN-LM uses a fixed configuration across all inputs. Developing retrieval strategies that adapt their configuration to the structural demands of the input represents a promising direction for closing the remaining frequency gap. 
+
+Limitations. Our conclusions are limited to controlled English syntactic minimal-pair tests covering three phenomena and two language models; whether the observed pattern generalizes to naturalistic comprehension, production, or human behavior remains open. Moreover, the kNN-LM implements only a functional analogy to CLS and does not model biological hippocampal mechanisms, online episodic encoding, or consolidation. Finally, our semantic–structural comparisons do not cleanly isolate the two sources of information, because averaged contextual representations retain structural information and structural-match rates may reflect datastore coverage as well as representation and retrieval quality. Our results therefore motivate episodic retrieval as a possible mechanism rather than pinpoint the mechanism underlying human robustness to lexical frequency. 
+
+7 Conclusion 
+
+We tested whether an episodic retrieval mechanism can help close the lexical frequency gap that language models exhibit in syntactic contrast evaluations. Using kNN-LMs as a functional proxy for hippocampal episodic memory, we find retrieval consistently narrows the performance gap between high- and low-frequency items across syntactic phenomena and model/data scales, with structural information playing a critical role in driving this compensation. However, the frequency gap remains not fully closed—test items with low frequency lexical items still systematically lead to lower performance even after retrieval augmentation. The limitations of the current implementation of episodic memory identified through our analyses lead to three concrete future directions for improvement: implemen-tation of a preferential reweighting mechanism, stronger structural representations and retrieval strategies, and adaptive retrieval configurations rather than fixed. More broadly, these results offer proof-of-concept support for the CLS hypothesis that episodic memory contributes to the robustness of syntactic processing to lexical frequency effects, while identifying areas for improvement for future modeling work. 10 Preprint. Under review. 
+
+Acknowledgments 
+
+This work has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant agreement No 945304 – Cofund AI4theSciences hosted by PSL University. We thank the three anonymous reviewers for their feedback. 
+
+References 
+
+Markus Bader and Jana Häussler. Toward a model of grammaticality judgments. Journal of Linguistics , 46(2):273–330, 2010. Eden Bensaid. Children stories text corpus. Kaggle dataset, 2021. URL https://www.kaggle. com/datasets/edenbd/children-stories-text-corpus . Accessed 2026-08-07. Eden Bensaid, Mauro Martino, Benjamin Hoover, and Hendrik Strobelt. FairyTailor: A multimodal generative framework for storytelling. arxiv:2108.04324 , 2021. doi: 10.48550/ arXiv.2108.04324. URL https://arxiv.org/abs/2108.04324 .Piotr Bojanowski, Edouard Grave, Armand Joulin, and Tomas Mikolov. Enriching word vectors with subword information. Transactions of the Association for Computational Linguistics , 5:135–146, 06 2017. ISSN 2307-387X. doi: 10.1162/tacl_a_00051. URL 
+
+https://doi.org/10.1162/tacl_a_00051 .Gideon Borensztajn and Willem Zuidema. Episodic grammar: a computational model of the interaction between episodic and semantic memory in language processing. In Proceedings of the Annual Meeting of the Cognitive Science Society , volume 33, 2011. Sebastian Borgeaud, Arthur Mensch, Jordan Hoffmann, Trevor Cai, Eliza Rutherford, Katie Millican, George Van Den Driessche, Jean-Baptiste Lespiau, Bogdan Damoc, Aidan Clark, et al. Improving language models by retrieving from trillions of tokens. In International Conference on Machine Learning , pp. 2206–2240. PMLR, 2022. Stephanie CY Chan, Ishita Dasgupta, Junkyung Kim, Dharshan Kumaran, Andrew K Lampinen, and Felix Hill. Transformers generalize differently from information stored in context vs in weights. arXiv:2210.05675 , 2022. Franklin Chang, Gary S Dell, and Kathryn Bock. Becoming syntactic. Psychological review ,113(2):234–272, 2006. doi: 10.1037/0033-295X.113.2.234. Ken Ramshøj Christensen and Johannes Kizach. Complexity and grammaticality in the online processing of filler-gap dependencies. Language and Cognition , 16(1):1–28, 2024. doi: 10.1017/langcog.2023.48. Matthew H Davis and M Gareth Gaskell. A complementary systems account of word learning: neural and behavioural evidence. Philosophical Transactions of the Royal Society B: Biological Sciences , 364(1536):3773–3800, 2009. Richard Diehl Martinez, Zébulon Goriely, Andrew Caines, Paula Buttery, and Lisa Beinborn. Mitigating frequency bias and anisotropy in language model pre-training with syntactic smoothing. In Yaser Al-Onaizan, Mohit Bansal, and Yun-Nung Chen (eds.), Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing , pp. 5999–6011, Miami, Florida, USA, November 2024. Association for Computational Linguistics. doi: 10.18653/v1/2024.emnlp-main.344. URL https://aclanthology.org/2024.emnlp-main. 344/ .Andrew Drozdov, Shufan Wang, Razieh Rahimi, Andrew McCallum, Hamed Zamani, and Mohit Iyyer. You can’t pick your neighbors, or can you? when and how to rely on retrieval in the kNN-LM. In Yoav Goldberg, Zornitsa Kozareva, and Yue Zhang (eds.), Findings of the Association for Computational Linguistics: EMNLP 2022 , pp. 2997– 3007, Abu Dhabi, United Arab Emirates, December 2022. Association for Computational Linguistics. doi: 10.18653/v1/2022.findings-emnlp.218. URL https://aclanthology. org/2022.findings-emnlp.218/ .11 Preprint. Under review. Melissa C Duff and Sarah Brown-Schmidt. The hippocampus and the flexible use and processing of language. Frontiers in human neuroscience , 6:69, 2012. Howard Eichenbaum. The hippocampus and declarative memory: cognitive mechanisms and neural codes. Behavioural brain research , 127(1-2):199–207, 2001. Michael C Frank. Bridging the data gap between children and large language models. Trends in Cognitive Sciences , 27(11):990–992, 2023. Jill Gilkerson, Jeffrey A Richards, Steven F Warren, Judith K Montgomery, Charles R Green-wood, D Kimbrough Oller, John HL Hansen, and Terrance D Paul. Mapping the early language environment using all-day recordings and automated analysis. American journal of speech-language pathology , 26(2):248–265, 2017. J. J. Godfrey, E. C. Holliman, and J. McDaniel. SWITCHBOARD: Telephone speech corpus for research and development. In Proceedings of the 1992 IEEE International Conference on Acoustics, Speech, and Signal Processing , volume 1, pp. 517–520, 1992. doi: 10.1109/ICASSP. 1992.225858. Junxian He, Graham Neubig, and Taylor Berg-Kirkpatrick. Efficient nearest neighbor language models. In Marie-Francine Moens, Xuanjing Huang, Lucia Specia, and Scott Wen-tau Yih (eds.), Proceedings of the 2021 Conference on Empirical Methods in Natural Lan-guage Processing , pp. 5703–5714, Online and Punta Cana, Dominican Republic, November 2021. Association for Computational Linguistics. doi: 10.18653/v1/2021.emnlp-main.461. URL https://aclanthology.org/2021.emnlp-main.461/ .Matthew Honnibal, Ines Montani, Sofie Van Landeghem, and Adriane Boyd. spaCy: Industrial-strength natural language processing in python. 2020. doi: 10.5281/zenodo. 1212303. Michael Y Hu, Aaron Mueller, Candace Ross, Adina Williams, Tal Linzen, Chengxu Zhuang, Ryan Cotterell, Leshem Choshen, Alex Warstadt, and Ethan Gotlieb Wilcox. Findings of the second BabyLM challenge: Sample-efficient pretraining on developmentally plausible corpora. In The 2nd BabyLM Challenge at the 28th Conference on Computational Natural Language Learning , pp. 1–21, 2024. Philip A Huebner, Elior Sulem, Fisher Cynthia, and Dan Roth. BabyBERTa: Learning more grammar with small-scale child-directed language. In Proceedings of the 25th conference on computational natural language learning , pp. 624–646, 2021. Jeff Johnson, Matthijs Douze, and Hervé Jégou. Billion-scale similarity search with gpus. volume 7, pp. 535–547. IEEE, 2019. doi: 10.1109/TBDATA.2019.2921572. Nikhil Kandpal, Haikang Deng, Adam Roberts, Eric Wallace, and Colin Raffel. Large language models struggle to learn long-tail knowledge. In International Conference on Machine Learning , pp. 15696–15707. PMLR, 2023. Gerard Kempen and Karin Harbusch. The relationship between grammaticality ratings and corpus frequencies: A case study into word order variability in the midfield of german clauses. Linguistic evidence: Empirical, theoretical, and computational perspectives , pp. 329–349, 2005. Urvashi Khandelwal, Omer Levy, Dan Jurafsky, Luke Zettlemoyer, and Mike Lewis. Gen-eralization through memorization: Nearest neighbor language models. In International Conference on Learning Representations , 2020. Najoung Kim, Tal Linzen, and Paul Smolensky. Uncontrolled lexical exposure leads to overestimation of compositional generalization in pretrained models. arXiv:2212.10769 ,2022. Dharshan Kumaran, Demis Hassabis, and James L McClelland. What learning systems do intelligent agents need? Complementary learning systems theory updated. Trends in cognitive sciences , 20(7):512–534, 2016. 12 Preprint. Under review. Andrew Kyle Lampinen, Martin Engelcke, Yuxuan Li, Arslan Chaudhry, and James L McClelland. Latent learning: episodic memory complements parametric learning by enabling flexible reuse of experiences. arXiv:2509.16189 , 2025. Jey Han Lau, Alexander Clark, and Shalom Lappin. Grammaticality, acceptability, and probability: A probabilistic view of linguistic knowledge. Cognitive Science , 41(5):1202– 1241, 2017. doi: https://doi.org/10.1111/cogs.12414. URL https://onlinelibrary. wiley.com/doi/abs/10.1111/cogs.12414 .Pierre Lison and Jörg Tiedemann. OpenSubtitles2016: Extracting large parallel corpora from movie and TV subtitles. In Proceedings of the Tenth International Conference on Language Resources and Evaluation (LREC’16) , pp. 923–929, Portorož, Slovenia, 2016. European Language Resources Association (ELRA). URL https://aclanthology.org/L16-1147/ .Brian MacWhinney. The CHILDES project. Computational Linguistics , 26(4):657–657, 2000. Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das, Daniel Khashabi, and Hannaneh Hajishirzi. When not to trust language models: Investigating effectiveness of paramet-ric and non-parametric memories. In Anna Rogers, Jordan Boyd-Graber, and Naoaki Okazaki (eds.), Proceedings of the 61st Annual Meeting of the Association for Computa-tional Linguistics (Volume 1: Long Papers) , pp. 9802–9822, Toronto, Canada, July 2023. Association for Computational Linguistics. doi: 10.18653/v1/2023.acl-long.546. URL 
+
+https://aclanthology.org/2023.acl-long.546/ .James L McClelland, Bruce L McNaughton, and Randall C O’Reilly. Why there are comple-mentary learning systems in the hippocampus and neocortex: insights from the successes and failures of connectionist models of learning and memory. Psychological review , 102(3): 419–457, 1995. doi: 10.1037/0033-295X.102.3.419. Thomas O Nelson. Metamemory: A theoretical framework and new findings. In Psychology of learning and motivation , volume 26, pp. 125–173. Elsevier, 1990. Yuto Nishida, Makoto Morishita, Hiroyuki Deguchi, Hidetaka Kamigaito, and Taro Watan-abe. Long-tail crisis in nearest neighbor language models. In Luis Chiruzzo, Alan Ritter, and Lu Wang (eds.), Findings of the Association for Computational Linguistics: NAACL 2025 ,pp. 5980–5993, Albuquerque, New Mexico, April 2025. Association for Computational Linguistics. ISBN 979-8-89176-195-7. doi: 10.18653/v1/2025.findings-naacl.331. URL 
+
+https://aclanthology.org/2025.findings-naacl.331/ .Jeffrey Pennington, Richard Socher, and Christopher Manning. GloVe: Global vectors for word representation. In Alessandro Moschitti, Bo Pang, and Walter Daelemans (eds.), 
+
+Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP) , pp. 1532–1543, Doha, Qatar, October 2014. Association for Computational Linguistics. doi: 10.3115/v1/D14-1162. URL https://aclanthology.org/D14-1162/ .Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, Ilya Sutskever, et al. Language models are unsupervised multitask learners. OpenAI blog , 1(8):9, 2019. Robert A Rescorla and Allan R Wagner. A theory of pavlovian conditioning: Variations in the effectiveness of reinforcement and nonreinforcement. Classical conditioning II: Current research and theory , 2:64–99, 1972. Aarohi Srivastava, Abhinav Rastogi, Abhishek Rao, Abu Awal Md Shoeb, Abubakar Abid, Adam Fisch, Adam R Brown, Adam Santoro, Aditya Gupta, Adrià Garriga-Alonso, et al. Beyond the imitation game: Quantifying and extrapolating the capabilities of language models. Transactions on machine learning research , 2023. Andreas Stolcke, Klaus Ries, Noah Coccaro, Elizabeth Shriberg, Rebecca A. Bates, Daniel Jurafsky, Paul Taylor, Rachel Martin, Carol Van Ess-Dykema, and Marie Meteer. Di-alogue act modeling for automatic tagging and recognition of conversational speech. 
+
+Computational Linguistics , 26(3):339–373, 2000. doi: 10.1162/089120100561737. URL 
+
+https://aclanthology.org/J00-3003/ .13 Preprint. Under review. Emily Sullivan. Do machine learning models represent their targets? Philosophy of Science ,91(5):1445–1455, 2024. Mariya Toneva, Alessandro Sordoni, Remi Tachet des Combes, Adam Trischler, Yoshua Bengio, and Geoffrey J Gordon. An empirical study of example forgetting during deep neural network learning. In International Conference on Learning Representations , 2019. Alex Warstadt, Alicia Parrish, Haokun Liu, Anhad Mohananey, Wei Peng, Sheng-Fu Wang, and Samuel R Bowman. BLiMP: The benchmark of linguistic minimal pairs for english. 
+
+Transactions of the Association for Computational Linguistics , 8:377–392, 2020. doi: 10.1162/ tacl_a_00321. Alex Warstadt, Aaron Mueller, Leshem Choshen, Ethan Wilcox, Chengxu Zhuang, Juan Ciro, Rafael Mosquera, Bhargavi Paranjabe, Adina Williams, Tal Linzen, and Ryan Cot-terell. Findings of the BabyLM challenge: Sample-efficient pretraining on developmen-tally plausible corpora. In Proceedings of the BabyLM Challenge at the 27th Conference on Computational Natural Language Learning , pp. 1–34, Singapore, December 2023. As-sociation for Computational Linguistics. doi: 10.18653/v1/2023.conll-babylm.1. URL 
+
+https://aclanthology.org/2023.conll-babylm.1/ .Jason Wei, Dan Garrette, Tal Linzen, and Ellie Pavlick. Frequency effects on syntactic rule learning in transformers. In Marie-Francine Moens, Xuanjing Huang, Lucia Specia, and Scott Wen-tau Yih (eds.), Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing , pp. 932–948, Online and Punta Cana, Dominican Republic, November 2021. Association for Computational Linguistics. doi: 10.18653/v1/2021.emnlp-main.72. URL https://aclanthology.org/2021.emnlp-main.72/ .Alexander Wettig, Tianyu Gao, Zexuan Zhong, and Danqi Chen. Should you mask 15% in masked language modeling? In Andreas Vlachos and Isabelle Augenstein (eds.), 
+
+Proceedings of the 17th Conference of the European Chapter of the Association for Computational Linguistics , pp. 2985–3000, Dubrovnik, Croatia, May 2023. Association for Computational Linguistics. doi: 10.18653/v1/2023.eacl-main.217. URL https://aclanthology.org/2023. eacl-main.217/ .Sang Michael Xie, Hieu Pham, Xuanyi Dong, Nan Du, Hanxiao Liu, Yifeng Lu, Percy S Liang, Quoc V Le, Tengyu Ma, and Adams Wei Yu. Doremi: Opti-mizing data mixtures speeds up language model pretraining. In A. Oh, T. Nau-mann, A. Globerson, K. Saenko, M. Hardt, and S. Levine (eds.), Advances in Neural Information Processing Systems , volume 36, pp. 69798–69818. Curran Asso-ciates, Inc., 2023. URL https://proceedings.neurips.cc/paper_files/paper/2023/ file/dcba6be91359358c2355cd920da3fcbd-Paper-Conference.pdf .14 Preprint. Under review. 
+
+A Appendix 
+
+A.1 Pretrained models and datasets Child-realistic pretraining data. We constructed a dataset to approximate the language input a child receives during early development, drawing on child-directed speech (CDS) from CHILDES (MacWhinney, 2000), transcribed conversational speech from the Switch-board Dialog Act Corpus (Godfrey et al., 1992; Stolcke et al., 2000), children’s stories from the Children’s Stories Text Corpus (Bensaid, 2021; Bensaid et al., 2021), and movie and television subtitles from OpenSubtitles (Lison & Tiedemann, 2016). These four sources also appear in the 2023 BabyLM corpus release (Warstadt et al., 2023). The complete dataset comprises 50.03M words, consistent with estimates of cumulative linguistic input by early childhood (Gilkerson et al., 2017; Frank, 2023). Table 3 shows the distribution of constituent sub-datasets. Table 3: Composition of child-realistic pretraining corpus combining child-directed speech, conversational dialogue, and children’s books to approximate naturalistic language expo-sure during early childhood. CDS = child-directed speech; SWBD = Switchboard; CSTC = Children’s Stories Text Corpus; OSub = OpenSubtitles.                  
+
+> Dataset Domain # words Prop. (%)
+> CHILDES CDS 15M 30.0 SWBD Dialogue 1.18M 2.4 CSTC Books 3.22M 6.4 OSub Dialogue 30.63M 61.2
+> Total 50.03M 100.0
+
+Large-scale pretraining data. For the large-scale condition, we use GPT-2 XL (1.5B parame-ters) pretrained on the WebText corpus (Radford et al., 2019), which contains approximately 40GB of text scraped from internet sources. 
+
+Model architectures and training. Table 4 summarizes the architectural specifications for both models. The child-realistic model uses the GPT-2 Small architecture with 124M parameters, trained from scratch for 10 epochs, following the BabyLM Challenge setup (Hu et al., 2024). The GPT-2 XL model uses the publicly available pretrained checkpoint from Radford et al. (2019). The training details for the child-realistic model are provided in Table 5. Table 4: Model architecture specifications. GPT-2 Small was trained from scratch on child-realistic data (50M words); GPT-2 XL uses the publicly released pretrained checkpoint from Radford et al. (2019) trained on WebText ( ∼40GB).                   
+
+> Parameter GPT-2 Small GPT-2 XL
+> # parameters 124M 1.5B Transformer layers 12 48 Hidden size 768 1600 FFN size 3072 6400 Attention heads 12 25 Attention dropout 0.1 0.1 Embedding dimension 768 1600 Vocabulary size 50257 50257
+
+15 Preprint. Under review. Table 5: Training hyperparameters for GPT-2 Small on the child-realistic corpus, trained for 10 epochs using a standard autoregressive language modeling objective with cross-entropy loss.              
+
+> Hyperparameter Value
+> Max sequence length 1024 Batch size 64 Training epochs 10 Learning rate 0.0001 LR scheduler inverse sqrt Warmup steps 1000 Optimizer Adam Adam-β10.9 Adam-β20.98 Dropout 0.1 Weight decay 0.01 Gradient clipping 1.0
+
+A.2 Evaluation set construction 
+
+To ensure focused evaluation on syntactic phenomena relevant to our research questions, we selected subsets corresponding to our target phenomena from three evaluation benchmarks: BLiMP (Warstadt et al., 2020), Zorro (Huebner et al., 2021), and BIG-bench (Srivastava et al., 2023) as discussed below. 
+
+A.2.1 Source benchmarks 
+
+BLiMP. The Benchmark of Linguistic Minimal Pairs for English (Warstadt et al., 2020) consists of 67 sub-datasets, each containing 1,000 minimal pairs (67,000 pairs total) isolating specific contrasts in syntax, morphology, or semantics. The data is automatically generated according to linguist-crafted grammar templates, with 96.4% aggregate human agreement with the labels. For subject–verb agreement, we selected the relational-noun distractor paradigm and four plural-agreement paradigms: regular and irregular plurals, each with a verb-number manipulation holding the subject fixed (variant 1) and a subject-number manipulation holding the verb fixed (variant 2). For wh-questions, we selected the object-gap, subject-gap, and long-distance subject-gap wh-question paradigms, together with the four wh-versus-that paradigms crossing gap presence and dependency length. For relative clauses, we selected the relative-clause distractor agreement paradigm. 
+
+Zorro. Zorro (Huebner et al., 2021) is a targeted grammar test suite designed for small-data, restricted-vocabulary evaluation. It comprises 23 paradigms spanning 13 grammatical phenomena, with 2,000 minimal pairs (4,000 sentences) per paradigm. Its lexical items were selected from whole-word entries in BabyBERTa’s custom vocabulary, making the suite suitable for evaluating models trained on comparatively limited, child-directed linguistic input. For subject–verb agreement, we selected agreement across a prepositional phrase, agreement in questions with an auxiliary, and agreement in simple questions. For wh-questions, we selected the object and subject wh-question paradigms. For relative clauses, we selected agreement across a relative clause. 
+
+BIG-bench. The Beyond the Imitation Game Benchmark (Srivastava et al., 2023) includes several linguistic evaluation tasks. For subject-verb agreement, we se-lected the simple-English, single-adverb, double-adverb, adverb-conjunction, name-plus-prepositional-phrase, noun-plus-prepositional-phrase, noun-plus-prepositional-phrase-and-adverb, Gulordava-nonce, and frequency-disbalance-nonce subtasks. For relative clauses, we selected the long-nested-inner and long-nested-outer subtasks. No BIG-bench items were used for the wh-question evaluation. 16 Preprint. Under review. 
+
+A.3 Statistical analyses Bootstrapped confidence intervals on per-frequency band deltas. For each frequency band, we computed the performance delta (kNN − baseline) and estimated 95% confidence intervals via bootstrap resampling over test items (10,000 resamples). As seen in Table 6, in both settings, the intervals for low- and high-frequency items do not overlap, indicating a robust separation in retrieval gains. Table 6: Bootstrapped 95% confidence intervals on the per-frequency band accuracy delta (kNN − baseline), 10,000 resamples over test items ( k = 16, τ = 3, sequence-level).                
+
+> Pretraining Freq ∆95% CI Child-realistic high −0.013 [−0.030, 0.004 ]
+> mid 0.040 [0.022, 0.059 ]
+> low 0.140 [0.115, 0.166 ]
+> Large-scale high 0.017 [0.002, 0.033 ]
+> mid 0.023 [0.008, 0.039 ]
+> low 0.153 [0.125, 0.182 ]
+
+Mixed-effects logistic regression. To test whether the effect of retrieval is larger for low-frequency items, we fit a mixed-effects logistic regression predicting correctness from Frequency (high/low) and Model Type (baseline/kNN), with random intercepts for item and for phenomenon. We used treatment coding, with high-frequency items and the baseline model as the reference levels: 
+
+correct ∼ Frequency * ModelType + (1 |item) + (1 |phenomenon) 
+
+Coefficients are reported in Table 7. Under this coding, the Model Type coefficient estimates the effect of kNN augmentation within the high-frequency band. This coefficient was not statistically significant ( β = −0.04, p = 0.62), indicating no detectable retrieval effect for high-frequency items. Crucially, the Frequency × Model Type interaction was positive and significant ( β = 0.52, p < 0.001), indicating that the retrieval effect (in log odds) was larger for low-frequency than for high-frequency items. Together with the positive accuracy differences and bootstrap confidence intervals for low-frequency items in Table 6, this result supports the hypothesis that retrieval disproportionately benefits items for which parametric representations are weak, rather than providing a uniform improvement across frequency bands. Table 7: Mixed-effects logistic regression coefficients ( correct ∼ Frequency * ModelType + (1 |item) + (1 |phenomenon) ; k = 16, τ = 3, sequence-level).                     
+
+> Term βSE zp
+> Frequency (low) −1.52 0.11 −13.8 <0.001 ModelType (kNN) −0.04 0.08 −0.50 0.62
+> Frequency ×ModelType 0.52 0.10 5.20 <0.001
+
+A.4 Structural match analysis 
+
+For each evaluation item and retrieved sequence, we defined a binary structural match indicator equal to 1 if the sequence contained the same target phenomenon—subject-verb agreement (SV), a wh-question (Wh), or a relative clause (RC)—and 0 otherwise. We identified these phenomena using spaCy (Honnibal et al., 2020) as specified below: 
+
+Subject-Verb detection. We applied spaCy’s dependency parser to identify subject-verb relationships. Instances were flagged if they contained nsubj (nominal subject) or nsubjpass 
+
+(passive nominal subject) dependencies that link a noun phrase to a finite verb. 17 Preprint. Under review. 
+
+Wh-Sentence detection. We used part-of-speech (POS) tagging to identify wh-words (POS tags: WDT , WP , WP$ , WRB ) at clause boundaries. Instances containing interrogative or relative wh-elements were marked for inclusion. 
+
+Relative Clause detection. We combined POS tagging with dependency parsing to identify relative clause structures. Specifically, we detected: (1) Relative pronouns ( WDT , WP ) or relativizers ( that , which , who ); (2) Clausal complements with relcl (relative clause modifier) dependency relations; and (3) Appropriate structural embedding within a noun phrase. Table 8 reports the mean proportion of the 16 retrieved neighbors that contain the target syntactic structure, and Table 9 reports two-sample t-tests comparing the effect of retrieval with vs. without structural matches, each against the baseline and against each other. Table 8: Mean proportion of the 16 retrieved neighbors containing the target syntactic structure ( k = 16, τ = 3, sequence-level retrieval). Structural matches remain particularly sparse for relative clauses in the child-realistic setting.                    
+
+> SV Wh RC
+> high low high low high low Child-realistic 0.74 0.70 0.49 0.62 0.09 0.15 Large-scale 0.95 0.89 0.67 0.76 0.74 0.70
+
+Table 9: p-values for structural-retrieval comparisons in the child-realistic and large-scale models ( k = 16, τ = 3, sequence-level retrieval).                                                        
+
+> Child-realistic Large-scale
+> Comparison Freq SV Wh RC SV Wh RC Baseline vs. Without low 0.16 0.38 0.022 0.071 0.49 <0.001 high 0.67 0.14 0.43 0.76 0.008 0.28 Baseline vs. With low 0.006 0.021 <0.001 <0.001 0.004 <0.001 high 0.36 0.23 0.016 0.44 0.52 <0.001 With vs. Without low 0.003 0.046 <0.001 <0.001 0.031 <0.001 high 0.31 0.078 0.012 0.44 0.001 0.001
+
+The tests support the claim that retrieval benefits are greater when the retrieved examples contain structurally matched examples, and reveal additional nuance: the structural-match advantage is more pronounced in low-frequency bands and for structurally complex phe-nomena (RCs), consistent with broader trends elsewhere in the manuscript. 
+
+A.5 Additional Retrieval Configuration Results 
+
+This section provides additional results for the retrieval configuration analyses in the main text. All results use the Full Retrieval datastore defined in Section 3.3; baseline results are shown for reference. Figures 6–9 vary context-window size ( τ ∈ { 1, 3, 10 }) at k ∈ { 1, 1024 },whereas Figures 10–13 vary the number of retrieved neighbors ( k ∈ { 1, 16, 1024 }) at τ ∈{1, 10 }. Together with the main analyses, these figures cover the evaluated combinations of neighbor count, context-window size, and retrieval granularity for the displayed high-and low-frequency bands in both pretraining settings. Given many differences between individual configurations are small, we focus here on broad patterns rather than numerical rankings within individual panels. 
+
+Effects of context window size. Figures 6–9 extend Figure 4 to k ∈ { 1, 1024 } and to all retrieval granularities. As in the main analysis, accuracy is non-monotonic with context window size. The direction and magnitude of the effects vary by number of neighbors, re-trieval granularity, phenomenon, and frequency band; and are often small. These additional results therefore do not identify a context window size that is uniformly preferred across conditions. 18 Preprint. Under review. Baseline 1 3 10 
+
+> Context Window Size (τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(a) SV – token Baseline 1 3 10  
+
+> Context Window Size (τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(b) SV – phrase Baseline 1 3 10  
+
+> Context Window Size (τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(c) SV – sequence Baseline 1 3 10 
+
+> Context Window Size (τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(d) Wh – token Baseline 1 3 10  
+
+> Context Window Size (τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(e) Wh – phrase Baseline 1 3 10  
+
+> Context Window Size (τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(f) Wh – sequence Baseline 1 3 10 
+
+> Context Window Size (τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(g) RC – token Baseline 1 3 10  
+
+> Context Window Size (τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(h) RC – phrase Baseline 1 3 10  
+
+> Context Window Size (τ)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Syntactic Contrast Score
+
+(i) RC – sequence Figure 6: Effect of context window size ( τ ∈ { 1, 3, 10 }) for GPT-2 XL at k = 1. Blue bars indicate high-frequency items and orange bars indicate low-frequency items; baseline results are shown for reference. 
+
+Effects of the number of retrieved neighbors. Figures 10–13 extend Figure 5 to τ ∈ { 1, 10 }
+
+and to all retrieval granularities. The results are broadly consistent with the pattern reported in the main text: for low-frequency items, the intermediate setting k = 16 generally yields the strongest performance among the tested values, whereas effects on high-frequency items are smaller and more mixed. The magnitude and direction of the effects vary across conditions, and the effects are often small. We therefore treat k = 16 as a useful representative setting rather than as a universally optimal neighbor count. Comparisons between τ = 1 and 
+
+τ = 10 similarly provide no evidence for an interesting interaction effect with context window size. 19 Preprint. Under review. Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(a) SV – token Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(b) SV – phrase Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(c) SV – sequence Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(d) Wh – token Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(e) Wh – phrase Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(f) Wh – sequence Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(g) RC – token Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(h) RC – phrase Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(i) RC – sequence Figure 7: Effect of context window size ( τ ∈ { 1, 3, 10 }) for GPT-2 XL at k = 1024. Blue bars indicate high-frequency items and orange bars indicate low-frequency items; baseline results are shown for reference. 20 Preprint. Under review. Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(a) SV – token Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(b) SV – phrase Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(c) SV – sequence Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(d) Wh – token Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(e) Wh – phrase Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(f) Wh – sequence Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(g) RC – token Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(h) RC – phrase Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(i) RC – sequence Figure 8: Effect of context window size ( τ ∈ { 1, 3, 10 }) for the child-realistic model at k = 1. Blue bars indicate high-frequency items and orange bars indicate low-frequency items; baseline results are shown for reference. 21 Preprint. Under review. Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(a) SV – token Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(b) SV – phrase Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(c) SV – sequence Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(d) Wh – token Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(e) Wh – phrase Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(f) Wh – sequence Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(g) RC – token Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(h) RC – phrase Baseline 1 3 10 
+
+Context Window Size (τ) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(i) RC – sequence Figure 9: Effect of context window size ( τ ∈ { 1, 3, 10 }) for the child-realistic model at 
+
+k = 1024. Blue bars indicate high-frequency items and orange bars indicate low-frequency items; baseline results are shown for reference. 22 Preprint. Under review. Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(a) SV – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(b) SV – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(c) SV – sequence Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(d) Wh – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(e) Wh – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(f) Wh – sequence Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(g) RC – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(h) RC – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(i) RC – sequence Figure 10: Effect of number of retrieved neighbors ( k ∈ { 1, 16, 1024 }) for GPT-2 XL at τ = 1. Blue bars indicate high-frequency items and orange bars indicate low-frequency items; baseline results are shown for reference. 23 Preprint. Under review. Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(a) SV – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(b) SV – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(c) SV – sequence Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(d) Wh – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(e) Wh – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(f) Wh – sequence Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(g) RC – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(h) RC – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(i) RC – sequence Figure 11: Effect of number of retrieved neighbors ( k ∈ { 1, 16, 1024 }) for GPT-2 XL at τ = 10. Blue bars indicate high-frequency items and orange bars indicate low-frequency items; baseline results are shown for reference. 24 Preprint. Under review. Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(a) SV – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(b) SV – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(c) SV – sequence Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(d) Wh – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(e) Wh – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(f) Wh – sequence Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(g) RC – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(h) RC – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(i) RC – sequence Figure 12: Effect of number of retrieved neighbors ( k ∈ { 1, 16, 1024 }) for the child-realistic model at τ = 1. Blue bars indicate high-frequency items and orange bars indicate low-frequency items; baseline results are shown for reference. 25 Preprint. Under review. Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(a) SV – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(b) SV – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(c) SV – sequence Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(d) Wh – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(e) Wh – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(f) Wh – sequence Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> Syntactic Contrast Score
+
+(g) RC – token Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(h) RC – phrase Baseline 1 16 1024 
+
+Number of Neighbors (k) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0  
+
+> Syntactic Contrast Score
+
+(i) RC – sequence Figure 13: Effect of number of retrieved neighbors ( k ∈ { 1, 16, 1024 }) for the child-realistic model at τ = 10. Blue bars indicate high-frequency items and orange bars indicate low-frequency items; baseline results are shown for reference. 26
