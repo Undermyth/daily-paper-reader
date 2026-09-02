@@ -1,0 +1,223 @@
+Title: Where Should Experience Live? Hierarchical Hebbian Memory for Continual Vision Transformers
+
+URL Source: https://arxiv.org/pdf/2609.00358v1
+
+Published Time: Wed, 02 Sep 2026 00:18:50 GMT
+
+Number of Pages: 9
+
+Markdown Content:
+# Where Should Experience Live? Hierarchical Hebbian Memory for Continual Vision Transformers 
+
+Mohammed Yusuf Mujawar, Noorbakhsh Amiri Golilarz 
+
+Department of Computer Science The University of Alabama, Tuscaloosa, AL, USA 
+
+Abstract —Vision Transformers provide strong visual repre-sentations but typically rely on slowly updated parameters, limiting their ability to organize newly acquired information across different memory timescales. This work proposes Hi-erarchical Hebbian Memory , a three-level memory architecture composed of rapid Working Memory, persistent Routed Episodic Memory, and slower Semantic Memory. A learned controller regulates memory contribution, read and write routing, plasticity, retention, and consolidation. A causal read-before-write lifecycle ensures that the current outcome cannot influence the prediction it supervises. The architecture is evaluated on Omniglot 5-way 1-shot recognition and CORe50 continual object recognition. With Swin-Tiny, the hierarchical model reaches 97.39% accuracy on Omniglot and 95.37% final accuracy on CORe50 when combined with experience replay. Learned multi-bank retrieval reaches 47.50% delayed-association accuracy, compared with 24.17% for a single persistent bank and 25.00% without memory. After intervening distractors, Episodic Memory retains approximately 0.96 cosine similarity with stored associations, while Working Memory falls to approximately 0.05. These results show that Hebbian association and learned memory routing can jointly organize online visual experience across rapid, persistent, and consolidated memory timescales within Vision Transformers. 
+
+Index Terms —Vision Transformers, Hebbian learning, asso-ciative memory, continual learning, few-shot learning, episodic memory, memory routing 
+
+I. I NTRODUCTION 
+
+Vision Transformers provide strong visual representations, but most of their knowledge is stored in parameters updated through gradient based training. This limits their ability to rapidly store new associations without modifying the back-bone. The problem is especially relevant in few shot and continual learning, where useful information may need to be acquired from only a small number of observations. Hebbian learning offers a local mechanism for forming such associa-tions [1], while fast weight models maintain rapidly changing memory states alongside slower learned parameters [2], [3]. Associative fast weight formulations further connect key value binding with Transformer computation [4], [5]. Earlier Hebbian Vision Transformer studies established two useful results. Fixed Hebbian memory showed that its ef-fectiveness depends strongly on where associative binding is introduced into the backbone [6]. Adaptive Hebbian Routing introduced learned control over memory contribution, plas-ticity, and retention for each few shot episode [7]. These approaches improve control of temporary associative memory, but they do not address how experience should be organized when information must persist beyond a single episode. This creates a broader memory allocation problem. A single persistent state can accumulate experience but may increase interference when unrelated associations share the same stor-age. Conversely, resetting memory after every short context prevents useful information from being retained. Human mem-ory provides a useful functional motivation for separating these roles. Working memory supports short lived information relevant to current processing [8], episodic memory preserves experience together with contextual information [9], [10], and semantic memory represents more stable knowledge [11]. Consolidation provides a mechanism through which selected experience can become more persistent over time [12]. These principles motivate a computational hierarchy with different memory lifetimes. This work proposes Hierarchical Hebbian Memory , which organizes online visual experience across three interacting levels: Hebbian Working Memory , Routed Episodic Memory ,and Semantic Memory . Working Memory forms rapid context specific associations, Episodic Memory maintains multiple persistent banks with learned read and write routing, and Semantic Memory selectively consolidates useful episodic information over a slower timescale. A learned controller coordinates memory contribution, routing, plasticity, retention, and consolidation, so that Hebbian plasticity determines what association is strengthened while routing determines where it is stored. The architecture follows a causal online lifecycle in which existing memory is read before prediction and outcome conditioned updates are applied only afterward. In the primary continual setting, the controller receives no task identity, although experience boundaries remain known to the protocol. Unlike recent memory augmented Transformer systems that focus mainly on long context language processing or continual associative learning [13]–[16], this work studies how online visual experience can be distributed across multiple memory timescales using Hebbian associative learning within Vision Transformers. The architecture is evaluated in two complementary regimes: Omniglot 5-way 1-shot recognition for rapid adapta-tion and CORe50 continual object recognition across repeated visual experiences [17]. Continual comparisons include con-ventional replay and a Latent Replay implementation adapted from Pellegrini et al. [18]. Beyond recognition accuracy, the evaluation examines delayed retrieval, routing behavior, bank interventions, memory ablations, semantic consolidation, and computational cost. arXiv:2609.00358v1 [cs.CV] 31 Aug 2026 The main contributions are:  
+
+> •
+
+A three-level Hierarchical Hebbian Memory architec-ture for Vision Transformers, separating rapid Working Memory, persistent Routed Episodic Memory, and slower Semantic Memory.  
+
+> •
+
+A task ID free controller that regulates both memory allocation and memory strength through separate read and write routing, plasticity, retention, contribution, and consolidation decisions.  
+
+> •
+
+An extension of temporary Hebbian associative memory into persistent multi-timescale storage using a causal online update process.  
+
+> •
+
+Evaluation across few shot and continual visual learning, together with direct analysis of delayed retrieval, rout-ing organization, memory timescales, consolidation, and computational efficiency. The remainder of this paper is organized as follows. Sec-tion II reviews related work on Hebbian and fast weight memory, neurocognitive memory organization, and memory-augmented Transformers. Section III presents the proposed Hierarchical Hebbian Memory architecture and its three mem-ory levels. Section IV describes the experimental setup and evaluation protocols. Section V reports the main results and memory analyses. Section VI discusses the findings, and Section VII concludes the paper. II. R ELATED WORK 
+
+A. Hebbian and Fast Weight Memory 
+
+Hebbian learning provides a local mechanism for strength-ening associations between coactive representations [1]. Fast weight models extend this principle by maintaining rapidly changing states alongside slower parameters learned through gradient based optimization [2], [3]. Related approaches have used temporary associative states for meta learning and differ-entiable plasticity [5], [19]. Fast weight programming further established a close connection between key value association and Transformer computation [4], while a memory based analysis of Transformers showed how learned weight matrices can represent associations between embeddings [20]. Hebbian fast weights have also been studied directly in Vision Transformers. Fixed Hebbian memory showed that effectiveness depends strongly on where associative binding is introduced into the backbone [6]. Adaptive Hebbian Routing introduced learned control over memory contribution, plastic-ity, and retention according to the current few shot episode [7]. These approaches primarily operate with temporary episode specific memory. The proposed method considers the broader problem of organizing associative information across persis-tent episodic storage and slower consolidation.. Increasing persistence changes the learning problem. A temporary memory state can be reset before unrelated episodes interact, whereas persistent memory must determine how new observations should coexist with previously stored associ-ations. The proposed hierarchy therefore treats association strength and memory allocation as complementary operations. Hebbian plasticity determines what association is strength-ened, while routing determines where that association is stored and later retrieved. 
+
+B. Neurocognitive Memory Organization 
+
+Human memory is commonly described through interacting systems with different functions and timescales. Working memory supports temporary maintenance and manipulation of information relevant to current processing [8]. Episodic memory preserves experiences together with contextual infor-mation, whereas semantic memory represents knowledge that is less dependent on a specific event [9]–[11]. Broader cogni-tive neuroscience accounts similarly emphasize that memory is distributed across several interacting processes rather than represented by a single uniform store [21], [22]. Prefrontal and hippocampal interactions also illustrate how memory storage can be coordinated with context dependent encoding and retrieval [9]. This functional separation motivates the controller and episodic banks used here, which abstract context dependent storage and retrieval into computational operations. Memory consolidation provides another useful principle for organizing information across timescales. Initially formed memories can change as experience is reorganized and inte-grated into more stable representations [10], [12]. Semantic knowledge can consequently become less dependent on the individual event from which it originated [11]. Semantic Memory follows this functional interpretation by receiving selected information from persistent Episodic Memory rather than storing every observation directly. More generally, this approach is consistent with intelligence inspired by neu-rocognitive principles, where biological memory and control mechanisms motivate computational functions [23]. 
+
+C. Memory Augmented and Continual Transformers 
+
+Recent Transformer systems have explored persistent, episodic, and hierarchical memory beyond conventional at-tention. Hierarchical Memory Transformer (HMT) organizes stored information hierarchically and retrieves relevant mem-ory for efficient processing of long language contexts [13]. Episodic Memory Language Model (EM LLM) introduces episodic segmentation and retrieval inspired by properties of human episodic memory [14]. These systems separate immediate processing from information retained across longer contexts, although their primary objective is long context language modeling rather than online visual learning. Associative and persistent storage have also been investi-gated through other memory architectures. Continual Asso-ciative Learning Model (CALM) studies continual associative learning using sparse distributed memory [15]. A broader review of memory augmented Transformers describes state based, external, parameter based, and hybrid memory mech-anisms and identifies retrieval, interference, forgetting, and coordination as recurring challenges [16]. The proposed method focuses on combining rapid Heb-bian association, learned allocation across several persistent episodic banks, and slower semantic consolidation within Vision Transformer learning. Separate read and write routes allow the location used to store an experience to be controlled independently from the memory selected for later retrieval. Continual learning provides a practical setting in which this organization can be tested. CORe50 was introduced for continuous object recognition under repeated observations and changing acquisition sessions [17]. Replay reduces forgetting by presenting earlier information during later learning. Latent Replay instead stores intermediate representations that can be reused during later training [18]. In the present evaluation, replay is an external rehearsal mechanism rather than another level of the internal memory hierarchy. III. H IERARCHICAL HEBBIAN MEMORY 
+
+A. Architecture Overview 
+
+The proposed architecture organizes online visual experi-ence across three memory timescales: Hebbian Working Mem-ory , Routed Episodic Memory , and Semantic Memory . Work-ing Memory provides rapid temporary association, Episodic Memory preserves experience through multiple persistent banks, and Semantic Memory consolidates selected informa-tion on a slower timescale. A learned controller regulates memory contribution, read and write routing, plasticity, re-tention, and consolidation. Let Xt ∈ RT ×d denote the Transformer representation at time t, where T is the number of tokens and d is the feature dimension. Prediction first uses only the memory state that existed before the current observation is written. The outcome can influence memory only after the prediction has been produced. The complete continual lifecycle follows the sequence read, predict, observe, plan, optimize, commit, and consolidate , as illustrated in Fig. 1. The plan stage determines the outcome conditioned mem-ory operation without immediately changing persistent state. Parameter optimization is then performed, after which the de-tached memory operation is committed. Consolidation occurs periodically when eligible episodic information is available. This ordering prevents the current target from entering mem-ory before the prediction that it supervises. 
+
+B. Hebbian Working Memory 
+
+The associative mechanism uses a Hebbian fast-weight formulation related to those employed in prior Vision Trans-former memory models [6], [7]. Given Xt, learned projections produce 
+
+Qt = XtWQ, Kt = XtWK , Vt = XtWV (1) The head index is omitted for clarity. Key and value coactivation forms the association 
+
+At = clip 
+
+ K⊤ 
+
+> t
+
+Vt
+
+√T
+
+
+
+(2) The resulting association is incorporated into memory through the general Hebbian update 
+
+Mt = clipnorm ( λtMt−1 + ηtAt, c M ) , (3) where Mt−1 is the memory state available before the current write, ηt controls the strength of the new association, 
+
+λt controls retention of the previous state, and cM bounds the memory norm. This general update follows the adaptive Hebbian formulation [7] and is specialized below for the different memory levels. At prediction time, Working Memory is read from the state that existed before the current observation is written: 
+
+RWt = QtWt−1 (4) A learned gate regulates the contribution of RWt to the backbone representation. After the prediction and observation, the Working Memory update is 
+
+Wt = clipnorm  λWt Wt−1 + ηWt At, c W
+
+ , (5) where ηWt controls plasticity and λWt controls retention. Repeated key and value coactivation reinforces the cor-responding association, following the Hebbian principle [1]. Working Memory is reset at natural few-shot episode bound-aries and therefore provides rapid adaptation without carrying temporary associations indefinitely. 
+
+C. Semantic Memory and Consolidation 
+
+Semantic Memory provides the slowest level of the hierar-chy and receives selected information from Episodic Memory. Let Ct denote an eligible episodic candidate and gSt its consolidation strength. The update is represented as 
+
+St = Consolidate  St−1, g St Ct
+
+ (6) Consolidation eligibility depends on accumulated evidence such as sufficient new writes, memory utility, support within episodic storage, and consistency across stored information. Eligible associations are promoted toward the slower Semantic Memory state, while other information remains episodic. This introduces a longer retention timescale inspired by memory consolidation [10], [12]. For few-shot learning, the hierarchy uses a consolidate then freeze protocol. Semantic Memory develops during training and remains fixed during held-out evaluation, while Working and Episodic Memory are reset for each evaluation episode. In continual learning, Semantic Memory persists across experiences and receives periodic eligible consolidations from episodic storage. This separates rapidly changing contextual associations from information retained over longer timescales. 
+
+D. Controller and Transformer Integration 
+
+The controller coordinates access to the three memory levels. It receives the current representation together with memory state information and produces separate episodic read and write routes, memory contribution gates, plasticity, and retention signals. Where configured, the controller also provides consolidation-related control. Fig. 1. Overview of the proposed Hierarchical Hebbian Memory architecture and its memory lifecycle using Swin-Tiny. 
+
+Let mt−1 summarize the memory state available before the current write. The controller combines this state with the current pooled representation, 
+
+ct = Cθ (Pool( Xt), mt−1) , (7) where Cθ is the learned controller and ct contains the read and write routing decisions, memory contribution gates, plasticity, and retention signals. Thus, memory control depends jointly on the current visual representation and the state of the existing memory hierarchy. Adaptive Hebbian Routing uses learned contribution, plas-ticity, and retention for episode-specific fast-weight memory [7]. The proposed hierarchical controller instead incorporates these forms of control within persistent memory allocation and retrieval. During continual learning, existing Working, Episodic, and Semantic states are read before the current outcome is avail-able. The model produces its prediction, observes the outcome, plans the memory operation, and updates gradient trained parameters. The detached persistent memory operation is then committed. Persistent memory states are detached between stream steps, avoiding backpropagation through the complete stream history. The primary continual controller receives no task identity. Experience boundaries remain known to the experimental protocol but are not supplied as routing labels. The resulting protocol is therefore task ID free continual learning with known experience boundaries .For Swin-Tiny, memory operates at Stage 4, motivated by reported evidence that late Hebbian binding can be more suitable than dense memory insertion throughout the backbone [6]. For DeiT-Small and ViT-Small, one shared hierarchy is read at blocks 3, 6, 9, and 12, with the persistent write performed at block 12. IV. E XPERIMENTAL SETUP 
+
+A. Datasets and Learning Protocols 
+
+The evaluation considers two complementary settings: few shot character recognition and continual object recognition. Omniglot is used for rapid adaptation [24], while CORe50 evaluates persistent memory across a changing visual stream [17]. For few shot learning, Omniglot is evaluated under a 5-way 1-shot episodic protocol. Each episode contains five classes with one labeled support example per class. Query samples are classified using class prototypes formed from support representations, following Prototypical Networks [25]. In this the support samples can update episode specific memory, whereas query samples are read only. Continual learning is evaluated on CORe50 in the New Instances setting [17]. The stream contains repeated observa-tions of the same object classes across sequential experiences and changing acquisition conditions. A fixed complete test set is evaluated after each experience. Episodic and Semantic Memory persist across the stream, while Working Memory operates on its shorter timescale. The controller receives no task identity. Experience bound-aries remain known to the data and evaluation protocol, giving a task ID free continual learning setting with known experience boundaries . Current labels affect memory only after the corre-sponding prediction has been produced, following the lifecycle in Section III. 
+
+B. Backbones and Comparison Models 
+
+Swin-Tiny is the primary backbone for the main comparison and detailed memory analysis. The hierarchy is integrated at Stage 4. DeiT-Small and Vit-Small provides a cross-architecture evaluation using one shared hierarchy with reads at blocks 3, 6, 9, and 12 and a persistent write at block 12. The corresponding Transformer backbones follow their original formulations [26]–[28]. For continual learning, the primary Swin comparison in-cludes a base model without hierarchy or replay, Experience Replay, Latent Replay, and the full hierarchy combined with matched Experience Replay. Latent Replay stores intermediate representations and is implemented as an adaptation of Pelle-grini et al. [18]. The same replay capacity is retained for the matched Replay and Hierarchy + Replay comparisons. Additional Swin controls isolate individual persistent mem-ory functions. A single persistent bank tests persistence with-out multi-bank routing. A routed Episodic configuration re-tains multiple banks while disabling Semantic Memory. The complete configuration combines Working Memory, routed Episodic Memory, Semantic Memory, and replay. Detailed mechanism analysis is centered on Swin, while DeiT and ViT provide architecture transfer comparisons. 
+
+C. Memory and Evaluation Controls 
+
+Few shot and continual experiments use distinct memory lifecycles. During held-out few shot evaluation, Semantic Memory retains the state acquired during training but remains frozen. A semantic state fingerprint is checked before and after evaluation to verify that the stored state is unchanged. Working and Episodic Memory are reset for each held-out episode. In continual learning, Episodic and Semantic Memory per-sist across experiences. Each sample first reads the memory state available at prediction time and produces a prediction. The outcome is observed afterward. The corresponding write is then planned, model parameters are optimized, and the persistent memory operation is committed. Persistent states are detached between stream steps. Memory analysis includes frozen memory ablations, sepa-rate read and write routing logs, delayed association probes, and selective bank interventions. These evaluations examine whether stored associations remain retrievable and whether particular memory states have functional effects.              
+
+> TABLE I OMNIGLOT 5-WAY 1-SHOT SWIN -T INY COMPARISON .Model Accuracy (%) Params (M) Swin Base 96.14 27.51
+> Fixed Hebbian 96.74 29.87 Adaptive Hebbian 96.94 29.94 Hierarchical Hebbian 97.39 33.56
+
+D. Metrics and Implementation 
+
+Few shot performance is measured using held-out episodic classification accuracy. Continual recognition is evaluated us-ing final fixed test accuracy and the area under the fixed test accuracy trajectory across experiences. Memory behavior is examined through delayed retrieval, routing association with class or context, episodic bank utilization, routing entropy, inter-bank similarity, memory ablations, and semantic consol-idation activity. Efficiency is measured using parameter count, prediction latency, prediction followed by observation latency, and mem-ory usage. Prediction timing is separated from the complete prediction and observation path so that the additional cost of the online memory operation can be measured directly. V. R ESULTS AND ANALYSIS 
+
+A. Few-Shot Recognition 
+
+The Omniglot experiments first examine whether the pro-posed hierarchy can extend temporary Hebbian adaptation across additional memory timescales while retaining strong few shot recognition. Table I presents the main Swin-Tiny progression. Hierarchical Hebbian Memory reaches 97.39% , compared with 96.14% for the Swin base, 96.74% for the fixed Hebbian configuration, and 96.94% for Fully Adaptive Hebbian Rout-ing under the corresponding Swin comparison [7]. Relative to these reported values, the hierarchy improves the base by 1.25 percentage points, the fixed configuration by 0.65 points, and Adaptive Hebbian Routing by 0.45 points. The hierarchical configuration contains 33.56M parameters, compared with 27.51M for the base backbone and 29.94M for Adaptive Hebbian Routing. The additional capacity supports the controller and the three memory levels. 
+
+B. Few-Shot Memory Ablations 
+
+Table II evaluates several memory allocation, access, and semantic lifecycle controls. All reported controls remain above 97% accuracy. K=1 Persistent reaches 97.45%, while learned Top-2 routing reaches 97.36%. The read-only control reaches 97.49%, and Semantic Freeze K=1 reaches 97.60%. The results show that strong few shot recognition is maintained across several memory allocation and lifecycle choices. 
+
+C. Continual Object Recognition 
+
+CORe50 evaluates persistent memory across repeated visual experiences. Table III reports the highest completed final fixed test accuracy for each Swin-Tiny configuration. TABLE II OMNIGLOT 5-WAY 1-SHOT MEMORY ABLATIONS .Configuration Accuracy (%) 
+
+Routing and Access Controls 
+
+K=1 Persistent 97.45 K=4 Uniform Routing 97.12 K=4 Learned Top-2 97.36 K=4 Random Write 97.36 K=4 Read Only 97.49 
+
+K=4 Write Only 97.33 
+
+Semantic Lifecycle Controls 
+
+Semantic Freeze K=1 97.60 
+
+Semantic Freeze K=4 Routed 97.27 Semantic Freeze K=4 Uniform 97.30 No Consolidation 97.11 TABLE III COR E50 CONTINUAL RECOGNITION WITH SWIN -T INY .Configuration Accuracy (%) Params (M) Base 94.75 27.56 
+
+Experience Replay 95.37 27.56 
+
+Latent Replay 87.17 27.56 
+
+Full Hierarchy + Replay 95.37 33.62 TABLE IV COR E50 FINAL FIXED TEST ACCURACY (%) FOR SWIN -T INY EVALUATIONS .Configuration Seed 0 Seed 1 Seed 2 Base 93.36 93.22 94.75 Experience Replay 95.37 93.75 93.60 Full Hierarchy + Replay 95.37 94.19 94.82 
+
+Experience Replay and Full Hierarchy + Replay both reach 
+
+95.37% at the displayed precision. The hierarchical configu-ration achieves the same displayed peak recognition accuracy while additionally maintaining Working Memory, eight routed persistent Episodic Memory banks, and Semantic Memory. Table IV shows the individual completed Swin results. In Seed 0, Experience Replay and Full Hierarchy + Replay both display as 95.37%. The hierarchy obtains the higher final accuracy in Seeds 1 and 2. 
+
+D. Online Continual Performance 
+
+Final accuracy summarizes the end of the continual stream, whereas the accuracy trajectory shows how recognition de-velops across experiences. For the selected Swin-Tiny Seed 1 evaluation shown in Fig. 2, the Base model, Experience Replay, and Full Hierarchy + Replay reach online AUC values of 0.9776, 0.9809, and 0.9811, respectively. 
+
+E. Cross-Backbone Evaluation 
+
+A cross-backbone evaluation is presented in Table V for Swin-Tiny, DeiT-Small and ViT-Small. Swin-Tiny increases from 95.37% for Replay and Full Hierarchy + Replay in the selected evaluation. DeiT-Small reaches 93.02% with Replay        
+
+> 1234567885 90 95
+
+Experience Fixed Test Accuracy (%)   
+
+> Base Replay Full Hierarchy
+
+Fig. 2. CORe50 fixed test accuracy across eight experiences for Swin-Tiny. TABLE V COR E50 CROSS -BACKBONE COMPARISON .Backbone Configuration Accuracy Params (%) (M) Swin-Tiny Replay 95.37 27.56 
+
+Full Hierarchy 95.37 33.62 DeiT-Small Replay 93.02 22.57 
+
+Full Hierarchy 92.21 24.09 ViT-Small Replay 92.66 22.57 
+
+Full Hierarchy 93.63 24.09 TABLE VI SWIN -T INY COR E50 MEMORY ABLATIONS .Configuration Accuracy AUC Params (%) (M) Base 93.36 0.9774 27.56 
+
+Replay 95.37 0.9803 27.56 
+
+K=1 Persistent + Replay 95.55 0.9803 33.61 K=8 Uniform + Replay 95.17 0.9806 33.62 K=8 Routed Episodic + Replay 95.08 0.9805 33.62 Full Hierarchy + Replay 95.37 0.9805 33.62 
+
+and 92.21% with the hierarchy. ViT-Small reaches 93.63% with the hierarchy, compared with 92.66% for Replay. The same memory framework therefore operates across both hier-archical and flat Vision Transformer backbones, although its effect on recognition varies with the backbone. 
+
+F. Continual Memory Ablations 
+
+Table VI compares persistent memory configurations. All configurations remain above 95% final accuracy in the compar-ison. K=1 Persistent reaches the highest endpoint at 95.55%, while K=8 Uniform Routing reaches the highest online AUC at 0.9806. Full Hierarchy + Replay reaches 95.37% while retaining all three memory levels. The classification results therefore show that several persistent memory organizations can maintain strong continual recognition. 
+
+G. Delayed Retrieval and Memory Timescales 
+
+A real-image delayed association evaluation tests whether stored information remains accessible after intervening ob-TABLE VII EPISODIC ROUTING ORGANIZATION IN THE SWIN -T INY HIERARCHY .Routing Measure Result Active Episodic Banks 8 / 8    
+
+> Class-Routing NMI 0.56
+> Normalized Utilization Entropy 0.98
+> Mean Off-Diagonal Bank Cosine 0.62
+
+servations. The learned multi-bank condition corresponds to the proposed routing mechanism, where the controller selects the episodic storage and retrieval route without receiving the correct context identity. Learned Multi-Bank retrieval reaches 47.50% , compared with 24.17% for a Single Persistent Bank and 25.00% without memory. Forcing retrieval through an incorrect bank reduces accuracy to 0.00%. These results show that successful delayed recall depends not only on storing an association, but also on retrieving it from an appropriate persistent memory state. Fig. 3 summarizes the learned and intervention-based re-trieval conditions together with the retention difference be-tween Working and Episodic Memory. Learned Multi-Bank routing improves delayed retrieval by 23.33 percentage points over the Single Persistent Bank and by 22.50 points over the No Memory condition. The Wrong-Bank Intervention further shows that the persistent storage location has a direct functional effect on later retrieval. A separate oracle control supplies the known correct context bank during storage and retrieval. Under this condition, re-trieval reaches 100.00% . The oracle provides an upper-bound control showing that the stored association is fully recoverable when the correct episodic bank is known. The retention experiment provides complementary evidence for the intended memory timescales. After intervening dis-tractors, Episodic Memory retains approximately 0.96 co-sine similarity with the stored association, whereas Working Memory falls to approximately 0.05 . Across the completed full-hierarchy evaluations, episodic delayed similarity remains approximately 0.97, 0.97, and 0.96. This separation supports the intended role of Working Memory as a rapidly changing associative state and Episodic Memory as a longer-lived per-sistent store. 
+
+H. Routing Organization and Semantic Consolidation 
+
+Table VII show all eight episodic banks remain active during continual learning. A class-routing NMI of 0.56 indicates a relationship between object class and learned bank allocation. Normalized utilization entropy of 0.98 shows that routing remains broadly distributed across the available banks rather than collapsing onto a small subset. The mean off-diagonal bank cosine of 0.62 shows that the persistent bank states are neither identical nor completely independent within the shared representation space. The controlled delayed association evaluation provides an additional routing measurement, with context-routing NMI of approximately 0.49. Together with the bank-sensitive retrieval               
+
+> TABLE VIII SWIN -T INY COR E50 EFFICIENCY .Model Params Predict Time Predict+ Observe Peak VRAM (M) (ms) (ms) (GB) Replay 27.56 55.84 55.98 2.40
+> Full Hierarchy 33.62 61.27 67.41 2.58
+
+results, this indicates that learned routing influences where context dependent associations remain accessible. Semantic Memory updates on a slower schedule. Across the primary CORe50 hierarchy evaluations, the semantic store accepts 4, 3, and 5 consolidations while rejecting 372, 409, and 408 candidate promotions. During few shot training, Semantic Memory also undergoes consolidation, while its fingerprint remains unchanged throughout held-out evaluation. These results verify a selective slower update lifecycle rather than direct promotion of every episodic write. 
+
+I. Efficiency 
+
+The efficiency benchmark illustrated in Table VIII Swin with different configurations and a batch size of 128. Full Hierarchy increases the Swin-Tiny model from 27.56M to 33.62M parameters. Prediction latency increases from 55.84 ms to 61.27 ms. For the hierarchy, prediction followed by observation and the associated memory operation requires 67.41 ms, corresponding to approximately 6.14 ms beyond prediction alone. Peak allocated benchmark VRAM increases from 2.40 GB to 2.58 GB. VI. D ISCUSSION 
+
+The results show that Hierarchical Hebbian Memory can extend rapid associative adaptation into persistent multi-timescale memory while maintaining strong visual recognition. On Omniglot, the hierarchical Swin configuration reaches 97.39%, compared with 96.14% for the Swin base, 96.74% for fixed Hebbian memory, and 96.94% for Adaptive Hebbian Routing as reported in [7]. The few shot ablations also remain above 97% across multiple routing, access, and semantic lifecycle controls. CORe50 provides a complementary view under continual visual experience. Experience Replay and Full Hierarchy + Replay both reach 95.37% for Swin. The hierarchy therefore maintains the same displayed peak recognition accuracy while simultaneously operating Working Memory, multiple persis-tent Episodic Memory banks, and Semantic Memory. The delayed association experiment provides a direct test of the functional value of routed persistent storage. Learned multi-bank retrieval reaches 47.50%, compared with 24.17% for a single persistent bank and 25.00% without memory. Forcing retrieval through an incorrect bank reduces accuracy to 0%. These results show that delayed recall depends both on storing an association and on retrieving an appropriate per-sistent state. The 100% oracle result further confirms that the Fig. 3. Functional memory evaluation on CORe50. (a) Delayed context retrieval under learned and intervention conditions. (b) Memory retention after intervening distractors. 
+
+underlying association remains recoverable when its correct storage location is supplied. The hierarchy also exhibits a clear separation between mem-ory timescales. Episodic Memory retains approximately 0.96 cosine similarity after distractors, whereas Working Memory falls to approximately 0.05. This behavior matches their in-tended functions: Working Memory provides rapidly changing local association, while Episodic Memory retains information over longer delays. Routing measurements complement this result. All eight episodic banks remain active, class-routing NMI reaches 0.56, and utilization entropy of 0.98 shows broad use of the available storage. Semantic Memory introduces the slowest update timescale. Only selected episodic candidates are consolidated during CORe50, while the few shot evaluation verifies that the learned semantic state remains unchanged during held-out evaluation. Together, the three levels separate rapid association, persistent contextual storage, and slower consolidation within a common memory architecture. Future work can investigate boundary-free streams, richer consoli-dation criteria, adaptive memory capacity, and larger scale continual visual settings. VII. C ONCLUSION 
+
+This work introduced Hierarchical Hebbian Memory for Vision Transformers, extending rapid associative learning into three interacting memory timescales: Working Memory, Routed Episodic Memory, and Semantic Memory. A learned controller coordinates memory contribution, read and write routing, plasticity, retention, and consolidation, while a causal read-before-write lifecycle prevents current outcomes from influencing the predictions they supervise. The hierarchical Swin configuration reaches 97.39% on Omniglot and 95.37% final accuracy on CORe50 with Experience Replay. Mecha-nism evaluations further show that learned multi-bank retrieval reaches 47.50%, compared with 24.17% for a single persistent bank and 25.00% without memory. Episodic Memory also retains approximately 0.96 cosine similarity after intervening distractors, while Working Memory falls to approximately 0.05. Together, these results show that Hebbian association and learned memory allocation can be combined within Vision Transformers to organize online visual experience across rapid, persistent, and consolidated memory timescales. ACKNOWLEDGMENT 
+
+The authors acknowledge the support and resources pro-vided by the Bioinspired Robotics, AI, Imaging and Neu-rocognitive Systems (BRAINS) Laboratory at The University of Alabama. REFERENCES [1] D. O. Hebb, The Organization of Behavior: A Neuropsychological Theory . New York, NY, USA: Wiley, 1949. [2] G. E. Hinton and D. C. Plaut, “Using fast weights to deblur old memories,” in Proceedings of the Ninth Annual Conference of the Cognitive Science Society , 1987, pp. 177–186. [3] J. Ba, G. E. Hinton, V. Mnih, J. Z. Leibo, and C. Ionescu, “Using fast weights to attend to the recent past,” in Advances in Neural Information Processing Systems , vol. 29, 2016. [4] I. Schlag, K. Irie, and J. Schmidhuber, “Linear transformers are secretly fast weight programmers,” in Proceedings of the 38th International Conference on Machine Learning , 2021, pp. 9355–9366. [5] T. Munkhdalai and A. Trischler, “Metalearning with hebbian fast weights,” arXiv preprint arXiv:1807.05076 , 2018. [6] G. Money, S. Penchala, J. Li, and N. A. Golilarz, “Where to bind mat-ters: Hebbian fast weights in vision transformers for few-shot character recognition,” in Proceedings of the 18th IEEE International Conference on Computational Intelligence and Communication Networks (CICN) ,2026. [7] M. Y. Mujawar and N. A. Golilarz, “Adaptive hebbian memory routing in vision transformers for few-shot learning,” 2026. [Online]. Available: https://arxiv.org/abs/2606.24756 [8] A. Baddeley, “Working memory: Looking back and looking forward,”      
+
+> Nature Reviews Neuroscience , vol. 4, no. 10, pp. 829–839, 2003. [9] H. Eichenbaum, “Prefrontal–hippocampal interactions in episodic mem-ory,” Nature Reviews Neuroscience , vol. 18, 2017. [10] M. Moscovitch, R. Cabeza, G. Winocur, and L. Nadel, “Episodic mem-ory and beyond: The hippocampus and neocortex in transformation,”
+> Annual Review of Psychology , vol. 67, no. 1, pp. 105–134, 2016. [11] A. A. Kumar, “Semantic memory: A review of methods, models, and current challenges,” Psychonomic Bulletin & Review , vol. 28, no. 1, pp. 40–80, 2021.
+
+[12] L. R. Squire, L. Genzel, J. T. Wixted, and R. G. Morris, “Memory consolidation,” Cold Spring Harbor Perspectives in Biology , vol. 7, no. 8, p. a021766, 2015. [13] Z. He, Y. Cao, Z. Qin, N. Prakriya, Y. Sun, and J. Cong, “HMT: Hierarchical memory transformer for efficient long context language processing,” in Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 1: Long Papers) , 2025, pp. 8068–8089. [14] Z. Fountas, M. A. Benfeghoul, A. Oomerjee, F. Christopoulou, G. Lam-pouras, H. Bou-Ammar, and J. Wang, “Human-inspired episodic mem-ory for infinite context LLMs,” in International Conference on Learning Representations , 2025. [15] A. Nechesov and J. Ruponen, “CALM: Continual associative learning model via sparse distributed memory,” Technologies , vol. 13, p. 587, 2025. [16] P. Omidi, X. Huang, A. Laborieux, B. Nikpour, T. Shi, and A. Es-haghi, “Memory-augmented transformers: A systematic review from neuroscience principles to enhanced model architectures,” arXiv preprint arXiv:2508.10824 , 2025. [17] V. Lomonaco and D. Maltoni, “CORe50: a new dataset and benchmark for continuous object recognition,” in Proceedings of the 1st Annual Conference on Robot Learning , ser. Proceedings of Machine Learning Research, vol. 78. PMLR, 2017, pp. 17–26. [Online]. Available: https://proceedings.mlr.press/v78/lomonaco17a.html [18] L. Pellegrini, G. Graffieti, V. Lomonaco, and D. Maltoni, “Latent replay for real-time continual learning,” in 2020 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS) . IEEE, 2020, pp. 10 203–10 209. [Online]. Available: https://doi.org/10.1109/IROS45743.2020.9341460 [19] T. Miconi, J. Clune, and K. O. Stanley, “Differentiable plasticity: Training plastic neural networks with backpropagation,” in Proceedings of the 35th International Conference on Machine Learning , 2018, pp. 3559–3568. [20] A. Bietti, V. Cabannes, D. Bouchacourt, H. J´ egou, and L. Bottou, “Birth of a transformer: A memory viewpoint,” in Advances in Neural Information Processing Systems , 2023. [21] S. Sridhar, A. Khamaj, and M. K. Asthana, “Cognitive neuroscience perspective on memory: Overview and summary,” Frontiers in Human Neuroscience , vol. 17, p. 1217093, 2023. [22] E. Camina and F. G¨ uell, “The neuroanatomical, neurophysiological and psychological basis of memory: Current models and their origins,” 
+
+Frontiers in Pharmacology , vol. 8, p. 438, 2017. [23] N. A. Golilarz, H. S. A. Khatib, and S. Rahimi, “Toward neurocognitive-inspired intelligence: From AI’s structural mimicry to human-like func-tional cognition,” IEEE Access , vol. 14, pp. 67 622–67 648, 2026. [24] B. M. Lake, R. Salakhutdinov, and J. B. Tenenbaum, “Human-level concept learning through probabilistic program induction,” Science , vol. 350, no. 6266, pp. 1332–1338, 2015. [25] J. Snell, K. Swersky, and R. S. Zemel, “Prototypical networks for few-shot learning,” in Advances in Neural Information Processing Systems ,vol. 30, 2017. [26] Z. Liu, Y. Lin, Y. Cao, H. Hu, Y. Wei, Z. Zhang, S. Lin, and B. Guo, “Swin transformer: Hierarchical vision transformer using shifted windows,” in Proceedings of the IEEE/CVF International Conference on Computer Vision , 2021, pp. 10 012–10 022. [27] H. Touvron, M. Cord, M. Douze, F. Massa, A. Sablayrolles, and H. J´ egou, “Training data-efficient image transformers and distillation through attention,” in Proceedings of the 38th International Conference on Machine Learning , 2021, pp. 10 347–10 357. [28] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, and N. Houlsby, “An image is worth 16x16 words: Trans-formers for image recognition at scale,” in International Conference on Learning Representations , 2021.
