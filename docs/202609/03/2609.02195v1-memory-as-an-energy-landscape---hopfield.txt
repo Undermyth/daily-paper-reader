@@ -1,0 +1,1089 @@
+Title: Memory as an Energy Landscape—Hopfield
+
+URL Source: https://arxiv.org/pdf/2609.02195v1
+
+Published Time: Thu, 03 Sep 2026 00:40:07 GMT
+
+Number of Pages: 15
+
+Markdown Content:
+Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 
+
+# Chapter 5: Memory as an Energy Landscape—Hopfield 
+
+Nima Dehghani 
+
+> 1)
+
+McGovern Institute for Brain Research, Massachusetts Institute of Technology, Cambridge, Massachusetts 02139, USA 
+
+> 2)
+
+The NSF AI Institute for Artificial Intelligence and Fundamental Interactions (IAIFI), Massachusetts Institute of Technology, Cambridge, Massachusetts 02139, USA a) 
+
+(Dated: 2026) 
+
+CHAPTER ORIENTATION 
+
+Within NeuroAI: Theoretical Foundations of Dynamics, Learning and Computation in Brains, Minds, and Ma-chines 1 , this chapter opens the book’s second part, on memory, energy, and collective dynamics. The preceding chapters trace the formalization of neural computation from threshold logic and the perceptron to Amari’s recur-rent dynamics. Hopfield’s construction marks the next conceptual step: a memory becomes a stable collective state of a many-body system; a corrupted cue becomes an initial condition; recall becomes a trajectory through state space; and failure becomes a change in basin geometry. The two chapters that follow use statistical mechanics and dynamic mean-field theory to ask what happens when disorder, load, and nonequilibrium dynamics become ex-tensive. The chapter therefore does more than describe the classical Hopfield network. It reconstructs the historical problem, derives the binary and graded-response Lya-punov functions, develops the mean-field account of re-trieval and the αc ≃ 0.138 capacity boundary, and follows the energy-based program through optimization, dense associative memories, exponential interactions, and mod-ern continuous Hopfield updates. Throughout, capacity claims are tied to their ensemble and success criterion, and simulations are used to expose mechanisms rather than substitute for proofs. The aim is to preserve the full mathematical and physical content while making ev-ery assumption and scaling limit explicit enough to be checked and reproduced. 
+
+I. MEMORY AS A COLLECTIVE DYNAMICAL STATE 
+
+The 2024 Nobel Prize in Physics recognized John J. Hopfield and Geoffrey E. Hinton “for foundational discov-eries and inventions that enable machine learning with artificial neural networks.” 1 The historical importance of Hopfield’s work is best understood neither by reading the modern phrase “Hopfield network” backward into the 1980s nor by treating the work as a primitive ancestor of  
+
+> a) Electronic mail: nima.dehghani@mit.edu
+> 1For the NeuroAI Book see:
+> https://neurovium.science/books/NeuroAI
+
+current deep learning. The important change was concep-tual and mathematical: computation became a property of the phase portrait of a physical system. Suppose a network has N binary degrees of freedom. Its 2N possible states are not inspected one by one. The cou-plings are chosen so that selected global patterns become attractors. A partial or corrupted cue is an initial condi-tion; recall is a trajectory; error correction is convergence within a basin; a memory error is motion into the wrong basin; and capacity is a change in the typical organization of the landscape as the number of stored patterns grows. This translation matters. It turns qualitative statements about “distributed memory” into questions with order parameters, stability inequalities, thermodynamic limits, and phase boundaries. Hopfield’s 1982 PNAS article made this synthesis ex-ceptionally clear for two-state units, and his 1984 PNAS article showed that the collective mechanism survives when binary spins are replaced by continuous graded responses. 2,3 Those short papers contain several different achievements that are often collapsed into one: 1. a dynamical definition of content-addressable memory; 2. a symmetric recurrent architecture with a Lyapunov function; 3. a Hebbian construction that embeds memories in the couplings; 4. a physical interpretation of basins, robustness, and fail-soft behavior; 5. and, in 1984, a continuous-time circuit model whose energy decreases despite graded nonlinear units. The exact storage limit 0 .138 N was not derived in the 1982 paper. It emerged from the subsequent statistical-mechanical work of Amit, Gutfreund, and Sompolinsky on an extensive number of random patterns. 4–6 Similarly, the modern softmax formulation is a later member of the energy-based family, not an equation found in 1982. Keeping this chronology straight makes the intellectual development more, not less, impressive. 
+
+A. Prerequisites and route through the chapter 
+
+The mathematical prerequisites are linear algebra, Gaussian random variables, elementary ordinary differen-tial equations, and the definitions of a partition function arXiv:2609.02195v1 [cs.NE] 2 Sep 2026 Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 21943 McCulloch--Pitts 
+
+threshold units 1949 Hebb 
+
+activity-dependent coupling 
+
+1972 Amari; Anderson; Kohonen 
+
+associative dynamics 1974 Little 
+
+recurrent binary network 
+
+1982 Hopfield, PNAS 
+
+energy + content addressability 1984 Hopfield, PNAS 
+
+graded-response Lyapunov theory 
+
+1985 Amit--Gutfreund--Sompolinsky 
+
+spin-glass phase theory 1985 Hopfield--Tank 
+
+optimization by analog dynamics 
+
+2016 Krotov--Hopfield 
+
+dense associative memory 2017 Demircigil et al. 
+
+exponential capacity theorem 
+
+2021 Modern Hopfield networks 
+
+softmax update = attention case 
+
+A lineage, not a single-origin story 
+
+Blue: foundations Red: classical Hopfield era Green: later high-capacity formulations   
+
+> FIG. 1. A selective lineage of associative-memory theory. Hopfield did not invent threshold neurons, Hebbian association, correlation memories, or the first recurrent binary network. The 1982 synthesis made content-addressable recall the descent dynamics of a symmetric many-body system and presented its collective computational consequences in a form that physicists could generalize. The later high-capacity models change the interaction function and sometimes the state space, while retaining the idea that memories organize a dynamical landscape. This is an original schematic, not data reproduced from the cited literature.
+
+and free energy. No previous study of spin glasses is assumed. A productive route is: 1. derive the one-spin energy change in Sec. III before running the code; 2. work through the signal–crosstalk decomposition in Sec. IV, keeping track of which randomness is quenched; 3. solve the zero-temperature equations in Sec. V by con-tinuation rather than by independent root finding; 4. verify the graded-response Lyapunov proof in Sec. VI; and 5. compare the classical, polynomial dense, and softmax energies in Secs. VIII and IX without assuming that their capacity statements use identical criteria. All numerical panels are generated by 
+
+code/hopfield replication.py . The figures are pedagogical replications of model phenomena, not digitizations of published plots.   
+
+> II. THE HISTORICAL PROBLEM BEFORE 1982 A. Threshold logic, association, and recurrent state
+
+McCulloch and Pitts formalized threshold elements in 1943, while Hebb’s 1949 proposal connected joint activity to persistent changes of coupling. 7,8 By the early 1970s, Amari, Anderson, and Kohonen had developed impor-tant recurrent or correlation-based associative memories, and Little had studied persistent states in a recurrent binary neural network. 9–12 It would therefore be histor-ically wrong to say that associative memory, recurrent networks, or symmetric interactions began with Hopfield. What the Hopfield formulation accomplished was a particular unification. The network was simultaneously: 
+
+• a neural model, because its couplings could be written as a sum of correlations between activity patterns; 
+
+• a physical system, because symmetric couplings sup-plied an energy and asynchronous updates supplied dissipative motion; Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 3
+
+• a memory, because selected patterns were fixed points with basins; and 
+
+• a computational device, because a basin performed error correction and content-addressable completion in parallel. The importance of the energy is not that every neural system must minimize one. It is that a global statement— convergence—can be proved without solving all N coupled trajectories. That proof identifies which assumptions do the work: symmetry, the absence of self-coupling, and an update rule consistent with the local field.  
+
+> B. Hopfield’s style of physical reasoning
+
+The neural papers also fit a longer scientific trajectory. Hopfield’s earlier work ranged from collective excitations in solids to electron transfer and kinetic proofreading in molecular biology. 13–15 Across these topics, microscopic events are organized by a physical constraint into a robust macroscopic function: an optical response, a transfer rate, an error-suppression mechanism, or a memory attractor. The neural-network work did not merely borrow terminol-ogy from magnetism. It asked which physical structure makes a computation reliable despite many interacting parts. Hopfield later described productive work at the physics– biology interface as movement between two scientific cul-tures: one seeks economical principles and the other insists on the historically contingent detail of living systems. His Nobel lecture makes the complementary methodological point that physics is not only a catalogue of subject matter but a way of choosing variables and asking which collec-tive regularities survive microscopic complexity. Bialek’s account of the 2024 prize places the neural-network work in precisely this tradition of emergence at intermediate scales. 16–18 This perspective helps explain both the power and the restraint of the model: it searches for a minimal sufficient mechanism, while leaving open whether a partic-ular neural circuit realizes that mechanism at the chosen scale. This also explains the repeated emphasis on “emergent collective computational abilities” in the 1982 title. Asingle model neuron does not possess a memory basin. A basin is a property of the coupled system. Damage to a few units or corruption of a few bits can leave the basin intact, which is the physical source of distributed, fail-soft performance.   
+
+> III. THE 1982 PNAS MODEL: BINARY MEMORY AS ENERGY DESCENT A. Centered variables and notation
+
+Hopfield’s paper used two-state variables closely related to firing/nonfiring values Vi ∈ { 0, 1}. For the statistical mechanics it is convenient to use centered spins 
+
+si = 2 Vi − 1 ∈ {− 1, +1 }, i = 1 , . . . , N. (1) Let Jij be the influence of unit j on unit i, and let θi be a threshold. We impose 
+
+Jij = Jji , Jii = 0 . (2) The local field is 
+
+hi(s) = X 
+
+> j̸=i
+
+Jij sj − θi. (3) At zero temperature, an asynchronous update chooses one index i and sets 
+
+si ← sgn hi, (4) with any fixed convention when hi = 0. “Asynchronous” means that the field used for the next update includes the changes already made. It does not require a single biological neuron to own a global clock. The associated energy is 
+
+E(s) = − 12
+
+X
+
+> i̸=j
+
+Jij sisj + X
+
+> i
+
+θisi. (5) The factor 1 /2 prevents double counting. Only relative energies matter; adding a constant changes no dynamics.  
+
+> B. The Lyapunov proof, one spin at a time
+
+Suppose only si changes, from si to s′
+
+> i
+
+. Symmetry lets all terms involving i be collected: ∆E = E(s′
+
+> i
+
+, s\i) − E(si, s\i) (6) = −(s′ 
+
+> i
+
+− si)
+
+X 
+
+> j̸=i
+
+Jij sj − θi
+
+ (7) = −(s′ 
+
+> i
+
+− si)hi. (8) If the update flips a spin, s′ 
+
+> i
+
+= −si, so ∆E = 2 sihi < 0 (9) whenever si disagrees with the nonzero field. If it already agrees, no update is made. Thus E cannot increase. Because there are finitely many states, the asynchronous deterministic dynamics must reach a fixed point after finitely many energy-decreasing flips, apart from neutral moves that can be eliminated by the tie convention. The proof has a sharply delimited scope: 1. Symmetry is used in Eq. (8). With asymmetric J, the same scalar energy does not generally exist. 2. The proof is for sequential updates. Fully synchronous updates can produce two-cycles even when J is sym-metric. 3. Convergence means arrival at a local minimum, not necessarily the desired memory or the global minimum. Together these conditions separate an equilibrium at-tractor network from generic recurrent computation. Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 4
+
+a. Scope checkpoint: model and brain. Already at this stage it is useful to answer the question “is this the brain?” The binary network is an effective circuit the-orem, not a microscopic reconstruction of cortex. Its biological content is the testable possibility that a popu-lation may possess collective basins and error-correcting relaxation even when individual neurons are noisy and heterogeneous. Exact binary states, pairwise symmetry, and asynchronous descent are sufficient conditions in the model; they are not asserted to be literal properties of every memory circuit. Section XI returns to the scale at which such an attractor description can remain closed.  
+
+> C. Writing memories into the couplings
+
+Let p desired memories be random or structured binary vectors 
+
+ξμ = ( ξμ 
+
+> 1
+
+, . . . , ξ μN ), ξμi ∈ {− 1, +1 }, μ = 1 , . . . , p. 
+
+(10) The Hebbian outer-product prescription is 
+
+Jij = 1
+
+N
+
+> p
+
+X
+
+> μ=1
+
+ξμi ξμj , i̸ = j, Jii = 0 . (11) The normalization makes the field order one when p grows proportionally to N . Substitution into Eq. (5), ignoring the diagonal constant, gives 
+
+E(s) = − N
+
+2
+
+> p
+
+X
+
+> μ=1
+
+(mμ)2, mμ = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+ξμi si. (12) The overlap mμ is an order parameter. It is 1 at memory 
+
+μ, near zero for an unrelated random state, and inter-mediate inside a retrieval basin. Equation (12) makes the design transparent: lowering energy rewards large squared overlap with one or more stored patterns. The phrase “the memory is stored in every synapse” should be used carefully. Each Jij is a superposition of contributions from all patterns. No single coupling contains a readable copy. The memory is expressed col-lectively in the field generated when many current-state bits align with the same pattern.   
+
+> IV. SIGNAL, CROSSTALK, BASINS, AND FALSE MEMORIES A. The local field near a stored pattern
+
+To test retrieval of pattern μ = 1, insert Eq. (11) into the field with zero thresholds: 
+
+hi = X 
+
+> j̸=i
+
+1
+
+N
+
+> p
+
+X
+
+> μ=1
+
+ξμi ξμj sj (13) 
+
+≃ ξ1 
+
+> i
+
+m1 +
+
+> p
+
+X
+
+> μ=2
+
+ξμi mμ. (14) The first term is the retrieval signal. The remaining memories produce crosstalk. If s = ξ1 and all patterns are independent unbiased Rademacher variables, then for 
+
+μ > 1
+
+mμ = 1
+
+N
+
+X
+
+> j
+
+ξμj ξ1 
+
+> j
+
+(15) has mean zero and variance 1 /N . For p = αN , the sum of roughly p small terms in Eq. (14) has order-one variance Var(crosstalk) ≃ pN = α. (16) The central limit theorem suggests the local stability estimate Pr( ξ1 
+
+> i
+
+hi < 0) ≈ Φ
+
+
+
+− 1
+
+√α
+
+
+
+, (17) where Φ is the standard normal cumulative distribution. The random variable ξ1 
+
+> i
+
+hi is the signed stability margin of bit i: positive values support the target bit and negative values flip it. In the naive Gaussian picture its mean is one and its variance is α, which is why Eq. (17) has the displayed signal-to-noise ratio. This calculation is indispensable, but it does not by itself yield αc = 0 .138. It treats crosstalk terms too inde-pendently and asks about local stability at a prescribed configuration. During retrieval the state and the disor-der become correlated; the network’s susceptibility feeds errors back into the noise. The full mean-field theory introduces an effective noise variance αr , not simply α. 
+
+> B. A basin is not a number attached to a pattern
+
+The basin of memory μ is the set 
+
+Bμ =
+
+n
+
+s0 : lim  
+
+> t→∞
+
+s(t) = s∗
+
+> μ
+
+o
+
+, (18) where s∗ 
+
+> μ
+
+is the attractor associated with that memory. Basin size depends on the update rule, temperature, thresholds, pattern correlations, coding level, and the measure used to draw cues. Hamming radius is conve-nient for random binary patterns, but it is not universally the natural geometry. Several commonly quoted “capacities” therefore answer different questions: 
+
+• Are the nominal patterns exact fixed points? 
+
+• Is every bit of every pattern stable with high probabil-ity? 
+
+• Does a typical corrupted cue recover a state with macro-scopic overlap? 
+
+• Is the retrieval state thermodynamically dominant? 
+
+• How much mutual information can be recovered? A scaling law without its success criterion is incomplete. Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 5stored target 28% corrupted cue retrieved state      
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+
+asynchronous updates (sweeps)   
+
+> 0.5
+> 0.4
+> 0.3
+> 0.2
+> 0.1
+> energy per neuron  E/N
+> 0.6 0.8 1.0
+> target overlap  m1
+> 10 50
+
+sampled E
+
+> 012345
+> count
+
+Lyapunov check 
+
+Classical Hopfield recall: a basin is a dynamical object 
+
+FIG. 2. Seeded replication of classical content-addressable recall. Eighteen random patterns are embedded in N = 400 spins. A cue obtained by flipping 28% of one memory begins with overlap m1 = 0 .44 and converges to the stored target under random sequential updates. The energy decreases at every sampled interval while the overlap grows; in this run the final overlap is 1. A single successful cue demonstrates a basin, not a storage-capacity theorem. Source: code/hopfield replication.py .
+
+C. Spurious minima and mixture states 
+
+Equation (12) rewards squared overlaps. It does not demand that only one overlap be nonzero. For an odd set of nearly orthogonal random patterns, a majority-vote mixture 
+
+s(123)  
+
+> i
+
+= sgn( ξ1 
+
+> i
+
++ ξ2 
+
+> i
+
++ ξ3 
+
+> i
+
+) (19) has, in the large-N limit, overlap m1 = m2 = m3 =1/2. The corresponding leading energy is approximately 
+
+−3N/ 8, compared with −N/ 2 for a pure memory. Such states can nevertheless be locally stable. There are also spin-glass-like minima with no macroscopic overlap with any one pattern. This is why “energy minima are memories” is too strong. The designed memories are intended minima; the non-linear superposition creates additional minima. Above useful retrieval capacity, the landscape does not become flat. It remains rugged, but the minima cease to support reliable identification with the stored patterns. 
+
+V. TEMPERATURE, QUENCHED DISORDER, AND THE MEANING OF 0.138 A. From deterministic descent to an equilibrium ensemble 
+
+A stochastic single-spin update can be chosen as Pr( si = ±1 | s\i) = e±βh i
+
+2 cosh( βh i) , (20) which obeys detailed balance with 
+
+P (s) = 1
+
+Z e−βE (s), Z = X
+
+> s
+
+e−βE (s). (21) Here T = β−1 is literal model temperature: it controls stochastic state updates. It should not automatically be identified with biological temperature, observation noise, learning rate, or minibatch noise. For a finite number of patterns, a one-condensed-pattern mean-field argument gives the Curie–Weiss-like equation 
+
+m = tanh( βm ). (22) Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 6The nonzero solution appears below T = 1 in the chosen units. But the technically interesting regime is p = αN ,where the disorder remains extensive. The patterns are quenched : one draws them, constructs 
+
+J, and studies the network for that fixed realization. The typical free energy is therefore 
+
+f = − 1
+
+βN Eξ [ln Z(ξ)] , (23) not −(βN )−1 ln Eξ [Z]. The logarithm prevents a direct disorder average. The replica identity 
+
+E[ln Z] = lim 
+
+> n→0
+
+E[Zn] − 1
+
+n (24) turns the problem into coupled copies, after which overlaps between replicas emerge as saddle-point variables. The method does not average the disorder away; it converts its typical effects into order parameters.                                             
+
+> B. Replica-symmetric retrieval equations
+> Reader’s map: how the replica reduction reaches one effective neuron. For integer n,Znintroduces replicas a= 1 , . . . , n . One first singles out a condensed memory through ma=N−1P
+> iξ1
+> isaiand records the mutual overlaps qab =N−1P
+> isaisbi.Averaging the remaining αN −1 random patterns couples the repli-cas; auxiliary Gaussian fields then decouple the sites. The N-spin trace factorizes into copies of one effective neuron driven by a deterministic retrieval field mplus a Gaussian crosstalk field z√αr .Replica symmetry sets ma=mand qa̸=b=q. Stationarity of the result-ing free energy gives Eqs. (25)–(28). Thus ris not an extra phenomenological noise parameter: it is the vari-ance generated after recurrent susceptibility dresses the bare crosstalk. The full disorder average and saddle-point algebra are developed in Chapter 6, Sompolinsky: Associative-Memory Statistical Mechanics ; the present box supplies the logical bridge to the equations used here.
+
+For one condensed memory, the replica-symmetric equa-tions can be written 
+
+m =
+
+Z
+
+Dz tanh β(m + z√αr ) , (25) 
+
+q =
+
+Z
+
+Dz tanh 2β(m + z√αr ) , (26) 
+
+C = β(1 − q), (27) 
+
+r = q
+
+(1 − C)2 , (28) where 
+
+Dz = e−z2/2
+
+√2π dz. (29) The variables have distinct meanings. m is retrieval overlap; q measures frozen local polarization; C is an integrated single-site susceptibility; and r renormalizes the variance of the crosstalk field. The denominator in Eq. (28) is the feedback missing from the elementary es-timate Eq. (16). The first two equations are averages over that effective neuron: the same Gaussian field z
+
+determines its mean response and its squared response. Equations (27) and (28) then close the feedback loop by turning local susceptibility into a dressed noise variance. As T → 0, q → 1 but C = β(1 − q) remains finite. The equations reduce to 
+
+m = erf 
+
+ m
+
+√2αr 
+
+
+
+, (30) 
+
+C =
+
+r 2
+
+παr exp 
+
+
+
+− m2
+
+2αr 
+
+
+
+, (31) 
+
+r = 1(1 − C)2 . (32) In this limit tanh( βh ) becomes sgn h. The Gaussian average of that threshold produces the error function in Eq. (30); the exponentially small density of sites near zero field leaves the finite susceptibility in Eq. (31). The appar-ent three-variable system is therefore the zero-temperature closure of one signal field, one dressed noise scale, and the response that couples them. Following the nonzero solution by continuation in α gives a terminal point near 
+
+αc ≃ 0.138 . (33) This is the celebrated zero-temperature dynamical re-trieval spinodal for dense, symmetric, Hebbian storage of independent unbiased random patterns in the thermody-namic limit. It is not a universal constant of associative memory. Different learning rules can approach p = N
+
+for appropriate criteria; sparse coding and structured patterns change the scaling or coefficient; and thermo-dynamic dominance of retrieval can be lost before the metastable retrieval branch disappears. 19–22  
+
+> C. What the phase language adds
+
+The useful macroscopic regimes are distinguished by order parameters: Regime m q
+
+Paramagnetic 0 0Retrieval ̸ = 0 > 0Spin glass 0 > 0This is more precise than drawing a landscape with a few wells. A retrieval phase exists when one memory has order-one overlap in the limit N → ∞ . A spin-glass phase is frozen but not aligned with a designated memory. The two can have many microscopic minima while differing sharply in computational meaning. Replica symmetry is an ansatz, not an identity. In the glassy regime it can be unstable, and replica-symmetry Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 70.000 0.025 0.050 0.075 0.100 0.125 
+
+load = p/N
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> retrieval overlap  m
+
+thermodynamic continuation        
+
+> RS T= 0 retrieval branch
+> c0.138
+> 0.05 0.10 0.15 0.20 0.25
+
+load = p/N
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> finite-network retrieval
+
+simulation: N = 800, 10% cue noise   
+
+> mean final overlap fraction with m> 0.9
+
+## Capacity is a criterion-dependent phase boundary 
+
+FIG. 3. Two complementary replications of capacity. Left: numerical continuation of Eqs. (30)–(32); the nonzero retrieval branch terminates at α ≈ 0.1376 at the plotted resolution. Right: finite-N synchronous simulations from cues with 10% flipped bits. The finite network rounds and shifts the transition, and the mean-overlap and m > 0.9 criteria do not coincide. The dashed line is a thermodynamic reference, not a fit to finite-N points. Source: code/hopfield replication.py .
+
+breaking may be needed to describe the hierarchy of pure states. The retrieval spinodal remains a useful land-mark, but the full low-temperature glass structure is richer than the three scalar equations suggest. Quantitatively, however, the correction to this particular capacity land-mark is small: a corrected one-step RSB calculation gives 
+
+αc ≃ 0.138186 (two-step RSB gives 0 .138187), compared with the replica-symmetric 0 .137905; finite-size simula-tions are consequently often summarized as a capacity near 0 .14. 23,24 
+
+VI. THE 1984 PNAS PAPER: GRADED RESPONSES AND CIRCUIT DYNAMICS A. Continuous neurons 
+
+The 1982 construction might have been dismissed as dependent on idealized binary elements. Hopfield’s 1984 paper addressed that objection directly. Let ui be an internal potential and 
+
+Vi = gi(ui) (34) be a monotone graded output, such as a sigmoid. Acircuit equation is 
+
+Ci
+
+dui
+
+dt = X
+
+> j
+
+Tij Vj − ui
+
+Ri
+
++ Ii, (35) where Ci and Ri can be read as capacitance and leak resistance, Tij as symmetric transconductance, and Ii as external input. The threshold-like nonlinearity now lies in gi rather than in an instantaneous sign update. For Tij = Tji and monotone invertible gi, define 
+
+E(V ) = − 12
+
+X
+
+> ij
+
+Tij ViVj +X
+
+> i
+
+1
+
+Ri
+
+Z Vi
+
+> 0
+
+g−1 
+
+> i
+
+(v)d v−X
+
+> i
+
+IiVi.
+
+(36) The three terms have direct roles: recurrent interaction lowers the first, the integral of the inverse response sup-plies the single-unit leak cost, and external current tilts the landscape. The inverse-response term is the crucial construction: differentiating it with respect to Vi returns 
+
+g−1 
+
+> i
+
+(Vi) = ui, exactly the variable that appears in the leak. Differentiation gives 
+
+∂E ∂V i
+
+= − X
+
+> j
+
+Tij Vj + ui
+
+Ri
+
+− Ii = −Ci ˙ui. (37) Since ˙Vi = g′
+
+> i
+
+(ui) ˙ ui,dE
+
+dt = − X
+
+> i
+
+Cig′
+
+> i
+
+(ui)( ˙ ui)2 ≤ 0. (38) The conclusion is structural: the energy argument does not require binary states. It requires symmetric cou-pling and monotone input–output functions. Cohen and Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 8Grossberg developed related general stability results for continuous competitive networks. 25 
+
+For the simulation in Fig. 4, Ri = Ci = 1 and g(u) = tanh( γu ). The integral is explicit: 
+
+Z V
+
+> 0
+
+g−1(v)d v = 1
+
+γ
+
+
+
+V atanh V + 12 ln(1 − V 2)
+
+
+
+. (39)  
+
+> B. What generalizes, and what remains idealized
+
+The graded model strengthens the collective argu-ment: attractor computation is not an artifact of exact McCulloch–Pitts states. But continuous does not mean biophysically complete. The units remain single variables with static monotone input–output curves; the couplings are symmetric; delays and adaptation are absent; and the energy excludes generic oscillations or chaos. The model is an effective theory of a computational regime, not a claim that a cortical circuit must literally implement Eq. (35) at every microscopic scale. This distinction is scientifically productive. The right question is not whether a real neuron is “a Hopfield neu-ron.” It is whether the circuit and timescale of interest support slow collective variables, recurrent feedback, and attractors that can be operationally tested by perturb-ing initial conditions. More detailed cellular models can change basin geometry or destroy the Lyapunov struc-ture; that is a prediction about scale, not a failure of abstraction.  
+
+> VII. FROM MEMORY TO OPTIMIZATION
+
+Hopfield and Tank extended the energy idea to analog optimization. 26 If a combinatorial problem has binary decision variables xi and a cost 
+
+C(x) = − 12
+
+X
+
+> ij
+
+Wij xixj + X
+
+> i
+
+bixi + X
+
+> a
+
+λa Pa(x), (40) one can choose network couplings so that the neural energy represents the objective plus penalties Pa for violated constraints. The network then performs parallel local search by physical relaxation. The traveling-salesperson construction illustrates both the appeal and the difficulty. A binary matrix indicates whether city X occupies tour position i. Energy terms penalize more than one city per position, more than one position per city, and the wrong total number of active units, while a distance term rewards short consecutive edges. The network does not “understand” a tour. Fea-sible tours are encoded as low-energy corners of a larger continuous state space. Three lessons survive in current energy-based machine learning. 1. Representation is part of the algorithm. A poor encod-ing creates bad minima even if the dynamics descends perfectly. 2. Constraint scales matter. If penalties are too weak, invalid states win; if too strong, the landscape can become stiff and hard to explore. 3. Descent is not global optimization. A Lyapunov proof guarantees convergence to a stationary point, not the optimum of an NP-hard problem. The optimization work was therefore historically impor-tant without supplying a general polynomial-time solver. Its lasting contribution is the explicit translation between a computational objective and a physical landscape.   
+
+> VIII. HIGHER-ORDER INTERACTIONS AND DENSE ASSOCIATIVE MEMORY A. Changing the shape of a memory well
+
+The classical energy can be written as a sum of a quadratic function of each memory overlap. Krotov and Hopfield generalized it to 
+
+EF (σ) = −
+
+> K
+
+X
+
+> μ=1
+
+F
+
+> N
+
+X
+
+> i=1
+
+ξμi σi
+
+!
+
+, (41) where σi ∈ {− 1, +1 } and F grows more sharply than a quadratic. 27 For F (x) = xn, the energy is a degree-n
+
+polynomial in the spins. The n = 2 case reduces, up to scale and diagonal constants, to the classical Hebbian model. Increasing n makes a strongly matching memory dominate over many weakly matching memories. The energy-correct asynchronous update must compare the two possible energies of spin i. Define 
+
+Sμi = X 
+
+> j̸=i
+
+ξμj σj . (42) Then 
+
+σi ← sgn 
+
+> K
+
+X
+
+> μ=1
+
+[F (Sμi + ξμi ) − F (Sμi − ξμi )] . (43) This is an exact energy-difference rule. Replacing it by a formal derivative of F can change self-interaction terms at finite N . 
+
+> B. Why the capacity exponent changes
+
+Initialize the network exactly at memory ν. For one bit, the target memory contributes an energy gap 
+
+E[∆ Esignal ] = N n − (N − 2) n ≃ 2nN n−1. (44) Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 90 20 40 60 
+
+time t/
+
+> 0.15
+> 0.10
+> 0.05
+> 0.00 0.05
+> graded energy  E/N
+
+Lyapunov descent    
+
+> 020 40 60
+
+time t/
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> continuous overlap  m1
+
+graded recall   
+
+> 020 40
+
+neuron index (subset) 
+
+> 1.00
+> 0.75
+> 0.50
+> 0.25
+> 0.00 0.25 0.50 0.75 1.00
+> final output  Vi
+
+continuous states 
+
+The 1984 graded-response model retains an energy function    
+
+> FIG. 4. Replication of the graded-response Lyapunov mechanism. Four random patterns are embedded in N= 120 units with
+> g(u) = tanh(2 .2u). From a corrupted continuous cue, the energy in Eq. (36) decreases to numerical precision and the target overlap approaches 0 .966. The units remain continuous even though the attractor lies close to saturated values. This figure tests the 1984 structural claim, not a biological fit. Source: code/hopfield replication.py .
+
+For a non-target random memory, its overlap with the target is approximately a Gaussian z ∼ N (0 , N ). Expand-ing the difference of powers gives the leading fluctuation 2nξ izn−1. Since 
+
+E[z2n−2] = (2 n − 3)!! N n−1, (45) the crosstalk variance from K patterns scales as Var(∆ Enoise ) ≃ 4n2K(2 n − 3)!! N n−1. (46) The signal-to-noise ratio is therefore SNR ∼
+
+s
+
+N n−1
+
+K(2 n − 3)!! . (47) Keeping a fixed bit-error probability permits 
+
+Kmax = αnN n−1, (48) where the constant depends on the allowed error. Re-quiring an entire pattern to have no errors with high probability introduces an extreme-value correction: 
+
+Kno error max ≃ 12(2 n − 3)!! 
+
+N n−1
+
+ln N . (49) The logarithm is the price of changing the event being controlled. A fixed bit only requires its Gaussian tail prob-ability to be small; demanding that none of N bits fail requires a tail of order 1 /N (by a union or extreme-value estimate), which costs the extra ln N . Thus a cubic energy can have order N 2 fixed-error capacity and a quartic en-ergy order N 3, rather than order N . The exponent is the central result; the prefactor depends on energy normal-ization, update convention, correlations, and the retrieval criterion. Earlier higher-order memory models anticipated parts of this scaling family; the dense-associative-memory work connected it directly to trainable pattern recognition and modern neural architectures. 27,28  
+
+> C. From features to prototypes
+
+Krotov and Hopfield also showed a dual description of one-step dense-memory classification as a feedforward network with a hidden layer. 27 The derivative or finite difference of F becomes the hidden-unit activation. For rectified polynomial F , small powers let several stored directions cooperate like distributed features; at large powers the largest-overlap term dominates, producing a prototype-like computation. This is not merely a capacity increase. Changing F changes the qualitative algorithm implemented by the landscape. The same perspective motivated work on adversarial in-puts: high-order energies can shape low-energy configura-tions more tightly around meaningful training patterns. 29 
+
+The conclusion should remain model-specific. Robust-ness in a dense associative memory does not imply that arbitrary networks with high-degree activations are auto-matically robust. Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 10 10 2
+
+neurons N
+
+> 10 1
+> 10 2
+> 10 3
+> 10 4
+> 10 5
+> no-error scale  Kmax
+
+Kmax Nn 1/ln N       
+
+> n= 2
+> n= 3
+> n= 4 40 60 80 100 120
+
+neurons N
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> probability target is fully stable
+
+exact energy-difference test    
+
+> n= 2
+> n= 3
+> n= 4
+
+## Polynomial dense associative memory changes the capacity exponent           
+
+> FIG. 5. Polynomial dense-memory capacity. Left: the no-error scale in Eq. (49) for interaction orders n= 2 ,3,4. Right: direct finite-Ntests of whether every bit of a designated random target is stable under the exact energy-difference rule Eq. (43), with
+> Kset to the asymptotic no-error scale. The finite-size probabilities are noisy and the asymptotic coefficient is conservative at these sizes; the robust claim is the changed power of N. Source: code/hopfield replication.py .
+> D. The many-body synapse problem
+
+Expanding Eq. (41) for F (x) = xn produces tensors such as 
+
+Ti1··· in = X
+
+> μ
+
+ξμi1 · · · ξμin . (50) A literal n-body synapse is neither a standard hardware connection nor a conventional biological synapse. Krotov and Hopfield’s later “large associative memory” formu-lation introduced feature neurons and memory neurons connected by pairwise weights; eliminating the hidden population generates an effective nonquadratic interaction among visible units. 30 This is a familiar move in physics: an effective many-body term can arise after hidden de-grees of freedom are integrated out. The distinction between parameter count and state-space capacity is important here. Naively storing each 
+
+ξμ explicitly makes the number of parameters grow with 
+
+K. More recent random-feature formulations can ap-proximate dense associative energies with a fixed-size parameterization over a chosen range. 31 An exponential number of stable states does not mean an arbitrary ex-ponential data set has been losslessly written into only order-N 2 unconstrained real numbers.   
+
+> IX. EXPONENTIAL INTERACTIONS AND MODERN CONTINUOUS HOPFIELD NETWORKS A. From high powers to exponential capacity
+
+The polynomial result suggests making F still sharper. Demircigil and colleagues analyzed an exponential interac-tion and proved exponential storage capacity under speci-fied random-pattern, separation, and basin conditions. 32 
+
+“Exponential capacity” means 
+
+K ∼ ecN (51) with the explicit fixed-point condition 0 < c < ln 2 /2 for independent uniform binary patterns; correction from a Hamming sphere imposes the stronger basin-dependent bound in their theorem. It does not mean that every one of the 2 N binary states can be stored with large, disjoint basins, nor that correlations are irrelevant. The mathematical mechanism is extreme selectivity. If the target overlap is order N and non-target overlaps are order √N , then exp( βN ) can dominate a sum of exponentially many exp( O
+
+
+
+β√N
+
+
+
+) contributions until the entropy of competitors overcomes the overlap gap. Capacity is an energy–entropy competition. Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 11  
+
+> B. A log-sum-exp energy
+
+Let K continuous memory vectors ξμ ∈ Rd be columns of 
+
+X = [ ξ1, . . . , ξK ] ∈ Rd×K . (52) A modern continuous Hopfield energy can be written, up to constants, as 
+
+E(x) = 12 ∥x∥2 − 1
+
+β log 
+
+> K
+
+X
+
+> μ=1
+
+exp  βξμTx . (53) Its gradient is 
+
+∇E(x) = x − X softmax( βXTx). (54) The fixed-point update is therefore 
+
+xt+1 = X softmax( βXTxt) . (55) The softmax coefficients are nonnegative and sum to one, so each update is a temperature-controlled convex com-bination of stored vectors. Large β selects the strongest overlap; small β averages more broadly. This makes the competition between individual-memory fixed points and averaging fixed points visible directly in the algebra. The log-sum-exp term is convex, so the energy is a difference of convex functions. The update can be derived by a convex–concave procedure that majorizes the concave part, giving energy descent under the stated formulation. The fixed points can include a global averaging state, metastable averages of a subset, and states concentrated around individual patterns. 33  
+
+> C. The exact attention relation
+
+For a single query row vector qT and keys stored as the rows of K, scaled dot-product attention is Attn( q, K, V ) = softmax 
+
+ qTKT
+
+√dk
+
+
+
+V . (56) Set V = K = XT and β = 1 /√dk. After transposing conventions, Eq. (56) is exactly the update Eq. (55). 33–35 
+
+The equivalence is algebraically exact for this update, but its scope must be stated. 
+
+• A transformer generally uses distinct learned query, key, and value projections. When values differ from keys, the output remains a softmax memory lookup but is not automatically the gradient fixed point of Eq. (53). 
+
+• Multihead attention, residual streams, normalization, feedforward blocks, causal masking, and positional rep-resentations add dynamics absent from the elementary Hopfield system. 
+
+• Standard transformer inference applies a finite stack of different layers; it does not usually iterate one symmet-ric energy to equilibrium. Thus “attention is a modern Hopfield update” can be a precise statement; “a transformer is the 1982 Hopfield network” is not.  
+
+> X. WHAT, EXACTLY, WAS THE SCIENTIFIC ADVANCE?
+
+Hopfield’s contribution was not the first associative memory and not the last word on its capacity. Its signifi-cance can be stated in six parts. 1. Memory became a phase-space object. Recall is con-vergence from a cue, not an address lookup. Basin geometry supplies a physical definition of error correc-tion. 2. A local rule received a global guarantee. Symmetric interactions make each asynchronous decision descend the same scalar function. The proof scales to a large network without enumerating states. 3. Robustness became collective. A memory is distributed over the couplings and can survive component errors because the signal is reconstructed by many consistent contributions. 4. Disorder became computational. Other memories are not a small nuisance. Their crosstalk creates a capacity transition, false minima, and a spin-glass phase. 5. Neural computation became accessible to statistical me-chanics. The model supplied order parameters and an ensemble in which typical behavior could be solved by mean-field and replica methods. 6. The energy program remained extensible. Graded units, optimization landscapes, high-order memories, hidden populations, exponential interactions, and softmax re-trieval all preserve part of the original logic while chang-ing other assumptions.  
+
+> XI. LIMITS, BIOLOGICAL INTERPRETATION, AND EFFECTIVE SCALE
+
+The classical model is often evaluated with the wrong standard. It is too idealized to be a cellular reconstruc-tion, yet too mathematically specific to serve as an uncon-strained metaphor. Its proper role is an effective theory: it identifies sufficient circuit-level conditions for attractor memory and exposes the variables—overlap, load, suscep-tibility, temperature, and basin geometry—that control that regime. Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 12 816 32 64 128 256 512 1024  
+
+> stored patterns K
+> 0.03 0.06 0.125 0.25
+> inverse temperature
+
+post-update cosine 
+
+> 038 63 19 44 10 447 42 59 48 26
+> memory index (top weights)
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> softmax weight
+
+attention concentrates    
+
+> 0.0 2.5 5.0 7.5
+> fixed-point iteration
+> 32
+> 30
+> 28
+> 26
+> 24
+> 22
+> 20
+> 18
+> 16
+> modern Hopfield energy
+
+fixed-point descent 
+
+> 0.0 0.2 0.4 0.6 0.8 1.0 0.84 0.86 0.88 0.90 0.92 0.94 0.96 0.98 1.00
+> target cosine
+
+Modern continuous Hopfield retrieval is a softmax-weighted memory lookup 
+
+FIG. 6. Modern continuous retrieval in d = 64. Left: mean cosine similarity to a noisy target after one update, as the number of random stored patterns and inverse temperature vary. Middle: at adequate β, the softmax weights concentrate on the target memory. Right: repeated fixed-point updates lower Eq. (53) while increasing target similarity. These finite-dimensional simulations illustrate selectivity; they do not by themselves prove exponential capacity. Source: code/hopfield replication.py .TABLE I. Precision strengthens the main claims. Tempting shorthand Precise statement “Hopfield invented associative mem-ory.” Associative and recurrent memory models predate 1982. Hopfield unified content-addressable recall, symmetric many-body dynamics, a Lyapunov energy, and a physical account of collective computation. “Hebbian patterns are guaranteed minima.” At low load, random patterns are stable with high probability. Crosstalk, corre-lations, thresholds, finite size, and the diagonal convention can destabilize bits; spurious minima also occur. “The Hopfield capacity is 0 .14 N .” αc ≃ 0.138 is the T = 0 retrieval spinodal of the dense symmetric Hebbian model for unbiased random patterns at N → ∞ . Other criteria and learning rules give other numbers. “Energy descent solves optimiza-tion.” Descent proves convergence to a fixed point or stationary point under the stated dynamics. It does not prove arrival at the global optimum or a desired memory. “Dense memory stores N n−1 pat-terns.” Polynomial order n permits fixed-bit-error capacity of that order under random-pattern assumptions. Whole-pattern error control adds a ln N correction and constants depend on conventions. “Modern Hopfield networks store ex-ponentially many arbitrary memo-ries.” Exponential capacity requires norm and separation conditions and a specified retrieval error/basin criterion; correlated or insufficiently separated patterns can merge. “Attention is a Hopfield network.” A special modern Hopfield fixed-point update equals scaled dot-product attention when keys and values are the stored patterns. A full transformer has additional learned, asymmetric, depth-dependent operations. 
+
+Symmetric coupling is especially consequential. Real chemical synapses are directed, and generic recurrent cir-cuits need not possess an energy. Approximate symmetry can still produce slow attractor-like modes, but delays, adaptation, spike timing, ongoing input, and asymme-try can create cycles, sequential activity, metastability, or chaos. Those behaviors are not “violations” of the Hopfield proof; they lie outside its assumptions. The Hebbian rule Eq. (11) is also an embedding pre-scription rather than a complete biological learning theory. It assumes access to the patterns, adds their outer prod-ucts, and often centers them. Synaptic locality alone does not settle how patterns are presented, how homeostasis prevents runaway coupling, how interference is managed over time, or how memories consolidate. Finally, point-neuron convenience does not guarantee Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 13 scale sufficiency. A single cell may contain dendritic subunits with nonlinear local integration; neuromodula-tion can change effective gain and plasticity; and circuit morphology can constrain which symmetric or low-rank interactions are realizable. Such details may be integrated out when they only renormalize g, J, or noise. If they create additional state variables or path-dependent in-teractions on the recall timescale, the effective Hopfield description must be enlarged. The right scale is deter-mined by closure of the macroscopic dynamics, not by ease of simulation. This caution does not diminish the model. On the con-trary, it gives a concrete experimental program: measure whether perturbations relax toward reproducible popu-lation states; estimate basin geometry; test whether an energy-like scalar decreases; and determine which omitted variables predict deviations from the reduced dynamics.  
+
+> XII. COMPUTATIONAL COMPANION AND REPRODUCIBILITY
+
+The supplied script uses NumPy, SciPy, and Matplotlib and requires no external data. From the project directory, run 
+
+python code/hopfield_replication.py \ --output figures \ --results numerical_results.json 
+
+The fixed seed is 1982 unless overridden. The --quick 
+
+flag reduces Monte Carlo repetitions. Each figure is saved as PDF, PNG, and SVG. The JSON file records model sizes, loads, overlaps, energy changes, capacity curves, and modern-retrieval cosines. Numerical evidence should be read at the level it sup-ports. Figure 2 does not measure capacity. Figure 3’s finite-N dynamics is not the replica calculation. Figure 5 checks stability at an asymptotic scale but does not fit the exponent from many decades of N . Figure 6 demonstrates selective retrieval but does not prove exponential capacity. The analytic arguments supply those wider claims; the code makes their mechanisms inspectable.           
+
+> TABLE II. What each numerical figure establishes. Figure Reproduced mechanism 2asynchronous energy descent and completion from a corrupted cue 3T= 0 mean-field continuation and a distinct finite-Nretrieval assay 4continuous-state Lyapunov descent for mono-tone graded units 5change of polynomial capacity exponent and exact bit-stability test 6softmax concentration, fixed-point descent, and target retrieval
+> XIII. DERIVATIONS AND EXERCISES A. Binary dynamics
+
+1. Re-derive Eq. (8) without assuming symmetry. Show explicitly which unmatched term remains when Jij ̸ =
+
+Jji .2. For two synchronous spins with symmetric negative coupling, construct a two-cycle. Explain why this does not contradict asynchronous descent. 3. Retain nonzero thresholds and convert between Vi ∈{0, 1} and si ∈ {− 1, +1 }. Track the constant and linear terms in the energy. 4. Modify the script so updates always follow the same index order. Compare convergence time and final at-tractor with random sequential order.  
+
+> B. Crosstalk and phase structure
+
+1. Starting at s = ξ1, derive Eq. (16) including the Jii = 0 correction. Which terms vanish only after averaging over patterns? 2. Compute the three-pattern mixture overlap exactly by enumerating the eight possible triples ( ξ1 
+
+> i
+
+, ξ 2 
+
+> i
+
+, ξ 3 
+
+> i
+
+). 3. Solve Eqs. (30)–(32) independently at each α with initial guess m ≈ 0, then by continuation from small α.Explain why the first procedure can miss the retrieval branch. 4. At finite temperature, numerically solve Eqs. (25)–(28). Plot m, q, and C separately. Do not label a regime from m alone.  
+
+> C. Graded and optimization models
+
+1. Differentiate Eq. (39) to recover g−1(V ) =
+
+γ−1 atanh V .2. Replace T in Eq. (35) by T +A, where A is antisymmet-ric. Evaluate d E/ dt using the symmetric-part energy and identify why its sign is no longer fixed. 3. Encode a small assignment problem with penalty terms. Enumerate all binary states, compare their true cost with network energy, and locate invalid low-energy states as the penalty strength varies.  
+
+> D. Dense memory and attention
+
+1. Derive Eqs. (44) and (46) for n = 3 without using the general double-factorial formula. Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 14 2. Explain why fixed bit-error probability gives Eq. (48), whereas controlling any error among N bits introduces ln N in Eq. (49). 3. Differentiate Eq. (53) and recover Eq. (55). Then use distinct value vectors and identify the step at which the strict gradient-energy interpretation is lost. 4. Construct a small correlated family analytically (for example, memories sharing a common component) and predict which pair will merge first under Eq. (55). Op-tionally verify the prediction by modifying Fig. 6. Re-late retrieval failure to pairwise separation rather than to K alone.  
+
+> XIV. PRIMARY LITERATURE AND FURTHER READING
+
+Read the two PNAS papers in sequence. In Hopfield 1982, mark separately the phase-space definition of con-tent addressability, the coupling prescription, the energy argument, and the simulations. 2 In Hopfield 1984, de-rive the inverse-response integral and ask exactly why monotonicity and symmetry are sufficient. 3
+
+Then read Little and at least one of Amari, Anderson, or Kohonen before making a priority claim. 9–12 This places the Hopfield synthesis in its actual lineage. Follow with the 1985 PRL and the 1987 Annals of Physics paper by Amit, Gutfreund, and Sompolinsky; the former announces extensive storage, while the latter provides the fuller near-saturation theory. 5,6 
+
+To understand the style of reasoning behind this trajec-tory, pair Hopfield’s reflection on working across physics and biology with his Nobel lecture, then read Bialek’s prize-era account of emergence and the expanding bound-aries of physics. 16–18 
+
+For the later arc, read Krotov and Hopfield 2016 for polynomial energies, energy-difference updates, capacity scaling, and the feature–prototype duality. 27 Pair it with Demircigil et al. for the exponential-capacity theorem, then Krotov and Hopfield 2021 for a pairwise visible– hidden implementation. 30,32 Only afterward read Ram-sauer et al. alongside the original attention paper. 33,34 
+
+That order makes the softmax relation a derived continu-ation of an energy program rather than a retrospective slogan.  
+
+> XV. WHAT SURVIVES FROM THE HOPFIELD PROGRAM?
+
+a. Established result. Hopfield’s classical construc-tion proves that symmetric couplings and asynchronous local updates can make a recurrent network descend a global Lyapunov function. With Hebbian superposition, designated patterns become content-addressable attrac-tors at low load. For independent unbiased random pat-terns at extensive load, the Amit–Gutfreund–Sompolinsky theory identifies retrieval and spin-glass order parameters and locates the zero-temperature retrieval spinodal near 
+
+αc ≃ 0.138. These statements are precise because their state variables, dynamics, disorder ensemble, thermody-namic limit, and success criterion are explicit. 
+
+b. Surviving principle. The enduring idea is not that cognition is energy minimization. It is that a computation can be defined at the level of a collective dynamical state and analyzed with the tools of physics. In this formula-tion, a cue is an initial condition, recall is a trajectory, error correction is convergence within a basin, interference is crosstalk from quenched disorder, and failure is a reor-ganization of the macroscopic landscape. Graded units, polynomial and exponential memories, hidden-population implementations, and log-sum-exp retrieval retain this logic while altering the interaction, state space, and ca-pacity scaling. 
+
+c. Limitation. Energy descent guarantees neither the desired memory nor a global optimum, and the classi-cal assumptions exclude generic directed, delayed, adap-tive, and driven recurrent dynamics. The Hebbian outer-product rule is an embedding prescription rather than a complete theory of biological learning. Likewise, the exact equivalence between a modern Hopfield update and scaled dot-product attention holds only under a particu-lar identification of queries, keys, and values; it does not make a full transformer an equilibrium Hopfield network. These limitations specify the boundary of the effective theory rather than reducing it to a metaphor. 
+
+d. Open problem. The central problem for theoreti-cal NeuroAI is to determine which parts of the attractor description remain closed under biologically and com-putationally relevant extensions. How much asymme-try, ongoing drive, synaptic dynamics, dendritic state, or structured correlation can be integrated out into effective couplings and noise before memory requires a genuinely nonequilibrium theory? Answering this demands a com-mon language for basin geometry, transient computation, sequence generation, capacity, and learnability across bio-logical and artificial systems. The methodological stan-dard is therefore to state the degrees of freedom, dynamics, symmetry, ensemble, scaling limit, order parameters, and retrieval criterion—and then test which omitted variables change the regime.   
+
+> DATA &CODE AVAILABILITY
+
+Code and figure-generation script are available at: 
+
+https://github.com/neurovium/NeuroAI . 
+
+> REFERENCES
+> 1Royal Swedish Academy of Sciences, “Scientific background to the Nobel Prize in Physics 2024: Machine learning with artificial neural networks,” (2024).
+
+Dehghani, N. – NeuroAI : Theoretical Foundation of Dynamics, Learning and Computation in Brains, Minds & Machines 15 
+
+> 2
+
+J. J. Hopfield, “Neural networks and physical systems with emer-gent collective computational abilities,” Proceedings of the Na-tional Academy of Sciences USA 79 , 2554–2558 (1982). 
+
+> 3
+
+J. J. Hopfield, “Neurons with graded response have collective computational properties like those of two-state neurons,” Pro-ceedings of the National Academy of Sciences USA 81 , 3088–3092 (1984). 
+
+> 4
+
+D. J. Amit, H. Gutfreund, and H. Sompolinsky, “Spin-glass models of neural networks,” Physical Review A 32 , 1007–1018 (1985). 
+
+> 5
+
+D. J. Amit, H. Gutfreund, and H. Sompolinsky, “Storing infinite numbers of patterns in a spin-glass model of neural networks,” Physical Review Letters 55 , 1530–1533 (1985). 
+
+> 6
+
+D. J. Amit, H. Gutfreund, and H. Sompolinsky, “Statistical me-chanics of neural networks near saturation,” Annals of Physics 
+
+173 , 30–67 (1987). 
+
+> 7
+
+W. S. McCulloch and W. Pitts, “A logical calculus of the ideas im-manent in nervous activity,” Bulletin of Mathematical Biophysics 
+
+5, 115–133 (1943). 
+
+> 8
+
+D. O. Hebb, The Organization of Behavior: A Neuropsychological Theory (Wiley, New York, 1949). 
+
+> 9
+
+S.-i. Amari, “Learning patterns and pattern sequences by self-organizing nets of threshold elements,” IEEE Transactions on Computers C-21 , 1197–1206 (1972). 
+
+> 10
+
+J. A. Anderson, “A simple neural network generating an interac-tive memory,” Mathematical Biosciences 14 , 197–220 (1972). 
+
+> 11
+
+T. Kohonen, “Correlation matrix memories,” IEEE Transactions on Computers C-21 , 353–359 (1972). 
+
+> 12
+
+W. A. Little, “The existence of persistent states in the brain,” Mathematical Biosciences 19 , 101–120 (1974). 
+
+> 13
+
+J. J. Hopfield, “Theory of the contribution of excitons to the complex dielectric constant of crystals,” Physical Review 112 ,1555–1567 (1958). 
+
+> 14
+
+J. J. Hopfield, “Electron transfer between biological molecules by thermally activated tunneling,” Proceedings of the National Academy of Sciences USA 71 , 3640–3644 (1974). 
+
+> 15
+
+J. J. Hopfield, “Kinetic proofreading: A new mechanism for reducing errors in biosynthetic processes requiring high specificity,” Proceedings of the National Academy of Sciences USA 71 , 4135– 4139 (1974). 
+
+> 16
+
+J. J. Hopfield, “Two cultures? experiences at the physics–biology interface,” Physical Biology 11 , 053002 (2014). 
+
+> 17
+
+J. J. Hopfield, “Nobel lecture: Physics is a point of view,” Reviews of Modern Physics 97 , 030501 (2025). 
+
+> 18
+
+W. Bialek, “Emergence of brains,” PRX Life 3, 037002 (2025). 
+
+> 19
+
+L. Personnaz, I. Guyon, and G. Dreyfus, “Collective computa-tional properties of neural networks: New learning mechanisms,” Physical Review A 34 , 4217–4228 (1986). 
+
+> 20
+
+E. Gardner, “The space of interactions in neural network models,” Journal of Physics A: Mathematical and General 21 , 257–270 (1988). 
+
+> 21
+
+M. V. Tsodyks and M. V. Feigel’man, “The enhanced storage capacity in neural networks with low activity level,” Europhysics Letters 6, 101–105 (1988). 
+
+> 22
+
+R. J. McEliece, E. C. Posner, E. R. Rodemich, and S. S. Venkatesh, “The capacity of the Hopfield associative memory,” IEEE Transac-tions on Information Theory 33 , 461–482 (1987). 
+
+> 23
+
+D. J. Amit, Modeling Brain Function: The World of Attractor Neural Networks (Cambridge University Press, Cambridge, 1989). 
+
+> 24
+
+H. Steffan and R. K¨ uhn, “Replica symmetry breaking in attractor neural network models,” Zeitschrift f¨ ur Physik B: Condensed Matter 95 , 249–260 (1994). 
+
+> 25
+
+M. A. Cohen and S. Grossberg, “Absolute stability of global pattern formation and parallel memory storage by competitive neural networks,” IEEE Transactions on Systems, Man, and Cybernetics SMC-13 , 815–826 (1983). 
+
+> 26
+
+J. J. Hopfield and D. W. Tank, ““neural” computation of decisions in optimization problems,” Biological Cybernetics 52 , 141–152 (1985). 
+
+> 27
+
+D. Krotov and J. J. Hopfield, “Dense associative memory for pattern recognition,” in Proceedings of the 30th International Conference on Neural Information Processing Systems , NIPS’16 (Curran Associates Inc., Red Hook, NY, USA, 2016) p. 1180–1188. 
+
+> 28
+
+I. Kanter, “Potts-glass models of neural networks,” Physical Re-view A 37 , 2739–2742 (1988). 
+
+> 29
+
+D. Krotov and J. J. Hopfield, “Dense associative memory is robust to adversarial inputs,” Neural Computation 30 , 3151–3167 (2018). 
+
+> 30
+
+D. Krotov and J. J. Hopfield, “Large associative memory problem in neurobiology and machine learning,” in International Confer-ence on Learning Representations (2021). 
+
+> 31
+
+B. Hoover, D. H. Chau, H. Strobelt, P. Ram, and D. Krotov, “Dense associative memory through the lens of random features,” in Proceedings of the 38th International Conference on Neural Information Processing Systems , NIPS ’24 (Curran Associates Inc., Red Hook, NY, USA, 2024). 
+
+> 32
+
+M. Demircigil, J. Heusel, M. L¨ owe, S. Upgang, and F. Vermet, “On a model of associative memory with huge storage capacity,” Journal of Statistical Physics 168 , 288–299 (2017). 
+
+> 33
+
+H. Ramsauer, B. Sch¨ afl, J. Lehner, P. Seidl, M. Widrich, T. Adler, L. Gruber, M. Holzleitner, M. Pavlovi´ c, G. K. Sandve, V. Greiff, D. Kreil, M. Kopp, G. Klambauer, J. Brandstetter, and S. Hochre-iter, “Hopfield networks is all you need,” in International Con-ference on Learning Representations (2021). 
+
+> 34
+
+A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. u. Kaiser, and I. Polosukhin, “Attention is all you need,” in Advances in Neural Information Processing Systems ,Vol. 30, edited by I. Guyon, U. V. Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, and R. Garnett (Curran Associates, Inc., 2017). 
+
+> 35
+
+M. Widrich, B. Sch¨ afl, M. Pavlovi´ c, H. Ramsauer, L. Gruber, M. Holzleitner, J. Brandstetter, G. K. Sandve, V. Greiff, S. Hochre-iter, and G. Klambauer, “Modern hopfield networks and attention for immune repertoire classification,” in Proceedings of the 34th International Conference on Neural Information Processing Sys-tems , NIPS ’20 (Curran Associates Inc., Red Hook, NY, USA, 2020).

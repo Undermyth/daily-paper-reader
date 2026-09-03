@@ -6,44 +6,38 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-02
-- 运行时间：2026-09-02 22:00:56 UTC
+- 最新运行日期：2026-09-03
+- 运行时间：2026-09-03 23:10:16 UTC
 - 运行状态：成功
-- 本次总论文数：7
+- 本次总论文数：6
 - 精读区：2
-- 速读区：5
+- 速读区：4
 
 ### 今日简报（AI）
-- 今日共生成 7 篇推荐（精读 2 篇，速读 5 篇）
-- 精读：《Faster Than Flash: Exploiting Attention Sparsity for Efficient Long-Context Decoding》（8.0/10）, 《How Temporal Correlations Shape Memory in Linear Recurrent Neural Networks》（8.0/10）
-- 速读：《RouteSparse: Input-Conditional Pattern Routing for Budgeted Long-Context Prefilling》（7.0/10）, 《Where Should Experience Live? Hierarchical Hebbian Memory for Continual Vision Transformers》（7.0/10）, 《EM^2Mem: Event-Centric Multimodal Memory for Large Language Models》（7.0/10）
-- 这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。
-- 详情：[/202609/02/README](/202609/02/README)
+今日精读两篇高分论文，聚焦储层计算的盆地几何与Hopfield能量景观记忆，另速读三篇涉及长上下文加速与循环架构；最值得关注的是记忆机制在动力学系统中的可靠表征；建议普通读者从Hopfield能量景观角度理解记忆存储的物理直觉。
+- 详情：[/202609/03/README](/202609/03/README)
 
 ### 精读区论文标签
-1. [Faster Than Flash: Exploiting Attention Sparsity for Efficient Long-Context Decoding](/202609/02/2609.00097v1-faster-than-flash-exploiting-attention-sparsity-for-efficient-long-context-decoding)  
-   标签：评分：8.0/10、query:la
-   evidence：基于稀疏性的高效注意力解码，通过融合内核与低比特扫描加速长上下文记忆访问
-2. [How Temporal Correlations Shape Memory in Linear Recurrent Neural Networks](/202609/02/2609.00420v1-how-temporal-correlations-shape-memory-in-linear-recurrent-neural-networks)  
-   标签：评分：8.0/10、query:la
-   evidence：研究了与线性注意力对应的线性递归神经网络在时间相关序列下的记忆动力学，对现代RNN设计有直接意义。
+1. [Basin Geometry and Reliable Recall of Dynamical Memories in Reservoir Computing](/202609/03/2609.01914v1-basin-geometry-and-reliable-recall-of-dynamical-memories-in-reservoir-computing)  
+   标签：评分：9.0/10、query:la
+   evidence：直接研究储层计算神经网络中基于时间线索的动态联想记忆回忆及其吸引域几何。
+2. [Memory as an Energy Landscape---Hopfield](/202609/03/2609.02195v1-memory-as-an-energy-landscape---hopfield)  
+   标签：评分：9.0/10、query:la
+   evidence：系统重构Hopfield网络的联想记忆、Hebbian嵌入与能量景观，直接命中神经网络的联想记忆模型
 
 ### 速读区论文标签
-1. [RouteSparse: Input-Conditional Pattern Routing for Budgeted Long-Context Prefilling](/202609/02/2608.29058v1-routesparse-input-conditional-pattern-routing-for-budgeted-long-context-prefilling)  
+1. [CateKV: On Sequential Consistency for Long-Context LLM Inference Acceleration](/202609/03/2608.30295v1-catekv-on-sequential-consistency-for-long-context-llm-inference-acceleration)  
    标签：评分：7.0/10、query:la
-   evidence：面向延迟预算的长上下文预填充中输入条件稀疏模式路由
-2. [Where Should Experience Live? Hierarchical Hebbian Memory for Continual Vision Transformers](/202609/02/2609.00358v1-where-should-experience-live-hierarchical-hebbian-memory-for-continual-vision-transformers)  
+   evidence：面向注意力推理的KV缓存混合管理方案，利用注意力头的顺序一致性压缩长上下文缓存，属于高效记忆检索/管理机制。
+2. [Superposed Latent Autoencoder](/202609/03/2609.01158v1-superposed-latent-autoencoder)  
    标签：评分：7.0/10、query:la
-   evidence：为视觉Transformer设计三级工作或情景或语义记忆并学习读写路由，直接对应记忆增强神经网络方向。
-3. [EM^2Mem: Event-Centric Multimodal Memory for Large Language Models](/202609/02/2609.00551v1-em2mem-event-centric-multimodal-memory-for-large-language-models)  
-   标签：评分：7.0/10、query:la
-   evidence：面向注意力LLM的事件中心多模态记忆，直接相关记忆增强但不涉及线性注意力
-4. [Understanding the Energy Scaling of Large Language Model Inference Across Context Lengths and Attention Architectures](/202609/02/2608.25096v1-understanding-the-energy-scaling-of-large-language-model-inference-across-context-lengths-and-attention-architectures)  
+   evidence：在共享记忆张量中叠加多个潜表征，与神经联想记忆的叠加存储思想一致。
+3. [Looped Transformers under the Jacobian Lens: Does the Global Workspace Survive Recurrence?](/202609/03/2609.01924v1-looped-transformers-under-the-jacobian-lens-does-the-global-workspace-survive-recurrence)  
    标签：评分：6.0/10、query:la
-   evidence：跨注意力架构的能耗测量研究为高效序列处理设计提供实证支撑，本身并非线性注意力方法
-5. [Not All Attention Heads Contribute to Critical Visual Token Selection: Head-Aware Pruning Matters More](/202609/02/2608.25332v1-not-all-attention-heads-contribute-to-critical-visual-token-selection-head-aware-pruning-matters-more)  
+   evidence：循环/共享深度Transformer属于现代RNN式架构，本文进行可解释性分析
+4. [CRISP: Cliff-awaRe Input-adaptive Sparse Prefilling with Structural-Mass-Motivated Routing](/202609/03/2609.01925v1-crisp-cliff-aware-input-adaptive-sparse-prefilling-with-structural-mass-motivated-routing)  
    标签：评分：6.0/10、query:la
-   evidence：基于注意力头感知的视觉标记剪枝降低VLM推理开销，与线性注意力主题中的高效注意力机制相关但较间接
+   evidence：面向长上下文预填充阶段的输入自适应稀疏注意力路由，降低二次注意代价，提升基于序列记忆的高效注意力。
 
 
 <div class="dpr-home-promo-card">
