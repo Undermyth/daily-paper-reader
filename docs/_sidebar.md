@@ -1,6 +1,9 @@
 * <a class="dpr-sidebar-root-link" href="#/">首页</a>
 * <a class="dpr-sidebar-root-link dpr-sidebar-noactive-link" href="javascript:void(0)" data-dpr-hash="#/tutorial/README">使用教程</a>
 * Daily Papers
+  * 2026-09-05 <!--dpr-date:20260905-->
+    * 速读区
+      * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/05/2608.30124v1-tpr-attention-for-combinatorial-generalization" data-sidebar-item="{&quot;title&quot;: &quot;TPR-Attention for Combinatorial Generalization&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2608.30124v1-tpr-attention-for-combinatorial-generalization&quot;, &quot;score&quot;: &quot;6.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;张量积表示上的注意力机制，类似结构化联想记忆模块&quot;}">TPR-Attention for Combinatorial Generalization</a>
   * 2026-09-04 <!--dpr-date:20260904-->
     * 精读区
       * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/04/2609.02986v1-modern-transformers-are-implicit-hybrids-from-functional-differentiation-to-principled-hybrid-architecture-design" data-sidebar-item="{&quot;title&quot;: &quot;Modern Transformers Are Implicit Hybrids: From Functional Differentiation to Principled Hybrid Architecture Design&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.02986v1-modern-transformers-are-implicit-hybrids-from-functional-differentiation-to-principled-hybrid-architecture-design&quot;, &quot;score&quot;: &quot;9.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;直接针对全注意力与线性注意力混合的Transformer并给出原则性架构设计&quot;}">Modern Transformers Are Implicit Hybrids: From Functional Differentiation to Principled Hybrid Architecture Design</a>
