@@ -1,6 +1,9 @@
 * <a class="dpr-sidebar-root-link" href="#/">首页</a>
 * <a class="dpr-sidebar-root-link dpr-sidebar-noactive-link" href="javascript:void(0)" data-dpr-hash="#/tutorial/README">使用教程</a>
 * Daily Papers
+  * 2026-09-11 <!--dpr-date:20260911-->
+    * 精读区
+      * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/11/2609.10976v1-phases-in-a-class-of-associative-memories-via-hidden-neurons" data-sidebar-item="{&quot;title&quot;: &quot;Phases in a class of associative memories via hidden neurons&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.10976v1-phases-in-a-class-of-associative-memories-via-hidden-neurons&quot;, &quot;score&quot;: &quot;9.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;基于隐神经元的联想记忆相变&quot;}">Phases in a class of associative memories via hidden neurons</a>
   * 2026-09-10 <!--dpr-date:20260910-->
     * 速读区
       * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/10/2609.10287v1-training-trajectories-determine-circuit-removability-in-annealable-soft-prior-transformers" data-sidebar-item="{&quot;title&quot;: &quot;Training Trajectories Determine Circuit Removability in Annealable Soft-Prior Transformers&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.10287v1-training-trajectories-determine-circuit-removability-in-annealable-soft-prior-transformers&quot;, &quot;score&quot;: &quot;7.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;软先验Transformer中的联想回忆回路&quot;}">Training Trajectories Determine Circuit Removability in Annealable Soft-Prior Transformers</a>
