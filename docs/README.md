@@ -6,24 +6,24 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-11
-- 运行时间：2026-09-11 21:53:33 UTC
+- 最新运行日期：2026-09-12
+- 运行时间：2026-09-12 21:43:20 UTC
 - 运行状态：成功
 - 本次总论文数：1
-- 精读区：1
-- 速读区：0
+- 精读区：0
+- 速读区：1
 
 ### 今日简报（AI）
-今日精读1篇关联记忆网络论文，聚焦隐神经元相位机制，评分9.0。最值得看的是隐神经元如何划分关联记忆的不同相位，理解网络存储与切换的底层逻辑。普通读者可先跳过公式，从相变类比入手感受记忆状态切换。
-- 详情：[/202609/11/README](/202609/11/README)
+今日精选1篇速读、精读挂零，唯一亮点是《Fast Gauss Sums via Flash Attention》拿下6.0分。这篇把Flash Attention思路用于快速高斯和，算法加速方向值得一看。普通读者可先速览其思路，精读留待后续高分论文。
+- 详情：[/202609/12/README](/202609/12/README)
 
 ### 精读区论文标签
-1. [Phases in a class of associative memories via hidden neurons](/202609/11/2609.10976v1-phases-in-a-class-of-associative-memories-via-hidden-neurons)  
-   标签：评分：9.0/10、query:la
-   evidence：基于隐神经元的联想记忆相变
+- 本次无精读推荐。
 
 ### 速读区论文标签
-- 本次无速读推荐。
+1. [Fast Gauss Sums via Flash Attention](/202609/12/2609.04910v1-fast-gauss-sums-via-flash-attention)  
+   标签：评分：6.0/10、query:la
+   evidence：复用Flash Attention实现线性内存的核求和
 
 
 <div class="dpr-home-promo-card">
