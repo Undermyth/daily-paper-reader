@@ -6,24 +6,22 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-12
-- 运行时间：2026-09-12 21:43:20 UTC
+- 最新运行日期：2026-09-13
+- 运行时间：2026-09-13 21:15:32 UTC
 - 运行状态：成功
-- 本次总论文数：1
+- 本次总论文数：0
 - 精读区：0
-- 速读区：1
+- 速读区：0
 
 ### 今日简报（AI）
-今日精选1篇速读、精读挂零，唯一亮点是《Fast Gauss Sums via Flash Attention》拿下6.0分。这篇把Flash Attention思路用于快速高斯和，算法加速方向值得一看。普通读者可先速览其思路，精读留待后续高分论文。
-- 详情：[/202609/12/README](/202609/12/README)
+> 今日无新推荐，系统未产出可展示论文。
+- 详情：[/202609/13/README](/202609/13/README)
 
 ### 精读区论文标签
 - 本次无精读推荐。
 
 ### 速读区论文标签
-1. [Fast Gauss Sums via Flash Attention](/202609/12/2609.04910v1-fast-gauss-sums-via-flash-attention)  
-   标签：评分：6.0/10、query:la
-   evidence：复用Flash Attention实现线性内存的核求和
+- 本次无速读推荐。
 
 
 <div class="dpr-home-promo-card">
