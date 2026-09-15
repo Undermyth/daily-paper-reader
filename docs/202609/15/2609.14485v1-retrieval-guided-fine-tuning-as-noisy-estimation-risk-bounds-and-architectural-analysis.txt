@@ -1,0 +1,2800 @@
+Retrieval-Guided Fine-Tuning as Noisy Estimation:
+Risk bounds and Architectural Analysis
+Bhargav Lad
+Department of Mathematics
+Indian Institute of Technology Delhi
+New Delhi, India
+mt6240942@iitd.ac.in
+Yifan Hao
+Department of Computer Science
+University of Illinois Urbana-Champaign
+Urbana, IL 61801
+yifanh12@illinois.edu
+Abstract
+Retrieval-Guided Fine-Tuning (RAG-FT) incorporates retrieved data directly into
+the training objective, but the statistical consequences of noisy retrieval during
+training remain theoretically undercharacterized. We study this question by model-
+ing RAG-FT as an estimation problem in a multi-task linear regression framework,
+using an OLS proxy for single-layer linear self-attention to obtain finite-sample risk
+bounds. Under homoscedastic retrieval noise, we show that retrieval failure decays
+exponentially with task separation relative to noise, and derive explicit finite-sample
+conditions under which RAG-FT achieves lower risk than both target-only and full-
+corpus training. We then introduce a Distance-Proportional Noise (DPN) model,
+in which retrieval quality degrades with rank, and compare two estimators under
+the same retrieval process: the OLS proxy and the literal, uniform-weight forward
+pass of linear self-attention. We prove that the attention estimator’s bias diverges
+as Θ(n2q) even under exact retrieval, while OLS risk remains Θ(d/n) for every
+noise exponent q > 0. These results locate the instability not in noisy retrieval
+itself, but in the fixed, unweighted aggregation of the literal LSA forward pass,
+which reweighting by reliability empirically removes. We validate the predicted
+rate separation through direct simulation of the DPN model.
+1
+Introduction
+Retrieval-Augmented Generation (RAG) grounds language model predictions in external knowledge
+by conditioning on retrieved documents at inference time [Lewis et al., 2020]. Because model
+parameters remain fixed at deployment, generalization depends entirely on what fits in the context
+window at test time, and performance degrades when retrieved passages are topically related but
+parametrically misaligned with the query [Levy et al., 2024, Liu et al., 2024]. This has motivated
+Retrieval-Guided Fine-Tuning (RAG-FT), which incorporates retrieved documents directly into the
+fine-tuning objective rather than the inference-time context, forcing parametric adaptation to retrieved
+data [Zhang et al., 2024b, Patil et al., 2024, Asai et al., 2024]. Despite its empirical adoption, the
+statistical mechanics of RAG-FT remain uncharacterized: whether moving retrieval from inference
+time to training time changes the generalization limits of noisy retrieval is an open question. The
+closest theoretical treatment [Guo et al., 2025] analyzes inference-time RAG under frozen weights;
+we ask what changes once the retrieved data instead drives a parameter update.
+We study this question in a multi-task linear regression framework where a retriever selects which
+task’s data to pool with the target dataset for fine-tuning. Motivated by Zhang et al. [2024a], who
+show that linear self-attention trained on an exchangeable context converges to the ordinary least
+squares solution, we assume the fine-tuned estimator coincides with this OLS solution on the pooled
+data (an OLS proxy). This decouples the statistics of retrieval from optimization dynamics and lets
+us derive exact, finite-sample risk bounds.
+Preprint.
+arXiv:2609.14485v1  [cs.LG]  13 Sep 2026
+
+
+Contributions.
+We formalize RAG-FT as a stochastic estimation problem in a multi-task linear
+regression framework, using an OLS proxy for single-layer linear self-attention.
+(i) We give explicit, finite-sample conditions on task separation and retrieval accuracy under
+which RAG-FT achieves strictly lower expected risk than both target-only and full-corpus
+training, compared against each baseline’s true risk rather than a looser bound (Theorem 3).
+(ii) Under a distance-proportional noise model, we show the OLS proxy’s risk remains Θ(d/n)
+for every noise exponent q > 0, while the literal, uniform-weight linear self-attention
+forward pass has bias diverging as Θ(n2q) regardless of retrieval outcome or ambient
+dimension (Theorems 4, 5).
+(iii) We validate both rate separations, the dimension-independence of the divergence, and its
+recovery under a reweighted forward pass, via direct simulation of the generative model
+(Section 6).
+2
+Related work
+A line of work on in-context learning shows that transformers trained on linear-regression instances
+implicitly execute ordinary least squares in-context [Garg et al., 2022, Akyürek et al., 2022, Von Os-
+wald et al., 2023], that trained linear self-attention provably converges to this OLS solution but
+fails under covariate shift [Zhang et al., 2024a], and that this convergence emulates preconditioned
+gradient descent [Ahn et al., 2023, Mahankali et al., 2024]; we adopt this OLS proxy but depart
+from the i.i.d. setting by modeling the heteroscedastic noise and distributional shift that stochastic
+retrieval introduces. Separately, retrieval-augmented generation has moved from an inference-time
+mechanism [Lewis et al., 2020], known to be susceptible to noisy or irrelevant context [Levy et al.,
+2024, Liu et al., 2024, Yoran et al., 2023], toward methods that push retrieval directly into training:
+RAFT [Zhang et al., 2024b], Retriever-Aware Training [Patil et al., 2024], Self-RAG [Asai et al.,
+2024], context compression [Xu et al., 2023], and end-to-end retrieval-augmented training [Izacard
+et al., 2023], none of which give a formal account of how retrieval reshapes the bias-variance tradeoff
+during parameter updates. The closest theoretical precursor is [Guo et al., 2025], which derives
+finite-sample generalization bounds for inference-time RAG under distance-proportional noise and
+establishes a retrieval ceiling n∗= Θ(d1/(2q)) for a frozen-weight estimator; we study the same
+distance-proportional noise model once retrieval instead drives a parameter update. Our framework
+further builds on excess-risk bounds for multi-task and heterogeneous representation learning [Tripu-
+raneni et al., 2021, Maurer et al., 2016, Solnon et al., 2012], on debiasing techniques for noisy or
+label-corrupted ICL [Liang et al., 2025], and on Bayesian views of in-context algorithm selection [Bai
+et al., 2023, Ahuja and Lopez-Paz, 2023], which together motivate treating retrieval as a stochastic
+selection operator with a quantifiable failure rate.
+3
+Problem setup
+Multi-task data model.
+We consider a multi-task linear regression framework with K ≥2 tasks,
+indexed by k ∈[K] := {1, . . . , K}, each associated with a parameter vector θk ∈Rd satisfying
+∥θk∥≤B. Let k⋆∈[K] denote the (unknown) target task. Data for task k are generated i.i.d. from
+the Gaussian linear model
+y = x⊤θk + ε,
+x ∼N(0, Id),
+ε ∼N(0, σ2),
+x ⊥ε.
+Task k contributes a dataset Dk = {(x(k)
+i
+, y(k)
+i
+)}n
+i=1, and the query (target) dataset D′ =
+{(x′
+j, y′
+j)}m
+j=1 is generated from θk⋆; all datasets {Dk}K
+k=1 and D′ are mutually independent.
+We quantify task heterogeneity via the minimum and maximum distance from the target task,
+∆min := mink̸=k⋆∥θk −θk⋆∥2 and ∆max := maxk̸=k⋆∥θk −θk⋆∥2, which respectively set the
+difficulty of identifying the target task under noise and bound the worst-case bias under retrieval
+failure.
+Retrieval operator.
+A retriever selects an index ˆk ∈[K] prior to fine-tuning, using only the
+observed data {Dk}K
+k=1 and D′; the true parameters {θk} and k⋆are never observed by the retriever
+or the estimator. Here we treat the retriever as a black box, characterized entirely by its failure
+2
+
+
+probability δ := P(ˆk̸ = k⋆); equivalently, let R ∈{0, 1} be Bernoulli with P(R = 1) = 1 −δ,
+where R = 1 denotes correct retrieval, so that the retrieved dataset is DR = Dk⋆if R = 1 and
+DR = Dk for some k̸ = k⋆if R = 0. The results of this section hold for any retriever satisfying
+this definition; Section 4.1 later fixes a concrete decision rule, based on comparing per-task OLS
+estimates, and derives an explicit finite-sample bound on δ for it.
+RAG-FT estimator and OLS proxy.
+Given D′ and DR, the pooled dataset is Dpool :=
+D′ ∪DR, and the retrieval-guided fine-tuning estimator is the empirical risk minimizer ˆθFT :=
+arg minθ
+P
+(x,y)∈Dpool(y −x⊤θ)2. Because ˆθFT is obtained by optimizing a non-convex objective
+under architectures such as linear self-attention, and because retrieval induces statistical dependence
+between D′ and DR that violates standard i.i.d. assumptions, we decouple the statistics of retrieval
+from the optimization dynamics via the following structural assumption.
+Assumption 1 (OLS Proxy). The estimator ˆθFT coincides with the exact ordinary least squares
+solution on the pooled dataset:
+ˆθFT = (X⊤
+poolXpool)−1X⊤
+poolYpool,
+where (Xpool, Ypool) are the design matrix and response vector formed from Dpool.
+Risk functional.
+For a fresh sample (x, y) drawn from the target model y = x⊤θk⋆+ ε, the
+prediction risk of an estimator ˆθ is R(ˆθ) := E(x,y)[(y −x⊤ˆθ)2]. Our objective is to characterize
+E[R(ˆθFT)], jointly over the data-generating process and the retrieval randomness. Since ˆθFT depends
+on R, the law of total expectation gives
+E[R(ˆθFT)] = (1 −δ) E[R(ˆθFT) | R = 1] + δ E[R(ˆθFT) | R = 0],
+separating the variance reduction from pooling homogeneous target-task data (R = 1) from the bias
+incurred by pooling heterogeneous data under retrieval failure (R = 0).
+4
+Theoretical analysis: under homoscedastic retrieval noise
+To rigorously evaluate the generalization of Retrieval-Guided Fine-Tuning (RAG-FT), we first isolate
+the statistical penalty of task mismatch from distance-dependent noise by assuming a uniform
+homoscedastic retrieval regime. This controlled setting quantifies how selective retrieval navigates
+the fundamental bias-variance tradeoff in multi-task environments.
+We first bound the retrieval failure probability (Section 4.1), formalize the expected prediction risk
+(Section 4.2), and define the exact conditions where RAG-FT achieves a statistical advantage over
+standard baselines (Section 4.3).
+4.1
+Finite-sample risk decomposition (failure probability)
+Assumption 2 (Uniform Homoscedastic Noise). For all candidate tasks k ∈[K], we assume the
+task datasets Dk are corrupted by independent, identically distributed Gaussian noise ϵ ∼N(0, σ2).
+By fixing the variance scale across all datasets, this assumption strictly isolates the generalization
+penalty to the geometric bias induced by task mismatch, decoupling it from heteroscedastic effects
+(addressed later in Section 5).
+Lemma 1 (Distribution of OLS Estimation Noise). Under Gaussian design xi ∼N(0, Id) and
+homogeneous noise ϵi ∼N(0, σ2), the OLS estimator for any task k (including the target query q)
+satisfies ˆθk −θk | Xk ∼N
+ 0, σ2(X⊤
+k Xk)−1
+.
+Lemma 2 (Signal-Fluctuation Decomposition). For any incorrect candidate task k̸ = k∗, let Tk
+denote the empirical distance gap evaluated by the nearest-estimator retrieval rule. This decision
+statistic decomposes exactly into a deterministic geometric signal and two stochastic error terms:
+Tk :=
+ˆθk −ˆθq
+
+2
+2 −
+ˆθk∗−ˆθq
+
+2
+2
+|
+{z
+}
+Empirical distance gap
+= ∥θk −θk∗∥2
+2
+|
+{z
+}
+Geometric signal
++
+Lk
+|{z}
+Linear fluctuation
++
+Qk
+|{z}
+Quadratic fluctuation
+3
+
+
+where Lk and Qk are the estimation noise fluctuations bounded in auxiliary Lemmas 3 and 4
+(Appendix B).
+Bounding the sub-Gaussian tail of Lk (Lemma 3) and the sub-exponential tail of Qk (Lemma 4)
+around the geometric signal ∥θk −θk∗∥2
+2 yields the finite-sample failure probability.
+Theorem 1 (Finite-Sample Bound on Retrieval Failure). Let the minimum task separation satisfy
+∆2
+min ≥C1σ2d/n for a constant C1 > 0. The retrieval failure probability δ = P(ˆk̸ = k∗) satisfies
+δ ≤3(K −1) exp
+
+−C min
+∆4
+min
+¯ν 2 , ∆2
+min
+¯α
+
++ 3K exp(−c′d),
+where C, c′
+>
+0 are universal constants, ¯ν 2
+=
+O
+ σ2∆2
+max/n + dσ4/n2
+, and ¯α
+=
+O
+ σ∆max/√n + σ2/n
+
+.
+Assuming target sample size m = Ω(n), query-side estimation noise is absorbed into ¯ν2 and
+¯α. Theorem 1 demonstrates that failure probability decays exponentially once the geometric task
+separation ∆2
+min overcomes the finite-sample estimation noise scale, leaving only an irreducible
+O(K exp(−c′d)) probability of ill-conditioned designs. Notably, scaling the candidate corpus
+(K →∞) forces failure unless separation grows as log K. Ultimately, the effective bottleneck is
+governed by the signal-to-noise ratio ∆2
+minn/σ2 in the proportional regime.
+4.2
+Risk bounds: success vs. failure risk decomposition
+With the retrieval failure probability δ bounded, we establish the expected prediction risk of the
+retrieval-guided estimator ˆθFT. As introduced in Section 3, conditioning on the retrieval outcome
+R ∈{0, 1} isolates the competing statistical forces of the RAG-FT mechanism.
+When retrieval succeeds (R = 1), the estimator benefits from pure variance reduction.
+Proposition 1 (Risk under Successful Retrieval). Conditioned on the success event R = 1, the
+estimator ˆθFT fits m + n homogeneous samples drawn strictly from the target task {θk∗}. The
+estimator is unbiased, and under the good design event Egood with m + n ≥(1 + η0)d for some
+η0 > 0, its conditional risk satisfies the two-sided bound
+σ2 + σ2
+d
+m + n −d −1 ≤E
+h
+R(ˆθFT) | R = 1
+i
+≤σ2 + Cσ2
+d
+m + n,
+where the lower bound is the exact inverse-Wishart trace identity E[Tr((X⊤X)−1)] = d/(m + n −
+d −1), valid unconditionally for m + n > d + 1, and C > 0 is a universal constant governing the
+upper bound under Egood.
+When retrieval fails (R = 0), the estimator fits a single linear model to a heterogeneous dataset,
+inducing a high geometric bias.
+Proposition 2 (Risk under Retrieval Failure). Conditioned on the failure event R = 0, in the
+high-dimensional proportional regime where d ∝(m + n) and m + n > d, the conditional risk
+satisfies
+E
+h
+R(ˆθFT) | R = 0
+i
+≥σ2 + σ2
+d
+m + n −d −1 +
+
+n
+m + n
+2
+∆2
+min,
+E
+h
+R(ˆθFT) | R = 0
+i
+≤σ2 + Cσ2
+d
+m + n + C
+
+n
+m + n
+2 
+1 −
+d
+m + n
+−2
+∆2
+max,
+where the lower bound holds unconditionally (for m + n > d + 1), the upper bound holds under
+the good design event Egood with m + n ≥(1 + η0)d for some η0 > 0, and C > 0 is a universal
+constant.
+Both propositions isolate the same two statistical forces. Successful retrieval pools m + n homoge-
+neous samples, achieving the exact inverse-Wishart variance floor d/(m + n −d −1). Retrieval
+failure pools a heterogeneous dataset, inducing a geometric bias scaled by the mixture proportion
+n/(m + n) and amplified by high-dimensional spectral inflation (1 −d/(m + n))−2.
+4
+
+
+Combining these exact conditional bounds with the unconditional failure probability δ yields the core
+statistical guarantee of RAG-FT under uniform noise.
+Theorem 2 (Total Expected Risk Bound for RAG-FT). Under the uniform homoscedastic noise
+assumption, let the ambient dimension scale proportionally as d ∝(m + n) with m + n > d. The
+expected prediction risk of the retrieval-guided fine-tuning estimator ˆθFT, evaluated on a fresh sample
+from the target task, satisfies
+E
+
+R(ˆθFT)
+
+≥σ2 + σ2
+d
+m + n −d −1 + δ
+
+n
+m + n
+2
+∆2
+min,
+E
+
+R(ˆθFT)
+
+≤σ2 + C1σ2
+d
+m + n + C2 δ
+
+n
+m + n
+2 
+1 −
+d
+m + n
+−2
+∆2
+max,
+where C1, C2 > 0 are universal constants, δ is the retrieval failure probability bounded in Theorem 1,
+and the lower bound is unconditional, with the exact variance floor following from the inverse-Wishart
+identities underlying Propositions 1 and 2 (valid for m+n>d+1).
+This bound illustrates how RAG-FT interpolates between target-only fine-tuning and full-corpus
+aggregation. The bias penalty enters only upon retrieval failure, strictly gated by δ. Because δ decays
+exponentially with sufficient task separation, RAG-FT achieves a favorable bias-variance trade-off
+precisely in this well-separated regime.
+4.3
+Strict dominance over training baselines
+To contextualize the RAG-FT guarantees, we compare against two standard paradigms: fine-tuning
+on the target dataset alone, and fine-tuning on the full heterogeneous corpus. These represent the
+extremes of the bias-variance tradeoff. Target-only training provides an unbiased estimator but suffers
+high variance O(d/m). Conversely, full-corpus aggregation minimizes variance to O(d/Nfull) but
+introduces an irreducible bias. Specifically, unless tasks are adversarially anti-correlated, pooling K
+tasks forces a population bias proportional to the minimum task separation ∆2
+min. The formal risk
+bounds for these baselines (Propositions 3 and 4, alongside the necessary bounded anti-correlation
+assumption) are deferred to Appendix B.5.
+We establish the exact conditions where RAG-FT strictly dominates both baselines simultaneously by
+comparing the upper bound of Theorem 2 against the lower bounds of the standard estimators.
+Writing Nfull := Kn + m, Λ := (m + n −d)2
+C2 n2∆2max
+, and g(N) :=
+1
+N −d −1 −
+C1
+m + n for N > d + 1,
+define the critical thresholds
+δtarget := Λ σ2d g(m),
+δfull := Λ
+ 
+σ2d g(Nfull) +
+
+n
+Nfull
+2
+(K −1)
+
+1 −(K −2)ρ
+
+∆2
+min
+!
+.
+Theorem 3 (Strict Dominance of RAG-FT). Let the expected risks of the standard baselines be
+bounded as in Appendix B.5, the full-corpus bound under Assumption 3. In the high-dimensional
+proportional regime d ∝(m + n) with m + n > d, retrieval-guided fine-tuning strictly outperforms
+both target-only and full-corpus fine-tuning if
+δ < min{δtarget, δfull}.
+Both thresholds must be positive for the claim to be non-vacuous; Remark 3 gives the precise
+conditions.
+Theorem 3 demonstrates that RAG-FT achieves a favorable bias-variance trade-off whenever task
+separation and sample size are jointly sufficient to drive the retrieval failure probability below these
+critical thresholds (which is guaranteed by Theorem 1).
+The homoscedastic model is, however, a structural idealization. In practice, the noise variance scales
+with retrieval rank, and the uniform-weight constraint of linear self-attention cannot accommodate
+this. Section 5 examines the consequences.
+5
+
+
+5
+Theoretical analysis: under heteroscedastic retrieval noise
+Section 4 shows that RAG-FT navigates the bias-variance tradeoff well under homoscedastic noise:
+the failure probability δ decays exponentially in ∆2
+min, and the induced bias is attenuated accordingly.
+That result rests on Assumption 2, which assigns every candidate dataset the same noise variance σ2
+regardless of its distance from the query, an idealization real corpora violate, since retrieval quality
+varies systematically with rank. This section replaces that idealization with a distance-proportional
+noise model and compares how two estimators of the same retrieval process respond to it.
+5.1
+The Distance-Proportional Noise (DPN) model
+Let xq ∈Rd denote the query covariate, xq ∼N(0, Id). Retrieved samples are indexed by rank
+i ∈{1, . . . , n}, with i = 1 the nearest neighbor under the retrieval metric. Each retrieved covariate is
+modeled as
+x(i)
+rag = xq + ri,
+ri ∼N(0, δ2
+i Id),
+where ri is an independent Gaussian offset encoding the geometric displacement from the query at
+rank i, mutually independent across i and independent of both xq and the label noise. Conditional on
+xq, x(i)
+rag ∼N(xq, δ2
+i Id); since δ2
+i varies with rank, the retrieved covariates are neither i.i.d. across i
+nor marginally standard Gaussian.
+The label model for a retrieved sample pooled from task k is
+yi = (x(i)
+rag)⊤θk + ϵi,
+E[ϵi | x(i)
+rag] = 0,
+Var(ϵi | x(i)
+rag) = σ2
+i ,
+where θk is the parameter of whichever task was retrieved, coinciding with θk⋆under successful
+retrieval and differing from it otherwise, as in Section 4.
+Power-law retrieval geometry.
+Semantic relevance degrades with retrieval rank. We model this
+with a shared power-law scaling of the covariate offset and the label noise:
+δ2
+i = γiq,
+σ2
+i = γσ2iq,
+q > 0,
+where γ > 0 sets the scale and q governs the rate of noise growth; coupling the two exponents ensures
+noisier labels are also, geometrically farther from the query. This yields independent noise variables
+εi ∼N(0, γσ2iq), with covariance matrix
+Ω:= Var(ε | X) = diag
+ γσ2 · 1q, γσ2 · 2q, . . . , γσ2 · nq
+.
+Ωis diagonal but non-uniform, violating the homoscedasticity required for OLS to be the optimal
+linear estimator.
+5.2
+OLS risk under Distance-Proportional Noise
+We now turn to the OLS proxy under the DPN model of Section 5.1. To isolate the effect of retrieval
+volume from the proportional dimensional scaling used for the OLS baselines of Section 4, we hold
+the ambient dimension d, the target sample size m, and the noise exponent q > 0 fixed, and let only
+the retrieval volume n grow.
+Theorem 4 (OLS Risk under DPN). Under the DPN model, with d, m, and q > 0 fixed and n →∞,
+the prediction-risk variance of the OLS proxy,
+VOLS(n) := Tr
+
+(X⊤X)−1(X⊤ΩX)(X⊤X)−1
+,
+the Huber–White sandwich covariance trace of Theorem A.4, where X ∈R(m+n)×d is the pooled
+design and Ω∈R(m+n)×(m+n) is the pooled noise covariance (diagonal, with target entries σ2 and
+retrieved entries σ2
+rag,i = γσ2iq), satisfies
+E[VOLS(n)] = d σ2(q + 1)2
+2q + 1
+· 1
+n (1 + o(1)) = Θ
+ d
+n
+
+.
+for every fixed noise exponent q > 0, and no divergence occurs at any q.
+6
+
+
+Proof sketch. The pooled design matrix decomposes as a mean term µId + n xqx⊤
+q (µ = m + sn =
+Θ(nq+1)) plus a fluctuation of operator norm O(
+√
+d nq+1/2), negligible relative to the mean for every
+q > 0. The mean term is scalar-plus-rank-one and inverts in closed form via Sherman–Morrison; the
+same decomposition applied to the noise-weighted design X⊤ΩX yields a matching closed form.
+Their product has a diagonal trace in the shared eigenbasis that simplifies to dσ2(q+1)2/(2q+1)·n−1
+at leading order, with remaining approximation error o(1/n) uniformly in q.
+This absence of divergence mirrors the homoscedastic case of Section 4: OLS’s inverse-covariance
+correction adapts to whatever noise structure is present, so increasing heteroscedasticity changes the
+constant in d/n but not the rate. This is the baseline against which Section 5.3 evaluates the literal
+LSA forward pass.
+5.3
+LSA risk under Distance-Proportional Noise
+Assumption 1 is not invoked in this section: retrieval rank in the DPN model is a fixed index, with
+covariates at each rank drawn independently of any data-dependent statistic, so no adaptive-selection
+step stands between the estimator and the data. This lets us study the untrained LSA forward pass
+directly, alongside the OLS proxy, as two separate, explicitly named estimators of the same DPN
+process. The following theorem shows the literal estimator behaves very differently from the OLS
+proxy of Theorem 4.
+The literal LSA forward pass produces the prediction ˆyq = 1
+n
+Pn
+i=1(x⊤
+q x(i)
+rag) yi, a uniform average
+over the retrieved context with no mechanism to weight ranks by their reliability. Unlike the OLS
+proxy, this estimator has no matrix inversion step to correct for the noise structure of the pooled data.
+Theorem 5 (LSA Risk under DPN). Under the DPN model, with d, m, and q > 0 fixed, n →∞,
+and the retrieved task signal bounded away from zero (∥θk∥≥b0 for some fixed constant b0 > 0),
+the literal LSA forward-pass estimator has prediction risk
+RLSA(n) = σ2 + E[Bias(xq)2] + E[Var(ˆyq | xq)],
+where both terms admit finite-n expressions (Appendix C.2, exact for the bias, leading-order for the
+variance) and satisfy, as n →∞for every fixed q > 0,
+E[Bias(xq)2] = Θ(n2q),
+E[Var(ˆyq | xq)] = Θ(d · n2q−1).
+The bias term dominates the variance term for every fixed q > 0 (their ratio is Θ(n/d) →∞) and
+diverges regardless of whether the retrieved task matches the target task, so
+RLSA(n) = σ2 + Θ(n2q) + Θ(d · n2q−1) →∞
+as n →∞, for every q > 0.
+Proof sketch. Conditioning on xq and writing xq = √ρ ω with ω uniform on the unit sphere, the bias
+E[ˆyq | xq]−x⊤
+q θk⋆reduces to a quadratic form in ρ; taking expectation over ρ ∼χ2(d) gives an exact
+closed-form second moment whose leading term is governed by (sn/n)2∥θk∥2, with sn/n = Θ(nq)
+and no dependence on d at leading order. The variance Var(ˆyq | xq) combines two independent
+sources computed via the same conditioning argument, fluctuation of the retrieved offset ri and label
+noise ϵi, giving Θ(d · n2q−1). Since their ratio is Θ(n/d) →∞, the bias term governs the total risk
+for every q > 0.
+5.4
+Architectural separation under DPN
+Theorems 4 and 5 describe the same retrieval process through two estimators that respond to it very
+differently. The OLS proxy’s inverse-covariance correction absorbs whatever heteroscedasticity
+DPN introduces, so its risk stays Θ(d/n) for every q > 0: the constant in front of d/n grows with
+q, but the rate does not. The literal LSA forward pass has no such correction; its prediction is a
+uniform, unweighted average over retrieved context, and under DPN this fixed averaging leaves the
+bias uncalibrated, diverging as Θ(n2q) for every q > 0 regardless of retrieval outcome. Because this
+divergence carries no leading-order dependence on d, it admits no dimension-dependent ceiling of
+the kind that bounds risk in the frozen-weight setting of [Guo et al., 2025]: increasing d does not
+restore stability. Within this estimator’s fixed parameterization the gap cannot be closed by choice of
+attention weights, since uniform averaging is a property of the forward pass we analyze, not a learned
+quantity; the failure therefore lies in the absence of a reweighting mechanism, not in retrieval or the
+noise model itself. Figure 2 in the appendix confirms both properties directly.
+7
+
+
+6
+Empirical validation
+The homoscedastic results of Section 4 rest on exact finite-sample identities, so we target the
+asymptotic separation asserted by Theorems 4 and 5. Every Monte Carlo point simulates the
+generative model of Section 5.1 and evaluates each estimator from its defining formula, never from
+the closed-form risk expressions plotted as theory curves, so agreement between markers and curves
+tests the derivation rather than restating it.
+Figure 1: Risk vs. retrieval volume n under DPN (d = 20, m = 50). MC: Monte Carlo; curves:
+finite-n theory.
+Panel (a) sweeps retrieval volume n at d = 20, m = 50 for q ∈{0.5, 1, 2}. OLS follows the predicted
+Θ(d/n) decay at every exponent, while LSA turns upward at Θ(n2q), diverging earlier as q grows.
+Panel (b) fixes q = 1 and varies the retrieved task: exact retrieval (θk = θk⋆) diverges at the same
+rate as two mismatched tasks, the signature of a bias governed by the aggregation rule rather than by
+retrieval error. Appendix D reports two further predictions of Theorem 5: the rate is unchanged across
+d ∈{5, 20, 50, 100}, matching a bias term with no leading-order d dependence, and reweighting the
+same forward pass by reliability restores stability exactly where uniform averaging fails (Figure 2).
+7
+Conclusion
+We analyzed Retrieval-Guided Fine-Tuning as a stochastic estimation problem in a multi-task linear
+regression framework. Under homoscedastic noise, the retrieval failure probability decays exponen-
+tially in ∆2
+minn/σ2, and RAG-FT’s risk bound falls strictly below the lower bounds for target-only
+and full-corpus training once this failure probability is small enough (Theorems 1–3). Under Distance-
+Proportional Noise, we separated two estimators of the same retrieval process: the OLS proxy’s risk
+remains Θ(d/n) for every noise exponent q > 0, while the literal LSA forward pass’s bias diverges as
+Θ(n2q), dominating its variance and growing regardless of retrieval outcome or ambient dimension
+(Theorems 4–5). We trace this divergence to the forward pass’s fixed, unweighted aggregation rather
+than to retrieval noise itself, and confirm both rate separations by direct simulation (Section 6).
+8
+Limitations
+Our analysis rests on several simplifying choices. The OLS proxy for the fine-tuned estimator is an
+assumption, not something we derive from training dynamics, so our risk bounds hold only to the
+extent that this proxy is accurate. The LSA divergence in Section 5 is proven for the fixed, untrained
+forward pass; whether a trained attention layer can learn to reweight retrieved context and close this
+gap remains an open question. Sections 4 and 5 also use two different asymptotic regimes: one scales
+dimension with sample size, the other fixes dimension and grows retrieval volume, and we do not
+unify them. More broadly, the model itself is idealized: it assumes Gaussian covariates, a linear
+ground-truth relationship, a fixed set of candidate tasks with a single retrieval step, and a specific
+noise model for retrieval quality, none of which we test against real retrieval corpora or trained
+non-linear models. Finally, our finite-sample bounds involve unspecified constants and are thus not
+numerically tight, and the full-corpus baseline requires a bounded task anti-correlation condition.
+8
+
+
+References
+Kwangjun Ahn, Xiang Cheng, Hadi Daneshmand, and Suvrit Sra. Transformers learn to implement precon-
+ditioned gradient descent for in-context learning. Advances in Neural Information Processing Systems, 36:
+45614–45650, 2023.
+Kartik Ahuja and David Lopez-Paz. A closer look at in-context learning under distribution shifts. arXiv preprint
+arXiv:2305.16704, 2023.
+Ekin Akyürek, Dale Schuurmans, Jacob Andreas, Tengyu Ma, and Denny Zhou. What learning algorithm is
+in-context learning? investigations with linear models. arXiv preprint arXiv:2211.15661, 2022.
+Akari Asai, Zeqiu Wu, Yizhong Wang, Avi Sil, and Hannaneh Hajishirzi. Self-rag: Learning to retrieve, generate,
+and critique through self-reflection. In International conference on learning representations, volume 2024,
+pages 9112–9141, 2024.
+Yu Bai, Fan Chen, Huan Wang, Caiming Xiong, and Song Mei. Transformers as statisticians: Provable in-
+context learning with in-context algorithm selection. Advances in neural information processing systems, 36:
+57125–57211, 2023.
+Z. Bai and J.W. Silverstein. Spectral Analysis of Large Dimensional Random Matrices. Springer Series in
+Statistics. Springer New York, 2009. ISBN 9781441906618. URL https://books.google.fr/books?
+id=kd-o5Qdm7ngC.
+Shivam Garg, Dimitris Tsipras, Percy S Liang, and Gregory Valiant. What can transformers learn in-context? a
+case study of simple function classes. Advances in neural information processing systems, 35:30583–30598,
+2022.
+Yang Guo, Yutian Tao, Yifei Ming, Robert D Nowak, and Yingyu Liang. Retrieval-augmented generation as
+noisy in-context learning: A unified theory and risk bounds. arXiv preprint arXiv:2506.03100, 2025.
+Gautier Izacard, Patrick Lewis, Maria Lomeli, Lucas Hosseini, Fabio Petroni, Timo Schick, Jane Dwivedi-Yu,
+Armand Joulin, Sebastian Riedel, and Edouard Grave. Atlas: Few-shot learning with retrieval augmented
+language models. Journal of Machine Learning Research, 24(251):1–43, 2023.
+Mosh Levy, Alon Jacoby, and Yoav Goldberg. Same task, more tokens: the impact of input length on the
+reasoning performance of large language models. In Proceedings of the 62nd Annual Meeting of the
+Association for Computational Linguistics (Volume 1: Long Papers), pages 15339–15353, 2024.
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich
+Küttler, Mike Lewis, Wen-tau Yih, Tim Rocktäschel, et al. Retrieval-augmented generation for knowledge-
+intensive nlp tasks. Advances in neural information processing systems, 33:9459–9474, 2020.
+Siqi Liang, Sumyeong Ahn, Paramveer S Dhillon, and Jiayu Zhou. Dual debiasing for noisy in-context
+learning for text generation. In Findings of the Association for Computational Linguistics: ACL 2025, pages
+12855–12868, 2025.
+Nelson F Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, and Percy Liang.
+Lost in the middle: How language models use long contexts. Transactions of the association for computational
+linguistics, 12:157–173, 2024.
+Arvind Mahankali, Tatsunori Hashimoto, and Tengyu Ma. One step of gradient descent is provably the
+optimal in-context learner with one layer of linear self-attention. In International Conference on Learning
+Representations, volume 2024, pages 32077–32096, 2024.
+Andreas Maurer, Massimiliano Pontil, and Bernardino Romera-Paredes. The benefit of multitask representation
+learning. Journal of Machine Learning Research, 17(81):1–32, 2016.
+Shishir G Patil, Tianjun Zhang, Xin Wang, and Joseph E. Gonzalez. Gorilla: Large language model connected
+with massive APIs. In The Thirty-eighth Annual Conference on Neural Information Processing Systems, 2024.
+URL https://openreview.net/forum?id=tBRNC6YemY.
+Mark Rudelson and Roman Vershynin. Hanson-wright inequality and sub-gaussian concentration. 2013.
+Matthieu Solnon, Sylvain Arlot, and Francis Bach. Multi-task regression using minimal penalties. Journal of
+Machine Learning Research, 13(90):2773–2812, 2012. URL http://jmlr.org/papers/v13/solnon12a.
+html.
+Nilesh Tripuraneni, Chi Jin, and Michael Jordan. Provable meta-learning of linear representations. In Interna-
+tional conference on machine learning, pages 10434–10443. PMLR, 2021.
+9
+
+
+Roman Vershynin. High-Dimensional Probability: An Introduction with Applications in Data Science. Cam-
+bridge University Press, 1 edition, 2018. ISBN 9781108415194. doi: 10.1017/9781108231510.
+Johannes Von Oswald, Eyvind Niklasson, Ettore Randazzo, João Sacramento, Alexander Mordvintsev, Andrey
+Zhmoginov, and Max Vladymyrov. Transformers learn in-context by gradient descent. In International
+Conference on Machine Learning, pages 35151–35174. PMLR, 2023.
+Halbert White. A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity.
+Econometrica, 48(4):817–38, 1980. URL https://EconPapers.repec.org/RePEc:ecm:emetrp:v:48:
+y:1980:i:4:p:817-38.
+Fangyuan Xu, Weijia Shi, and Eunsol Choi. Recomp: Improving retrieval-augmented lms with compression and
+selective augmentation. arXiv preprint arXiv:2310.04408, 2023.
+Ori Yoran, Tomer Wolfson, Ori Ram, and Jonathan Berant. Making retrieval-augmented language models robust
+to irrelevant context. arXiv preprint arXiv:2310.01558, 2023.
+Ruiqi Zhang, Spencer Frei, and Peter L Bartlett. Trained transformers learn linear models in-context. Journal of
+Machine Learning Research, 25(49):1–55, 2024a.
+Tianjun Zhang, Shishir G Patil, Naman Jain, Sheng Shen, Matei Zaharia, Ion Stoica, and Joseph E Gonzalez.
+Raft: Adapting language model to domain specific rag. arXiv preprint arXiv:2403.10131, 2024b.
+10
+
+
+A
+Technical preliminaries
+This section collects the standard results from high-dimensional probability and random matrix theory
+that are invoked in the proofs of the main theorems. Statements are given in the forms used in this
+paper; we refer the reader to the cited sources for generality and proof.
+Several proofs condition on the event that the relevant design matrix is well-conditioned. For a design
+matrix X ∈Rn×d with i.i.d. rows drawn from N(0, Id), and a fixed constant C0 > 0, define the
+good design event
+Egood :=
+
+∥(X⊤X)−1∥op ≤C0/n
+	
+.
+The design matrix and sample size n instantiating this event vary by context: in Theorem 1, X ranges
+over the per-task design matrices Xk with n the per-task sample size; in Propositions 1–4, X is the
+relevant pooled design matrix, with n replaced by m + n, m, or N as appropriate.
+Theorem A.1 (Gaussian Tail Bound). Let Z ∼N(0, σ2). For any t > 0,
+P(Z ≤−t) ≤exp
+
+−t2
+2σ2
+
+.
+This bound is applied in Step 4 of the proof of Theorem 1 to control the probability that the linear
+fluctuation term Lk falls below a threshold determined by the task separation ∆min. See Vershynin
+[2018] for a standard reference.
+Theorem A.2 (Hanson–Wright Inequality [Rudelson and Vershynin, 2013]). Let Z
+=
+(Z1, . . . , Zp)⊤∈Rp be a random vector with independent, mean-zero, sub-Gaussian components
+satisfying ∥Zi∥ψ2 ≤K. Let A ∈Rp×p be a fixed symmetric matrix. Then there exists an absolute
+constant c > 0 such that for all t > 0,
+P
+ |Z⊤AZ −E[Z⊤AZ]| ≥t
+
+≤2 exp
+
+−c min
+
+t2
+K4∥A∥2
+F
+,
+t
+K2∥A∥op
+
+.
+In the proof of Lemma 4, the quadratic fluctuation term Qk = Z⊤MZ is expressed as a quadratic
+form in the concatenated OLS error vector Z ∼N(0, Σ), and Theorem A.2 is applied with A =
+Σ1/2MΣ1/2 to obtain its sub-exponential tail bound. The Frobenius and operator norms of this
+symmetrized matrix contribute the quadratic-fluctuation term to ν2 and α in Theorem 1.
+Theorem A.3 (Marchenko–Pastur Law). Let X ∈Rn×d have i.i.d. rows drawn from N(0, Id), and
+let κ = d/n ∈(0, 1) be fixed as n →∞. The empirical spectral distribution of 1
+nX⊤X converges
+weakly to the Marchenko–Pastur distribution with ratio κ, supported on [(1 −√κ)2, (1 + √κ)2]. In
+the proportional regime d ∝n, the following non-asymptotic moment estimate holds: under the good
+design event Egood, there exists a constant C > 0 such that
+E
+
+Tr((X⊤X)−1)
+ Egood
+
+≤Cd
+n ,
+and the spectral norm of the inverse satisfies
+E
+
+∥(X⊤X)−1∥op
+ Egood
+
+≤C
+n
+
+1 −d
+n
+−2
+.
+The trace bound is used in the proof of Proposition 1 to bound the effective variance
+Ex[x⊤(X⊤X)−1x] under the pooled design matrix. The spectral norm bound appears in the proof of
+Proposition 2 as the spectral inflation factor (1 −d/(m + n))−2 amplifying the geometric bias under
+retrieval failure. Both bounds follow from inverse Wishart moment calculations; see Bai and Silver-
+stein [2009] for the rigorous random matrix treatment and Vershynin [2018] for the non-asymptotic
+formulation.
+Theorem A.4 (Huber–White Covariance Estimator [White, 1980]). Let ˆθ = (X⊤X)−1X⊤Y be
+the OLS estimator under the heteroscedastic model Y = Xθ∗+ ε with Var(εi | xi) = σ2
+i . The
+conditional covariance of ˆθ given X is
+Var(ˆθ | X) = (X⊤X)−1
+ n
+X
+i=1
+σ2
+i xix⊤
+i
+!
+(X⊤X)−1.
+11
+
+
+Taking expectation over X with E[xix⊤
+i ] = Id, and whenever the noise variances are uniformly
+bounded by σ2,
+E[Tr(Var(ˆθ | X))] ≤Cσ2 d
+n.
+The covariance formula defines VOLS(n) in Theorem 4. Under the DPN model of Section 5.1, where
+σ2
+i grows with rank and is not uniformly bounded, the trace bound above does not apply directly;
+the DPN-specific trace bound is instead derived directly in Appendix C.1 via the Sherman–Morrison
+decomposition, without appeal to this corollary.
+Theorem A.5 (Matrix Bernstein Inequality [Vershynin, 2018]). Let S1, . . . , Sn ∈Rd×d be indepen-
+dent, symmetric, mean-zero random matrices with maxi ∥Si∥ψ1 ≤K. Let v :=
+Pn
+i=1 E[S2
+i ]
+
+op
+denote the matrix variance proxy. Then there exists an absolute constant c > 0 such that, with
+probability at least 1 −d−c,
+
+n
+X
+i=1
+Si
+
+op = O
+ √v + K
+
+.
+This inequality is applied in the proofs of Theorem 4 and Theorem 5 to bound the operator norm
+of the fluctuation terms arising from the rank-dependent covariance structure of the DPN model,
+where each Si is a centered outer product rir⊤
+i −δ2
+i Id (or its noise-weighted analogue), and the
+variance proxy v is computed via the Gaussian fourth-moment identity E[∥z∥2zz⊤] = (d + 2)Id for
+z ∼N(0, Id).
+Theorem A.6 (Sherman–Morrison Identity). Let A ∈Rd×d be invertible and u, v ∈Rd. If
+1 + v⊤A−1u̸ = 0, then A + uv⊤is invertible and
+(A + uv⊤)−1 = A−1 −A−1uv⊤A−1
+1 + v⊤A−1u .
+This identity is applied in the proofs of Theorem 4 and Theorem 5 to invert the conditional-mean
+design matrix ¯Σ = µId + n xqx⊤
+q in closed form.
+Theorem A.7 (Exact Inverse Wishart Trace Identity). Let X ∈RN×d have i.i.d. rows drawn from
+N(0, Id), with N > d + 1. Then X⊤X follows a Wishart distribution Wd(N, Id), and
+E
+
+Tr((X⊤X)−1)
+
+=
+d
+N −d −1.
+This is the exact first moment of the inverse Wishart distribution and holds without any high-
+probability conditioning, unlike the Marchenko–Pastur trace bound of Theorem A.3, which is a
+conditional upper bound valid under the good design event. The exact identity is used to establish the
+variance lower bound in Propositions 1 and 2, and their analogues for the target-only and full-corpus
+baselines in Section 4.3.
+Lemma A.1 (Concentration of Empirical Covariance). Under Gaussian design X ∈Rn×d with i.i.d.
+rows drawn from N(0, Id), in the proportional regime n ≥c0d for a fixed constant c0 > 0, there
+exists c′ > 0 such that
+P(Ec
+good) ≤3 exp(−c′d).
+This is a standard consequence of non-asymptotic random matrix concentration; see Vershynin
+[2018], Chapter 4. Applying this bound to each of the K per-task design matrices individually and
+taking a union bound gives P(Ec
+good) ≤3K exp(−c′d) for the intersection event used in Theorem 1,
+representing the irreducible high-dimensional bottleneck that persists even with infinite task data.
+B
+Proofs for Section 4 (homoscedastic regime)
+B.1
+Auxiliary lemmas (Lemmas 1–4)
+Lemma 1 (Distribution of OLS Estimation Noise). Under Gaussian design xi ∼N(0, Id) and
+homogeneous noise ϵi ∼N(0, σ2), the OLS estimator for any task k (including the target query q)
+satisfies ˆθk −θk | Xk ∼N
+ 0, σ2(X⊤
+k Xk)−1
+.
+12
+
+
+Proof. In vector form the linear model reads yk = Xkθk + ϵk, with ϵk ∼N(0, σ2In) independent
+of Xk. Substituting into the OLS closed form,
+ˆθk = (X⊤
+k Xk)−1X⊤
+k yk
+= (X⊤
+k Xk)−1X⊤
+k (Xkθk + ϵk)
+= θk + (X⊤
+k Xk)−1X⊤
+k ϵk,
+so the estimation error is ˆθk −θk = (X⊤
+k Xk)−1X⊤
+k ϵk. Conditional on Xk, this is a linear map
+applied to ϵk ∼N(0, σ2In), hence Gaussian with mean zero and covariance
+Var
+
+ˆθk −θk | Xk
+
+= (X⊤
+k Xk)−1X⊤
+k · σ2In · Xk(X⊤
+k Xk)−1
+= σ2(X⊤
+k Xk)−1X⊤
+k Xk(X⊤
+k Xk)−1
+= σ2(X⊤
+k Xk)−1.
+An identical argument applied to the m-sample query dataset completes the proof.
+Lemma 2 (Signal-Fluctuation Decomposition). For any incorrect candidate task k̸ = k∗, let Tk
+denote the empirical distance gap evaluated by the nearest-estimator retrieval rule. This decision
+statistic decomposes exactly into a deterministic geometric signal and two stochastic error terms:
+Tk :=
+ˆθk −ˆθq
+
+2
+2 −
+ˆθk∗−ˆθq
+
+2
+2
+|
+{z
+}
+Empirical distance gap
+= ∥θk −θk∗∥2
+2
+|
+{z
+}
+Geometric signal
++
+Lk
+|{z}
+Linear fluctuation
++
+Qk
+|{z}
+Quadratic fluctuation
+where Lk and Qk are the estimation noise fluctuations bounded in auxiliary Lemmas 3 and 4
+(Appendix B).
+Proof. Write each empirical estimator as ˆθj = θj + ξj, where ξj is the OLS estimation error. Then
+ˆθk −ˆθq = (θk + ξk) −(θk∗+ ξq) = (θk −θk∗) + (ξk −ξq),
+and expanding the squared norm,
+ˆθk −ˆθq
+
+2
+2 = ∥θk −θk∗∥2
+2 + 2⟨θk −θk∗, ξk −ξq⟩+ ∥ξk −ξq∥2
+2.
+For the baseline term, the deterministic signal θk∗−θk∗vanishes identically, giving
+ˆθk∗−ˆθq
+
+2
+2 = ∥ξk∗−ξq∥2
+2.
+Subtracting and collecting terms,
+Tk =
+ˆθk −ˆθq
+
+2
+2 −
+ˆθk∗−ˆθq
+
+2
+2
+= ∥θk −θk∗∥2
+2 + 2⟨θk −θk∗, ξk −ξq⟩+ ∥ξk −ξq∥2
+2 −∥ξk∗−ξq∥2
+2
+= ∥θk −θk∗∥2
+2 + Lk + Qk,
+which is the claimed decomposition.
+Lemma 3 (Distribution of the Linear Fluctuation Term). For any incorrect task k̸ = k∗, define
+the linear fluctuation term induced by estimation noise as
+Lk := 2⟨θk −θk∗, ξk −ξq⟩,
+where ξ denotes the respective OLS estimation errors. Conditional on the design matrices (Xk, Xq),
+Lk is a mean-zero Gaussian random variable with variance:
+Var(Lk | Xk, Xq) = 4(θk −θk∗)⊤Σk,q(θk −θk∗),
+where Σk,q = σ2(X⊤
+k Xk)−1 + σ2(X⊤
+q Xq)−1.
+13
+
+
+Proof. Lemma 1 gives the conditional distributions ξk
+∼
+N(0, σ2(X⊤
+k Xk)−1) and ξq
+∼
+N(0, σ2(X⊤
+q Xq)−1). Because task datasets are generated independently, ξk and ξq are independent,
+so
+Var(ξk −ξq | Xk, Xq) = Var(ξk | Xk) + Var(ξq | Xq)
+= σ2(X⊤
+k Xk)−1 + σ2(X⊤
+q Xq)−1
+= Σk,q.
+Set vk := θk −θk∗. Then Lk = 2v⊤
+k (ξk −ξq) is a linear functional of a mean-zero Gaussian vector,
+hence itself mean-zero Gaussian. Its conditional variance is
+Var(Lk | Xk, Xq) = 4 v⊤
+k Var(ξk −ξq | Xk, Xq) vk
+= 4(θk −θk∗)⊤Σk,q (θk −θk∗),
+which is the stated result.
+Lemma 4 (Quadratic Fluctuation Concentration). Fix an incorrect task index k̸ = k∗and define
+the quadratic fluctuation term as
+Qk := ∥ξk −ξq∥2
+2 −∥ξk∗−ξq∥2
+2.
+Let X denote the collection of all corresponding design matrices. The conditional expectation of this
+fluctuation is:
+E[Qk | X] = σ2Tr
+ (X⊤
+k Xk)−1
+−σ2Tr
+ (X⊤
+k∗Xk∗)−1
+.
+Furthermore, Qk exhibits sub-exponential concentration around its mean. There exists an absolute
+constant c > 0 such that for all t > 0:
+P (|Qk −E[Qk | X]| ≥t | X) ≤2 exp
+
+−c min
+
+t2
+∥Σ1/2MΣ1/2∥2
+F
+,
+t
+∥Σ1/2MΣ1/2∥op
+
+,
+where M ∈R3d×3d is a fixed symmetric block matrix governing the quadratic form, and Σ is the
+conditional block-diagonal covariance matrix of the joint error vector.
+Proof. By Lemma 1, the estimation errors satisfy ξj ∼N(0, Σj) with Σj = σ2(X⊤
+j Xj)−1 for
+j ∈{k, k∗, q}, and are mutually independent across datasets. Define the concatenated error Z :=
+[ξ⊤
+k , ξ⊤
+k∗, ξ⊤
+q ]⊤∈R3d; conditional on X, Z ∼N(0, Σ) with Σ = diag(Σk, Σk∗, Σq).
+Expanding the squared norms in Qk and cancelling the common ξ⊤
+q ξq terms,
+Qk =
+ ξ⊤
+k ξk −2ξ⊤
+k ξq + ξ⊤
+q ξq
+
+−
+ ξ⊤
+k∗ξk∗−2ξ⊤
+k∗ξq + ξ⊤
+q ξq
+
+= ξ⊤
+k ξk −ξ⊤
+k∗ξk∗−2ξ⊤
+k ξq + 2ξ⊤
+k∗ξq
+= Z⊤MZ,
+where M ∈R3d×3d is the symmetric block matrix
+M =
+ Id
+0
+−Id
+0
+−Id
+Id
+−Id
+Id
+0
+!
+.
+For a mean-zero Gaussian vector, E[Z⊤MZ | X] = Tr(MΣ). Executing the block-matrix product,
+Tr(MΣ) = Tr
+ Σk
+0
+−Σq
+0
+−Σk∗
+Σq
+−Σk
+Σk∗
+0
+!
+= Tr(Σk) −Tr(Σk∗)
+= σ2 Tr
+ (X⊤
+k Xk)−1
+−σ2 Tr
+ (X⊤
+k∗Xk∗)−1
+,
+establishing the stated conditional expectation. The tail bound follows by applying the Hanson–
+Wright inequality (Theorem A.2) to the Gaussian quadratic form Z⊤MZ, with the symmetrized
+matrix Σ1/2MΣ1/2 controlling both the Frobenius and operator norm terms.
+14
+
+
+B.2
+Proof of Theorem 1
+Theorem 1 (Finite-Sample Bound on Retrieval Failure). Let the minimum task separation satisfy
+∆2
+min ≥C1σ2d/n for a constant C1 > 0. The retrieval failure probability δ = P(ˆk̸ = k∗) satisfies
+δ ≤3(K −1) exp
+
+−C min
+∆4
+min
+¯ν 2 , ∆2
+min
+¯α
+
++ 3K exp(−c′d),
+where C, c′
+>
+0 are universal constants, ¯ν 2
+=
+O
+ σ2∆2
+max/n + dσ4/n2
+, and ¯α
+=
+O
+ σ∆max/√n + σ2/n
+
+.
+Proof. Lemma 2 establishes that the retrieval decision statistic for any incorrect task k̸ = k∗
+decomposes exactly as
+Tk = ∥θk −θk∗∥2
+2 + Lk + Qk,
+where Lk is the linear fluctuation term characterized in Lemma 3 and Qk is the quadratic fluctuation
+term characterized in Lemma 4. The nearest-estimator retrieval rule selects the correct task if and
+only if Tk > 0 for every k̸ = k∗, so the failure event is
+E =
+
+∃k̸ = k∗: Tk ≤0
+	
+.
+Step 1: Reduction to a single task. Fix an arbitrary incorrect task k̸ = k∗. Because ∥θk −θk∗∥2
+2 ≥
+∆2
+min by definition, the event {Tk ≤0} requires
+Lk + Qk ≤−∥θk −θk∗∥2
+2 ≤−∆2
+min.
+Step 2: Centering the quadratic fluctuation. Define the centered quadratic fluctuation eQk :=
+Qk −E[Qk | X]. Substituting yields
+Lk + eQk ≤−∆2
+min −E[Qk | X].
+The assumption ∆2
+min > 2|E[Qk | X]| implies −E[Qk | X] ≤∆2
+min/2, so the right-hand side is at
+most −∆2
+min/2:
+{Tk ≤0} ⊆
+
+Lk + eQk ≤−∆2
+min
+2
+
+.
+Step 3: Threshold splitting. Splitting at −∆2
+min/4 and applying the union bound,
+P(Tk ≤0 | X) ≤P
+
+Lk + eQk ≤−∆2
+min
+2
+ X
+
+≤P
+
+Lk ≤−∆2
+min
+4
+ X
+
++ P
+
+eQk ≤−∆2
+min
+4
+ X
+
+.
+Step 4: Bounding the linear fluctuation tail. Lemma 3 establishes that Lk, conditional on X, is
+mean-zero Gaussian with variance Var(Lk | X). The Gaussian tail inequality (Theorem A.1) at
+threshold t = ∆2
+min/4 gives
+P
+
+Lk ≤−∆2
+min
+4
+ X
+
+≤exp
+
+−
+(∆2
+min/4)2
+2 Var(Lk | X)
+
+= exp
+
+−
+∆4
+min
+32 Var(Lk | X)
+
+.
+Step 5: Bounding the quadratic fluctuation tail. Lemma 4 expresses eQk = Z⊤MZ −E[Z⊤MZ | X],
+where Z ∼N(0, Σ) is the concatenated estimation error and M ∈R3d×3d is a fixed symmetric
+block matrix. Applying the Hanson–Wright inequality at threshold t = ∆2
+min/4,
+P
+
+eQk ≤−∆2
+min
+4
+ X
+
+≤2 exp
+
+−c min
+
+(∆2
+min/4)2
+∥Σ1/2MΣ1/2∥2
+F
+,
+∆2
+min/4
+∥Σ1/2MΣ1/2∥op
+
+= 2 exp
+
+−c min
+
+∆4
+min
+16∥Σ1/2MΣ1/2∥2
+F
+,
+∆2
+min
+4∥Σ1/2MΣ1/2∥op
+
+.
+15
+
+
+Step 6a: Combining and absorbing constants. Define the composite variance parameters
+ν2 := Var(Lk | X) +
+Σ1/2MΣ1/22
+F ,
+α := max
+p
+Var(Lk | X),
+Σ1/2MΣ1/2
+op
+
+.
+Absorbing the numerical prefactors into a single universal constant C > 0, the combined single-task
+conditional bound is
+P(Tk ≤0 | X) ≤3 exp
+
+−C min
+∆4
+min
+ν2 , ∆2
+min
+α
+
+.
+Step 6b: Deterministic bounds under the good design event. Under Egood, ∥(X⊤
+k Xk)−1∥op ≤C0/n
+for every k. By Lemma 3,
+Var(Lk | X) = 4(θk −θk∗)⊤Σk,q(θk −θk∗) ≤8C0σ2∆2
+max
+n
+=: ¯ν2
+1,
+since Σk,q ⪯(2C0σ2/n)Id. Moreover,
+∥Σ∥op ≤2C0σ2
+n
+,
+Σ = diag(Σk, Σk∗, Σq),
+and therefore
+∥Σ1/2MΣ1/2∥2
+F ≤∥Σ∥2
+op∥M∥2
+F = O
+dσ4
+n2
+
+,
+∥Σ1/2MΣ1/2∥op ≤∥Σ∥op∥M∥op = O
+σ2
+n
+
+.
+Hence
+ν2 ≤¯ν2 := O
+σ2∆2
+max
+n
++ dσ4
+n2
+
+,
+α ≤¯α := O
+σ∆max
+√n
++ σ2
+n
+
+.
+Similarly,
+|E[Qk | X]| ≤σ2 Tr
+ (X⊤
+k Xk)−1
++ σ2 Tr
+ (X⊤
+k∗Xk∗)−1
+≤2C0σ2d
+n
+.
+Therefore ∆2
+min ≥C1σ2d/n with C1 = 4C0 implies
+∆2
+min > 2|E[Qk | X]|,
+recovering the condition used in Step 2.
+Step 7: Union bound over all incorrect tasks. The preceding bound is symmetric in k under
+Assumption 2 (all tasks share the same noise level σ2 and sample size n). Applying a union bound
+over the K −1 incorrect candidate tasks,
+P(E | X) ≤3(K −1) exp
+
+−C min
+∆4
+min
+ν2 , ∆2
+min
+α
+
+.
+Step 8: Removing the conditioning via the good design event. The bounds in Steps 4–6 rely on the
+conditional variance parameters ν2 and α, which are well-defined only when the empirical covariance
+matrices (X⊤
+k Xk)−1 are well-conditioned. Define the good design event
+Egood :=
+(X⊤
+k Xk)−1
+op ≤C0
+n
+for all k ∈[K]
+
+for a fixed constant C0 > 0.
+By Lemma A.1, each individual event Ek := {∥(X⊤
+k Xk)−1∥op ≤C0/n} satisfies P(Ec
+k) ≤
+3 exp(−c′d). Since Egood = TK
+k=1 Ek, a union bound over the K tasks gives
+P(Ec
+good) = P
+ K
+[
+k=1
+Ec
+k
+
+≤
+K
+X
+k=1
+P(Ec
+k) ≤3K exp(−c′d).
+16
+
+
+The law of total probability then gives
+δ = P(E) ≤P(E | Egood) P(Egood) + P
+ Ec
+good
+
+≤P(E | Egood) + P
+ Ec
+good
+
+≤3(K −1) exp
+
+−C min
+∆4
+min
+ν2 , ∆2
+min
+α
+
++ 3K exp(−c′d),
+where the last inequality substitutes the conditional bound from Step 7 and the good design concen-
+tration estimate. This is the claimed bound, completing the proof.
+B.3
+Proofs of conditional risk bounds (Propositions 1 and 2)
+Proposition 1 (Risk under Successful Retrieval). Conditioned on the success event R = 1, the
+estimator ˆθFT fits m + n homogeneous samples drawn strictly from the target task {θk∗}. The
+estimator is unbiased, and under the good design event Egood with m + n ≥(1 + η0)d for some
+η0 > 0, its conditional risk satisfies the two-sided bound
+σ2 + σ2
+d
+m + n −d −1 ≤E
+h
+R(ˆθFT) | R = 1
+i
+≤σ2 + Cσ2
+d
+m + n,
+where the lower bound is the exact inverse-Wishart trace identity E[Tr((X⊤X)−1)] = d/(m + n −
+d −1), valid unconditionally for m + n > d + 1, and C > 0 is a universal constant governing the
+upper bound under Egood.
+Proof. Conditioned on R = 1, the retrieved corpus consists entirely of samples from the target
+task θk∗, so the pooled dataset of m + n observations satisfies the well-specified linear model
+yi = x⊤
+i θk∗+ϵi with ϵi ∼N(0, σ2) i.i.d. The OLS estimator is therefore unbiased: E[ˆθFT | X, R =
+1] = θk∗.
+For a fresh test point (x, y) with y = x⊤θk∗+ ϵ, the prediction error decomposes as
+y −x⊤ˆθFT = ϵ −x⊤(ˆθFT −θk∗),
+and since the test noise ϵ is independent of ˆθFT,
+E
+h
+R(ˆθFT)
+ R = 1
+i
+= σ2 + E
+h
+x⊤Var(ˆθFT | X, R = 1) x
+i
+.
+From Lemma 1, the conditional covariance of the OLS estimator on the pooled design matrix
+X ∈R(m+n)×d is Var(ˆθFT | X, R = 1) = σ2(X⊤X)−1. Taking the expectation over a fresh test
+covariate x ∼N(0, Id), independent of X,
+Ex
+
+x⊤(X⊤X)−1x
+
+= Tr
+ (X⊤X)−1
+.
+It remains to bound E[Tr((X⊤X)−1)] under the good design event Egood. Under Gaussian design in
+the proportional regime m + n ≥(1 + η0)d for the fixed constant η0 > 0 defining the good design
+event, the Marchenko–Pastur moment estimate (Theorem A.3) gives
+E
+
+Tr
+ (X⊤X)−1  Egood
+
+≤
+Cd
+m + n
+for a universal constant C > 0. Combining,
+E
+h
+R(ˆθFT)
+ R = 1
+i
+≤σ2 + Cσ2
+d
+m + n,
+which is the stated bound.
+Lower bound. The conditional covariance established above is exact: Var(ˆθFT | X, R = 1) =
+σ2(X⊤X)−1, with X ∈R(m+n)×d the pooled design matrix under Gaussian design. Since X⊤X ∼
+Wd(m + n, Id), Theorem A.7 gives the exact identity
+E
+
+Tr((X⊤X)−1)
+
+=
+d
+m + n −d −1,
+17
+
+
+valid for m + n > d + 1, without conditioning on the good design event. Combining with the
+irreducible noise term,
+E
+h
+R(ˆθFT) | R = 1
+i
+= σ2 + σ2 E
+
+Tr((X⊤X)−1)
+
+= σ2 + σ2
+d
+m + n −d −1,
+which is the stated lower bound. Together with the upper bound derived above, this establishes the
+two-sided result.
+Proposition 2 (Risk under Retrieval Failure). Conditioned on the failure event R = 0, in the
+high-dimensional proportional regime where d ∝(m + n) and m + n > d, the conditional risk
+satisfies
+E
+h
+R(ˆθFT) | R = 0
+i
+≥σ2 + σ2
+d
+m + n −d −1 +
+
+n
+m + n
+2
+∆2
+min,
+E
+h
+R(ˆθFT) | R = 0
+i
+≤σ2 + Cσ2
+d
+m + n + C
+
+n
+m + n
+2 
+1 −
+d
+m + n
+−2
+∆2
+max,
+where the lower bound holds unconditionally (for m + n > d + 1), the upper bound holds under
+the good design event Egood with m + n ≥(1 + η0)d for some η0 > 0, and C > 0 is a universal
+constant.
+Proof. Setup. Conditioned on R = 0, an incorrect task k̸ = k∗is retrieved. The pooled dataset
+consists of m target samples satisfying yi = x⊤
+i θk∗+ εi and n retrieved samples satisfying yret
+i
+=
+(xret
+i )⊤θk + εret
+i , all with homoscedastic noise ε ∼N(0, σ2).
+Population target and unbiasedness. Let X ∈R(m+n)×d be the pooled design matrix and
+y ∈Rm+n the response vector. Since both sub-populations have isotropic design x ∼N(0, Id), the
+population minimizer of the expected squared loss on the pooled mixture is
+¯θ :=
+m
+m + nθk∗+
+n
+m + nθk.
+For a fixed realization of X, the OLS estimator ˆθFT = (X⊤X)−1X⊤y is generally not conditionally
+unbiased for ¯θ; only its expectation over the random design coincides with ¯θ, as we verify below. The
+bias with respect to the true target is
+¯θ −θk∗=
+n
+m + n(θk −θk∗).
+Bias-variance decomposition. For a fresh test point x ∼N(0, Id) independent of X and the training
+noise, write the prediction error as
+y −x⊤ˆθFT = εtest −x⊤(ˆθFT −¯θ) −x⊤(¯θ −θk∗).
+While E[ˆθFT | X, R = 0] = ¯θ + ∆(X) for a generally nonzero deterministic function ∆(X) :=
+
+m
+m+nId −(X⊤X)−1X⊤
+targetXtarget
+
+(θk −θk∗), its expectation over the random design vanishes
+exactly: X⊤
+targetXtarget and X⊤
+retrievedXretrieved are independent Wishart matrices from rotation-
+invariant Gaussian designs, so E[(X⊤X)−1X⊤
+targetXtarget] commutes with every orthogonal matrix
+and must therefore be a scalar multiple of Id; matching traces via the matrix-variate Beta identity
+E[Tr((X⊤X)−1X⊤
+targetXtarget)] =
+m
+m+nd pins this scalar at m/(m+n) exactly, so EX[∆(X)] = 0.
+Consequently, taking expectation over both X and the training noise, the cross term between ˆθFT −¯θ
+and the fixed vector ¯θ −θk∗vanishes exactly, giving
+E[R(ˆθFT) | R = 0] ≥σ2 + E
+h
+Tr
+
+Var(ˆθFT | X, R = 0)
+i
+|
+{z
+}
+Variance
++
+¯θ −θk∗2
+|
+{z
+}
+Squared bias
+.
+(1)
+Squared bias term. Since ¯θ −θk∗=
+n
+m+n(θk −θk∗),
+∥¯θ −θk∗∥2 =
+
+n
+m + n
+2
+∥θk −θk∗∥2.
+18
+
+
+For the upper bound, ∥θk −θk∗∥≤∆max gives ∥¯θ −θk∗∥2 ≤(n/(m + n))2∆2
+max. For the lower
+bound, ∥θk −θk∗∥≥∆min (since k̸ = k∗) gives ∥¯θ −θk∗∥2 ≥(n/(m + n))2∆2
+min.
+Variance term: upper bound. Let ri := yi −x⊤
+i ¯θ denote the i-th pooled residual under ¯θ. Under
+homoscedastic noise, the true conditional variance is exactly Var(ˆθFT | X, R = 0) = σ2(X⊤X)−1;
+the additional fluctuation from model misspecification is captured separately via ∆(X) above. To
+bound the two together in a single expression, we use the Huber–White sandwich quantity
+(X⊤X)−1 m+n
+X
+i=1
+r2
+i xix⊤
+i
+
+(X⊤X)−1,
+which provides a valid upper bound on Tr(Var(ˆθFT | X, R = 0)) + ∥∆(X)∥2 jointly; this is what
+the subsequent decomposition into noise and misspecification terms bounds. By construction, each
+residual satisfies ri = x⊤
+i (θtrue,i −¯θ) + εi, where θtrue,i = θk∗for target rows and θk for retrieved
+rows. Applying the AM inequality (a + b)2 ≤2a2 + 2b2,
+r2
+i ≤2
+ x⊤
+i (θtrue,i −¯θ)
+2 + 2ε2
+i .
+(2)
+Substituting (2) and taking the trace of the sandwich,
+Tr
+
+Var(ˆθFT | X, R = 0)
+
+≤2
+m+n
+X
+i=1
+ε2
+i · x⊤
+i (X⊤X)−2xi
+|
+{z
+}
+Noise term
++ 2
+m+n
+X
+i=1
+ x⊤
+i (θtrue,i −¯θ)
+2 · x⊤
+i (X⊤X)−2xi
+|
+{z
+}
+Misspecification term
+.
+(3)
+For the noise term, since εi is independent of X with E[ε2
+i ] = σ2:
+E
+"
+2
+X
+i
+ε2
+i · x⊤
+i (X⊤X)−2xi
+#
+= 2σ2 E
+
+Tr
+ (X⊤X)−1
+=
+2σ2d
+m + n −d −1,
+using the exact inverse-Wishart identity from Theorem A.7. For the misspecification term, write
+u := θk −θk∗; the shifts satisfy ∥θtrue,i −¯θ∥≤∆max for all rows, since both ∥(n/(m + n))u∥and
+∥(m/(m + n))u∥are at most ∥u∥. Applying the Cauchy–Schwarz inequality and the Marchenko–
+Pastur spectral norm bound (Theorem A.3) E[∥(X⊤X)−1∥op | Egood] ≤C(m + n)−1(1 −d/(m +
+n))−2, the misspecification term is bounded by
+C
+
+n
+m + n
+2
+1 −
+d
+m + n
+−2
+∆2
+max,
+where the constant C absorbs the factor of 2 and the proportionality constants. Combining with the
+upper bound on the squared bias and the exact variance floor 2σ2d/(m+n−d−1) ≤Cσ2d/(m+n)
+under Egood,
+E[R(ˆθFT) | R = 0] ≤σ2 + Cσ2
+d
+m + n + C
+
+n
+m + n
+2
+1 −
+d
+m + n
+−2
+∆2
+max.
+Lower bound. The variance floor follows from the same exact inverse-Wishart identity applied to
+the pooled Gaussian design X⊤X ∼Wd(m + n, Id):
+E[Tr((X⊤X)−1)] =
+d
+m + n −d −1,
+m + n > d + 1,
+unconditionally and without conditioning on Egood. For the bias lower bound, since ¯θ −θk∗is a
+deterministic vector and x ∼N(0, Id) is independent of X,
+Ex
+hx⊤(¯θ −θk∗)
+2i
+= ∥¯θ −θk∗∥2 =
+
+n
+m + n
+2
+∥θk −θk∗∥2 ≥
+
+n
+m + n
+2
+∆2
+min.
+19
+
+
+This is an exact identity, not a concentration result, and requires no conditioning on Egood. Combining
+the variance floor with the bias lower bound,
+E[R(ˆθFT) | R = 0] ≥σ2 + σ2
+d
+m + n −d −1 +
+
+n
+m + n
+2
+∆2
+min.
+This omits a further non-negative contribution EX[∥∆(X)∥2] ≥0 from the fluctuation term ∆(X)
+introduced above: its exact value requires matrix-variate Beta second moments beyond the elemen-
+tary Wishart identities used here, but rotation invariance pins its scale at O(∆2
+max mn/(m + n)3),
+dominated by the retained bias term throughout the regime d ∝(m + n) considered here, so omitting
+it costs nothing qualitative. Together with the upper bound, this establishes the two-sided result.
+B.4
+Proof for Theorem 2
+Theorem 2 (Total Expected Risk Bound for RAG-FT). Under the uniform homoscedastic noise
+assumption, let the ambient dimension scale proportionally as d ∝(m + n) with m + n > d. The
+expected prediction risk of the retrieval-guided fine-tuning estimator ˆθFT, evaluated on a fresh sample
+from the target task, satisfies
+E
+
+R(ˆθFT)
+
+≥σ2 + σ2
+d
+m + n −d −1 + δ
+
+n
+m + n
+2
+∆2
+min,
+E
+
+R(ˆθFT)
+
+≤σ2 + C1σ2
+d
+m + n + C2 δ
+
+n
+m + n
+2 
+1 −
+d
+m + n
+−2
+∆2
+max,
+where C1, C2 > 0 are universal constants, δ is the retrieval failure probability bounded in Theorem 1,
+and the lower bound is unconditional, with the exact variance floor following from the inverse-Wishart
+identities underlying Propositions 1 and 2 (valid for m+n>d+1).
+Proof. The retrieval event R ∈{0, 1} is a Bernoulli random variable with P(R = 0) = δ and
+P(R = 1) = 1 −δ. Conditioning on this event and applying the law of total expectation,
+E
+h
+R(ˆθFT)
+i
+= (1 −δ) E
+h
+R(ˆθFT)
+ R = 1
+i
++ δ E
+h
+R(ˆθFT)
+ R = 0
+i
+.
+Substituting the conditional bounds established in Propositions 1 and 2 and using (1 −δ) ≤1,
+E
+h
+R(ˆθFT)
+i
+≤(1 −δ)
+
+σ2 + C1σ2
+d
+m + n
+
++ δ
+ 
+σ2 + C1σ2
+d
+m + n + C2
+
+n
+m + n
+2
+1 −
+d
+m + n
+−2
+∆2
+max
+!
+= σ2 + C1σ2
+d
+m + n
++ C2δ
+
+n
+m + n
+2
+1 −
+d
+m + n
+−2
+∆2
+max,
+where the last equality collapses the shared σ2 + C1σ2d/(m + n) terms across both conditioning
+events, since they carry identical coefficients that sum to one under the mixture (1 −δ) + δ = 1.
+Lower bound. Applying the same law of total expectation to the lower bounds of Propositions 1
+and 2,
+E
+h
+R(ˆθFT)
+i
+= (1 −δ) E
+h
+R(ˆθFT) | R = 1
+i
++ δ E
+h
+R(ˆθFT) | R = 0
+i
+≥(1 −δ)
+
+σ2 + σ2
+d
+m + n −d −1
+
++ δ
+ 
+σ2 + σ2
+d
+m + n −d −1 +
+
+n
+m + n
+2
+∆2
+min
+!
+= σ2 + σ2
+d
+m + n −d −1 + δ
+
+n
+m + n
+2
+∆2
+min,
+where the shared terms collapse exactly as in the upper bound derivation, since (1 −δ) + δ = 1. This
+establishes the lower bound stated in Theorem 2, completing the two-sided result.
+20
+
+
+Remark 1. The expected bias penalty in Theorem 2 is gated by δ and therefore decays exponentially
+in the signal-to-noise ratio ∆2
+minn/σ2 once the task separation exceeds the estimation noise floor.
+In the well-separated regime ∆2
+min ≫σ2p
+d/n, the bias term is negligible and the bound reduces
+to σ2 + O(d/(m + n)), recovering the same rate as Proposition 1. Conversely, in the degenerate
+regime δ →1, arising when the task corpus is dense and ∆min is small, the bias penalty dominates
+and the bound degrades to the full failure-mode risk of Proposition 2. The factor (1 −d/(m + n))−2
+quantifies the spectral amplification of the geometric bias by near-singular empirical covariances
+in the proportional high-dimensional regime; it diverges as d/(m + n) →1, confirming that the
+estimator requires m + n ≫d to remain stable.
+B.5
+Baseline risk bounds (target-only and full-corpus)
+In this section, we formally state and prove the risk bounds for the two standard fine-tuning baselines
+discussed in Section 4.3: target-only fine-tuning and full-corpus fine-tuning.
+Proposition 3 (Risk of Target-Only Fine-Tuning). Let ˆθtarget denote the OLS estimator trained
+exclusively on the query dataset D′ of m i.i.d. samples from the target task θk∗, with m > d + 1. The
+expected prediction risk satisfies
+σ2 + σ2
+d
+m −d −1 ≤E
+
+R(ˆθtarget)
+
+≤σ2 + C1σ2 d
+m,
+where the lower bound is the exact inverse-Wishart identity and the upper bound holds under the
+good design event Egood with m ≥(1 + η0)d for some η0 > 0.
+Proof of Proposition 3. The target-only estimator ˆθtarget is OLS on m homogeneous samples from θk∗,
+which is exactly the setting of Proposition 1 with n = 0. The two-sided bound follows immediately,
+provided m > d + 1.
+The full-corpus bias bound below requires ruling out exact cancellation among opposing task devia-
+tions.
+Assumption 3 (Bounded Task Anti-Correlation). For K ≥3, there exists ρ ∈[0, 1/(K −2))
+such that the task deviations δk := θk −θk∗satisfy
+⟨δi, δj⟩≥−ρ ∆2
+min,
+i̸ = j,
+i, j ∈[K] \ {k∗}.
+No such assumption is required when K = 2.
+Remark 2. Assumption 3 rules out only the degenerate case in which task deviations are strongly
+and systematically opposed. It is automatically satisfied whenever the {δk} are not adversarially
+anti-correlated (for instance, whenever all pairwise inner products are non-negative, the boundary
+case ρ = 0 applies). Without some assumption of this form, the full-corpus population bias can
+vanish by exact cancellation: e.g. for K = 2 with δ1 = −δ2, the population target ¯θfull coincides
+with θk∗even though ∥δ1∥= ∥δ2∥= ∆min > 0. Assumption 3 is the weakest condition of this kind
+that restores a non-trivial lower bound for K ≥3, requiring ρ < 1/(K −2); for K = 2 there are
+no cross terms and no anti-correlation assumption is needed.
+Proposition 4 (Risk of Full-Corpus Fine-Tuning). Let ˆθfull denote the OLS estimator trained on
+the pooled dataset D′ ∪SK
+k=1 Dk of Nfull = m + Kn samples. Define the population minimizer of
+the full-corpus mixture loss as
+¯θfull := m θk∗+ n PK
+k=1 θk
+m + Kn
+,
+so that ˆθfull is unbiased for ¯θfull in expectation over the random design (not conditionally, for a fixed
+design realization). Under Assumption 3 and in the high-dimensional proportional regime d ∝Nfull
+21
+
+
+with Nfull > d, the expected prediction risk satisfies
+σ2 + σ2
+d
+Nfull −d −1 +
+
+n
+Nfull
+2
+(K −1)
+
+1 −(K −2)ρ
+
+∆2
+min
+≤E
+
+R(ˆθfull)
+
+E
+
+R(ˆθfull)
+
+≤σ2 + C1σ2
+d
+Nfull
++ C2
+ Kn
+Nfull
+2 
+1 −
+d
+Nfull
+−2
+∆2
+max,
+where the lower bound holds unconditionally (for Nfull > d + 1), the upper bound holds under Egood
+with Nfull ≥(1 + η0)d for some η0 > 0, and C2 > 0 is a universal constant.
+Proof. The pooled dataset consists of m target samples satisfying yi = x⊤
+i θk∗+ εi and, for each
+k ∈[K], n task samples satisfying y(k)
+i
+= (x(k)
+i
+)⊤θk +ε(k)
+i
+, with homoscedastic noise σ2 throughout.
+Writing N := Nfull = m + Kn throughout this proof, let Xfull ∈RN×d and Yfull ∈RN denote the
+stacked design matrix and response vector.
+Population target and unbiasedness. Since the design is isotropic across all tasks, the parameter
+minimizing the expected full-corpus squared loss is
+¯θfull = m θk∗+ n PK
+k=1 θk
+m + Kn
+.
+For a fixed realization of Xfull, the OLS estimator is generally not conditionally unbiased for ¯θfull;
+only its expectation over the random design equals ¯θfull, as we verify below. The bias with respect to
+the true target is
+¯θfull −θk∗=
+n
+m + Kn
+K
+X
+k=1
+(θk −θk∗) =
+n
+m + Kn
+K
+X
+k=1
+δk.
+Bias-variance decomposition. For a fresh test point x ∼N(0, Id) independent of Xfull, the
+prediction error decomposes as
+y −x⊤ˆθfull = ε −x⊤(ˆθfull −¯θfull) −x⊤(¯θfull −θk∗).
+While E[ˆθfull | Xfull] = ¯θfull + ∆(Xfull) for a generally nonzero deterministic function
+∆(Xfull) :=
+K
+X
+k=0
+
+(X⊤
+fullXfull)−1X⊤
+k Xk −
+nk
+m + KnId
+
+θk,
+(writing X0 := Xtarget, θ0 := θk∗, n0 := m, and nk := n for k ≥1), its expectation over the
+random design vanishes exactly by the same rotation-invariance argument used in Proposition 2:
+each block X⊤
+k Xk is an independent Wishart matrix from a rotation-invariant Gaussian design,
+so E[(X⊤
+fullXfull)−1X⊤
+k Xk] commutes with every orthogonal matrix and equals
+nk
+m+KnId exactly,
+giving EXfull[∆(Xfull)] = 0. Consequently, taking expectation over both Xfull and the training noise,
+the cross term between ˆθfull −¯θfull and the fixed vector ¯θfull −θk∗vanishes exactly, giving
+E
+
+R(ˆθfull)
+
+≥σ2 + E
+
+Tr
+ Var(ˆθfull | Xfull)
+
++
+¯θfull −θk∗2.
+Variance term. Conditional on the design, the randomness from the label noise gives the usual
+σ2(X⊤
+fullXfull)−1 covariance around the empirical conditional mean. The additional mismatch bias is
+handled separately through the population mixture offset plus the design fluctuation term ∆(Xfull),
+mirroring the structure in Proposition 2. Thus, the variance from the label noise alone is exactly
+Var(ˆθfull | Xfull) = σ2(X⊤
+fullXfull)−1. By Theorem A.7 applied to the N-row Gaussian design
+matrix,
+E
+
+Tr(X⊤
+fullXfull)−1
+=
+d
+N −d −1,
+22
+
+
+which is exact and unconditional, giving the variance floor σ2d/(N −d −1). Under Egood with N ≥
+(1 + η0)d, the standard inverse-Wishart upper bound yields E[Tr(X⊤
+fullXfull)−1 | Egood] ≤Cd/N.
+Bias term: upper bound. By the triangle inequality
+PK
+k=1 δk
+ ≤K∆max, so
+¯θfull −θk∗2 ≤
+
+Kn
+m + Kn
+2
+∆2
+max.
+In the proportional regime the Marchenko–Pastur spectral norm bound (Theorem A.3) gives
+E[∥(X⊤
+fullXfull)−1∥op | Egood] ≤C(m + Kn)−1(1 −d/N)−2, amplifying the bias by (1 −d/N)−2
+and establishing the upper bound.
+Bias term: lower bound. Expanding the squared norm of the sum exactly via the polarization
+identity,
+
+K
+X
+k=1
+δk
+
+2
+=
+K
+X
+k=1
+∥δk∥2 +
+X
+i̸=j
+⟨δi, δj⟩.
+Since δk∗= 0, the first sum is really a sum over k̸ = k∗, and since ∥δk∥≥∆min for all k̸ = k∗, it
+satisfies P
+k̸=k∗∥δk∥2 ≥(K −1)∆2
+min. Likewise, any cross term involving k∗vanishes identically,
+so only the (K −1)(K −2) cross terms with both indices in [K] \ {k∗} can contribute. By
+Assumption 3, each such term satisfies ⟨δi, δj⟩≥−ρ ∆2
+min, so
+X
+i̸=j
+⟨δi, δj⟩≥−ρ ∆2
+min (K −1)(K −2).
+Combining,
+
+K
+X
+k=1
+δk
+
+2
+≥(K −1)∆2
+min −ρ (K −1)(K −2)∆2
+min = (K −1)
+
+1 −ρ(K −2)
+
+∆2
+min,
+which is strictly positive since ρ < 1/(K −2) for K ≥3 (for K = 2 there is no cross term, and the
+bound reduces exactly to ∆2
+min). Therefore the population squared bias satisfies
+¯θfull −θk∗2 ≥
+
+n
+m + Kn
+2
+(K −1)
+
+1 −ρ(K −2)
+
+∆2
+min.
+Since ¯θfull −θk∗is a fixed vector depending only on the deterministic task parameters {θk}, and
+x ∼N(0, Id) is independent of Xfull, the identity Ex[(x⊤(¯θfull −θk∗))2] = ∥¯θfull −θk∗∥2 holds
+exactly, with no conditioning on Egood. Combining variance and bias terms establishes the upper
+bound; combining the variance floor with the bias lower bound establishes the stated lower bound,
+up to a further non-negative contribution EXfull[∥∆(Xfull)∥2] from the fluctuation term introduced
+above, whose exact value again requires matrix-variate second moments beyond the elementary
+identities used here but whose scale, O(∆2
+max mKn/N 3), is dominated by the retained bias term in
+the regime d ∝N considered throughout, so omitting it costs nothing qualitative.
+B.6
+Proof of strict dominance (Theorem 3)
+Theorem 3 (Strict Dominance of RAG-FT). Let the expected risks of the standard baselines be
+bounded as in Appendix B.5, the full-corpus bound under Assumption 3. In the high-dimensional
+proportional regime d ∝(m + n) with m + n > d, retrieval-guided fine-tuning strictly outperforms
+both target-only and full-corpus fine-tuning if
+δ < min{δtarget, δfull}.
+Both thresholds must be positive for the claim to be non-vacuous; Remark 3 gives the precise
+conditions.
+Proof. The proof solves each of the two strict risk inequalities E[R(ˆθFT)] < E[R(ˆθtarget)] and
+E[R(ˆθFT)] < E[R(ˆθfull)] for δ, comparing the upper bound on RAG-FT risk (Theorem 2) against
+the lower bound on each baseline (Propositions 3 and 4), and intersects the resulting admissible sets.
+23
+
+
+Simplifying the spike factor. Throughout, we use the algebraic identity
+
+n
+m + n
+2 
+1 −
+d
+m + n
+−2
+=
+
+n
+m + n
+2 
+m + n
+m + n −d
+2
+=
+n2
+(m + n −d)2 .
+(4)
+Dominance over Target-Only Fine-Tuning. From Theorem 2 and Proposition 3, the dominance
+condition E[R(ˆθFT)] < E[R(ˆθtarget)] requires
+σ2 + C1σ2
+d
+m + n + C2δ
+
+n
+m + n
+2 
+1 −
+d
+m + n
+−2
+∆2
+max < σ2 +
+σ2d
+m −d −1.
+(5)
+Cancelling σ2 from both sides and applying (4), (5) becomes
+C1σ2
+d
+m + n + C2δ
+n2
+(m + n −d)2 ∆2
+max <
+σ2d
+m −d −1.
+(6)
+Moving the variance term to the right-hand side of (6) and factoring out σ2d,
+C2δ
+n2
+(m + n −d)2 ∆2
+max < σ2d
+
+1
+m −d −1 −
+C1
+m + n
+
+.
+(7)
+Dividing both sides of (7) by C2n2∆2
+max/(m + n −d)2 > 0 and rearranging,
+δ < (m + n −d)2
+C2n2∆2max
+· σ2d
+
+1
+m −d −1 −
+C1
+m + n
+
+=: δtarget.
+(8)
+Dominance over Full-Corpus Fine-Tuning. From Theorem 2 and Proposition 4, the dominance
+condition E[R(ˆθFT)] < E[R(ˆθfull)] requires, with Nfull := Kn + m,
+σ2 + C1σ2
+d
+m + n + C2δ
+
+n
+m + n
+2 
+1 −
+d
+m + n
+−2
+∆2
+max
+< σ2 +
+σ2d
+Nfull −d −1
++
+
+n
+Nfull
+2
+(K −1)
+
+1 −(K −2)ρ
+
+∆2
+min.
+(9)
+Cancelling σ2 and applying (4) as before, (9) becomes
+C1σ2
+d
+m + n + C2δ
+n2
+(m + n −d)2 ∆2
+max <
+σ2d
+Nfull −d −1
++
+
+n
+Nfull
+2
+(K −1)
+
+1 −(K −2)ρ
+
+∆2
+min.
+(10)
+Moving the variance term to the right-hand side of (10) and factoring out σ2d from the matching
+terms,
+C2δ
+n2
+(m + n −d)2 ∆2
+max < σ2d
+
+1
+Nfull −d −1 −
+C1
+m + n
+
++
+
+n
+Nfull
+2
+(K −1)
+
+1 −(K −2)ρ
+
+∆2
+min.
+(11)
+Dividing both sides of (11) by C2n2∆2
+max/(m + n −d)2 > 0,
+δ < (m + n −d)2
+C2n2∆2max
+
+σ2d
+
+1
+Nfull −d −1 −
+C1
+m + n
+
++
+
+n
+Nfull
+2
+(K −1)
+
+1 −(K −2)ρ
+
+∆2
+min
+)
+=: δfull.
+(12)
+Intersection. RAG-FT strictly outperforms both baselines simultaneously if and only if δ <
+δtarget from (8) and δ < δfull from (12) hold jointly, which is equivalent to δ < min{δtarget, δfull}.
+Since δ itself satisfies the exponential bound of Theorem 1, this condition is guaranteed whenever
+the task separation ∆2
+min and sample size n are large enough that its right-hand side falls below
+min{δtarget, δfull}.
+24
+
+
+Remark 3. Both thresholds require m > d + 1 (respectively Nfull > d + 1) for the exact inverse-
+Wishart denominators to be finite and positive, consistent with the preconditions of Propositions 3
+and 4. Whether each threshold is positive depends on the well-separated regime: δtarget > 0 requires
+σ2d/(m −d −1) > Cσ2d/(m + n), a condition on the sample-size gap between target-only and
+RAG-FT that holds whenever m + n is not too close to the interpolation threshold m ≈d; δfull > 0
+additionally requires the bias floor under Assumption 3 to compensate for the larger sample size
+of the full corpus, which holds once ∆min sufficiently exceeds the noise floor σ
+p
+d/Nfull, the same
+well-separated-task regime required for δ itself to be small under Theorem 1.
+C
+Proofs for Section 5 (heteroscedastic regime (DPN))
+C.1
+Proof of Theorem 4
+Theorem 4 (OLS Risk under DPN). Under the DPN model, with d, m, and q > 0 fixed and n →∞,
+the prediction-risk variance of the OLS proxy,
+VOLS(n) := Tr
+
+(X⊤X)−1(X⊤ΩX)(X⊤X)−1
+,
+the Huber–White sandwich covariance trace of Theorem A.4, where X ∈R(m+n)×d is the pooled
+design and Ω∈R(m+n)×(m+n) is the pooled noise covariance (diagonal, with target entries σ2 and
+retrieved entries σ2
+rag,i = γσ2iq), satisfies
+E[VOLS(n)] = d σ2(q + 1)2
+2q + 1
+· 1
+n (1 + o(1)) = Θ
+ d
+n
+
+.
+for every fixed noise exponent q > 0, and no divergence occurs at any q.
+Proof. Recall x(i)
+rag = xq + ri, ri ∼N(0, δ2
+i Id) independent across i, δ2
+i = γiq, and write sn :=
+P
+i δ2
+i , µ := m + sn, ρ := ∥xq∥2
+2.
+Step 1: Decomposition of the pooled design. Substituting the DPN model into X⊤
+ragXrag and
+expanding gives, exactly,
+X⊤X = X⊤
+targetXtarget + n xqx⊤
+q +
+n
+X
+i=1
+rir⊤
+i + xqr⊤
+sum + rsumx⊤
+q ,
+rsum :=
+n
+X
+i=1
+ri.
+(13)
+where Xtarget ∈Rm×d denotes the target block of the pooled design. Conditioning on xq, the first
+block averages to mId, the third term averages to snId, and the last two terms are mean zero, since
+E[rsum | xq] = 0. This gives
+¯Σ := E[X⊤X | xq] = µId + n xqx⊤
+q .
+Write F := X⊤X −¯Σ. This fluctuation splits into three mean-zero pieces: the target block’s Wishart
+fluctuation, of operator norm O(1) with high probability since m, d are fixed; the fluctuation of
+P
+i rir⊤
+i around snId, whose summands Si := rir⊤
+i −δ2
+i Id satisfy E[S2
+i ] = δ4
+i (d + 1)Id (using
+E[∥z∥2zz⊤] = (d + 2)Id for z ∼N(0, Id)), so the matrix variance proxy is v = ∥P
+i E[S2
+i ]∥op =
+(d+1) P
+i δ4
+i = (d+1)γ2 P
+i i2q = Θ(d n2q+1), and the matrix Bernstein inequality (Theorem A.5)
+gives operator norm O(√v) = O(
+√
+d nq+1/2) with high probability; and the rank-two cross term,
+of operator norm Θ(√sn) = Θ(n(q+1)/2). Since q + 1
+2 > q+1
+2
+for every q > 0, the middle piece
+dominates (for d fixed), giving
+∥F∥op = O(
+√
+d nq+1/2) w.h.p.,
+λmin(¯Σ) = µ = Θ(nq+1),
+∥F∥op
+µ
+= O(
+√
+d n−1/2) →0.
+Step 2: Inverting the mean design. Since ¯Σ is scalar plus rank one, the Sherman–Morrison identity
+(Theorem A.6) gives, with D := µ + nρ,
+¯Σ−1 = 1
+µId −n
+µD xqx⊤
+q .
+25
+
+
+Because ρ ∼χ2(d) = Θ(1) with high probability and µ = Θ(nq+1) strictly dominates nρ =
+Θ(n) for every q > 0, we have D = µ(1 + O(n−q)), hence 1/µ = Θ(n−(q+1)) and n/(µD) =
+Θ(n−(2q+1)).
+Step 3: The noise-weighted design. The same argument applied to X⊤ΩX, with Ωdiagonal with
+target entries σ2 and retrieved entries σ2
+rag,i = γσ2iq, gives
+¯ΣΩ:= E[X⊤ΩX | xq] = µΩId + sΩxqx⊤
+q ,
+with µΩ= mσ2 + P
+i σ2
+rag,iδ2
+i = Θ(n2q+1) and sΩ= P
+i σ2
+rag,i = Θ(nq+1). The fluctuation
+G := X⊤ΩX −¯ΣΩhas summands carrying an extra factor σ2
+rag,i relative to Step 1, giving variance
+proxy Θ(d n4q+1) and hence ∥G∥op = O(
+√
+d n2q+1/2) w.h.p. by the identical matrix Bernstein
+argument, so ∥G∥op/µΩ= O(
+√
+d n−1/2) →0.
+Step 4: The leading trace. Since ¯Σ and ¯ΣΩare both scalar-plus-rank-one in the direction xq,
+they share an eigenbasis: along xq/∥xq∥, the eigenvalues are D and µΩ+ sΩρ respectively; on the
+orthogonal complement, µ and µΩ, each with multiplicity d−1. The product ¯Σ−1 ¯ΣΩ¯Σ−1 is diagonal
+in this basis, so
+¯V (xq) = (d −1)µΩ
+µ2
++ µΩ+ sΩρ
+D2
+.
+Using D = µ(1 + O(n−q)), the second term splits as
+µΩ+ sΩρ
+D2
+= µΩ
+µ2 (1 + O(n−q)) + sΩρ
+µ2 (1 + O(n−q)),
+and since µΩ/µ2 = Θ(n−1) while sΩρ/µ2 = Θ(n−q−1) is strictly smaller for every q > 0, this
+gives ¯V (xq) = dµΩ/µ2 (1+o(1)). Substituting µ ∼γnq+1/(q +1) and µΩ∼γ2σ2n2q+1/(2q +1)
+gives the leading term of the theorem.
+Step 5: Error control. Writing (X⊤X)−1 = ¯Σ−1 −¯Σ−1F ¯Σ−1 +O(∥F∥2
+op/µ3) and expanding the
+trace Tr[(X⊤X)−1(X⊤ΩX)(X⊤X)−1], the purely linear terms in F or G vanish once we condition
+on xq and take expectations, since both are mean zero. Because F and G are generated from the
+same retrieved offsets, the expansion contains correlated cross terms such as FG. However, all mixed
+(F, G) terms are bounded by the same perturbative scale and are strictly lower order for fixed d.
+Specifically, we bound their contribution via the operator norm:
+E| Tr(¯Σ−1F ¯Σ−1G¯Σ−1)| ≤O
+d E[∥F∥op∥G∥op]
+µ3
+
+= o(1/n).
+The leading surviving error is
+O
+ 
+d ∥F∥2
+op ∥¯ΣΩ∥op
+µ4
+!
+= O
+d · d n2q+1 · n2q+1
+n4q+4
+
+= O(d2n−2),
+which is o(1/n) for fixed d. Taking expectation over xq gives E[VOLS(n)] = dσ2(q+1)2
+2q+1
+· 1
+n (1+o(1)),
+as claimed.
+C.2
+Proof of Theorem 5
+Theorem 5 (LSA Risk under DPN). Under the DPN model, with d, m, and q > 0 fixed, n →∞,
+and the retrieved task signal bounded away from zero (∥θk∥≥b0 for some fixed constant b0 > 0),
+the literal LSA forward-pass estimator has prediction risk
+RLSA(n) = σ2 + E[Bias(xq)2] + E[Var(ˆyq | xq)],
+where both terms admit finite-n expressions (Appendix C.2, exact for the bias, leading-order for the
+variance) and satisfy, as n →∞for every fixed q > 0,
+E[Bias(xq)2] = Θ(n2q),
+E[Var(ˆyq | xq)] = Θ(d · n2q−1).
+The bias term dominates the variance term for every fixed q > 0 (their ratio is Θ(n/d) →∞) and
+diverges regardless of whether the retrieved task matches the target task, so
+RLSA(n) = σ2 + Θ(n2q) + Θ(d · n2q−1) →∞
+as n →∞, for every q > 0.
+26
+
+
+Proof. The LSA forward pass is ˆyq =
+1
+n
+Pn
+i=1(x⊤
+q x(i)
+rag)yi, with yi = (x(i)
+rag)⊤θk + ϵi. Write
+v := θk −θk⋆, τ := ∥v∥, and c := sn/n −1.
+Step 1: Conditional bias. Given xq, E[x(i)
+rag(x(i)
+rag)⊤| xq] = xqx⊤
+q + δ2
+i Id, so
+E[ˆyq | xq, θk] = 1
+n
+X
+i
+(ρ + δ2
+i ) x⊤
+q θk =
+
+ρ + sn
+n
+
+x⊤
+q θk.
+Subtracting the target prediction x⊤
+q θk⋆and writing a(ρ) := ρ + c, this rearranges exactly to
+Bias(xq) = a(ρ) x⊤
+q θk + x⊤
+q v.
+Step 2: Second moment of the bias. Write xq = √ρ ω with ω uniform on the unit sphere,
+independent of ρ := ∥xq∥2
+2 ∼χ2(d). For fixed vectors u, w, E[(x⊤
+q u)(x⊤
+q w) | ρ] = ρ(u · w)/d,
+so expanding Bias(xq)2 and taking expectation over ρ using E[ρ] = d, E[ρ2] = d(d + 2), E[ρ3] =
+d(d + 2)(d + 4) gives, exactly,
+E[Bias(xq)2] = ∥θk∥2
+(d + 2)(d + 4) + 2c(d + 2) + c2
++ 2(θk · v)
+
+(d + 2) + c
+
++ τ 2.
+(14)
+Since c = sn/n −1 ∼γnq/(q + 1) →∞for every fixed q > 0, the c2 term dominates the c1 and
+c0 terms, giving
+E[Bias(xq)2] = ∥θk∥2c2 (1 + o(1)) = γ2∥θk∥2
+(q + 1)2 n2q (1 + o(1)) = Θ(n2q).
+At θk = θk⋆this reduces to ∥θk⋆∥2c2 (1 + o(1)), which still diverges: the bias term does not depend
+on retrieval outcome.
+Step 3: Leading-order conditional variance. Expanding (x⊤
+q x(i)
+rag)yi with Ai := x⊤
+q ri and Bi :=
+r⊤
+i θk, the fluctuation around its conditional mean splits into AiBi + Aiϵi – quadratic in the retrieved
+offset ri, of variance Θ(δ4
+i ) – plus three terms linear in ri or ϵi (ρBi, ρϵi, Aix⊤
+q θk), of variance Θ(δ2
+i )
+each. Since δ2
+i = γiq, after the 1/n2 normalization the linear pieces sum to Θ(nq−1) = o(n2q−1)
+against the Θ(n2q−1) rate established below, so they are dropped here and absorbed into the theorem’s
+(1 + o(1)). Since ri and ϵi are independent across i and of xq, the retained terms Ti := AiBi + Aiϵi
+are independent across i given xq, so
+Var(ˆyq | xq) = 1
+n2
+X
+i
+Var(Ti | xq) = 1
+n2
+X
+i
+h
+Var(AiBi | xq) + E[A2
+i | xq] σ2
+rag,i
+i
+,
+using Cov(AiBi, Aiϵi | xq) = 0 (odd moment of ϵi) and E[Aiϵi | xq] = 0.
+Since ri ∼N(0, δ2
+i Id) given xq, Ai and Bi are jointly Gaussian with E[A2
+i ] = δ2
+i ρ, E[B2
+i ] =
+δ2
+i ∥θk∥2, E[AiBi] = δ2
+i (x⊤
+q θk). The Gaussian identity Var(AB) = E[A2]E[B2] + E[AB]2 for
+jointly mean-zero Gaussian A, B gives
+Var(AiBi | xq) = δ4
+i ρ∥θk∥2 + δ4
+i (x⊤
+q θk)2.
+Taking expectation over ρ ∼χ2(d) as in Step 2, using E[ρ] = d and E[ρ(x⊤
+q θk)2] = (d + 2)∥θk∥2
+(by the same ω-uniform-on-sphere argument),
+E[Var(AiBi | xq)] = (d + 1) δ4
+i ∥θk∥2.
+Combining with E[A2
+i | xq]σ2
+rag,i = δ2
+i ρ σ2
+rag,i, whose expectation over ρ is d δ2
+i σ2
+rag,i, the leading-
+order finite-n variance is
+E[Var(ˆyq | xq)] = (d + 1)∥θk∥2
+n2
+n
+X
+i=1
+δ4
+i + d
+n2
+n
+X
+i=1
+δ2
+i σ2
+rag,i.
+(15)
+Step 4: Asymptotic rate. Substituting δ2
+i = γiq, σ2
+rag,i = γσ2iq into (15) and using P
+i i2q =
+Θ(n2q+1),
+E[Var(ˆyq | xq)] = γ2
+(d + 1)∥θk∥2 + dσ2
+2q + 1
+n2q−1 (1 + o(1)) = Θ(d · n2q−1),
+27
+
+
+where the (d + 1)∥θk∥2 (retrieved-offset) and dσ2 (label-noise) contributions are the same order in n,
+so neither can be dropped.
+Step 5: Combining terms. Comparing the two growing terms using the exact bias formula from
+Step 2 and the leading-order variance formula (15),
+E[Bias(xq)2]
+E[Var(ˆyq | xq)] = Θ
+
+n2q
+d · n2q−1
+
+= Θ
+n
+d
+
+→∞
+for fixed d, so the bias term dominates for every q > 0. Summing σ2+E[Bias(xq)2]+E[Var(ˆyq | xq)]
+gives RLSA(n) = σ2 + Θ(n2q) + Θ(d · n2q−1), which diverges as n →∞for every fixed q > 0.
+D
+Additional empirical validation
+This section collects settings and estimator definitions omitted from Section 6 for space.
+The divergence of the literal LSA forward pass under distance-proportional noise carries no leading-
+order dependence on ambient dimension, and is specific to unweighted aggregation rather than to
+retrieval noise itself. Figure 2 confirms both properties directly.
+(a) No dimension-dependent ceiling.
+(b) Reweighting recovers stability.
+Figure 2: (a) LSA risk vs. n across d ∈{5, 20, 50, 100}: curves separate where variance scales with
+d, then collapse as the dimension-independent bias term takes over. (b) Oracle inverse-variance
+weighting and self-normalization both remain stable where uniform averaging diverges.
+Methodology.
+All Monte Carlo points are obtained by directly simulating the generative model of
+Section 5.1 and fitting or evaluating each estimator from its literal defining formula (least-squares for
+OLS, the explicit forward-pass average for LSA and its variants); no Monte Carlo point is computed
+by numerically evaluating the closed-form risk expressions plotted as theory curves. Each point in
+Figure 1 and 2a averages held-out prediction risk over at least 300 independent seeds, with fresh test
+queries drawn per seed; Figure 2b averages over 300 seeds per retrieval volume n. Error bars are
+standard errors across seeds, clipped below at 0.1× the mean so that the lower whisker stays positive
+on the log axis.
+Interpretation.
+The plotted curves are the finite-n risk expressions derived in Appendix C.1–C.2,
+namely the semi-analytic E[VOLS(n)] of Theorem 4 and the exact bias plus leading-order variance of
+Theorem 5, not the asymptotic rates Θ(d/n) and Θ(n2q) those expressions reduce to. This matters
+for interpretation: the theorems are statements about n →∞, so plotting the rates alone would leave
+the small-n region untested, whereas the finite-n expressions are falsifiable at every n on the grid.
+The LSA curve is therefore non-monotone at small n, where the c0 and c1 terms of the exact bias still
+compete with c2; the Θ(n2q) slope emerges only once c = sn/n −1 grows large.
+28
+
+
+Reweighted LSA estimators.
+Figure 2b evaluates two variants of the forward pass that replace
+uniform averaging with a reliability-weighted average,
+ˆyq =
+Pn
+i=1 wi (x⊤
+q x(i)
+rag) yi
+Pn
+i=1 wi · zi
+,
+differing only in the weights wi and normalizer zi:
+• Oracle inverse-variance: wi = 1/σ2
+rag,i with zi = 1, i.e., the estimator is given the true
+DPN noise variance at each rank and normalizes by P
+i wi.
+• Self-normalized: wi = 1 with zi = (x⊤
+q x(i)
+rag)2, i.e., the estimator normalizes by the total
+similarity mass P
+i(x⊤
+q x(i)
+rag)2 rather than by n, using no information beyond what the
+uniform forward pass already computes.
+Parameter settings.
+The table provided below lists the fixed parameters underlying each figure; n
+is swept over a log-spaced grid in each case, and θk∗is a fixed unit vector throughout.
+Figure
+d
+m
+q
+γ
+n range
+1a
+20
+50
+0.5
+0.3
+10–104
+1a
+20
+50
+1
+0.2
+10–103.5
+1a
+20
+50
+2
+0.1
+10–102.5
+1b
+20
+50
+1
+0.2
+10–103.5
+2a
+{5, 20, 50, 100}
+50
+1
+0.2
+10–103.5
+2b
+20
+50
+1
+0.2
+10–103.5
+Table 1: Fixed parameters per figure. σ = 1 throughout. Panel 1a sweeps three (q, γ) pairs, each
+over its own n range (narrower at larger q, since risk grows faster and the largest n values become
+numerically extreme).
+29

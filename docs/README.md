@@ -6,38 +6,42 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-14
-- 运行时间：2026-09-14 22:32:12 UTC
+- 最新运行日期：2026-09-15
+- 运行时间：2026-09-15 22:01:35 UTC
 - 运行状态：成功
-- 本次总论文数：6
-- 精读区：3
-- 速读区：3
+- 本次总论文数：7
+- 精读区：2
+- 速读区：5
 
 ### 今日简报（AI）
-今日精选 6 篇 AI 论文，精读 3 篇，聚焦 Hopfield 模型层级原型与生成推荐线性注意力解码。最值得看的是两篇 9.0 分工作：现代 Hopfield 模型的层级原型涌现，以及 OneLA 将线性注意力解码扩展到大规模 beam。建议普通读者优先读这两篇，速读部分可关注常数缓存块扩散与长时记忆融合。
-- 详情：[/202609/14/README](/202609/14/README)
+9月15日日报：7篇论文中精读2篇高分，密集联想记忆与Gated DeltaNet上下文扩展领衔。  
+最值得看的是两篇9.0精读：密集联想记忆的序列检索/渐近动力学与存储容量，以及用谱
+- 详情：[/202609/15/README](/202609/15/README)
 
 ### 精读区论文标签
-1. [Hierarchical Prototype Emergence in Modern Hopfield Models](/202609/14/2609.12079v1-hierarchical-prototype-emergence-in-modern-hopfield-models)  
+1. [Sequential Retrieval in Dense Associative Memory: Asymptotic Dynamics and Storage Capacity](/202609/15/2609.13987v1-sequential-retrieval-in-dense-associative-memory-asymptotic-dynamics-and-storage-capacity)  
    标签：评分：9.0/10、query:la
-   evidence：稠密现代Hopfield网络中的联想记忆与层级关联学习
-2. [OneLA: Scaling Linear-Attention Decoding to Large Beams in Generative Recommendation](/202609/14/2609.12399v1-onela-scaling-linear-attention-decoding-to-large-beams-in-generative-recommendation)  
+   evidence：稠密联想记忆的序列检索动力学与存储容量分析
+2. [SpectralShift: Effective Context Window Extension of Gated DeltaNet via Spectral Reparameterization](/202609/15/2609.14320v1-spectralshift-effective-context-window-extension-of-gated-deltanet-via-spectral-reparameterization)  
    标签：评分：9.0/10、query:la
-   evidence：面向大束搜索的线性注意力解码框架
-3. [RunningTensor: Generalizing Linear Attention to Higher-Order Recurrent States](/202609/14/2609.12814v1-runningtensor-generalizing-linear-attention-to-higher-order-recurrent-states)  
-   标签：评分：9.0/10、query:la
-   evidence：将线性注意力推广到高阶循环张量状态
+   evidence：线性注意力层与门控DeltaNet长上下文扩展
 
 ### 速读区论文标签
-1. [Fixed State, Long Reach: What a Constant-Size Cache Buys Block Diffusion at Scale](/202609/14/2609.11998v1-fixed-state-long-reach-what-a-constant-size-cache-buys-block-diffusion-at-scale)  
+1. [Grouped Value Attention: Efficient KV Caching via On-Demand Key Reconstruction](/202609/15/2609.13285v1-grouped-value-attention-efficient-kv-caching-via-on-demand-key-reconstruction)  
    标签：评分：7.0/10、query:la
-   evidence：以序列混合器与恒定大小缓存构建现代循环式块扩散架构
-2. [LifeFuse-Mem: Lifecycle-Aware State Fusion Against Temporary Overwriting for Long-Term Memory](/202609/14/2609.12436v1-lifefuse-mem-lifecycle-aware-state-fusion-against-temporary-overwriting-for-long-term-memory)  
+   evidence：用线性映射重构键的高效注意力
+2. [Phase Transitions and Modulation in Dense Oscillatory Associative Memories](/202609/15/2609.14389v1-phase-transitions-and-modulation-in-dense-oscillatory-associative-memories)  
+   标签：评分：7.0/10、query:la
+   evidence：带相变与调制的振荡联想记忆模型
+3. [SAS: Simple Attention Sparsification via End-to-End Optimization of Context Ranking](/202609/15/2609.13141v1-sas-simple-attention-sparsification-via-end-to-end-optimization-of-context-ranking)  
    标签：评分：6.0/10、query:la
-   evidence：面向长期记忆的生命周期感知神经记忆框架
-3. [Temporal Recurrence Favors Fewer Layers](/202609/14/2609.12531v1-temporal-recurrence-favors-fewer-layers)  
+   evidence：训练后注意力稀疏化以提升长上下文效率
+4. [Retrieval-Guided Fine-Tuning as Noisy Estimation: Risk bounds and Architectural Analysis](/202609/15/2609.14485v1-retrieval-guided-fine-tuning-as-noisy-estimation-risk-bounds-and-architectural-analysis)  
    标签：评分：6.0/10、query:la
-   evidence：循环模型在时间与步内深度间的计算分配研究
+   evidence：用OLS代理单层线性自注意力并进行检索分析
+5. [MoME: Mixture-of-Memory Embeddings for Context-Aware Sparse Lookup](/202609/15/2609.15126v1-mome-mixture-of-memory-embeddings-for-context-aware-sparse-lookup)  
+   标签：评分：6.0/10、query:la
+   evidence：基于隐状态门控的上下文感知记忆嵌入
 
 
 <div class="dpr-home-promo-card">
