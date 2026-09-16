@@ -1,6 +1,9 @@
 * <a class="dpr-sidebar-root-link" href="#/">首页</a>
 * <a class="dpr-sidebar-root-link dpr-sidebar-noactive-link" href="javascript:void(0)" data-dpr-hash="#/tutorial/README">使用教程</a>
 * Daily Papers
+  * 2026-09-16 <!--dpr-date:20260916-->
+    * 速读区
+      * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/16/2609.13134v1-rethinking-heterogeneous-system-disaggregation-for-subquadratic-attention" data-sidebar-item="{&quot;title&quot;: &quot;Rethinking Heterogeneous System Disaggregation for Subquadratic Attention&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.13134v1-rethinking-heterogeneous-system-disaggregation-for-subquadratic-attention&quot;, &quot;score&quot;: &quot;6.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;亚二次注意力降低内存占用与计算量&quot;}">Rethinking Heterogeneous System Disaggregation for Subquadratic Attention</a>
   * 2026-09-15 <!--dpr-date:20260915-->
     * 精读区
       * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/15/2609.13987v1-sequential-retrieval-in-dense-associative-memory-asymptotic-dynamics-and-storage-capacity" data-sidebar-item="{&quot;title&quot;: &quot;Sequential Retrieval in Dense Associative Memory: Asymptotic Dynamics and Storage Capacity&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.13987v1-sequential-retrieval-in-dense-associative-memory-asymptotic-dynamics-and-storage-capacity&quot;, &quot;score&quot;: &quot;9.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;稠密联想记忆的序列检索动力学与存储容量分析&quot;}">Sequential Retrieval in Dense Associative Memory: Asymptotic Dynamics and Storage Capacity</a>
