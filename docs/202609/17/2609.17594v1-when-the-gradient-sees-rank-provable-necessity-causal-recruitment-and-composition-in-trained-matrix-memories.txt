@@ -1,0 +1,147 @@
+Title: When the Gradient Sees Rank: Provable Necessity, Causal Recruitment, and Composition in Trained Matrix Memories
+
+URL Source: https://arxiv.org/pdf/2609.17594v1
+
+Published Time: Thu, 17 Sep 2026 00:02:14 GMT
+
+Number of Pages: 6
+
+Markdown Content:
+# When the Gradient Sees Rank: Provable Necessity, Causal Recruitment, and Composition in Trained Matrix Memories 
+
+Samuel Larson 
+
+Pebble ML 
+
+samlarson@pebbleml.com 
+
+## Abstract 
+
+Can gradient-based training learn the rank needed to store and compose associ-ations in a matrix memory? In our earlier study, we used a matrix-augmented reasoner on a task that admits a rank-1 solution, leaving this question open. We train matrix memories on K fresh key–value bindings whose exact linear recov-ery requires rank( Z) ≥ K. A fixed linear readout queries a single matrix state without access to the original bindings. Experiments measure recovery by co-sine similarity greater than 0.9, a threshold distinct from mathematical equality. Learned effective rank increases with K across the tested grid (Spearman ρ = 1 .0
+
+at d = 16 ). Training-time rank caps produce a recovery transition near k = K:at d = 8 , K = 4 , rank 3 gives at most 0.0004 recovery and rank 4 gives 0.97. Four of five seeds retain at least 0.9996 recovery through 21-fold self-application of the trained operator. On the entity subspace, the learned operator has effective rank close to K and approximates the ideal cycle. For the single converged seed capped below K, a calculation using the entity-subspace operator and ideal cycle predicts the measured cosine within 0.008 through seven applications. Extending training resolves several initial failures, but recovery still declines at larger matrix dimensions with encoder width fixed. 
+
+Keywords: effective rank, fast weights, associative memory, composition 
+
+## 1 Introduction 
+
+Matrix-valued states appear in fast-weight architectures [Schlag et al., 2021] and extensions of con-tinuous chain-of-thought models [Hao et al., 2024]. Their rank describes the dimension of the image of the linear transformation they represent. Does training learn the rank needed for a task, and does restricting that rank impair performance? A recent study added a d × d matrix latent to a vector-pretrained GPT-2 reasoner and found flat rank-k truncation curves across four training regimes and four readouts [Larson, 2026a]. The study identified a limitation: its ProsQA task admits a rank-1 solution. That result therefore does not establish how training behaves when exact recovery requires higher rank. We study models trained from scratch on tasks whose exact linear solutions require rank( Z) ≥ K.A fixed readout and a single matrix state isolate the role of rank (§2). We measure the rank learned during training and the effect of training-time rank caps (§3). We then test repeated application of the learned operator, analyze its action on the entity subspace (§4), and examine recovery at larger matrix dimensions and longer training budgets (§5). arXiv:2609.17594v1 [cs.LG] 12 Sep 2026 2 Task, Rank Requirement, and Experimental Controls 
+
+Task and rank requirement. Each episode presents K key–value pairs, then queries one key. Keys and values are sampled anew for each episode (Gaussian, normalized, or exactly orthonormal following Mezzadri, 2007), so evaluation uses new bindings. Write the keys and values as the columns of Kmat and Vmat . Exact recovery, Zk j = vj for all K bindings with linearly independent keys and values, requires ZK mat = Vmat . The classical rank inequality then gives 
+
+K = rank( Vmat ) = rank( ZK mat ) ≤ rank( Z)
+
+[Kohonen, 1972, Anderson, 1972]. We test whether training with Adam learns the required rank and how restricting rank affects recovery. 
+
+Fixed linear readout. Nichani et al. [2025] construct a rank-m linear memory storing approxi-mately md associations under interference-tolerant argmax decoding. The exact-recovery rank re-quirement above does not apply to that decoding rule. Here, the prediction is the vector Zk j , with no argmax or learned readout. Training minimizes one minus cosine similarity. We report rec@0 .9,the fraction of queries with cosine similarity greater than 0.9. This threshold measures approximate recovery; it does not require Zk j = vj exactly. 
+
+Single-state bottleneck. A full-attention decoder could retrieve individual bindings from separate input positions. To prevent this, the decoder reads only (Z, query) , where Z is one d × d state. After the encoder writes Z, we corrupt the raw-input cache and confirm that the decoder output is bit-for-bit unchanged. 
+
+Model and rank controls. A Transformer encoder processes the binding tokens. It uses d learned row-reader latents to produce the rows of Z ∈ Rd×d. The mapping is permutation-invariant, can express rank up to d, and does not hard-code P 
+
+> j
+
+vj k⊤ 
+
+> j
+
+. Every model has fewer than 1M parameters; the d = 16 composition model has 170,896. Effective rank, the exponential of the entropy of the normalized singular-value spectrum, is the pre-registered primary metric. In the causal control, spectral projection restricts Z to rank at most k at every training step, with backpropagation through the projection. The restriction is therefore part of training, rather than an intervention applied only after training. 
+
+## 3 Learned Rank and the Effect of Rank Caps 
+
+Learned rank. Without a rank penalty in the loss, effective rank increases monotonically with binding count on the ten-point d=16 grid from K=1 to K=16 (Spearman ρ = 1 .0). It is 2.42 at 
+
+K=1 , 8.20 at K=8 , and 15.09 at K=16 . It exceeds the pre-registered [0 .7K, 1.3K] band at K ≤ 3
+
+and lies within the band at the other tested points. Beyond K = d, effective rank saturates and then declines. A subsequent, larger replication sweep shows the same overall pattern. 2 4 6 8                
+
+> train-time force-rank k
+> 01
+> rec@0.9  d= 8 ,K= 4
+> 510 15
+> train-time force-rank k
+> d= 16 ,K= 8
+> 510 15
+> train-time force-rank k
+> d= 16 ,K= 12
+
+Figure 1: Recovery under training-time rank caps in the pre-registered causal test. rec@0 .9 is the fraction of queries with cosine similarity greater than 0.9; the dashed line marks k = K. The archived sweep shows recovery increasing near k = K, with a more gradual transition for d=16 ,
+
+K=12 .
+
+Training-time rank caps. At d=8 , K =4 , training with rank cap k ≤ 3 yields rec@0 .9 ≤ 0.0004 ,while k = 4 yields 0.97 (Figure 1). The observed transition occurs at the rank required for exact recovery. The d=16 configurations also show a transition near k = K, with some non-monotonic variation above it. In the replication, the K=12 transition is a gradual, irregular rise rather than a step. These results show that gradient-based training can learn and use higher rank in this setting. The flat curves in Larson [2026a] do not imply a general inability to do so. 24 Composition and the Entity Subspace 
+
+The composition task arranges K entities in one cycle π. The entities are represented by orthonormal vectors e1, . . . , e K . The one-step binding is ki = ei, vi = eπ(i), so the output uses the same vector space as the next input. A query at depth h asks for eπh(i), obtained by applying the same trained operator h times: Zhei. There are no learned per-hop parameters. Training uses depths {1, 2, 3};evaluation adds {4, 5, 6} and probes {7, 21 } (d = 16 , K = 8 , orthonormal keys). A single full cycle avoids the shorter cycles of a general random permutation, which can turn nominally held-out depths into identity or training queries. Depth 21 has the same target as depth 5 in an 8-cycle; it tests stability under additional applications (Appendix A). 
+
+Recovery across depths. Four of five unconstrained seeds reach rec@0 .9 ≥ 0.9996 at every tested depth; three reach 1.000 throughout. At the training budget, the fifth seed reaches 0.93 at h=1 ,falling to 0.16 at h=7 and 0.0001 at h=21 .1 2 3 4 5 6 7 21           
+
+> hop h
+> 0.7 0.8 0.9
+> mean cosine
+> predicted measured
+> 123456721
+> hop h
+> 01
+> rec@0.9  rank-sufficient (4/5) force-rank K−1
+> still-transitioning
+
+Figure 2: Recovery under repeated application of the learned matrix ( d=16 , K=8 ). Left: mean cosine for the converged seed with rank cap k=7= K−1, compared with a prediction computed from its entity-subspace operator and the ideal cycle. Right: the fraction of queries with cosine greater than 0.9, averaged over the four converged unconstrained seeds (near 1.0), and shown separately for the rank-capped seed and the fifth unconstrained seed. 
+
+Error accumulation. With rank cap k = K − 1, exact linear recovery is impossible. Nevertheless, the one converged seed reaches mean cosine 0.92–0.93 at shallow depths ( h ≤ 5). Its rec@0 .9
+
+falls from 0.996 at h = 1 to 0.881 at h = 7 and 0.060 at h = 21 (Figure 2). A calculation using the entity-subspace operator and ideal cycle predicts measured cosine within 0.008 through h = 7 
+
+(Table 1). 
+
+Action on the entity subspace. The converged solutions have whole-matrix effective rank 16.0 at d=16 and stable rank 14.6–15.6. These whole-matrix measures include components outside the subspace used by the task. We therefore decompose Z into blocks relative to the ideal cycle’s K-dimensional entity subspace E. The block acting within E has effective rank 7.999–8.000 (maximum 8) and a scale-corrected residual of 0.7–2.4% from the ideal cycle. Leakage out of E is below 1.5% of the state norm. The complement block is full-rank and non-contractive (Table 2, Appendix B). These measurements support an approximately invariant entity subspace on which effective rank is close to K. Rank-capped seeds that fail recovery also fail the corresponding subspace test. 
+
+## 5 Training Budget and Recovery at Larger Dimensions 
+
+Longer training. Several configurations that failed at their initial training budget succeeded with more steps. For composition at K=8 , one of five seeds converged at 20K steps and four of five at 40K. At K ∈ { 12 , 16 }, none of five seeds converged at 40K; at 80K, three of three and two of three fresh seeds converged, respectively. In the dimension sweep, configurations at d ≥ 32 
+
+failed at an 8K-step budget but began learning at 6–16K steps when training was extended to 20K. These reversals motivate re-testing unsuccessful configurations at 2–2.5 × the initial budget before drawing conclusions about trainability. An extension does not guarantee recovery: the remaining unsuccessful K=16 seed still failed at 120K steps, and the d=32 configurations below plateaued below the pre-registered success threshold. 3Recovery at larger dimensions. With K = d/ 4 and encoder width fixed at 64, mean recov-ery cosine declines as d increases. All reported runs had plateaued: at d=32 , three seeds reached 0.877/0.909/0.915 after 100K steps; at d=48 , one seed reached 0.7196 after 100K; at d=64 , one seed reached 0.3882 after 150K. Their rec@0 .9 scores were 0.413/0.632/0.653 at d=32 (all below the pre-registered 0.7 success threshold), 0.002 at d=48 , and 0.0 at d=64 . At d=32 , learned ef-fective rank reaches 91–97% of the target, but recovery remains below the success threshold. High effective rank alone does not ensure accurate bindings. 
+
+## 6 Related Work and Limitations 
+
+Nichani et al. [2025] construct linear memories under interference-tolerant argmax decoding, and Barnfield et al. [2026] derive static-memory thresholds. Here, the readout is fixed to the matrix– vector product, and we measure and restrict the rank learned during training. Nazari and Rusch [2026] and Sun et al. [2026] study effective-rank dynamics in pretrained linear-attention models observationally, including the upper bound rank( St) ≤ t. Our experiments control the number of bindings and impose rank caps during training. Mishra et al. [2026] train matrix-state RNNs on S3 without rank measurement or intervention; their vector-state control matches performance. Grazzi et al. [2025] and Siems et al. [2025], the latter extending Yang et al. [2024] with Householder products, characterize the per-token transition oper-ator. We instead study the rank of the trained memory state. Continuous-CoT capacity results give existence constructions [Zhu et al., 2025, Gozeten et al., 2025]. Work on compositional generaliza-tion [Dziri et al., 2023, Wang et al., 2024] motivates examining the learned operator as well as its recovery scores. 
+
+Limitations. Every experiment is synthetic and uses fewer than 1M parameters. Generality at scale and across state-writing architectures, including recurrent fast-weight, attention-readout, and associative-memory models, remains untested. The comparison between predicted cosine and re-covery across depths rests on one converged seed with rank cap K−1. The other two seeds in that configuration failed under a documented numerical instability in the spectral-projection backward pass. This is a single-seed case study, and the d ≥ 48 results also use single seeds. Appendix C lists the pre-registered criteria for challenging the empirical conclusions. A companion paper on group-composition state tracking [Larson, 2026b] uses the binding setup by citation. It shares no figures or tables with this paper and studies a group-dimension rank law beyond the scope of the present experiments. 
+
+## References 
+
+James A. Anderson. A simple neural network generating an interactive memory. Mathematical Biosciences , 14(3–4):197–220, 1972. Nicholas Barnfield, Juno Kim, Eshaan Nichani, Jason D. Lee, and Yue M. Lu. Sharp capacity thresholds in linear associative memory: From winner-take-all to listwise retrieval. arXiv preprint arXiv:2605.05189 , 2026. Nouha Dziri, Ximing Lu, Melanie Sclar, Xiang Lorraine Li, Liwei Jiang, Bill Yuchen Lin, Peter West, Chandra Bhagavatula, Ronan Le Bras, Jena D. Hwang, Soumya Sanyal, Sean Welleck, Xiang Ren, Allyson Ettinger, Zaid Harchaoui, and Yejin Choi. Faith and fate: Limits of trans-formers on compositionality. Advances in Neural Information Processing Systems (NeurIPS) ,2023. arXiv:2305.18654. Halil Alperen Gozeten, M. Emrullah Ildiz, Xuechen Zhang, Hrayr Harutyunyan, Ankit Singh Rawat, and Samet Oymak. Continuous chain of thought enables parallel exploration and reasoning. arXiv preprint arXiv:2505.23648 , 2025. Riccardo Grazzi, Julien Siems, Arber Zela, Jörg K. H. Franke, Frank Hutter, and Massimiliano Pontil. Unlocking state-tracking in linear RNNs through negative eigenvalues. In International Conference on Learning Representations (ICLR) , 2025. arXiv:2411.12537. 4Shibo Hao, Sainbayar Sukhbaatar, DiJia Su, Xian Li, Zhiting Hu, Jason Weston, and Yuandong Tian. Training large language models to reason in a continuous latent space. arXiv preprint arXiv:2412.06769 , 2024. Teuvo Kohonen. Correlation matrix memories. IEEE Transactions on Computers , C-21(4):353–359, 1972. Samuel Larson. The gradient does not see rank: Rank-indifference in matrix-CODI on ProsQA. In 
+
+ICML 2026 Workshop on Mechanistic Interpretability , 2026a. URL https://arxiv.org/abs/ 2609.03090 . arXiv:2609.03090. Samuel Larson. The rank the task demands: A causal rank law for matrix memories trained on group composition, 2026b. Companion manuscript, submitted to arXiv. Francesco Mezzadri. How to generate random matrices from the classical compact groups. Notices of the American Mathematical Society , 54(5):592–604, 2007. arXiv:math-ph/0609050. Mayank Mishra, Shawn Tan, Ion Stoica, Joseph Gonzalez, and Tri Dao. M 2RNN: Non-linear RNNs with matrix-valued states for scalable language modeling. arXiv preprint arXiv:2603.14360 ,2026. Philipp Nazari and T. Konstantin Rusch. The key to state reduction in linear attention: A rank-based perspective. arXiv preprint arXiv:2602.04852 , 2026. Eshaan Nichani, Jason D. Lee, and Alberto Bietti. Understanding factual recall in transformers via associative memories. In International Conference on Learning Representations (ICLR) , 2025. arXiv:2412.06538. Imanol Schlag, Kazuki Irie, and Jürgen Schmidhuber. Linear transformers are secretly fast weight programmers. In International Conference on Machine Learning (ICML) , 2021. arXiv:2102.11174. Julien Siems, Timur Carstensen, Arber Zela, Frank Hutter, Massimiliano Pontil, and Riccardo Grazzi. DeltaProduct: Improving state-tracking in linear RNNs via householder products. In 
+
+Advances in Neural Information Processing Systems (NeurIPS) , 2025. arXiv:2502.10297. Ao Sun, Hongtao Zhang, Heng Zhou, Yixuan Ma, Yiran Qin, Tongrui Su, Yan Liu, Zhanyu Ma, Jun Xu, Jiuchong Gao, Jinghua Hao, and Renqing He. State rank dynamics in linear attention LLMs. 
+
+arXiv preprint arXiv:2602.02195 , 2026. Boshi Wang, Xiang Yue, Yu Su, and Huan Sun. Grokked transformers are implicit reasoners: A mechanistic journey to the edge of generalization. In Advances in Neural Information Processing Systems (NeurIPS) , 2024. arXiv:2405.15071. Songlin Yang, Bailin Wang, Yu Zhang, Yikang Shen, and Yoon Kim. Parallelizing linear trans-formers with the delta rule over sequence length. In Advances in Neural Information Processing Systems (NeurIPS) , 2024. arXiv:2406.06484. Hanlin Zhu, Shibo Hao, Zhiting Hu, Jiantao Jiao, Stuart Russell, and Yuandong Tian. Reason-ing by superposition: A theoretical perspective on chain of continuous thought. arXiv preprint arXiv:2505.12514 , 2025. 
+
+## A Depth 21 Under the Single K-Cycle 
+
+Under a single 8-cycle, π21 = π21 mod 8 = π5. Depth 21 therefore shares its target with depth 5; the two are not distinct group-theoretic queries. The depth-21 probe measures stability under 21 sequential applications of the trained operator. In the four converged seeds, rec@0 .9 ≥ 0.9996 at both depths, so the additional applications preserve the high recovered fraction. For the rank-capped operator, the recovered fraction falls from 0.947 at h=5 to 0.060 at h=21 . This comparison tests error accumulation, rather than generalization to an unseen permutation target. 5h predicted cos measured cos measured rec@0 .9               
+
+> 10.9317 0.9303 0.996 30.9258 0.9259 0.986 50.9181 0.9212 0.947 70.9089 0.9163 0.881 21 0.7536 0.8206 0.060
+
+Table 1: Recovery across depths for the operator with d = 16 , K = 8 , and rank cap k = 7 = K − 1.Cosine predicted using the entity-subspace operator and ideal cycle (without raw keys) is compared with measured mean cosine and the fraction of queries with cosine greater than 0.9. Prediction error is below 0.008 through h = 7 . At h = 21 , mean cosine remains 0.8206, but only 0.060 of queries exceed the recovery threshold. 
+
+## B Per-Seed Subspace Decomposition                           
+
+> seed effrank( A)residual leakage (% of ∥Z∥)effrank( D)ρ(D)
+> s1 8.000 0.7% 0.44% 8.000 1.38 s2 7.999 1.9% 1.06% 8.000 1.27 s3 7.999 1.5% 0.87% 8.000 2.86 s4 7.999 2.4% 1.45% 7.999 1.02
+
+Table 2: Entity-subspace decomposition of four converged d=16 , K=8 composition seeds, recom-puted from archived matrices and averaged over four evaluation episodes. A acts within the entity subspace. Residual is the scale-corrected Frobenius distance to the ideal cycle, after fitting the isotropic scale that cosine scoring does not measure. Leakage is the cross-block norm ∥C∥ as a fraction of ∥Z∥. D acts within the complementary subspace; ρ(D) is its spectral radius. The complement is full-rank and non-contractive, while the measured cross-block leakage is small but nonzero. 
+
+## C Reproducibility 
+
+Training, evaluation, and analysis code and archived results are available in the public repository. 1
+
+Per-run JSON archives support the reported numbers. A versioned script regenerates each figure and verifies the checksum of every source file it loads. Hypotheses, metrics, rank controls, and decision bands were registered in design documents before training. One metric was re-registered before the affected sweep; that deviation is recorded in those documents. The pre-registered criteria for challenging the empirical conclusions remain open: a rank cap of 
+
+K−1 achieving at least 0.9× the converged unconstrained model’s recovery at multiple (d, K )
+
+points, or a d ≥ 32 configuration clearing the 0.7 recovery threshold. These criteria concern mea-sured recovery under the experimental conditions, not the algebraic requirement for exact linear recovery. The rank-cap sweep aggregate retains one recovery value per (d, K, k ) configuration, without per-seed instability diagnostics. It therefore describes the observed recovery transition but cannot sepa-rate representational limits from numerical training failures in individual runs. Variation above the transition should likewise be interpreted at the aggregate level. On some platforms, the analysis pipeline emits BLAS RuntimeWarning s for near-singular inter-mediate products. Every decomposition output is checked for finiteness before use. 
+
+> 1https://github.com/saml212/matrix-memories
+
+6
