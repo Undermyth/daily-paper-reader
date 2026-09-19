@@ -6,40 +6,35 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-18
-- 运行时间：2026-09-18 22:04:00 UTC
+- 最新运行日期：2026-09-19
+- 运行时间：2026-09-19 21:31:05 UTC
 - 运行状态：成功
-- 本次总论文数：6
-- 精读区：1
-- 速读区：5
+- 本次总论文数：4
+- 精读区：0
+- 速读区：4
 
 ### 今日简报（AI）
-今天共筛6篇论文，精读1篇、速读5篇，主线集中在视频生成与注意力机制。
-最值得看的是8.0分精读《Video DeltaNet》，聚焦直播视频生成的视频原生混合注意力；速读中7.0分《On-Demand Attention》关注语言模型何时主动回忆。
-普通读者可先读《Video DeltaNet》抓方向，再按兴趣浏览《On-Demand Attention》等速读。
-- 详情：[/202609/18/README](/202609/18/README)
+今日速读4篇、精读0，已列出的3篇均6.0分，聚焦长期对话记忆、上下文参数化与图像生成注意力稀疏。  
+最值得先看CueMem的线索引导长期对话记忆重建，以及大语言模型的演化上下文参数化。  
+普通读者可先扫这两篇的摘要和图表，再按兴趣补看自回归图像生成中的对角注意力稀疏。
+- 详情：[/202609/19/README](/202609/19/README)
 
 ### 精读区论文标签
-1. [Video DeltaNet: A Video-Native Hybrid Attention for Livestream Video Generation](/202609/18/2609.20744v1-video-deltanet-a-video-native-hybrid-attention-for-livestream-video-generation)  
-   标签：评分：8.0/10、query:la
-   evidence：结合局部softmax注意力与双向线性记忆的混合注意力
+- 本次无精读推荐。
 
 ### 速读区论文标签
-1. [On-Demand Attention: Language Models Know When to Recall](/202609/18/2609.20734v1-on-demand-attention-language-models-know-when-to-recall)  
-   标签：评分：7.0/10、query:la
-   evidence：选择性全局注意力实现高效长上下文解码
-2. [AttnFuse: A Composable DSL for Compiling Attentions to Fused GPU Kernels](/202609/18/2609.13612v1-attnfuse-a-composable-dsl-for-compiling-attentions-to-fused-gpu-kernels)  
+1. [CueMem: Cue-Guided Context Reconstruction for Long-Term Conversational Memory](/202609/19/2609.12354v1-cuemem-cue-guided-context-reconstruction-for-long-term-conversational-memory)  
    标签：评分：6.0/10、query:la
-   evidence：将注意力变体编译为融合GPU内核的DSL
-3. [LSTM-UT and Recurrent-Depth Transformers on Cellular Automata](/202609/18/2609.19521v1-lstm-ut-and-recurrent-depth-transformers-on-cellular-automata)  
+   evidence：线索引导的记忆检索与长时对话上下文重构
+2. [Towards Evolving Context Parameterization for Large Language Models](/202609/19/2609.14168v1-towards-evolving-context-parameterization-for-large-language-models)  
    标签：评分：6.0/10、query:la
-   evidence：带有限门控记忆的循环深度Transformer
-4. [JustMem: Just-Enough Memory Access for Long-Term Conversations](/202609/18/2609.19877v1-justmem-just-enough-memory-access-for-long-term-conversations)  
+   evidence：记忆更新与上下文参数化
+3. [Understanding and Exploiting Diagonal Attention Sparsity in Autoregressive Image Generation](/202609/19/2609.19702v1-understanding-and-exploiting-diagonal-attention-sparsity-in-autoregressive-image-generation)  
    标签：评分：6.0/10、query:la
-   evidence：面向长期记忆的自适应记忆访问与检索
-5. [A Mathematical Model of Motivated Emotional Mind - Cognitive Embodied System](/202609/18/2609.20437v1-a-mathematical-model-of-motivated-emotional-mind---cognitive-embodied-system)  
+   evidence：利用对角稀疏性的高效稀疏注意力解码
+4. [dQwen3.5: Hybrid-Attention Diffusion Language Models](/202609/19/2609.20751v1-dqwen35-hybrid-attention-diffusion-language-models)  
    标签：评分：6.0/10、query:la
-   evidence：记忆痕迹绑定为联想记忆结构
+   evidence：将注意力与RNN混合骨干适配为扩散语言模型
 
 
 <div class="dpr-home-promo-card">
