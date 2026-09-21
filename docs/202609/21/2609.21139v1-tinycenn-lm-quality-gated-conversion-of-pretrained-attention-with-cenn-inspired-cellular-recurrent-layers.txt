@@ -1,0 +1,306 @@
+Title: TinyCeNN-LM: Quality-Gated Conversion of Pretrained Attention with CeNN-Inspired Cellular-Recurrent Layers
+
+URL Source: https://arxiv.org/pdf/2609.21139v1
+
+Published Time: Mon, 21 Sep 2026 00:18:38 GMT
+
+Number of Pages: 6
+
+Markdown Content:
+# TinyCeNN-LM: Quality-Gated Conversion of Pretrained Attention with CeNN-Inspired Cellular-Recurrent Layers 
+
+Kabeh Mohsenzadegan 
+
+Institute for Smart System Technologies 
+
+University of Klagenfurt Klagenfurt, Austria kabeh.mohsenzadegan@aau.at 
+
+Vahid Tavakkoli 
+
+Institute for Smart System Technologies 
+
+University of Klagenfurt Klagenfurt, Austria vahid.tavakkoli@aau.at 
+
+Kyandoghere Kyamakya 
+
+University of Klagenfurt / Inst. f. Smart Systems Technologies, Austria 
+
+& Faculte Polytechnique Universite de Kinshasa, DR-Congo kyandoghere.kyamakya@aau.at 
+
+Abstract —Replacing attention in a pretrained language model is a compatibility problem: a plausible substitute may alter rep-resentations expected by later layers. TinyCeNN-LM introduces a quality-gated post-training conversion framework using CeNN-inspired cellular-recurrent layers with bounded local processing, compact recurrent memory, routing, fusion, and accept-or-rollback validation. Three implementations are studied: Integrated Memory, MemoryFusion, and PDelta3-GDN2-CLVR+Local32. Strict PDelta3 conversion accepts a layer only when representation and NLL criteria pass fixed thresholds. On SmolLM2-135M, layers 0–2 are accepted with cumulative ∆NLL = +0 .01209 , while layer 3 is rejected despite acceptable NLL because representation fidelity fails. On Qwen3.5-0.8B, full-attention layers 3, 7, and 11 are accepted with final ∆NLL = +0 .02073 . Integrated Memory keeps perplexity within −0.07% to +0 .93% while reducing total cache by up to 6.01% . A sampled 200-item downstream sanity check gives 28 .5% –32 .0% overall accuracy for converted Qwen releases. The results support conservative, quality-gated structural conversion rather than universal attention replacement or speedup. 
+
+Index Terms —CeNN-inspired layers, efficient language models, attention replacement, recurrent memory, Gated DeltaNet, post-training conversion, quality-gated architecture surgery 
+
+I. I NTRODUCTION 
+
+Softmax attention is highly effective because each token can perform precise content-dependent lookup over earlier repre-sentations. Its autoregressive key-value (KV) cache, however, grows with context length. Hardware-aware kernels such as FlashAttention and FlashAttention-2 reduce the I/O cost of exact attention [1], [2], but they do not eliminate the context-dependent state that must be retained during decoding. Recent sequence models have broadened the design space. Structured state-space models [3]–[5], retention and recurrent architectures [6]–[8], long convolutions [9], and hybrid models [10]–[14] show that high-capacity sequence modeling need not use full softmax attention at every layer. More recent systems have emphasized learned memory and practical hybrids such as Titans [15]. Qwen3.5 itself uses a hybrid language backbone combining Gated DeltaNet-style linear recurrence with periodic full-attention anchors [16]. For existing pretrained checkpoints, the central challenge is different from training a new efficient architecture from scratch. Cross-architecture distillation must preserve a function that is already distributed across many layers. RADLADS demonstrates that softmax decoders can be converted to linear-attention decoders with staged distillation [17]. KL-guided layer selection further shows that deciding which layers to retain as softmax attention is itself an important optimization problem [18]. TinyCeNN-LM addresses the complementary question: given a proposed replacement at a particular layer, is it faithful enough to commit? 
+
+Our answer is to separate candidate architecture from 
+
+conversion policy . Rather than claiming a wholly new universal sequence mixer, TinyCeNN-LM defines a modular cellular-recurrent candidate and asks whether the pretrained network can tolerate it at a specific position. The novelty is strongest in this controlled conversion formulation: each structural change is a hypothesis, evaluated on the current student state and committed only if it satisfies a declared quality contract. The contributions are fourfold. First, a five-part CeNN-inspired conversion layer, Cℓ = (Φ ℓ, Ψℓ, Rℓ, Gℓ, Qℓ), is defined to separate bounded locality, recurrent state, routing, fusion, and validation policy. Second, this abstraction is explicitly connected to classical CeNN principles—local neighborhoods, shared local dynamics, and state evolution—while clarifying the adaptations required for digital token-sequence modeling. Third, a sequential commit/rollback conversion strategy is introduced using a four-metric representation/NLL contract with the same operating thresholds applied across SmolLM2 and Qwen3.5 without per-layer retuning. Finally, cross-model conversion evidence is presented together with the SmolLM2 representation-vs-NLL disagreement, held-out cache/quality measurements for Integrated Memory, and analytical state and parameter accounting for the PDelta3 design. Figure 1 summarizes the resulting candidate-layer structure and its quality-gated commit/rollback path. arXiv:2609.21139v1 [cs.AI] 17 Sep 2026 CeNN-inspired candidate layer                  
+
+> Hidden state
+> Hℓ
+> Local operator Φℓ
+> bounded causal neighborhood exact local path
+> Recurrent memory Ψℓ
+> compact global state
+> st−1→st
+> Cross-layer route Rℓ
+> optional previous-layer value
+> Adaptive fusion Gℓ
+> zt=αtut+ (1 −αt)st
+> Projection + residual
+> Hℓ+1 =Hℓ+Pℓzt
+> residual path
+> Quality contract Qℓ
+> representation fidelity + model-level NLL accept candidate or rollback evaluate accept reject / rollback
+
+Fig. 1. CeNN-inspired conversion layer used throughout TinyCeNN-LM. The local operator Φℓ captures bounded neighborhood evidence, the recurrent operator Ψℓ transports compact long-range state, Rℓ optionally injects cross-layer context, Gℓ fuses the paths, and Qℓ validates the proposed structural change. The dashed feedback path represents rollback: a candidate that violates the declared quality contract is not committed. 
+
+II. R ELATED WORK 
+
+A. Efficient Sequence Mixing 
+
+S4 established structured state-space sequence modeling [3]; Hyena explored gated long convolutions [9]; RWKV and RetNet demonstrated recurrent or retention-based inference [6], [7]; and Mamba/Mamba-2 developed selective state spaces and their connection to attention [4], [5]. Hybrid designs increasingly combine local exactness with compact state. BASED couples linear attention and a small local window [10]; Jamba, RecurrentGemma, and Samba mix attention with recurrent/state-space blocks [11]–[13]; xLSTM modernizes recurrent gating [8]; Gated Delta Networks combine adaptive forgetting with delta-rule updates [14]; and Titans explicitly separates short-term attention from learned long-term memory [15]. 
+
+B. Conversion of Pretrained Attention Models 
+
+Post-training conversion avoids full pretraining cost. RAD-LADS uses attention/hidden-state alignment, KL distribution matching, and finetuning to distill softmax decoders into linear-attention students [17]. KL-guided layer selection estimates which layers should remain softmax under a fixed hybrid budget [18]. TinyCeNN-LM does not claim novelty in layer selection alone. Its focus is the commit decision : the candidate replacement must satisfy an explicit multi-metric quality contract on the actual student state before it becomes part of the model. 
+
+C. From Classical CeNN Locality to Token Sequences 
+
+Classical cellular neural networks couple a cell state to a bounded neighborhood through shared feedback/feedforward templates [19]. In simplified form, 
+
+˙xi = −xi + X 
+
+> j∈N (i)
+
+Aij yj + X 
+
+> j∈N (i)
+
+Bij uj + Ii. (1) TinyCeNN-LM retains three principles from this view: (i) 
+
+computation is anchored in a bounded neighborhood, (ii) 
+
+information persists through explicit state dynamics, and 
+
+(iii) the same local mechanism is reused across positions. The mapping is not circuit-equivalent. Tokens replace spatial cells; the neighborhood becomes a causal token window; learned projections and input-dependent gates replace fixed analog templates; and a compact recurrent matrix transports information beyond the local window. We therefore use the term 
+
+CeNN-inspired rather than claiming a digital implementation of the original analog differential equation. This locality/state interpretation makes the architectural question explicit: how much of a pretrained attention block can be reconstructed from bounded local interaction plus compact state before functional compatibility is lost? III. C ENN-I NSPIRED LAYER DESIGN 
+
+A. Unified Layer Contract 
+
+Let Hℓ,t ∈ Rd be the hidden representation at layer ℓ and token t. We define a CeNN-inspired replacement candidate by 
+
+Cℓ = (Φ ℓ, Ψℓ, Rℓ, Gℓ, Qℓ) , (2) where Φℓ is the bounded local operator, Ψℓ updates compact recurrent state, Rℓ supplies an optional routed signal, Gℓ fuses local and global evidence, and Qℓ decides whether the trained candidate is committed. A generic realization is 
+
+uℓ,t = Φ ℓ(Hℓ,t −W +1: t), (3) 
+
+rℓ,t = Rℓ(H<ℓ,t ), (4) 
+
+sℓ,t = Ψ ℓ(sℓ,t −1, H ℓ,t , r ℓ,t ), (5) 
+
+αℓ,t = σ(gℓ(Hℓ,t , u ℓ,t , s ℓ,t )) , (6) 
+
+zℓ,t = αℓ,t ⊙ uℓ,t + (1 − αℓ,t ) ⊙ sℓ,t , (7) 
+
+Hℓ+1 ,t = Hℓ,t + Pℓzℓ,t . (8) This representation is deliberately broader than one kernel. It allows the local branch to be exact attention, cellular convolution, or partitioned aggregation; the state branch to be a low-rank recurrent memory or a gated delta state; and routing to be absent or cross-layer. 
+
+B. Three Instantiations 
+
+Figure 2 shows the three layer families used in the repository. 
+
+Integrated Memory. A bounded or partitioned cellular feature map is summarized into compact recurrent memory and merged with the residual stream through a memory gate. Its policy is conservative: only validation-selected layers are converted; native attention is retained elsewhere. 
+
+MemoryFusion. A local cellular feature bank and a global recurrent state are computed in parallel. A learned gate decides which path should dominate. This design is useful for studying the local/global allocation itself, although the current repository does not promote its incomplete Qwen strict-gate run as a finished model. Hℓ   
+
+> Cellular feature map
+> bounded / partitioned context
+> Compact recurrent memory
+> st=f(st−1, x t)
+> Memory gate
+> preserve native behavior
+> Projection + residual
+> Hℓ+1
+> persistent compact state
+> Conservative conversion policy
+> replace only validation-selected layers; keep native attention elsewhere validation-selected
+
+(a) Integrated Memory Hℓ   
+
+> local cellular bank
+> multi-scale neighborhood features
+> global recurrent memory
+> compressed long-range state
+> MemoryFusion gate
+> αt=σ(g(Hℓ))
+> fused update
+> Hℓ+1
+> Purpose: learn when short-range cellular evidence or recurrent global memory should dominate.
+
+(b) MemoryFusion Q, K, V 
+
+Local32 exact attention 
+
+Lt = Attn( qt, K t−31: t, V t−31: t)
+
+PDelta3 / GDN2 memory   
+
+> decay + erase + write →St
+
+one-hop CLVR   
+
+> previous accepted layer V(ℓ−1)
+
+adaptive fusion 
+
+zt = αtLt + (1 − αt)Gt
+
+layer output Commit only if NMSE, cosine similarity, incremental ∆NLL, and cumulative ∆NLL all pass. 
+
+(c) PDelta3-GDN2-CLVR+Local32 
+
+Fig. 2. Three concrete CeNN-inspired layer instantiations under the abstraction in Fig. 1. Integrated Memory is the conservative quality/cache design; MemoryFusion is an exploratory local/global fusion design; PDelta3-GDN2-CLVR+Local32 is the strongest strict replacement track in the present experiments. 
+
+PDelta3-GDN2-CLVR+Local32. This design preserves an exact W = 32 causal local path and uses GDN2-style recurrent memory globally. For token t,
+
+Lt = softmax qtK⊤
+
+t−W +1: t
+
+√d
+
+!
+
+Vt−W +1: t. (9) The recurrent state uses a gated delta update 
+
+St = I − kt(βt ⊙ kt)⊤ DtSt−1 + kt(ωt ⊙ evt)⊤, (10) where Dt is content-dependent decay, βt controls erasure, and 
+
+ωt controls writing. One-hop CLVR modifies the write target for later accepted replacements: 
+
+ev(ℓ)
+
+t = v(ℓ)
+
+t + groute t ⊙ Pr v(ℓ−1) 
+
+t . (11) The two paths are fused head-wise, 
+
+Zt,h = αt,h Lt,h + (1 − αt,h )Gt,h , αt,h = σ(q⊤
+
+t,h wh + bh).
+
+(12) IV. Q UALITY -G ATED CONVERSION 
+
+A. Representation and Model-Level Gates 
+
+Let Aℓ(Hℓ) be the frozen native attention transformation and 
+
+Rℓ(Hℓ; θℓ) a candidate CeNN layer evaluated on the actual current student state . Representation fidelity is measured by 
+
+NMSE ℓ = ∥Rℓ(Hℓ) − Aℓ(Hℓ)∥22
+
+∥Aℓ(Hℓ)∥22 + ϵ , (13) plus cosine similarity Cℓ. End-to-end probe degradation is measured by 
+
+∆NLL inc ℓ = NLL ℓ − NLL ℓ−1, (14) 
+
+∆NLL cum ℓ = NLL ℓ − NLL teacher . (15) The strict quality contract used for the PDelta3 experiments is 
+
+Qℓ = 1 ⇐⇒ 
+
+
+
+NMSE ℓ ≤ 0.15 ,Cℓ ≥ 0.94 ,
+
+∆NLL inc ℓ ≤ 0.015 ,
+
+∆NLL cum ℓ ≤ 0.05 .
+
+(16) A failure on any metric triggers rollback. The representation gates and NLL gates serve different roles: the former constrain local functional drift, while the latter constrain model-level degradation. Their disagreement is therefore diagnostic. We do not infer from representation mismatch alone that downstream task failure must occur; that stronger causal claim requires a forced-acceptance comparison. 
+
+B. Threshold Semantics and Transfer 
+
+The values in (16) are treated as a fixed operating point , not as universal constants. NMSE and cosine constrain magnitude and directional drift of the replaced block; incremental ∆NLL limits damage introduced by the current candidate; cumulative 
+
+∆NLL limits error accumulation across an accepted prefix. The same four thresholds are used for the reported SmolLM2 and Qwen3.5 PDelta3 experiments, with no layer-specific threshold relaxation. This cross-model reuse is useful evidence of transfer, but it is not a sensitivity study. A definitive calibration study should vary the four thresholds on a discovery split and report the Pareto frontier on untouched test data. 
+
+C. Sequential Commit/Rollback 
+
+Only one candidate layer is optimized at a time, while previously accepted replacements remain frozen. The training objective combines functional alignment, teacher-logit KL, language-model cross entropy, and a small gate regularizer: 
+
+L = λf Lalign + λKL LKL + λCE LCE + λg Lgate . (17) TABLE I PER -L AYER ANALYTICAL STATE FOR PD ELTA 3+L OCAL 32 (FP16, B ATCH             
+
+> 1) Model Extra params CeNN state Native KV@256 Native KV@2048 SmolLM2 0.153M 65.6 KiB 192 KiB 1.50 MiB Qwen3.5 0.753M 178 KiB 512 KiB 4.00 MiB
+
+The procedure is conceptually simple: train a candidate, evaluate Qℓ, commit and freeze if it passes, otherwise restore the last accepted model. Warm-starting the recurrent core from the previous accepted replacement accelerates later attempts without changing the acceptance rule. V. S TATE AND COMPLEXITY ACCOUNTING 
+
+The system benefit must be separated from the current reference-kernel latency. For one native full-attention layer at batch size one, the autoregressive KV state in bs bytes per scalar is 
+
+MKV (T ) = 2 T n kv dhbs, (18) which grows linearly with decoded context T . For an ideal streaming PDelta3-GDN2-CLVR+Local W implementation, the persistent state is 
+
+MCeN N = bs
+
+nkv F d h + ( k − 1)( nh + 2 nkv )dh
+
++ 2 W n kv dh
+
+, (19) where the terms correspond to recurrent memory, Q/K/V convolution tails, and a bounded local KV ring buffer. Thus, persistent replacement state is independent of T . The dominant sequence-dependent prefill work changes from O(T 2nhdh) for full attention to approximately O(T W n hdh + T n hF d h) for bounded local interaction plus feature-space recurrence; one-token decoding similarly replaces the T -dependent attention term by W - and F -dependent work. The parameter counts in Table I are recurrent/routing/fusion parameters added around the retained native Q/K/V/output projections. The state values use F = 96 , W = 32 , k = 4 with SmolLM2 (nh, n kv , d h) = (9 , 3, 64) and Qwen3.5 (8 , 2, 256) 
+
+[16], [20]. They describe the intended streaming architecture, not a measured production PDelta3 cache: the present sequen-tial research wrapper evaluates with use_cache=False .Measured whole-model cache behavior is therefore reported separately for Integrated Memory in Sec. VII; optimized PDelta3 streaming inference remains engineering work. VI. E XPERIMENTAL SETUP 
+
+A. SmolLM2-135M 
+
+SmolLM2 provides a compact full-attention testbed [20]. The PDelta3 configuration uses feature dimension 96, Local32 attention, recurrent chunk size 32, convolution kernel 4, FP16 state, and an initial local gate of 0.72. Conversion data are streamed from FineWeb-Edu [21]. A fixed WikiText-2 probe is held separate from conversion training. The experiment attempts consecutive layers and applies the strict gates in (16). 
+
+SmolLM2 L0 pass L1 pass L2 pass L3 reject 
+
+Qwen3.5 L3 pass L7 pass L11 pass L15+ native 
+
+> Fig. 3. Observed quality-gated conversion frontiers. The SmolLM2 experiment exposes a representation-fidelity boundary at layer 3. The Qwen experiment validates the targeted prefix of three full-attention anchors; later anchors are not claimed as converted in this result.
+
+A separate Integrated Memory V3 experiment trains candi-dates across contexts {256 , 512 , 1024 } and evaluates held-out contexts {256 , 512 , 1024 , 2048 }. The balanced run uses 128 training, 16 validation, and 32 test documents with deterministic hash-based splitting. Candidate selection uses validation NLL only; the test split is not used for model selection. 
+
+B. Qwen3.5-0.8B 
+
+Qwen3.5-0.8B is a 24-layer hybrid model with periodic full-attention anchors among Gated DeltaNet-style layers [16]. The six native full-attention layers in the evaluated text checkpoint are {3, 7, 11 , 15 , 19 , 23 }. To test whether the same CeNN replacement abstraction transfers beyond a small all-attention model, we target the first three anchors {3, 7, 11 } with the same PDelta3-GDN2-CLVR+Local32 structure and the same four quality thresholds. This experiment therefore tests selective replacement inside an already hybrid backbone , rather than conversion of every layer. To add a downstream functional check, we also evaluate standalone Qwen releases with a lightweight sampled FastEval protocol: 50 items each from MMLU-Pro, PIQA, MMMLU-DE, and GPQA-Diamond (200 items total), using CUDA with bfloat16. This is a sampled sanity check rather than an official full-benchmark evaluation. The exported standalone models reload successfully with custom layers {3, 7, 11 } for PDelta3-CLVR, {3, 7} for MemoryFusion, and {3, 23 } for Integrated Memory. VII. R ESULTS 
+
+Table II summarizes all committed replacements and the first SmolLM2 failure boundary, while Fig. 3 visualizes the corresponding conversion frontiers. On SmolLM2, layers 0–2 pass in the first round. Layer 3 improves over three rounds but remains outside both representation gates. Importantly, its incremental and cumulative NLL are still well below the accepted limits. On Qwen3.5-0.8B, all three targeted full-attention anchors pass, showing that the abstract CeNN replacement can operate inside a native hybrid model rather than only in a small full-attention decoder. Table III summarizes the lightweight 200-item Qwen FastE-val run. Its purpose is not to establish a benchmark ranking, but to check whether the released standalone conversions remain usable on tasks outside the NLL acceptance probe. On this sample, the native Qwen3.5-0.8B model scores 30 .0% overall in the paired baseline runs. PDelta3-CLVR scores 28 .5% ,MemoryFusion 30 .5% , and Integrated Memory 32 .0% . With TABLE II STRICT PD ELTA 3-GDN2-CLVR+L OCAL 32 A CCEPTANCE ACROSS TWO PRETRAINED MODELS                                                                                          
+
+> Model Layer NMSE ↓Cosine ↑∆NLL inc ∆NLL cum Local gate Decision SmolLM2-135M 00.0069 0.9974 +0.00239 +0.00239 0.749 Accept 10.0108 0.9960 +0.00972 +0.01211 0.766 Accept 20.0856 0.9587 -0.00002 +0.01209 0.766 Accept 30.2265 0.8949 +0.00278 +0.01487 0.441 Reject Qwen3.5-0.8B 30.0621 0.9745 -0.00325 -0.00325 0.721 Accept 70.0389 0.9705 +0.01327 +0.01003 0.721 Accept 11 0.1042 0.9411 +0.01070 +0.02073 0.721 Accept TABLE III SAMPLED QWEN 3.5-0.8B F AST EVAL SANITY CHECK (50 I TEMS PER
+> BENCHMARK ; 200 T OTAL ). T HESE ARE NOT OFFICIAL FULL -B ENCHMARK
+> SCORES .
+> Model / release Custom MMLU PIQA MMMLU GPQA-D Overall layers Pro DE Qwen3.5-0.8B (native) –12.0 48.0 34.0 26.0 30.0 PDelta3-CLVR+Local32 3,7,11 14.0 48.0 30.0 22.0 28.5 MemoryFusion 3,7 10.0 54.0 28.0 30.0 30.5 Integrated Memory 3,23 12.0 42.0 44.0 30.0 32.0
+
+only 50 examples per benchmark, these differences correspond to a small number of items and should not be interpreted as statistically robust superiority or degradation. The same runs expose the current implementation cost. Mea-sured generation throughput is 12 .20 tok/s for PDelta3-CLVR, 
+
+8.89 tok/s for MemoryFusion, and 5.80 tok/s for Integrated Memory, with peak VRAM of approximately 1.48 , 1.51 , and 
+
+1.48 GiB, respectively. The native Qwen baseline measures 
+
+13 .37 –13 .78 tok/s and about 1.47 GiB in the paired runs. Thus, the sampled task results provide evidence against gross post-conversion functional collapse, but they do not change the systems conclusion: the present reference implementations are not optimized for latency. The SmolLM2 layer-3 case is the most diagnostic result. At its final attempt, ∆NLL inc = +0 .00278 and ∆NLL cum =+0 .01487 , comfortably satisfying the language-model gates. Yet NMSE rises to 0.2265 and cosine falls to 0.8949 . Under the declared thresholds, an NLL-only policy would commit the layer whereas the full contract rolls it back. What is established here is metric disagreement : short-horizon language-model loss can remain acceptable while the replaced block drifts substantially from the function the downstream network was trained to consume. We do not yet claim that the representation gates are proven predictors of downstream task failure. The decisive causal experiment is to force-accept this rejected layer and compare it with rollback on long-context prediction, retrieval, reasoning, code, factuality, instruction following, and subsequent conversion stability. The Qwen result also suggests that replaceability is not simply “early layers are easy.” Layers 3, 7, and 11 are separated by native recurrent/linear layers, yet all three pass the same contract. The relevant unit is therefore the interaction between the candidate layer, its incoming representation, and                             
+
+> TABLE IV SMOL LM2 I NTEGRATED MEMORY V3 H ELD -O UT RESULTS
+> Context PPL/orig. Cache/orig. Save Prefill / Decode 256 0.9993 0.9857 1.43% 0.830 / 0.893 ×
+> 512 1.0021 0.9595 4.05% 0.849 / 0.910 ×
+> 1024 1.0034 0.9464 5.36% 0.829 / 0.892 ×
+> 2048 1.0093 0.9399 6.01% 0.830 / 0.891 ×
+> 256 512 1024 2048
+> 0.92 0.94 0.96 0.98 11.02
+> Context length Ratio to original Perplexity ratio Total cache ratio
+> Fig. 4. Integrated Memory V3 preserves test perplexity close to the baseline while the relative total-cache footprint decreases as context grows.
+
+the surrounding backbone. Table IV reports the validation-selected 
+
+partition_conservative Integrated Memory candidate on held-out SmolLM2 test documents, and Fig. 4 shows the corresponding quality/cache trend across context lengths. Perplexity remains close to the original model while total cache reduction grows with context, reaching 6.01% at 2048 tokens. Because only a small subset of layers is replaced, total-model cache savings are intentionally modest; the experiment measures conservative conversion rather than maximum replacement density. The timing columns are intentionally reported as measured: ratios below 1× mean the current PyTorch/reference CeNN implementation is slower than optimized SDPA. At context 2048, prefill is about 0.83 × and decode about 0.89 × the original speed. No kernel-level speedup is claimed. A fused CUDA/Triton implementation is required before making latency conclusions about the architecture itself. VIII. D ISCUSSION 
+
+Local exact attention, recurrent state, delta updates, gating, and local/global hybrids all have strong precedents. TinyCeNN-LM therefore does not claim that PDelta3 is a fundamentally new sequence mixer. Its main contribution is the conversion methodology : architecture is separated from policy, replace-ments are trained sequentially, representation fidelity and model-level loss are checked jointly, and failed substitutions are rolled back. KL-guided selection [18] identifies promising layers under a hybrid budget, while RADLADS [17] studies staged cross-architecture distillation. TinyCeNN-LM addresses the comple-mentary commit decision after training a candidate, allowing global layer selection to be combined with a local quality contract. The results support three main conclusions. First, strict PDelta3 conversion accepts multiple substitutions in both SmolLM2 and Qwen3.5-0.8B. Second, the SmolLM2 frontier shows that acceptable NLL does not always imply local functional fidelity. Third, conservative Integrated Memory reduces whole-model cache usage while preserving perplexity closely. The sampled Qwen FastEval adds a preliminary downstream check: the standalone converted releases score 
+
+28 .5% –32 .0% overall versus 30 .0% for the native model in paired runs. Because only 50 items per task are evaluated, this mainly shows that the released conversions remain functional; it is not evidence of benchmark superiority. The most important next step remains a forced-acceptance experiment at SmolLM2 layer 3, comparing rollback with NLL-only acceptance. Further work should include component ablations, threshold-sensitivity analysis, multi-seed confidence intervals, complete Qwen anchor coverage, and full downstream benchmarks. Current reference kernels remain slower than optimized attention, so the systems claim is structural memory conversion rather than speed superiority. The TinyCeNN-LM repository provides the implementations, notebooks, checkpoints, and experiment metadata. Canonical runs include the SmolLM2 and Qwen3.5 PDelta3 sequential experiments and SmolLM2 Integrated Memory V3. The accepted Qwen checkpoint is 
+
+vtava/Qwen3.5-0.8B-PDelta3-CLVR-Local32 ,and the selected SmolLM2 checkpoint is 
+
+vtava/SmolLM2-135M-CeNN-Partition-V3 [22]. IX. C ONCLUSION 
+
+TinyCeNN-LM reframes attention replacement as controlled post-training architecture conversion. Its CeNN-inspired ab-straction retains the classical emphasis on local neighborhoods and explicit state while adapting those principles to causal token sequences through learned digital operators, recurrent memory, routing, and fusion. The main methodological con-tribution is the separation of candidate architecture from a strict commit/rollback contract. Cross-model experiments show successful selective conversion on SmolLM2 and Qwen3.5 and expose a SmolLM2 frontier where NLL-based and representation-based decisions disagree. Integrated Memory further demonstrates a modest but real context-dependent cache/quality tradeoff. A sampled 200-item Qwen downstream sanity check further indicates that the standalone converted releases remain functional beyond the NLL probe, but it is too small to support a benchmark-ranking claim. The present evidence supports conservative structural conversion; it does not yet prove downstream causal benefit or runtime speedup. Forced-acceptance validation, matched ablations, full Qwen anchor coverage, threshold calibration, multi-seed statistics, and optimized streaming kernels are the steps needed to turn this framework into a stronger general claim about reliable Transformer-to-cellular/recurrent conversion. REFERENCES [1] T. Dao, D. Y. Fu, S. Ermon, A. Rudra, and C. R´ e, “FlashAttention: Fast and memory-efficient exact attention with IO-awareness,” in Advances in Neural Information Processing Systems , vol. 35, pp. 16344–16359, 2022. [2] T. Dao, “FlashAttention-2: Faster attention with better parallelism and work partitioning,” in Proc. ICLR , 2024. [3] A. Gu, K. Goel, and C. R´ e, “Efficiently modeling long sequences with structured state spaces,” in Proc. ICLR , 2022. [4] A. Gu and T. Dao, “Mamba: Linear-time sequence modeling with selective state spaces,” arXiv:2312.00752, 2023. [5] T. Dao and A. Gu, “Transformers are SSMs: Generalized models and efficient algorithms through structured state space duality,” in Proc. ICML ,vol. 235, pp. 10041–10071, 2024. [6] B. Peng et al. , “RWKV: Reinventing RNNs for the Trans-former era,” in Findings of EMNLP , pp. 14048–14077, 2023, doi: 10.18653/v1/2023.findings-emnlp.936. [7] Y. Sun, L. Dong, S. Huang, S. Ma, Y. Xia, J. Xue, J. Wang, and F. Wei, “Retentive network: A successor to Transformer for large language models,” in Advances in Neural Information Processing Systems , vol. 36, pp. 29774–29794, 2023. [8] M. Beck et al. , “xLSTM: Extended long short-term memory,” in Advances in Neural Information Processing Systems , vol. 37, 2024. [9] M. Poli et al. , “Hyena hierarchy: Towards larger convolutional language models,” in Proc. ICML , vol. 202, pp. 28043–28078, 2023. [10] S. Arora et al. , “Simple linear attention language models balance the recall-throughput tradeoff,” in Proc. ICML , vol. 235, pp. 1763–1840, 2024. [11] O. Lieber et al. , “Jamba: A hybrid Transformer-Mamba language model,” arXiv:2403.19887, 2024. [12] A. Botev et al. , “RecurrentGemma: Moving past Transformers for efficient open language models,” arXiv:2404.07839, 2024. [13] L. Ren, Y. Liu, Y. Lu, Y. Shen, C. Liang, and W. Chen, “Samba: Simple hybrid state space models for efficient unlimited context language modeling,” arXiv:2406.07522, 2024. [14] S. Yang, J. Kautz, and A. Hatamizadeh, “Gated Delta Networks: Improving Mamba2 with Delta Rule,” in Proc. ICLR , 2025. [15] A. Behrouz, P. Zhong, and V. Mirrokni, “Titans: Learning to memorize at test time,” arXiv:2501.00663, 2025. [16] Qwen Team, “Qwen3.5: Towards native multimodal agents,” Qwen Technical Blog, Feb. 15, 2026. [Online]. Available: https://qwen.ai/blog? id=qwen3.5. [17] D. Goldstein, E. Alcaide, J. Lu, and E. Cheah, “RADLADS: Rapid attention distillation to linear attention decoders at scale,” in Proc. Conference on Language Modeling (COLM) , 2025. [18] Y. Li, S. Yang, S. Tan, M. Mishra, R. Panda, J. Zhou, and Y. Kim, “Distilling to hybrid attention models via KL-guided layer selection,” in
