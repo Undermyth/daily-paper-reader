@@ -6,49 +6,41 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-22
-- 运行时间：2026-09-22 22:41:28 UTC
+- 最新运行日期：2026-09-23
+- 运行时间：2026-09-23 22:11:33 UTC
 - 运行状态：成功
-- 本次总论文数：9
-- 精读区：3
-- 速读区：6
+- 本次总论文数：6
+- 精读区：1
+- 速读区：5
 
 ### 今日简报（AI）
-今天共筛出9篇，精读3篇、速读6篇，重点集中在注意力表达力与视觉架构改造。
-最值得看的是9.0分的《Complex KDA》和8.0分的《Rethinking Vision Architectures with Gated Linear Attention and KAN》，前者关注Kimi Delta Attention表达力，后者尝试用门控线性注意力和KAN重思视觉架构。
-普通读者可先读这两篇精读摘要，再扫一眼RPMem、PREM等长时/长视频记忆方向，判断是否与自身场景相关。
-- 详情：[/202609/22/README](/202609/22/README)
+- 今日共生成 6 篇推荐（精读 1 篇，速读 5 篇）
+- 精读：《GTR: Gated Token Recurrence for Efficient Dense Prediction》（8.0/10）
+- 速读：《MemoryAthena: Adaptive Routing over Latent and Generated Memories》（7.0/10）, 《HySparse2: Hybrid Sparse Attention with Two-Level KV Sharing》（7.0/10）, 《AutoViewMem: Self-Configuring Orthogonal Views for Conversational Long-Term Memory》（6.0/10）
+- 这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。
+- 详情：[/202609/23/README](/202609/23/README)
 
 ### 精读区论文标签
-1. [Complex KDA: Understanding and Enhancing the Expressivity of Kimi Delta Attention](/202609/22/2609.24797v1-complex-kda-understanding-and-enhancing-the-expressivity-of-kimi-delta-attention)  
-   标签：评分：9.0/10、query:la
-   evidence：增强表达力的线性RNN delta规则注意力
-2. [Rethinking Vision Architectures with Gated Linear Attention and KAN](/202609/22/2609.22506v1-rethinking-vision-architectures-with-gated-linear-attention-and-kan)  
+1. [GTR: Gated Token Recurrence for Efficient Dense Prediction](/202609/23/2609.26590v1-gtr-gated-token-recurrence-for-efficient-dense-prediction)  
    标签：评分：8.0/10、query:la
-   evidence：分块门控线性注意力降低序列复杂度
-3. [ARM: Attention with Routed-Memory for Learnable Sparse Control](/202609/22/2609.24417v1-arm-attention-with-routed-memory-for-learnable-sparse-control)  
-   标签：评分：8.0/10、query:la
-   evidence：可微固定大小记忆与路由器的注意力记忆增强
+   evidence：无softmax递归视觉骨干中的门控线性注意力
 
 ### 速读区论文标签
-1. [RPMem: Learning Long-Term Recurrent Parametric Memory Across Sessions for LLM Agents](/202609/22/2609.23466v1-rpmem-learning-long-term-recurrent-parametric-memory-across-sessions-for-llm-agents)  
+1. [MemoryAthena: Adaptive Routing over Latent and Generated Memories](/202609/23/2609.25853v1-memoryathena-adaptive-routing-over-latent-and-generated-memories)  
    标签：评分：7.0/10、query:la
-   evidence：面向LLM智能体的循环参数化记忆，跨会话记忆整合
-2. [PREM: Prefix-Steered Recurrent Memory for Long-Video Understanding](/202609/22/2609.23601v1-prem-prefix-steered-recurrent-memory-for-long-video-understanding)  
+   evidence：在检索式潜记忆与生成记忆之间自适应路由
+2. [HySparse2: Hybrid Sparse Attention with Two-Level KV Sharing](/202609/23/2609.26368v1-hysparse2-hybrid-sparse-attention-with-two-level-kv-sharing)  
    标签：评分：7.0/10、query:la
-   evidence：紧凑多槽联想状态实现无记忆令牌的循环记忆
-3. [An Interpretable Memory Decision Controller for LLM Agents Based on Three-Signal Complementarity: Decoupling Confidence and Consistency](/202609/22/2609.22043v1-an-interpretable-memory-decision-controller-for-llm-agents-based-on-three-signal-complementarity-decoupling-confidence-and-consistency)  
+   evidence：用于高效长上下文检索与紧凑KV缓存的混合稀疏注意力
+3. [AutoViewMem: Self-Configuring Orthogonal Views for Conversational Long-Term Memory](/202609/23/2609.21940v1-autoviewmem-self-configuring-orthogonal-views-for-conversational-long-term-memory)  
    标签：评分：6.0/10、query:la
-   evidence：受前额叶记忆信号启发的LLM智能体记忆决策控制器
-4. [StateMem: Single-State Residual Memory with Adaptive Inference for Vision-Language-Action Policies](/202609/22/2609.22684v1-statemem-single-state-residual-memory-with-adaptive-inference-for-vision-language-action-policies)  
+   evidence：智能体长期记忆组织与top-K检索
+4. [Compressing Long Context into Answer-Aligned Memory Embeddings for LLM Inference](/202609/23/2609.25537v1-compressing-long-context-into-answer-aligned-memory-embeddings-for-llm-inference)  
    标签：评分：6.0/10、query:la
-   evidence：带自适应检索的记忆增强策略
-5. [SmoLSTM: A Compact Vision-Language-Action Model with Recurrent Memory that Persists](/202609/22/2609.22854v1-smolstm-a-compact-vision-language-action-model-with-recurrent-memory-that-persists)  
+   evidence：面向LLM推理的答案对齐记忆压缩
+5. [CompKV: Compensation-Aware KV Selection for Long-Context LLM Inference](/202609/23/2609.26300v1-compkv-compensation-aware-kv-selection-for-long-context-llm-inference)  
    标签：评分：6.0/10、query:la
-   evidence：矩阵记忆LSTM循环层，情节状态为O(1)
-6. [Block-Sparse Attention with Semantic-Geometric Decoupled Routing](/202609/22/2609.22884v1-block-sparse-attention-with-semantic-geometric-decoupled-routing)  
-   标签：评分：6.0/10、query:la
-   evidence：免训练块稀疏注意力路由，实现高效长上下文推理
+   evidence：面向长上下文推理的补偿感知稀疏注意力选择
 
 
 <div class="dpr-home-promo-card">
