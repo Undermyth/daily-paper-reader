@@ -1,0 +1,377 @@
+Title: DeltaS: Reading the Gated Linear Attention State for KV Cache Eviction in Streaming Video
+
+URL Source: https://arxiv.org/pdf/2609.27470v1
+
+Published Time: Thu, 24 Sep 2026 00:41:52 GMT
+
+Number of Pages: 15
+
+Markdown Content:
+# DeltaS: Reading the Gated Linear Attention State for KV Cache Eviction in Streaming Video 
+
+# Taeyoun Kwon 1,2 Seungjin Kim 1,2 Hyeonyu Kim 1 Moon Hwan Kim 1,31Maum AI Inc. 2Seoul National University 3Yonsei University 
+
+{taeyoun.kwon, seungjin.kim, hykim, mhk }@maum.ai 
+
+# Abstract 
+
+Recent video-language models increasingly adopt hybrid architectures that interleave linear and full attention layers for efficient long-context processing. While the recurrent state of linear attention remains fixed in size, the KV cache of full attention continues to grow with the video stream, making eviction necessary under a bounded memory bud-get. The key challenge in streaming is that eviction must occur before the question arrives, so what to retain has to be decided without the question. Existing eviction methods derive token scores from the KV cache itself, using posi-tion, attention, or key-value representations, and attention-based scores further require proxy queries or extra compu-tation. Hybrid backbones offer another source of signal. In gated-delta linear attention, the recurrent state is up-dated by the residual between each input and what can al-ready be retrieved from the state, so its change over a chunk of frames reflects how much new information the chunk brings. We propose DeltaS, a query-agnostic, training-free method that retains video chunks inducing larger nor-malized state change, or state drift. In a controlled com-parison with the budget and retention policy held fixed, state drift outperforms position-, attention-, and key-value-based signals. With a signal costing only 1.9% of the for-ward pass, DeltaS surpasses the strongest query-agnostic bounded-memory baseline by 2.1 points on average across six long-video benchmarks and by 5.6 points on the longest benchmark. These results suggest that the two memories of hybrid architectures can work cooperatively. Code is avail-able at https://github .com/MaumAI-Company/ DeltaS .
+
+# 1. Introduction 
+
+Streaming video understanding requires processing an un-bounded input stream under a bounded memory budget. Re-cent open-source language and multimodal backbones in-creasingly interleave linear and full attention layers [14, 20, 0 15 30 45 60 75  
+
+> stream length (min) GPU memory
+> OOM OOM dense hybrid dense + KV eviction hybrid + KV eviction (ours)
+
+Figure 1. KV cache growth with stream length. The hybrid backbone accumulates KV memory much more slowly than a dense model and needs far less memory for the same token budget. Its full-attention cache still grows with stream length, however, so eviction is required for bounded memory. 
+
+24], introducing two distinct forms of temporal memory: a fixed-size recurrent state in linear attention and a token-wise KV cache in full attention. This distinction confines mem-ory growth in streaming inference to the full-attention lay-ers. In the 3:1 hybrid backbone used in this work [24], the recurrent states of the linear-attention layers remain fixed at 48 MiB, whereas the KV cache of the full-attention layers grows linearly with stream length, exceeding 10 GiB after one hour. Thus, despite substantially reducing the number of layers with growing memory, hybrid architectures still require explicit KV cache management to support bounded-memory streaming, as illustrated in Fig. 1. Moreover, evic-tion must occur before the question arrives, so the retention signal must be query-agnostic [13, 34]. Designed for dense models, where the KV cache is the only memory, existing KV eviction methods estimate which cached tokens are worth retaining from information within the KV cache itself, such as position, attention, or key-value representations [2]. Attention-based scores further require 1arXiv:2609.27470v1 [cs.CV] 23 Sep 2026 extra attention computation, often with proxy queries stand-ing in for the unavailable question. All of these methods remain applicable to hybrid backbones through their full-attention layers. Beyond the KV cache, however, hybrid backbones offer a built-in source of information that con-tinuously summarizes the preceding context within a fixed size and over multiple temporal scales: the recurrent state of linear-attention layers. This state is already computed during the forward pass, so it can serve as a candidate retention signal without proxy queries or additional attention computation. In particular, gated-delta linear attention is designed to write into the state only the residual between the incoming representation and what can already be retrieved from the current state [25, 33]. Hence, how much a chunk changes the state reflects how much information it brings beyond what the state already holds [5, 29]. We carry this criterion over to KV retention and introduce DeltaS, which scores each video chunk by its normalized state change, or state drift , and prioritizes chunks with higher drift, i.e ., those bringing more new in-formation, for retention in the full-attention KV cache. We evaluate DeltaS on Qwen3.5 [24], an open-source multimodal hybrid model, across six long-video bench-marks under two fixed KV cache budgets. DeltaS achieves the best performance among query-agnostic, training-free, bounded-memory methods on all six benchmarks with an 8,192-token budget and on five of six with a 16,384-token budget, outperforming the strongest baseline by 2.1 and 1.7 points on average, respectively. Its advantage generally grows as the retained fraction of the video decreases. Our contributions are summarized as follows. • State drift as a KV retention signal. We propose DeltaS, which decides KV retention by the normalized state change. It requires no query or training, and its sig-nal costs 1.9% of the forward pass. • Gains under tight memory budgets. DeltaS outper-forms existing query-agnostic, bounded-memory meth-ods across six long-video benchmarks, with larger gains under tighter memory. • Controlled comparison of retention signals. With the budget and retention policy fixed, state drift outperforms position-, attention-, and key-value-based signals. 
+
+# 2. Related Work 
+
+Bounded-memory streaming video. Approaches to memory-efficient streaming video understanding can be broadly grouped into training-based and inference-time methods. Training-based methods optimize models specifi-cally for streaming [11, 32, 36] or distill long-context capa-bilities into more efficient backbones [27]. Inference-time methods manage memory in a fixed pretrained model by compressing stored representations or selecting tokens to retain. Representation-based approaches reduce KV pre-cision [3, 17] or summarize earlier context into compact representations [19]. Token selection can occur before the question arrives or during query-time retrieval. ReKV, LiveVLM, and StreamKV retrieve relevant KV entries after observing the question [4, 7, 21]; the latter two also per-form query-agnostic compression during streaming. Meth-ods such as InfiniPot-V, StreamMem, and HERMES main-tain a fixed memory budget by deciding what to retain be-fore the question is known [13, 34, 37]. DeltaS targets this query-agnostic, training-free, bounded-memory setting. 
+
+Signals for KV cache eviction. KV eviction methods derive retention scores from token position, attention, key or value representations, or combinations thereof [2]. Position-based strategies retain initial attention sinks and recent tokens [31, 32], or sample tokens uniformly over time. Attention-based methods estimate importance from the attention received by cached tokens [38], often using an observation window of recent tokens to compute these scores [15]. In streaming video, StreamMem and HER-MES use attention from chat-template tokens and generic guidance prompts, respectively, to guide retention [34, 37]. Key-value-based methods instead use properties such as key norms [6] or geometric distinctiveness based on cosine sim-ilarity to the mean key direction [23]. InfiniPot-V compares keys at corresponding spatial positions with those in re-cent frames to identify temporal redundancy, and uses value norms to estimate the semantic importance of individual vi-sual tokens [13]. Despite these differences, these methods derive their retention signals from information associated with the KV cache itself. 
+
+Recurrent state as a retention signal. Hybrid back-bones maintain a fixed-size recurrent state alongside the KV cache [14, 20, 24]. Other approaches construct auxiliary memory, such as the temporal KV cache in StateKV [8] and the prototype-based summary state in ProtoKV [19]. Prediction error also guides memory retention and updates. B’MOJO retains unpredictable inputs in an explicit mem-ory [35], while Titans updates a neural memory using gradient-based surprise [1]. More directly, HOLA aug-ments Gated DeltaNet with an exact KV cache, selects en-tries by delta-rule write magnitude, and trains the result-ing architecture [5]. DLA uses normalized state differ-ences to determine memory-state boundaries and merges states to maintain a fixed capacity [29]. Query-conditioned token reduction has also been studied in hybrid vision-language models to accelerate prefill [12]. DeltaS instead reads changes in the existing recurrent state of a gated-delta hybrid backbone to guide KV retention in full-attention lay-ers, without introducing a new memory module, additional training, or access to the downstream query. 23. Method 
+
+3.1. Streaming Setup and Hybrid Memory 
+
+We process streaming video in chunks as they arrive. Ques-tions may arrive at any point in the stream, so preceding cache retention decisions must be made without access to the query. To bound memory usage, we limit the KV cache of each full-attention layer to at most M retained tokens. We use Qwen3.5-9B [24] as our backbone, which in-terleaves one full-attention layer with every three Gated DeltaNet [33] linear-attention layers. Linear attention accu-mulates past context in a fixed-size recurrent state, whereas full attention stores a key-value pair for each token. The re-current states across all linear-attention layers occupy a con-stant 48 MiB, while the KV caches across all full-attention layers grow by a total of 32 KiB per token. Bounding this growing memory therefore requires eviction from the full-attention KV caches. Importantly, the recurrent state does not operate at a sin-gle temporal scale. As shown in Fig. 2, some heads retain earlier state contributions for only a few seconds, whereas others preserve more than half of an earlier contribution af-ter one minute. Heads with short and long retention hori-zons coexist across layers, and the ranking of per-head re-tention horizons is nearly identical across three benchmarks (ρ ≈ 0.998 ). These observations suggest that the recurrent state captures past context over multiple temporal scales, providing a reference against which incoming chunks can be evaluated. 
+
+3.2. State Drift 
+
+We next examine how the recurrent state changes when a new input is processed. For a single linear-attention head, the gated delta rule [33] updates the state as follows, with layer and head indices omitted: 
+
+St = St−1
+
+ αt(I − βtktk⊤ 
+
+> t
+
+) + βtvtk⊤ 
+
+> t
+
+, (1) where t indexes tokens, kt is the L2-normalized key vec-tor, vt is the value vector, αt controls state decay, and βt
+
+determines the write strength. Rearranging Eq. 1 gives 
+
+St = αtSt−1 + βt
+
+ vt − αtSt−1kt
+
+k⊤ 
+
+> t
+
+. (2) The update therefore depends on the residual between the incoming value vt and the value retrieved from the decayed state, αtSt−1kt. This residual is scaled by the write gate 
+
+βt before being written to the state, so the write magni-tude depends on both the prediction error and the write strength. The net change after processing a chunk reflects the combined effect of these writes and state decay over the chunk. Similar properties have been exploited in learned memory architectures, where delta-rule residuals or unex-plained inputs are used to determine what should be memo-rized [5, 35]. 0 50 100 150 200 250 300 elapsed time (s) 020 40 60 80 100 % of heads    
+
+> retain 50%
+> 10%
+> 1%
+> Figure 2. Distribution of state-retention horizons across linear-attention heads. Each curve shows the percentage of heads retain-ing at least 50%, 10%, or 1% of an initial state contribution over time. After 60 seconds, 14.1% of heads still retain at least half of that contribution. The variation in retention horizons indicates that the recurrent state operates over multiple temporal scales.
+
+Motivated by this update structure, we compare the re-current states before and after processing each video chunk and use the resulting net change to score the chunk for re-tention. Denoting these states by Sbefore and Safter , we define 
+
+∆S = 1
+
+L
+
+> L
+
+X
+
+> i=1
+
+Si 
+
+> after
+
+− Si 
+
+> before F
+
+Si 
+
+> before F
+
+, (3) where L is the number of linear-attention layers and ∥·∥ F
+
+denotes the Frobenius norm over the full state of each layer, including all heads. We refer to this normalized state change as state drift . Normalizing by the pre-chunk state magni-tude makes the change comparable across layers, and aver-aging yields a single score for each video chunk. Because the recurrent state summarizes preceding context, state drift measures how much an incoming chunk changes the state relative to that accumulated context, as illustrated in Fig. 3. The state combines heads with different retention horizons, so this reference spans multiple temporal scales. Similar normalized state differences have also been used to define memory boundaries in linear-attention models [29]. Computing state drift adds little overhead to the standard forward pass. Both Sbefore and Safter are already available during inference, so Eq. 3 requires only the norm of their difference and the norm of the previous state, without addi-tional attention computation or an extra forward pass. We temporarily retain the previous state for this computation. Since the recurrent state has a fixed size, neither the storage required for this copy nor the cost of computing state drift grows with stream length. We report the measured runtime overhead in Sec. 4.5. 3(a) little was overwritten  (b) much was overwritten Figure 3. State drift as a KV retention signal. In (a), visually similar consecutive chunks induce a small change from St−1 to St and a low ∆S. In (b), a larger visual change is accompanied by a larger state change and a higher ∆S. The corresponding KV entries are evicted in (a) and retained in (b), illustrating the preference for chunks with larger state drift. 
+
+3.3. DeltaS: State-Guided KV Eviction 
+
+DeltaS uses chunk-level state drift scores to guide KV reten-tion. The score ∆S computed for each chunk is assigned to its tokens and guides retention of their corresponding KV entries across full-attention layers (Fig. 4). Later evic-tion steps reuse the scores assigned when each chunk was processed. Because this score aggregates recurrent-state changes across linear-attention layers, all full-attention lay-ers use the same retention ranking. Each chunk corresponds to one second of video in our experimental setup (Sec. 4.1). We preserve two regions of the cache independently of the state drift score. The first ns tokens serve as attention sinks, while the most recent nw tokens provide a local con-text window [31, 32]. Once outside the recent window, non-sink tokens become candidates for score-based retention. When the cache exceeds the budget M , state drift deter-mines which candidates are retained within the remaining capacity of M − ns − nw tokens. State drift scores tend to be higher near the beginning of the stream, so selecting tokens by a global ranking can con-centrate retention in early portions of the video. To mitigate this bias, we divide candidate tokens into N equal tempo-ral spans based on their chunk arrival times and allocate an equal share of the remaining budget to each span. Within each span, tokens with higher ∆S are retained first. If a span contains fewer candidates than its quota, unused ca-pacity is filled with the highest-scoring remaining candi-dates. The spans are recomputed at each eviction, requir-ing no advance knowledge of the final stream length. Us-ing original arrival times rather than indices in the surviving cache keeps the partition based on elapsed time rather than token counts, even after repeated eviction. 
+
+Algorithm 1 DeltaS: state-guided KV eviction                                                                          
+
+> Input: budget M; sink ns; window nw; buckets N
+> 1: while a new chunk carrives do
+> 2: Sbefore ←S
+> 3: PREFILL (c)▷updates S, appends cto KV
+> 4: ∆S←mean i
+>  ∥Si−Si
+> before ∥F/∥Si
+> before ∥F
+> 
+> 5: score[ t]←∆Sfor all tokens tof c
+> 6: if |KV |> M then
+> 7: Isink ←first ns,Iwindow ←last nw
+> 8: B1. . . BN←Nequal time spans of the rest
+> 9: I∆S←top- (M−ns−nw)/N of each Bjby score
+> 10: KV ←KV[ Isink ∪I∆S∪Iwindow ]
+> 11: end if
+> 12: end while
+
+Retained tokens keep their original position indices af-ter eviction. We do not reassign consecutive positions to the surviving tokens, preserving both the original positional spacing between chunks and the positional information en-coded in the cached keys. This eliminates the need to re-rotate keys after eviction. To prevent question answering from altering the subse-quent streaming state, we save the current state before pro-cessing each question. The model answers using the re-tained video KV and recurrent state, after which we re-store the streaming state, including both memories, to its pre-question configuration. This also removes the KV en-tries generated during the question and response. Retention scores and chunk indices are restored along with the cache. Changes made during question answering therefore do not carry over to subsequent video processing or retention deci-sions, preserving the query-agnostic behavior of DeltaS. Alg. 1 summarizes the complete procedure. 4· · · 
+
+# · · · 
+
+# · · · Figure 4. Overview of DeltaS. Each video chunk updates the recurrent linear-attention states, whose normalized changes yield a shared score ∆S for retaining the corresponding KV entries across full-attention layers. KV blocks are vertically aligned with their source chunks. In the illustrated sequence, t170 closely resembles the preceding chunk and has low state drift, whereas the more visually distinct chunk at  
+
+> t172 has higher drift. Their corresponding KV entries are evicted (gray) and retained (orange), respectively.
+
+# 4. Experiments 
+
+4.1. Experimental Setup 
+
+Backbone and streaming configuration. We evaluate all methods on the same frozen Qwen3.5-9B backbone [24]. The model contains 24 linear-attention and eight full-attention layers, and KV eviction is applied only to the full-attention layers. For all methods, we sample videos at 2 fps and determine frame resolution using the fixed pixel-budget setting of StreamingVLM [32]. DeltaS processes two frames per chunk, so each streaming step covers one second of video. Each chunk contains 98–112 visual to-kens, depending on resolution, and 20 timestamp tokens. We evaluate two per-layer KV budgets, M = 8 ,192 and 
+
+M = 16 ,384 , corresponding to approximately 256 MiB and 512 MiB of KV memory across the eight full-attention lay-ers. At our sampling rate and tokenization settings, these budgets accommodate slightly over one and two minutes of video, respectively. For both budgets, DeltaS reserves 
+
+ns = 4 sink tokens and a recent window of nw = 1 ,024 
+
+tokens, and uses N = 4 temporal buckets. These settings are shared across all six benchmarks. 
+
+Benchmarks. We evaluate long-term context re-tention on six long-video understanding bench-marks: MLVU [39], Video-MME [9], Video-MME v2 [10], LongVideoBench [30], LVBench [28], and EgoSchema [18]. Each video is prefilled chronologically, chunk by chunk, and the question is provided only after the final chunk has been processed. Video-MME and LongVideoBench are evaluated without subtitles, and EgoSchema uses the public 500-item subset. We report accuracy (%), with differences in percentage points, and detail splits and aggregation in Appendix A. Averages, differences, and percentages are computed before rounding. Results on StreamingBench [16] and OVO-Bench [22] are reported in Appendix B. In our evaluation, a memo-ryless baseline using only recent frames outperforms Full KV on several tasks. These benchmarks do not consis-tently reward longer context, as also observed by Sim-pleStream [26]. Aggregate scores alone therefore do not isolate long-term retention, so we report short-context base-lines and separately analyze tasks requiring earlier context. 
+
+Baselines. We compare against three query-agnostic, training-free, bounded-memory methods—InfiniPot-V [13], StreamMem [34], and HERMES [37]—together with random, recency, and uniform retention controls. All bounded-memory methods receive the same KV budget 
+
+M . We preserve each method’s original design choices for chunk size, reserved regions, budget allocation, and head-wise selection, adapting only components that cannot be applied directly because of architectural differences in the hybrid backbone. Method-specific settings and adaptations are detailed in Appendix A. We additionally include Full KV and ReKV as reference settings. Full KV follows the same streaming inference path with eviction disabled, so its KV memory grows with video length. ReKV [7] retrieves relevant KV entries after the question arrives and is therefore query-aware. 5Method MLVU Video-MME Video-MME v2 Long VideoBench LVBench Ego Schema Avg                                                                               
+
+> Unbounded or query-aware
+> Full KV 74.9 74.5 32.8 70.2 55.1 71.8 63.2 ReKV 71.1 / 73.2 69.7 / 71.1 29.7 / 31.7 66.0 / 68.1 50.6 / 52.4 71.4 / 72.4 59.8 / 61.5
+> Simple baselines
+> random 59.7 / 63.0 63.1 / 67.7 25.2 / 27.9 59.8 / 62.5 38.4 / 40.3 71.2 / 71.4 52.9 / 55.5 recency 58.7 / 62.0 61.8 / 65.8 23.8 / 25.6 56.1 / 60.9 36.9 / 36.9 68.8 / 70.8 51.0 / 53.7 uniform 59.4 / 62.8 63.0 / 66.8 26.2 / 27.3 58.7 / 61.9 37.9 / 40.1 69.0 / 72.0 52.4 / 55.2
+> Streaming KV compression
+> InfiniPot-V 62.9 / 67.8 65.4 / 68.7 26.7 / 29.2 60.3 / 64.2 38.9 / 41.0 70.0 / 71.4 54.0 / 57.0 StreamMem 68.7 / 72.0 67.4 / 69.1 29.6 / 31.2 62.8 / 65.4 40.4 / 44.1 71.0 / 71.0 56.6 / 58.8 HERMES 65.1 / 68.9 66.1 / 69.4 26.9 / 28.5 61.5 / 63.4 37.1 / 37.8 70.8 / 72.0 54.6 / 56.7
+> DeltaS (ours) 70.6 /72.9 69.7 /72.0 30.1 /31.7 64.2 /66.5 46.0 /48.4 71.8 / 71.4 58.7 /60.5
+
+Table 1. Performance on six long-video benchmarks under two KV cache budgets. Accuracy (%) is reported for M=8,192/16,384. All methods are evaluated on the same Qwen3.5-9B backbone, while method-specific conventions for reserved regions, chunk size, budget allocation, and KV heads follow their respective implementations (Appendix A). Full KV and ReKV are included as unbounded-memory and query-aware reference methods, respectively, and are excluded from ranking. Best and second-best results among query-agnostic, bounded-memory methods are shown in bold and underline for each budget. 
+
+4.2. Main Results 
+
+Table 1 shows that DeltaS consistently performs well under bounded-memory streaming. At M = 8 ,192 , it achieves the best results among query-agnostic, bounded-memory methods on all six benchmarks, outperforming Stream-Mem, the strongest baseline on average, by 2.1 points. At 
+
+M = 16 ,384 , it remains best on five of six benchmarks, with an average gain of 1.7 points. Notably, DeltaS at 
+
+M = 8 ,192 achieves an average accuracy of 58.7, nearly matching StreamMem at M = 16 ,384 (58.8), despite using half the KV budget. The advantage is particularly pronounced when the fixed cache budget can retain only a small fraction of the video. On LVBench, the longest benchmark in our evaluation, DeltaS exceeds the strongest bounded-memory baseline by 5.6 points at M = 8 ,192 and 4.3 points at M = 16 ,384 .Its 46.0 at M = 8 ,192 also surpasses StreamMem’s 44.1 at twice the budget. In contrast, differences among methods are smaller on shorter videos such as EgoSchema, where a substantial fraction of the video fits within the cache. Figure 5 plots DeltaS’s margin over the strongest bounded-memory baseline against retention rates calculated using each benchmark’s median video length and the corre-sponding KV budget. Because video lengths vary across benchmarks, the same budget of M = 8 ,192 yields re-tention rates ranging from 1.8% on LVBench to 36.4% on EgoSchema. DeltaS generally shows larger gains at lower retention rates, suggesting that retention choices become more consequential when only a small fraction of a long stream can remain in the KV cache. Video-MME v2 ex-hibits a different pattern: DeltaS maintains an approxi-mately 0.5-point advantage over StreamMem at both bud-gets, with no widening of the gap under the tighter budget. 2 5 10 20 50 100 
+
+tokens retained (% of the video)    
+
+> −1 0123456
+> margin over best baseline (pp)
+> LVBench V-MME V-MMEv2 MLVU LVideoB EgoS
+> M= 8,192
+> M= 16,384
+
+Figure 5. Performance margin as a function of KV reten-tion rate. Each point shows DeltaS’s accuracy margin over the best query-agnostic, bounded-memory baseline for a benchmark and budget. Lines connect the two budgets for each benchmark. DeltaS generally shows larger gains at lower retention rates. 
+
+Both methods gain approximately 1.5–1.6 points when the budget doubles. The benchmark’s demanding evidence in-tegration and temporal reasoning tasks [10] may limit the extent to which differences in retention translate into ac-curacy gains as memory pressure increases. Full KV also reaches only 32.8 under our evaluation setup, consistent with challenges beyond KV retention. These comparisons evaluate complete eviction systems, which differ in both scoring signals and retention policies. To examine whether state drift provides an informative sig-nal for KV retention, we next compare it with alternative signals under a shared policy and memory budget. 6Method Long VideoBench MLVU LVBench                           
+
+> Position
+> uniform 58.7 59.4 37.9
+> Cache-internal signals
+> SnapKV [15] 62.0 66.4 40.3 L2-norm [6] 60.8 63.6 36.2 KeyDiff [23] 61.2 67.1 39.8 TaR [13] 62.4 68.7 40.1 VaN [13] 63.4 68.9 44.0
+> State-based signals
+> β∥e∥[5] 63.6 69.4 44.9 DeltaS (ours) 64.2 70.6 46.0
+
+Table 2. Controlled comparison of KV retention signals. All methods use the same memory budget ( M = 8 ,192 ) and reserved regions. Score-based methods share a temporal-bucket retention policy, while uniform samples evenly over time. Scoring granular-ity and KV-head aggregation follow each signal’s definition (Ap-pendix A.2). 
+
+4.3. Controlled Comparison of Retention Signals 
+
+To assess whether state drift provides informative cues for KV retention, Table 2 compares representative signals under a common retention setup. The comparison cov-ers the categories introduced in Sec. 2: temporal position (uniform), attention (SnapKV [15]), and key- or value-based representations (L2-norm [6], KeyDiff [23], and the temporal-axis redundancy (TaR) and value-norm (VaN) scores of InfiniPot-V [13]). We additionally use HOLA’s scoring function, β∥e∥ [5], as a state-based baseline, where e is the prediction resid-ual and β controls the write strength. We apply this scoring rule to the frozen backbone without adopting HOLA’s mem-ory architecture. This signal measures the magnitude of the gated-delta write, whereas DeltaS measures the normalized net change in the state before and after processing a chunk. Both signals assign a single score to each chunk, so the two are compared at the same scoring granularity. All signals are evaluated with M = 8 ,192 , four sink to-kens, a recent window of 1,024 tokens, and two-frame in-put chunks. Score-based methods use the same temporal-bucket retention policy, while uniform samples evenly over time. We preserve conventions intrinsic to each signal, in-cluding scoring granularity and KV-head aggregation; the configurations are detailed in Appendix A.2. Table 2 shows that both state-based signals achieve higher accuracy than the position-, attention-, and key-value-based alternatives on LongVideoBench, MLVU, and LVBench. DeltaS ranks first on all three benchmarks, ex-ceeding VaN, the strongest cache-internal signal, by 0.7–2.1 points. It also outperforms the state-based baseline β∥e∥ by 0.5–1.2 points. 0.0 0.2 0.4 0.6 0.8 1.0    
+
+> video time
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> cumulative share of surviving tokens
+> uniform
+> no buckets
+> N= 2
+> N= 4 (ours)
+> N= 8
+
+Figure 6. Effect of temporal bucketing on retained-token dis-tribution. Curves show the cumulative share of retained tokens over normalized video time; the dashed diagonal indicates uniform temporal coverage. Temporal bucketing reduces the early concen-tration observed without buckets. 
+
+These results support the view that the recurrent state carries useful information for KV retention. DeltaS ac-cesses this information through state changes already pro-duced by the backbone, demonstrating their utility for de-ciding which content to retain under a fixed memory bud-get. 
+
+4.4. Effect of Temporal Bucketing 
+
+As discussed in Sec. 3.3, global ranking by ∆S tends to favor earlier parts of the stream. Figure 6 shows the cumu-lative share of retained tokens over normalized video time. Curves above the diagonal, which represents uniform tem-poral coverage, indicate a concentration of retained tokens toward the beginning of the video. This early bias is pro-nounced without bucketing. Temporal buckets bring the curves closer to the diagonal, distributing retained tokens more evenly across the video. To assess whether this temporal redistribution also im-proves accuracy, we compare different bucket counts N on LongVideoBench, MLVU, and LVBench. The total KV budget is held fixed across bucket counts. Since the recent window itself guarantees retention of the latest tokens, we exclude this reserved region in the ablation to examine the effect of temporal bucketing. Figure 7 reports accuracy gains over the baseline without temporal bucketing, denoted by N = 0 in the figure. The tested bucket configurations outperform this baseline on all three benchmarks. The average gain is largest at N = 4 
+
+and decreases when N is increased to eight. These results suggest that temporal bucketing can improve accuracy as well as temporal coverage, while preserving selection by state drift within each span. 70(none) 2 4 8  
+
+> number of buckets N
+> 0.0 0.5 1.0 1.5 2.0
+> accuracy over  N = 0 (pp)
+> LongVideoBench MLVU LVBench
+> N= 4 (ours)
+
+Figure 7. Effect of bucket count on accuracy. Gains over the baseline without bucketing ( N = 0) are shown for LongVideoBench, MLVU, and LVBench. The thick black line shows the mean gain across the three benchmarks, which peaks at N = 4 among the tested settings. 
+
+4.5. Efficiency Analysis 
+
+In streaming inference, repeated KV eviction makes retention-signal computation a recurring cost. DeltaS uses recurrent states already produced by the forward pass, re-quiring a copy of the previous state and the norms of the state difference and the previous state. No additional for-ward pass or explicit attention computation is needed. In contrast, attention-based methods such as SnapKV, Stream-Mem, and HERMES perform additional attention compu-tation or proxy-query processing to obtain their retention scores. We measure runtime on a single A100 by streaming a 4,730-second MLVU video with M = 8,192 for 600 steps. For runtime measurements, all methods use two-frame chunks, and we report the median latency over steps in which eviction occurs for each method. Computing the state drift signal takes 2.07 ms, corresponding to 1.9% of the reference chunk forward time of 107 ms. Including selection and eviction, the total additional cost is 6.4 ms per eviction event, the lowest among the evaluated methods that compute a retention signal (Fig. 8). Under the same measurement protocol, InfiniPot-V adds 15.4 ms. The ad-ditional latency of StreamMem and HERMES exceeds the chunk forward time itself. The comparison with β∥e∥ shows that state-based sig-nals can differ substantially in computational cost. In our implementation, computing token-level residuals for this signal brings its total additional cost to 206.1 ms per evic-tion event, including selection and eviction. DeltaS avoids this computation by scoring chunks from the states already available before and after processing, achieving higher ac-curacy in the controlled comparison at lower cost. 0 25 50 75 100 125    
+
+> cost per eviction event (ms)
+> StreamMem HERMES SnapKV KeyDiff L2-norm InfiniPot-V
+> DeltaS (ours)
+> recency +121.4 +110.1 +43.5 +39.2 +36.3 +15.4
+> +6.4
+> +2.9
+> forward (107 ms) signal select+evict re-indexing
+
+Figure 8. Runtime overhead per KV eviction event. Colored segments show additional latency from signal computation, selec-tion and eviction, and cache re-indexing. The light gray segment represents the reference 107 ms chunk forward time, compressed by the axis break. The total additional cost of β∥e∥ (206.1 ms) is omitted for readability. 
+
+# 5. Conclusion 
+
+We introduced DeltaS, a query-agnostic and training-free KV eviction method that uses recurrent-state drift in gated-delta hybrid video-language models as a retention signal. Across six long-video benchmarks, DeltaS achieves strong performance among bounded-memory baselines, with gen-erally larger gains under tighter memory constraints. Con-trolled comparisons under a shared memory budget and re-tention policy show that state-based signals yield higher ac-curacy than position-, attention-, and key-value-based al-ternatives, supporting the utility of recurrent-state changes for KV retention. Temporal bucketing complements this signal by reducing the tendency to favor early parts of the stream and maintaining broader temporal coverage. By reusing states already produced by the forward pass, DeltaS achieves these gains with little additional compu-tation. These results show that the fixed-size recurrent state can both summarize past context and guide which content to retain in the KV memory of full-attention layers. 
+
+# 6. Limitations 
+
+Our evaluation uses a single hybrid backbone; the effective-ness of DeltaS across other hybrid architectures and model scales remains to be established. Our interpretation of state drift rests on the gated delta rule’s residual update, and its utility as a retention signal under other state-update rules re-quires further validation. Finally, all tokens in a chunk share a single score, so DeltaS cannot distinguish more informa-tive regions within a chunk through its scoring mechanism. Scoring at finer granularity is a natural extension. 8References 
+
+[1] Ali Behrouz, Peilin Zhong, and Vahab Mirrokni. Titans: Learning to memorize at test time. In Advances in Neural Information Processing Systems , 2025. 2 [2] Alex Chen, Renato Geh, Aditya Grover, Guy Van Den Broeck, and Daniel Mingyi Israel. The pitfalls of KV cache compression. In Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 41530–41553. Association for Compu-tational Linguistics, 2026. 1, 2 [3] Xueyi Chen, Keda Tao, Kele Shao, and Huan Wang. Stream-ingTOM: Streaming token compression for efficient video understanding. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 24675– 24685, 2026. 2 [4] Yilong Chen, Xiang Bai, Zhibin Wang, Chengyu Bai, Yuhan Dai, and Ming Lu. StreamKV: Streaming video question-answering with segment-based KV cache retrieval and com-pression. In Proceedings of the AAAI Conference on Artifi-cial Intelligence , pages 3120–3128, 2026. 2 [5] Wanyun Cui. A hippocampus for linear attention: An exact memory for what the recurrent state forgets. arXiv preprint arXiv:2607.02303 , 2026. 2, 3, 7 [6] Alessio Devoto, Yu Zhao, Simone Scardapane, and Pasquale Minervini. A simple and effective L2 norm-based strategy for KV cache compression. In Proceedings of the 2024 Conference on Empirical Methods in Natural Language Pro-cessing , pages 18476–18499. Association for Computational Linguistics, 2024. 2, 7 [7] Shangzhe Di, Zhelun Yu, Guanghao Zhang, Haoyuan Li, Tao Zhong, Hao Cheng, Bolin Li, Wanggui He, Fangxun Shu, and Hao Jiang. Streaming video question-answering with in-context video KV-cache retrieval. In International Con-ference on Learning Representations , 2025. 2, 5 [8] Crist´ obal Eyzaguirre, Jiajun Wu, and Juan Carlos Niebles. Linear scaling video VLMs for long video understanding. In 
+
+European Conference on Computer Vision , pages 232–251. Springer, 2026. 2 [9] Chaoyou Fu, Yuhan Dai, Yongdong Luo, Lei Li, Shuhuai Ren, Renrui Zhang, Zihan Wang, Chenyu Zhou, Yunhang Shen, Mengdan Zhang, Peixian Chen, Yanwei Li, Shao-hui Lin, Sirui Zhao, Ke Li, Tong Xu, Xiawu Zheng, En-hong Chen, Caifeng Shan, Ran He, and Xing Sun. Video-MME: The first-ever comprehensive evaluation benchmark of multi-modal LLMs in video analysis. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 24108–24118, 2025. 5 [10] Chaoyou Fu, Haozhi Yuan, Yuhao Dong, Yi-Fan Zhang, Yunhang Shen, Xiaoxing Hu, Xueying Li, Jinsen Su, Chengwu Long, Xiaoyao Xie, Yongkang Xie, Xiawu Zheng, Xue Yang, Haoyu Cao, Yunsheng Wu, Ziwei Liu, Xing Sun, Caifeng Shan, and Ran He. Video-MME-v2: Towards the next stage in benchmarks for comprehensive video under-standing. arXiv preprint arXiv:2604.05015 , 2026. 5, 6 [11] Yiran Guan, Liang Yin, Dingkang Liang, Jianzhong Ju, Zhenbo Luo, Jian Luan, Yuliang Liu, and Xiang Bai. Video streaming thinking: VideoLLMs can watch and think simul-taneously. In European Conference on Computer Vision ,pages 80–99. Springer, 2026. 2 [12] Jindong Jiang, Amala Sanjay Deshmukh, Kateryna Chu-machenko, Karan Sapra, Zhiding Yu, Guilin Liu, Andrew Tao, Pavlo Molchanov, Jan Kautz, and Wonmin Byeon. Stateful token reduction for long-video hybrid VLMs. arXiv preprint arXiv:2603.00198 , 2026. 2 [13] Minsoo Kim, Kyuhong Shim, Jungwook Choi, and Simyung Chang. InfiniPot-V: Memory-constrained KV cache com-pression for streaming video understanding. In Advances in Neural Information Processing Systems , 2025. 1, 2, 5, 7 [14] Kimi Team et al. Kimi linear: An expressive, efficient atten-tion architecture. arXiv preprint arXiv:2510.26692 , 2025. 1, 2[15] Yuhong Li, Yingbing Huang, Bowen Yang, Bharat Venkitesh, Acyr Locatelli, Hanchen Ye, Tianle Cai, Patrick Lewis, and Deming Chen. SnapKV: LLM knows what you are looking for before generation. In Advances in Neural Information Processing Systems , 2024. 2, 7 [16] Junming Lin, Zheng Fang, Chi Chen, Haoxuan Cheng, Zi-hao Wan, Fuwen Luo, Ziyue Wang, Peng Li, Yang Liu, and Maosong Sun. StreamingBench: Assessing the gap for MLLMs to achieve streaming video understanding. In 
+
+ICASSP 2026 – 2026 IEEE International Conference on Acoustics, Speech and Signal Processing , pages 12147– 12151. IEEE, 2026. 5 [17] Zirui Liu, Jiayi Yuan, Hongye Jin, Shaochen Zhong, Zhaozhuo Xu, Vladimir Braverman, Beidi Chen, and Xia Hu. KIVI: A tuning-free asymmetric 2bit quantization for KV cache. In Proceedings of the 41st International Con-ference on Machine Learning , pages 32332–32344. PMLR, 2024. 2 [18] Karttikeya Mangalam, Raiymbek Akshulakov, and Jitendra Malik. EgoSchema: A diagnostic benchmark for very long-form video language understanding. In Advances in Neural Information Processing Systems , 2023. 5 [19] Le Tu Ngoc Minh, Jinyeong Lim, and Dongsu Han. Pro-toKV: Streaming video understanding under delayed query with summary-state memory. In Proceedings of the 43rd In-ternational Conference on Machine Learning , 2026. 2 [20] MiniMax et al. MiniMax-01: Scaling foundation models with lightning attention. arXiv preprint arXiv:2501.08313 ,2025. 1, 2 [21] Zhenyu Ning, Guangda Liu, Qihao Jin, Chengwei Li, Wen-chao Ding, Minyi Guo, and Jieru Zhao. LiveVLM: Efficient online video understanding via streaming-oriented KV cache and retrieval. In Proceedings of the 63rd ACM/IEEE Design Automation Conference , 2026. 2 [22] Junbo Niu, Yifei Li, Ziyang Miao, Chunjiang Ge, Yuanhang Zhou, Qihao He, Xiaoyi Dong, Haodong Duan, Shuangrui Ding, Rui Qian, Pan Zhang, Yuhang Zang, Yuhang Cao, Conghui He, and Jiaqi Wang. OVO-Bench: How far is your Video-LLMs from real-world online video understanding? In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 18902–18913, 2025. 5
+
+9[23] Junyoung Park, Dalton Jones, Matthew J. Morse, Raghavv Goel, Mingu Lee, and Christopher Lott. KeyDiff: Key similarity-based KV cache eviction for long-context LLM in-ference in resource-constrained environments. In Advances in Neural Information Processing Systems , 2025. 2, 7 [24] Qwen Team. Qwen3.5: Towards native multimodal agents. 
+
+https://qwen.ai/blog?id=qwen3.5 , 2026. 1, 2, 3, 5 [25] Imanol Schlag, Kazuki Irie, and J¨ urgen Schmidhuber. Linear transformers are secretly fast weight programmers. In Pro-ceedings of the 38th International Conference on Machine Learning , pages 9355–9366. PMLR, 2021. 2 [26] Yujiao Shen, Shulin Tian, Jingkang Yang, and Ziwei Liu. A simple baseline for streaming video understanding. arXiv preprint arXiv:2604.02317 , 2026. 5, 14 [27] Hongyuan Tao, Bencheng Liao, Shaoyu Chen, Haoran Yin, Qian Zhang, Wenyu Liu, and Xinggang Wang. InfiniteVL: Synergizing linear and sparse attention for highly-efficient, unlimited-input vision-language models. arXiv preprint arXiv:2512.08829 , 2025. 2 [28] Weihan Wang, Zehai He, Wenyi Hong, Yean Cheng, Xiao-han Zhang, Ji Qi, Ming Ding, Xiaotao Gu, Shiyu Huang, Bin Xu, Yuxiao Dong, and Jie Tang. LVBench: An ex-treme long video understanding benchmark. In Proceedings of the IEEE/CVF International Conference on Computer Vi-sion , pages 22958–22967, 2025. 5 [29] Xin Wang, Hui Shen, Boyuan Zheng, Xueshen Liu, Minky-oung Cho, Zhongwei Wan, Zesen Zhao, Zhuoqing Mao, Shen Yan, and Mi Zhang. Dynamic linear attention. In Pro-ceedings of the 43rd International Conference on Machine Learning , 2026. 2, 3 [30] Haoning Wu, Dongxu Li, Bei Chen, and Junnan Li. LongVideoBench: A benchmark for long-context inter-leaved video-language understanding. In Advances in Neural Information Processing Systems , pages 28828–28857, 2024. 5[31] Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song Han, and Mike Lewis. Efficient streaming language models with attention sinks. In International Conference on Learning Representations , 2024. 2, 4 [32] Ruyi Xu, Guangxuan Xiao, Yukang Chen, Liuning He, Kelly Peng, Yao Lu, and Song Han. StreamingVLM: Real-time un-derstanding for infinite video streams. In International Con-ference on Learning Representations , pages 61463–61475, 2026. 2, 4, 5 [33] Songlin Yang, Jan Kautz, and Ali Hatamizadeh. Gated delta networks: Improving Mamba2 with delta rule. In Interna-tional Conference on Learning Representations , 2025. 2, 3 [34] Yanlai Yang, Zhuokai Zhao, Satya Narayan Shukla, Aashu Singh, Shlok Kumar Mishra, Lizhu Zhang, and Mengye Ren. StreamMem: Query-agnostic KV cache memory for stream-ing video understanding. arXiv preprint arXiv:2508.15717 ,2025. 1, 2, 5 [35] Luca Zancato, Arjun Seshadri, Yonatan Dukler, Aditya Go-latkar, Yantao Shen, Benjamin Bowman, Matthew Trager, Alessandro Achille, and Stefano Soatto. B’MOJO: Hybrid state space realizations of foundation models with eidetic and fading memory. In Advances in Neural Information Process-ing Systems , 2024. 2, 3 [36] Xiangyu Zeng, Kefan Qiu, Qingyu Zhang, Xinhao Li, Jing Wang, Jiaxin Li, Ziang Yan, Kun Tian, Meng Tian, Xinhai Zhao, Yi Wang, and Limin Wang. StreamForest: Efficient online video understanding with persistent event memory. In 
+
+Advances in Neural Information Processing Systems , 2025. 2[37] Haowei Zhang, Shudong Yang, Jinlan Fu, See-Kiong Ng, and Xipeng Qiu. HERMES: KV cache as hierarchical mem-ory for efficient streaming video understanding. In Pro-ceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) ,pages 8411–8430. Association for Computational Linguis-tics, 2026. 2, 5 [38] Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai, Zhao Song, Yuandong Tian, Christopher R´ e, Clark Barrett, Zhangyang Wang, and Beidi Chen. H 2O: Heavy-hitter oracle for efficient generative in-ference of large language models. In Advances in Neural Information Processing Systems , 2023. 2 [39] Junjie Zhou, Yan Shu, Bo Zhao, Boya Wu, Zhengyang Liang, Shitao Xiao, Minghao Qin, Xi Yang, Yongping Xiong, Bo Zhang, Tiejun Huang, and Zheng Liu. MLVU: Benchmarking multi-task long video understanding. In Pro-ceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 13691–13701, 2025. 5 
+
+10 A. Implementation Details 
+
+A.1. Method Adaptations for Table 1 
+
+Table 1 compares complete streaming systems on a com-mon Qwen3.5-9B backbone. Every method receives the same KV budget M , while method-specific choices such as chunk size, reserved regions, budget unit, and head-wise selection follow the corresponding original formula-tion whenever possible. We introduce substitutions only when architectural differences prevent a direct port; these cases are described below. Since only the eight full-attention layers maintain KV caches, eviction is applied ex-clusively to those layers. Table 3 summarizes the resulting configurations. 
+
+Chunk size and compression schedule. Our default streaming path processes two frames per chunk. Stream-Mem and HERMES instead use the 8-frame and 16-frame chunks specified by their original formulations, respec-tively; forcing them to two frames would alter the meth-ods rather than reproduce them. Compression is triggered whenever the cache exceeds its budget. This occurs at ev-ery streaming step for most methods. InfiniPot-V is an exception because each compression removes 25% of its budget, requiring approximately 18.5 subsequent steps at 
+
+M = 8 ,192 , and about twice as many at M = 16 ,384 ,before the cache fills again. 
+
+InfiniPot-V. We follow the standard hyperparameters re-ported in the paper: half of the budget allocated to TaR and half to VaN, a recent-frame ratio of 0.125, and a compres-sion rate of 0.75. The public implementation defaults to a recent-frame ratio of 0.25; we use the paper’s value of 0.125 instead. For TaR, we follow the public implemen-tation in operating on keys after positional encoding. Al-though the paper describes keys before positional encod-ing, the released code uses post-encoding keys, which also matches the representation stored by our backbone. This distinction affects only TaR; VaN operates on values and is therefore unchanged. Separator text inserted between video chunks is included among compressible tokens, preventing these tokens from accumulating outside the fixed budget on long streams. 
+
+StreamMem. Because no public implementation is avail-able, we use the paper as the reference. The paper ex-presses its score as a q × n matrix without specifying a head axis, which we interpret as a score shared across heads. Two adaptations are required by our backbone. First, the temporal-grid step of two frames is used as the unit for the input-frame filter. Filtering individual frames would re-pair the surviving frames and thereby alter their represen-tation, whereas filtering at the grid-step level preserves the original encoded units. Second, when duplicate frames are identified, we retain one representative rather than averag-ing them. All other hyperparameters follow the ablation-optimal configuration reported by the authors, including merging and a filter threshold of 0.95. 
+
+HERMES. We use the approximate-attention path se-lected by the released implementation under its default at-tention backend. When flash attention or SDPA is used, this is the path executed by the original code rather than exact attention. One adaptation is required for the layer hierarchy: directly applying the original thresholding rule to only eight full-attention layers leaves the shallow group empty. We therefore enforce at least one shallow layer, after which seven of the eight layers follow the original assign-ment and one differs. Middle-layer coefficients follow the paper. Summary-token handling and position re-indexing are ported together; after re-deriving the indexing expres-sion for Qwen3.5, we verify that it is bit-identical to a direct transcription of the original operation. 
+
+Simple controls. The random, recency, and uniform base-lines differ only in their retention rule. Random eviction samples at chunk granularity to avoid introducing token-level fragmentation as an additional variable. Recency al-locates the entire non-sink budget to the most recent con-text, corresponding to approximately the latest 65 seconds at M = 8 ,192 . Uniform retention samples over absolute stream time rather than the indices currently present in the cache; sampling over surviving indices would progressively bias retention toward recent content after repeated eviction. 
+
+Reference settings. Full KV follows the same stream-ing path with eviction disabled and therefore provides an unbounded-memory reference. ReKV is query-aware: dur-ing streaming it retains the first 16 tokens corresponding to the original chat preamble together with the most recent 512 tokens, and after the question arrives it fills the avail-able context using retrieval. 
+
+Verification against reference implementations. Be-cause all methods are evaluated on a different backbone from their original reports, reproducing published accuracy values directly is not meaningful. We instead verify the equivalence of key implementation components where pos-sible. HERMES position re-indexing is bit-identical to a transcription of the original implementation, and InfiniPot-V TaR scores are byte-identical to the reference computa-tion when the complete frame grid is retained. 
+
+A.2. Controlled Retention-Signal Comparison 
+
+Table 2 is designed to isolate the retention signal from the surrounding streaming system. All rows therefore share a 11 Method Ref. impl. Chunk Always kept Recent region Budget unit Head axis Period                                                                   
+
+> random —2 frames sink 4 1,024 token shared every step recency —2 frames sink 4 M−4token shared every step uniform —2 frames sink 4 1,024 token shared every step InfiniPot-V author code 2 frames text prefix — (query frames) frame per KV head every 25% of M
+> StreamMem paper 8 frames text prefix — (from the score) token shared every step HERMES author code 16 frames text prefix — (from the score) token shared every step
+> DeltaS (ours) —2 frames sink 4 1,024 token shared every step
+> Full KV —2 frames ————no eviction
+> ReKV author code 2 frames preamble 16 512 (ingest) token shared once at question time
+
+Table 3. Implementation conventions for Table 1. All bounded methods share the per-layer budget M ; other conventions follow the original implementations. “—” in Recent region: no reserved region, with recent tokens retained through the method’s score (for InfiniPot-V, query frames within the TaR budget). HERMES keeps M − 1 tokens in deep layers plus one summary token. 
+
+budget of M = 8 ,192 , four sink tokens, a recent window of 1,024 tokens, and two-frame chunks. Eviction is ap-plied independently to each full-attention layer whenever its cache exceeds the budget, and all scores are computed in float32. Signals whose original definitions assign greater importance to smaller values are sign-inverted so that all rows follow the same top-score retention convention. Method-specific choices that are inseparable from the score itself, most notably head-wise aggregation and scor-ing granularity, are preserved. The uniform baseline is the only exception to the temporal bucket allocation used by the remaining rows, since uniform sampling already enforces coverage along time. Thus, Table 2 should be interpreted as a controlled comparison of retention signals rather than a reproduction of each complete method. The signals are ordered by the information they use: po-sition, attention, key or value representations, and recurrent state. 
+
+SnapKV. SnapKV uses an observation window to esti-mate the attention received by cached tokens. In the origi-nal single-prefill setting, this window consists of the final 32 prompt tokens. Because streaming has no fixed prompt end-point, we instead use the last 32 tokens of the currently ar-riving chunk as the observation window and recompute the score at every streaming step. As in the original method, scores are not accumulated over time. Attention columns are summed and max-pooled with kernel size 7 along the cache-index axis. Although repeated eviction introduces gaps along this axis, the temporal ordering of surviving to-kens is preserved. The original observation tokens are al-ways retained; in our setting they fall within the common 1,024-token recent window. 
+
+L2-norm. The original method leaves the first two layers uncompressed because key norm is poorly correlated with attention in those layers. In Qwen3.5, layers 0 and 1 are Gated DeltaNet layers and do not maintain KV caches, so no additional exclusion is required. Scores are computed directly from the current key cache at eviction time without an accumulation buffer. Because the L2 norm is rotation-invariant, the score is unchanged by positional rotation. 
+
+KeyDiff. We use NVIDIA kvpress as the reference im-plementation because no author code is available. Follow-ing the formulation in the paper, keys are normalized before their mean direction is computed. Normalizing after aver-aging would yield a different anchor direction, although the paper reports negligible accuracy differences between the variants. The anchor is recomputed over the complete sur-viving cache at each eviction. Because positional encoding rotates each key by a position-dependent angle, cosine simi-larities between keys change, so we use keys after positional encoding, consistent with the reference implementation. 
+
+TaR. The original TaR formulation restores the video frame grid and compares keys at the same spatial patch co-ordinate. Token-level eviction destroys this complete grid, so for the controlled comparison we use an equivalent lin-earized computation: for each patch coordinate, we com-pute the mean key direction over the recent region and com-pare retained keys against it. When the full grid is available, this formulation produces byte-identical scores to a tran-scription of the original method. To maintain the common reserved-region setting of Table 2, TaR uses our fixed recent region rather than a fraction of all frames. Text tokens are scored using the same formulation. 
+
+VaN. We retain the original score ∥v∥2 but disable the method’s layer-adaptive pooling. The original pooling size is determined from the coefficient of variation of value norms over the frame grid, which is no longer well defined after token-level cache thinning. Values themselves do not receive positional encoding. 
+
+β∥e∥. We transfer only the scoring function from the learned memory architecture, without its architecture, train-ing procedure, or cache design. The residual write βtetk⊤
+
+> t
+
+has rank at most one. For unit-norm keys and nonnegative 12 Signal Reads Scoring function Head axis Granularity Reference impl.                                                 
+
+> uniform position even indices along time (no score) ———SnapKV attention column sum of observation-window attention
+> →max pooling (kernel 7) per KV head token paper Listing 1 L2-norm key −∥ k∥2per KV head token author code KeyDiff key −cos( k, mean key direction )per KV head token kvpress TaR key negative mean cosine with recent keys at the same patch coordinate per KV head token author code VaN value ∥v∥2per KV head token author code
+> β∥e∥state chunk mean of β∥v−αSk ∥2shared chunk scalar paper Eq. 6 DeltaS (ours) state layer mean of ∥Si
+> after −Si
+> before ∥F/∥Si
+> before ∥Fshared chunk scalar —
+
+Table 4. Retention-signal configurations for Table 2. The memory budget and reserved regions are fixed across rows. Head-wise aggregation and scoring granularity follow the corresponding signal definition where they cannot be separated from the score itself. 
+
+βt, its Frobenius norm is βt∥et∥2. We compute this quan-tity per head, average across heads and across the linear-attention layers, and then average across the tokens of each chunk, producing one shared chunk-level score for all full-attention layers. Matching the chunk granularity of DeltaS allows the two state-based scores to be compared without introducing a difference in selection granularity. We use the product β∥e∥, rather than either factor individually, follow-ing the ablation reported by the original authors. 
+
+Shared constraints in the controlled comparison. TaR and VaN jointly form the original InfiniPot-V system, where the available budget is divided between their two scores and the selected sets are combined with a recent region. In Ta-ble 2, each signal instead ranks the entire candidate cache independently under the same budget, so these rows rep-resent the individual signals rather than a reproduction of InfiniPot-V. Similarly, SnapKV originally expands KV entries to query heads and performs selection per query head. Be-cause Qwen3.5 stores the cache per KV head, we aggregate scores over query heads that share the same KV head before selection. Finally, all signals are evaluated with the same four sink tokens, 1,024-token recent region, and token-count budget. Several original formulations use pure top-k selection or frame-based budgets; those conventions are intentionally replaced here to create a common retention setting. Conse-quently, 12.5% of the M = 8 ,192 budget is always reserved for recent context, while the scoring signal determines re-tention within the remaining capacity. We do not equalize scoring granularity, since averaging a token-level score into chunk-level values would itself modify the signal’s original behavior. 
+
+A.3. Reproducibility Details 
+
+Model and inference. We use the public Qwen3.5-9B checkpoint in bfloat16 without modifying its weights. The model contains 24 Gated DeltaNet layers and eight full-attention layers at indices 3, 7, 11, 15, 19, 23, 27, and 31. Each full-attention layer has four KV heads with head di-mension 256, resulting in 32 KiB of KV memory per to-ken across all eight layers. In contrast, the recurrent linear-attention state remains fixed in size independently of the number of processed tokens. We use the PyTorch linear-attention implementation provided by Transformers. The 107 ms chunk-forward time reported in Sec. 4.5 is measured under this configuration and is shared across all methods. 
+
+Video preprocessing. Videos are sampled uniformly at 2 fps. Frame resolution follows StreamingVLM’s pixel-budget rule, using the total number of sampled frames. Each two-frame chunk contains 98–112 visual tokens depending on resolution, together with 20 timestamp tokens. 
+
+Prompt and streaming state. Video chunks are ap-pended sequentially using the same chat template and timestamp convention for all methods. Timestamp text is relative to the corresponding chunk. When a question is answered, KV entries produced during the question and re-sponse are discarded afterward, and ingestion resumes from the cache state that preceded the question, as described in Sec. 3.3. Thus, question turns do not modify the subsequent streaming state. 
+
+Benchmark protocols. Table 5 summarizes the bench-mark splits, item counts, and aggregation rules. Video-MME and LongVideoBench are evaluated using frames only. Although the official LongVideoBench protocol in-cludes interleaved subtitles, we omit subtitles so that both benchmarks are evaluated under the same visual-only con-dition. EgoSchema is evaluated on the public 500-item subset. On Video-MME v2, we report per-question accu-racy rather than the official group-based non-linear score, so these values are not directly comparable to the official leaderboard. For the streaming benchmarks, we evaluate the real-time visual understanding track of StreamingBench 13 Benchmark Split Items Aggregation                         
+
+> MLVU dev (MC) 2,173 M-Avg (mean over 7 tasks) Video-MME full 2,700 mean over items Video-MME v2 test 3,200 mean over items LongVideoBench val 1,337 mean over items LVBench full 1,549 mean over items EgoSchema subset 500 mean over items StreamingBench real-time (10 tasks) 2,495 mean over items (Appendix B) OVO-Bench MC regimes (9 of 12 tracks) 1,468 mean over items within regime (Appendix B)
+
+Table 5. Benchmark splits and evaluation protocols. MLVU uses the official M-Avg metric. StreamingBench and OVO-Bench are analyzed separately in Appendix B. 
+
+and the two multiple-choice regimes of OVO-Bench, back-ward tracing and real-time visual perception; the forward active responding regime is excluded because it follows a dense-query protocol along the timeline rather than a single question after the observed prefix. OVO-Bench results are item-weighted within each regime, rather than averaging the per-track means as in the official scorer; the 68.6/67.7 pair reported in Appendix B is the only result computed using the official aggregation. 
+
+Memory budget. The budget M denotes the number of tokens retained by each full-attention layer. We use M =8,192 and M = 16 ,384 , corresponding to approximately 256 MiB and 512 MiB of KV memory, or slightly over one and two minutes of video at our sampling rate. All eight full-attention layers receive the same budget. 
+
+Runtime measurement. The efficiency analysis in Sec. 4.5 streams a 4,730-second MLVU video for 600 steps on a single A100. Each method is measured in three rep-etitions; we discard the first as GPU warm-up and report the median, over the remaining repetitions, of the median latency across steps in which eviction occurs. For this mea-surement only, all methods use two-frame chunks so that the cost of a single eviction event is compared under the same input size; accuracy is not evaluated under this modi-fied setting. The decomposition shown in Fig. 8 is obtained from instrumentation and should be interpreted as less pre-cise than the measured total latency. 
+
+Hardware. Accuracy evaluations are run on NVIDIA H100 GPUs, and the runtime measurements in Sec. 4.5 use a single A100 GPU. 
+
+# B. Streaming QA Benchmarks 
+
+Memoryless baseline. To better understand the behav-ior of existing streaming-QA benchmarks, we additionally evaluate a memoryless baseline that observes only the most recent frames. The prompt, input format, and timestamp representation are kept identical to those used by the other                                   
+
+> Method Streaming Bench OVO Real-Time OVO Backward
+> Recent frames only, no memory §
+> recency-4f 81.2 81.8 54.8 recency-8f 82.4 80.4 53.7
+> Unbounded or query-aware
+> Full KV †80.1 69.8 50.9 ReKV ‡77.0/78.2 66.4/69.2 52.8/52.6
+> Simple baselines
+> random 80.6/80.4 71.7/71.2 52.1/ 53.1
+> recency 80.4/80.5 72.0/70.0 50.7/51.5 uniform 79.5/79.8 70.0/71.0 50.9/52.5
+> Streaming KV compression
+> InfiniPot-V 81.2 /80.8 74.2 /72.6 52.8/52.6 StreamMem 77.0/76.4 64.5/64.9 51.0/50.2 HERMES 80.8/80.0 72.3/71.1 52.1/52.3
+> DeltaS (ours) 80.2/79.9 71.3/70.1 52.9 /52.3
+
+Table 6. Streaming QA benchmarks. Cells are M =8,192 / 16 ,384 . OVO-Bench is shown as its two multiple-choice regimes, each question-weighted. †Full KV is unbounded. ‡ReKV uses the question to retrieve KV entries. §recency-4f/8f are not bound by M ; their cache size is set by the frame win-dow ( ≈1.6k and 2.9k tokens on StreamingBench, 2.5k and 4.8k on OVO-Bench). Recent-frame-only, unbounded-memory, and query-aware reference methods are excluded from ranking. 
+
+methods; the amount of temporal context available to the model is restricted. Following the setting of [26], we use a per-frame visual-token cap of 768. The recency-4f and recency-8f variants use 8 and 16 input frames at 2 fps, cov-ering approximately four and eight seconds, respectively. The resulting KV caches require no eviction: their median lengths are 1,552 and 2,911 tokens on StreamingBench, or 19% and 36% of our budget of M = 8 ,192 , and 2,502 and 4,812 tokens on OVO-Bench, or 31% and 59%. Under this setting, we obtain 68.6 on OVO-Bench using the scoring convention of [26], closely matching their reported score of 67.7. 
+
+Short-context baselines can outperform full memory. 
+
+Table 6 shows a markedly different behavior from the 14 long-video benchmarks considered in the main evalua-tion. Short-context baselines achieve the highest aggre-gate scores across all three columns despite retaining only a small fraction of the available context. They also out-perform Full KV, which retains the complete video history. This indicates that high aggregate scores on these bench-marks do not necessarily imply effective long-term memory retention. The same pattern appears at the task level. Across the nine OVO-Bench tracks, recency-4f outperforms Full KV on seven, including optical character recognition (OCR, 
+
++18 .8), object recognition (OJR, +15 .2), action recog-nition (ACR, +13 .8), and spatial understanding (STU, 
+
++11 .2). These tracks primarily ask about information visi-ble near the end of the stream, making recent observations sufficient for answering the question. In contrast, episodic memory (EPM, −2.7) and action sequence identification (ASI, −8.8) favor Full KV and require information from earlier portions of the video. Five of the ten Streaming-Bench tasks exhibit a similar pattern. 
+
+More context can degrade performance. Hallucination detection (HLD), which asks questions unrelated to the video and expects “Unable to answer,” provides the clearest example. Every method that processes the complete video scores below the random-guess expectation of 27.6%, span-ning 17.7 to 25.3: Full KV scores 18.3, ReKV 24.2, and DeltaS 19.9, whereas recency-4f reaches 43.0. Thus, low performance on this track cannot be interpreted solely as a failure to retain relevant history; access to substantially more context can reduce accuracy. 
+
+Performance on memory-dependent tasks. The relative ordering changes on tasks that require information from ear-lier in the stream. The Backward column of Table 6 in-cludes HLD. When HLD is excluded, DeltaS obtains the highest Backward score among all methods in the table, reaching 66.7 at M = 8 ,192 , compared with 64.5 for Full KV, 59.8 for recency-4f, and 65.6 for InfiniPot-V, the next-best bounded-memory method at the same budget. At this budget, DeltaS also ranks first on EPM. On Counting, the StreamingBench task that requires accumulating informa-tion throughout the video, DeltaS reaches 60.1, whereas recency-4f and recency-8f score 39.4 and 39.9, respec-tively. Increasing the short-term observation window there-fore provides little improvement, while retaining informa-tion across the stream yields a substantially higher score. Overall, Table 6 suggests that aggregate performance on StreamingBench and OVO-Bench is strongly influenced by tasks that can be solved from recent observations and, in some cases, become harder with longer context. We therefore report these benchmarks separately and use the memory-dependent tasks to examine whether an eviction method preserves information that must be revisited later. 15

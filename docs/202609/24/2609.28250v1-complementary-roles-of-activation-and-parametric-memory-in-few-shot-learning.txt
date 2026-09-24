@@ -1,0 +1,279 @@
+Title: Complementary Roles of Activation and Parametric Memory in Few-Shot Learning
+
+URL Source: https://arxiv.org/pdf/2609.28250v1
+
+Published Time: Thu, 24 Sep 2026 01:22:49 GMT
+
+Number of Pages: 5
+
+Markdown Content:
+# COMPLEMENTARY ROLES OF ACTIVATION AND PARAMETRIC MEMORY IN FEW-SHOT LEARNING 
+
+# Miaohe Niu 1,∗, Runsong Zhao 1,∗, Xinyu Liu 1, Bo Jin 1,Yucheng Qiao 1, Chunliang Zhang 1,2, Jingbo Zhu 1,2, Tong Xiao 1,2,†,
+
+1 Northeastern University, Shenyang, China 
+
+2 NiuTrans Research, Shenyang, China 
+
+ABSTRACT 
+
+At test time, large language models (LLMs) can encode histor-ical information in activation memory (i.e., KV caches) and para-metric memory (i.e., updated parameters). While activation mem-ory is generally considered effective for factual recall and paramet-ric memory for learning new tasks, their interplay remains unclear. In this work, we systematically investigate the role of memory in few-shot learning through controlled experiments. We find that ac-tivation memory is superior for recalling facts, whereas parametric memory does not consistently outperform activation memory in task learning. Moreover, our experiments show that the composite task, Conditional Arithmetic, requires the synergy of both memory types. Through neuron-level analysis, we find that the model activates dis-tinct sets of neurons when accessing the same historical informa-tion through activation versus parametric memory. When both mem-ory types are combined, the model recruits neurons from both sets, which is crucial for solving Conditional Arithmetic. These findings suggest that neither memory mechanism alone is sufficient for this composite task, highlighting the importance of their collaboration. 
+
+Index Terms — large language models, in-context learning, test-time training, neuron localization, conditional reasoning 
+
+1. INTRODUCTION 
+
+Memory is fundamental to the ability of large language models (LLMs) to acquire knowledge, learn from experience, and reason in new situations [1]. Understanding the mechanisms through which past information becomes available for subsequent learning and rea-soning is therefore essential to developing more adaptable LLMs. At test time, we distinguish two memory substrates for the purposes of this study: activation memory, which encodes history in contextual activations such as key-value (KV) caches, and parametric memory, which incorporates history through parameter updates via test-time training (TTT) [2, 3]. Prior work motivates a natural hypothesis: ac-tivation memory is better suited to factual recall, whereas parametric memory is better suited to learning new tasks [4, 5]. However, whether this division of roles consistently holds re-mains unclear [6, 7], as does how the two memory types work to-gether. To address these open questions, we investigate three re-search questions: RQ1: Is activation memory actually better at fac-tual recall, while parametric memory is better at learning new tasks? 
+
+RQ2: Are there scenarios where effective task performance requires collaboration between the two memory types? RQ3: If so, what mechanisms underlie this collaboration? 
+
+∗ Equal contribution. 
+
+† Corresponding author. Task Learning OOD: Same rules, inputs beyond history range. 
+
+## Factual Recall Recall a fact from history 
+
+History: The yon-index of Klindex is 22. The yon-index of Cribling is 15. ... Question: The yon-index of Klindex is Answer: 22 
+
+## Basic Task Learning 
+
+Unary Rule Learning f(x) = 3 x
+
+History: The xupple of 61 is 183. The xupple of 67 is 201. ... Question: The xupple of 74 is Answer: 222 
+
+Multiplication f(a, b) = a × b
+
+History: The frondax of 9 and 6 is 54. The frondax of 9 and 4 is 36. ... Question: The frondax of 91 and 35 is Answer: 3185 
+
+Condition Judgment f(a, b) = m ax (a, b)History: The tormiq of 28 and 15 is 28. The tormiq of 13 and 27 is 27. ... Question: The tormiq of 84 and 89 is Answer: 89 
+
+Arithmetic Execution f(a, b) = a ± b
+
+History: The brindlex of 42 and 27 is 15. The brindlex of 44 and 21 is 23. ... Question: The brindlex of 69 and 33 is Answer: 36 
+
+## Composite Task Learning 
+
+Conditional Arithmetic 
+
+History A: a > b → a + b | a ≤ b → a − b
+
+The kelvar of 25 and 14 is 39. The kelvar of 15 and 17 is -2. ... Question: The kelvar of 79 and 50 is Answer: 129 History B: a > b → a − b | a ≤ b → a + b
+
+The kelvar of 25 and 14 is 11. The kelvar of 15 and 17 is 32. ... Question: The kelvar of 79 and 50 is Answer: 29 
+
+Fig. 1 : Examples of our synthetic tasks, grouped into factual re-call, basic task learning, and composite task learning. Task-specific meanings and rules are defined by the supplied history rather than pretrained knowledge. To address these questions, we need to isolate information ac-quired at test time from knowledge already encoded in the base model. We therefore construct synthetic tasks involving novel con-arXiv:2609.28250v1 [cs.CL] 23 Sep 2026 cepts represented by invented words, whose task-specific meanings are available only through test-time history [6, 8]. History examples define each invented word through either associated facts or input– output demonstrations. For example, to compute the brindlex of 42 and 27, the model must first infer from history examples what op-eration brindlex represents (Fig. 1). We compare activation-only, parameter-only, and combined memory settings using the same base model and histories. For RQ1 , our experiments confirm the advan-tage of activation memory in factual recall, but show that parametric memory is not consistently superior in learning new tasks. For RQ2 ,we identify a conditional arithmetic task (see the last task in Fig. 1) requiring the model to compare two numbers and then choose addi-tion or subtraction according to a learned rule, where combining the memories substantially outperforms either alone. For RQ3 , neuron-level analysis [9, 10] suggests how the two memory types collaborate. When history is encoded only in param-eters, neurons associated with condition judgment show weaker ac-tivity than in the combined setting. When history is retained only in activations, neurons associated with arithmetic execution show weaker activity instead. Combining the memories yields stronger activity in both groups alongside improved task performance. These results suggest that the two memory types support different steps of the composite task despite receiving the same history, indicating their complementary roles in task execution. 
+
+2. PRELIMINARIES 
+
+Surveys of memory in LLMs commonly distinguish parametric memory—knowledge held in model weights—from memory carried by the model’s contextual state, although the latter is named differ-ently across works [11, 12, 13, 14]. When historical text is supplied as context, the model encodes it into activations used for inference. Therefore, we refer to these two carriers as activation memory and 
+
+parametric memory , respectively, following the distinction between working memory in activations and knowledge in weights [15]. 
+
+2.1. Activation Memory 
+
+Activation memory retains information in the states produced when a model reads history. In autoregressive Transformers [16], these states are the key and value vectors cached for subsequent tokens; in RNNs, they are recurrent hidden states [17]. Thus, contextual information can remain available to answer a new question without updating the model parameters. Activation memory is commonly expected to retain specific facts and examples supplied in the current context [15]. 
+
+2.2. Parametric Memory 
+
+Parametric memory incorporates history through parameter updates. One common use is inference-time adaptation: the model uses the current history to update its parameters or a temporary parameter module before answering the query [2, 3, 18]. Our parameter-only and combined settings use this form of adaptation. Parametric mem-ory is commonly expected to encode reusable rules that transfer across inputs [3, 6]. A second line of work trains the model itself to perform such up-dates at test time. In TTT, for example, history updates the weights of a small internal learner. Those weights carry the sequence in-formation as a state, while the surrounding model parameters are trained to determine how the state is initialized and updated [19]. DeltaNet and Titans use the same broad idea: history is written into a compact, learnable state rather than remaining only in the activations of a fixed model [20, 21]. These approaches make test-time learning part of the model’s training design, whereas we use inference-time adaptation to control whether history is encoded in activations, pa-rameters, or both. 
+
+2.3. Memory Encoding and Inference 
+
+Let H denote the history of n examples, q the query, a its target answer, and θ0 the pretrained model parameters. Write mθ 
+
+> H
+
+for the activation memory obtained by encoding history H with parameters 
+
+θ. Parameter adaptation instead gives θH = U(θ0, H), where U
+
+denotes the update procedure. Fig. 2 illustrates three experimental settings, each represented by a complete memory state M containing the model parameters and any retained history activations. ACT uses Mact = ( θ0, m θ0 
+
+> H
+
+): history H is retained in activa-tions with the base parameters fixed. PARA uses Mpara = ( θH, ∅): history is written into the param-eters. Here ∅ means no history-derived activation state is retained; parametric memory is still present. COMBO uses Mcombo = ( θH, m θH 
+
+> H
+
+): after adaptation, the same history is encoded again with the adapted model. Its activation mem-ory therefore need not equal that of A CT .All settings generate an answer as ˆa = LLM( q; M ), where 
+
+LLM denotes autoregressive generation using the parameters and any history state contained in M . We use the same query and decod-ing procedure; each instance starts from θ0.
+
+2.4. Task Definitions 
+
+We define six tasks for factual recall, rule learning, and their com-position. Invented words and rules specified only through test-time examples keep the required instance-specific information out of pre-training, so the evaluated facts and mappings must be obtained from the supplied history. Across settings, the history, query, and decod-ing procedure are fixed. Fig. 1 shows six tasks in three groups. Factual Recall asks for a fact explicitly supplied in history. Basic Task Learning requires ap-plying a demonstrated rule: Unary Rule Learning maps one number to another; Multiplication computes a product; Condition Judgment selects an input by comparison; and Arithmetic Execution applies addition or subtraction. Unlike Factual Recall , which isolates re-trieval, the four basic tasks each require a single learned operation, testing the RQ1 hypothesis that the two memory types have differ-ent strengths [8]. Composite Task Learning uses Conditional Arith-metic: the model judges a condition, selects addition or subtraction, and executes it in one instance. This tests whether either memory type suffices or both are needed, as posed by RQ2. 
+
+3. EXPERIMENTS 3.1. Experimental Setup 
+
+We evaluate Qwen3-1.7B-Base, Qwen3-4B-Base, and Qwen3-8B-Base [22], together with Llama-3.2-1B [23], on the six synthetic tasks. The main experiment uses 300 evaluation instances per task, each with n = 50 history examples. We report exact-match accuracy against the target answer a.To encode history in parameters, we update all model parame-ters using SGD with Nesterov momentum of 0.9, a learning rate of 
+
+10 −2, and a gradient clipping threshold of 1.0. We optimize a causal Activation Memory Parametric Memory Combined Memory Encoding Memory Memory 
+
+> Question Memory
+
+Utilizing   
+
+> History
+> fixed Prefill
+> KV cache
+> KV
+> Memory
+> History
+> TTT
+> Memory
+> History
+> TTT
+> History
+> Prefill
+> KV cache
+> KV
+> Memory
+> Answer
+> LLM
+
+Fig. 2 : The three memory settings. A CT encodes history in activations with fixed parameters; P ARA encodes it in adapted parameters without retaining history activations; C OMBO adapts the parameters and then re-encodes the same history into activations. Act Para Combo          
+
+> (a) Factual Recall (b) Conditional Arithmetic
+> Exact-match accuracy (%)
+> 020 40 60 80 100
+> 2510 20 40 200
+> Update steps (log scale)
+> 100% 4.67% 62.33%
+> 10 50 200 2000
+> History size (log scale)
+> 37% 12% 83%
+> 100%
+
+Fig. 3 : Qwen3-1.7B-Base accuracy on (a) Factual Recall across up-date steps with 50 history examples, and (b) Conditional Arithmetic across history sizes. language-modeling loss over H for 2 or 20 steps. The 2-step setting follows the two-epoch adaptation of Temp-LoRA [18], with each step using the full history, while 20 steps test whether the results persist under more extensive adaptation. 
+
+3.2. Results for RQ1 
+
+Across both update budgets, activation memory is stronger in factual recall, while parametric memory does not consistently outperform it in task learning, answering RQ1. Table 1 shows that A CT achieves 1.000 Factual Recall accuracy across all four models, while P ARA remains near zero at both bud-gets. A CT also consistently outperforms P ARA on Condition Judg-ment, while their relative advantage varies across other basic tasks, models, and budgets. Increasing from 2 to 20 steps improves P ARA 
+
+on several tasks but does not yield a consistent advantage. Extending adaptation to 200 steps on Factual Recall (Fig. 3(a)) still gives only 4.67% for P ARA , showing that its poor recall is not simply due to a limited update budget. 
+
+3.3. Results for RQ2 
+
+Conditional Arithmetic shows a consistent benefit from combining both memory types. Table 1 shows that C OMBO achieves the high-est accuracy across all four models at both update budgets, answer-ing RQ2. This advantage persists across history sizes. On Qwen3-1.7B-Base, Fig. 3(b) shows that C OMBO outperforms both individ-ual memories from 10 to 2,000 history examples. It reaches 100% accuracy with 200 examples and retains 83% with 2,000, compared with 37% for A CT and 12% for P ARA .
+
+3.4. Results for RQ3 
+
+To investigate RQ3, we decompose Conditional Arithmetic into Condition Judgment and Arithmetic Execution. We first localize neurons associated with each component, then compare their activ-ity across the three memory settings. 
+
+3.4.1. Neuron Localization 
+
+We use test instances from Conditional Arithmetic, Condition Judg-ment, and Arithmetic Execution defined in Section 2.4. The analysis uses Qwen3-1.7B-Base with 50 history examples per instance and the 2-step setting for P ARA and C OMBO .Comparing Conditional Arithmetic with Condition Judgment isolates the added execution component, while comparing it with Arithmetic Execution isolates the added condition component. For each MLP neuron u and test instance, we record its post-gating, pre-down-projection activation at the final prompt token before answer generation. Let ¯z(CA)  
+
+> u
+
+, ¯z(CJ)  
+
+> u
+
+, and ¯z(AE)  
+
+> u
+
+denote the mean activation of neuron u across test instances for the three tasks, respectively. We define 
+
+Sexec (u) = ¯z(CA)  
+
+> u
+
+− ¯z(CJ) 
+
+> u
+
+sCA ,CJ (u) , Scond (u) = ¯z(CA)  
+
+> u
+
+− ¯z(AE) 
+
+> u
+
+sCA ,AE (u) .
+
+(1) For each task T ∈ { CA , CJ , AE }, let σ2 
+
+> T
+
+(u) denote the sample variance of neuron u across test instances. The pooled standard de-viation is sCA ,CJ (u) = p(σ2CA (u) + σ2CJ (u)) /2, with sCA ,AE (u)
+
+defined analogously. Higher scores indicate greater mean activation on Conditional Arithmetic relative to the comparison task (i.e., Con-dition Judgment or Arithmetic Execution), normalized by within-task variability. Prior work reports functional differences across Qwen3 lay-ers [24, 25]. We examine six prespecified layers of Qwen3-1.7B-Base. Layers 15–18 form a contiguous middle block, with layer 2 as an early reference and layer 27 as a late reference. Layer indices start at zero. Within each layer, we select the 20 neurons with the highest score for each contrast, ensuring equal contribution from each ana-lyzed layer. This yields 120 condition-associated and 120 execution-associated neurons. 
+
+3.4.2. Neuronal Activity 
+
+We next compare the activity of the selected condition-associated and execution-associated neurons across A CT , P ARA , and C OMBO .Basic Task Learning Composite Task Learning Memory Factual Recall 
+
+(2/20) Unary Rule Learning (2/20) Multiplication (2/20) Condition Judgment (2/20) Arithmetic Execution (2/20) Conditional Arithmetic (2/20) 
+
+Qwen3-1.7B-Base 
+
+ACT 1.000 / 1.000 1.000 / 1.000 0.527 / 0.513 0.463 / 0.473 0.770 / 0.790 0.257 / 0.257 PARA 0.000 / 0.020 0.000 / 0.800 0.113 / 0.310 0.003 / 0.200 0.947 / 0.733 0.413 / 0.390 COMBO 0.973 / 0.920 1.000 / 0.927 0.467 / 0.213 0.613 / 0.650 1.000 / 0.927 0.637 / 0.877 
+
+Qwen3-4B-Base 
+
+ACT 1.000 / 1.000 1.000 / 1.000 0.657 / 0.663 0.733 / 0.737 0.740 / 0.727 0.657 / 0.660 PARA 0.007 / 0.050 0.007 / 0.080 0.063 / 0.213 0.000 / 0.007 0.413 / 0.607 0.250 / 0.323 COMBO 0.953 / 0.570 1.000 / 1.000 0.870 / 0.750 0.747 / 0.720 0.783 / 0.900 0.757 / 0.993 
+
+Qwen3-8B-Base 
+
+ACT 1.000 / 1.000 1.000 / 1.000 0.633 / 0.633 0.637 / 0.637 0.863 / 0.863 0.540 / 0.603 PARA 0.000 / 0.020 0.000 / 0.293 0.020 / 0.110 0.010 / 0.040 0.083 / 0.370 0.030 / 0.030 COMBO 0.527 / 0.847 1.000 / 0.990 0.703 / 0.543 0.577 / 0.767 0.887 / 0.953 0.603 / 0.887 
+
+Llama-3.2-1B 
+
+ACT 1.000 / 1.000 0.157 / 0.150 0.017 / 0.020 0.660 / 0.667 0.413 / 0.607 0.807 / 0.810 PARA 0.000 / 0.037 0.003 / 0.693 0.133 / 0.230 0.057 / 0.263 0.637 / 0.587 0.467 / 0.457 COMBO 0.943 / 0.193 0.590 / 0.897 0.317 / 0.197 0.707 / 0.633 0.973 / 0.783 0.937 / 0.937 Table 1 : Exact-match accuracy across the six tasks, evaluated on 300 test instances per task with 50 history examples per instance. Each entry reports results with 2/20 adaptation steps for P ARA and C OMBO ; A CT is evaluated in two independent runs without parameter updates. Bold indicates the best result for each model, task, and adaptation budget, including ties. We use the same 300 Conditional Arithmetic test instances, each with 50 history examples, and follow the same activation measure-ment as in Section 3.4.1: the post-gating, pre-down-projection acti-vation at the final prompt token before answer generation. To account for differences in activation scale across neurons, we normalize each neuron’s activation by its sample standard deviation across the 300 test instances, computed separately for each memory setting. Let zu,j denote the activation of neuron u on test instance 
+
+j, and let σu denote its standard deviation within the corresponding memory setting. We report 
+
+Mean = 1
+
+N
+
+X
+
+> u,j
+
+zu,j 
+
+σu
+
+, MeanAbs = 1
+
+N
+
+X
+
+> u,j
+
+|zu,j |
+
+σu
+
+. (2) For each neuron population and memory setting, the statistics av-erage over N = 300 × 120 = 36 , 000 activation values. Mean 
+
+preserves the sign of neuronal activity, whereas MeanAbs measures its normalized magnitude. Thus, these metrics characterize activity relative to each neuron’s within-setting variability rather than its raw activation scale. Table 2 reveals complementary activity patterns across the two neuron populations. For condition-associated neurons, A CT 
+
+and C OMBO show higher MeanAbs (4.407 and 4.471) than P ARA 
+
+(3.071). In contrast, for execution-associated neurons, P ARA and COMBO show higher MeanAbs (5.782 and 5.149) than A CT (4.154). Mean exhibits the same ordering in both populations. Together, these results show that C OMBO exhibits the stronger condition-associated activity observed with A CT and the stronger execution-associated activity observed with P ARA . This comple-mentary pattern accompanies the higher Conditional Arithmetic ac-curacy of C OMBO (63.67%), compared with 25.67% for A CT and 41.33% for P ARA . The neuronal activity patterns therefore align 
+
+Dataset Memory Condition Execution 
+
+Mean MeanAbs Mean MeanAbs ACT 1.112 4.407 0.413 4.154 PARA 0.315 3.071 1.107 5.782 Conditional Arithmetic COMBO 1.183 4.471 0.923 5.149 
+
+Table 2 : Normalized activity of condition-associated and execution-associated neurons on Qwen3-1.7B-Base under the three memory settings. Green marks the two higher values and red the lowest value within each metric column. with the two components of Conditional Arithmetic and provide neuron-level insight into how the two memory types complement each other, answering RQ3. 
+
+4. CONCLUSION 
+
+We systematically study the roles of activation and parametric mem-ory in test-time learning. Activation memory is consistently effective for factual recall, while parametric memory does not consistently outperform it in task learning, challenging a simple division of roles between the two memory types. For the composite task, however, combining both memories yields substantial gains. Neuron-level analysis further reveals complementary activity patterns associated with condition judgment and task execution. Together, these results shed light on how activation and parametric memory can comple-ment each other, providing a step toward understanding the mecha-nisms underlying test-time learning. 5. REFERENCES 
+
+[1] Mor Geva, Roei Schuster, Jonathan Berant, and Omer Levy, “Transformer feed-forward layers are key-value memories,” in 
+
+Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing . 2021, pp. 5484–5495, Associa-tion for Computational Linguistics. [2] Yu Sun, Xiaolong Wang, Zhuang Liu, John Miller, Alexei Efros, and Moritz Hardt, “Test-time training with self-supervision for generalization under distribution shifts,” in 
+
+Proceedings of the 37th International Conference on Machine Learning . 2020, vol. 119 of Proceedings of Machine Learning Research , pp. 9229–9248, PMLR. [3] Ekin Aky¨ urek, Mehul Damani, Adam Zweiger, Linlu Qiu, Han Guo, Jyothish Pari, Yoon Kim, and Jacob Andreas, “The sur-prising effectiveness of test-time training for few-shot learn-ing,” in Proceedings of the 42nd International Conference on Machine Learning . 2025, vol. 267 of Proceedings of Machine Learning Research , pp. 942–963, PMLR. [4] Ce Zheng, Lei Li, Qingxiu Dong, Yuxuan Fan, Zhiyong Wu, Jingjing Xu, and Baobao Chang, “Can we edit factual knowl-edge by in-context learning?,” in Proceedings of the 2023 Conference on Empirical Methods in Natural Language Pro-cessing . 2023, pp. 4862–4876, Association for Computational Linguistics. [5] H. A. Gozeten et al., “Test-time training provably improves transformers as in-context learners,” in Proc. ICML , 2025, pp. 20266–20295. [6] Jane Pan, Tianyu Gao, Howard Chen, and Danqi Chen, “What in-context learning “learns” in-context: Disentangling task recognition and task learning,” in Findings of the Association for Computational Linguistics: ACL 2023 . 2023, pp. 8298– 8319, Association for Computational Linguistics. [7] Bishwamittra Ghosh, Soumi Das, Till Speicher, Qinyuan Wu, Mohammad Aflah Khan, Deepak Garg, Krishna P. Gummadi, and Evimaria Terzi, “Fine-tuning vs. in-context learning in large language models: A formal language learning perspec-tive,” in Proceedings of the 64th Annual Meeting of the As-sociation for Computational Linguistics (Volume 1: Long Pa-pers) . 2026, pp. 41651–41697, Association for Computational Linguistics. [8] Shivam Garg, Dimitris Tsipras, Percy S. Liang, and Gregory Valiant, “What can transformers learn in-context? a case study of simple function classes,” in Advances in Neural Information Processing Systems . 2022, vol. 35, pp. 30583–30598, Curran Associates, Inc. [9] Damai Dai, Li Dong, Yaru Hao, Zhifang Sui, Baobao Chang, and Furu Wei, “Knowledge neurons in pretrained transform-ers,” in Proceedings of the 60th Annual Meeting of the Associ-ation for Computational Linguistics (Volume 1: Long Papers) .2022, pp. 8493–8502, Association for Computational Linguis-tics. [10] Xiaozhi Wang, Kaiyue Wen, Zhengyan Zhang, Lei Hou, Zhiyuan Liu, and Juanzi Li, “Finding skill neurons in pre-trained transformer-based language models,” in Proceedings of the 2022 Conference on Empirical Methods in Natural Lan-guage Processing . 2022, pp. 11132–11152, Association for Computational Linguistics. [11] Yiming Du, Wenyu Huang, Danna Zheng, Zhaowei Wang, Se-bastien Montella, Mirella Lapata, Kam-Fai Wong, and Jeff Z. Pan, “Rethinking memory in LLM based agents: Repre-sentations, operations, and emerging topics,” arXiv preprint arXiv:2505.00675 , 2025. [12] Zeyu Zhang, Xiaohe Bo, Chen Ma, Rui Li, Xu Chen, Quanyu Dai, Jieming Zhu, Zhenhua Dong, and Ji-Rong Wen, “A sur-vey on the memory mechanism of large language model based agents,” arXiv preprint arXiv:2404.13501 , 2024. [13] Dianxing Zhang, Wendong Li, Kani Song, Jiaye Lu, Gang Li, Liuchun Yang, and Sheng Li, “Memory in large language mod-els: Mechanisms, evaluation and evolution,” arXiv preprint arXiv:2509.18868 , 2025. [14] Rongwu Xu, Zehan Qi, Zhijiang Guo, Cunxiang Wang, Hon-gru Wang, Yue Zhang, and Wei Xu, “Knowledge conflicts for LLMs: A survey,” arXiv preprint arXiv:2403.08319 , 2024. [15] Daliang Li, Ankit Singh Rawat, Manzil Zaheer, Xin Wang, Michal Lukasik, Andreas Veit, Felix Yu, and Sanjiv Kumar, “Large language models with controllable working memory,” in Findings of the Association for Computational Linguistics: ACL 2023 . 2023, pp. 1774–1793, Association for Computa-tional Linguistics. [16] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszko-reit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin, “Attention is all you need,” in Advances in Neural Information Processing Systems , 2017, vol. 30. [17] Jeffrey L. Elman, “Finding structure in time,” Cognitive Sci-ence , vol. 14, no. 2, pp. 179–211, 1990. [18] Yan Wang, Dongyang Ma, and Deng Cai, “With greater text comes greater necessity: Inference-time training helps long text generation,” in Conference on Language Modeling , 2024. [19] Y. Sun et al., “Learning to (learn at test time): RNNs with expressive hidden states,” in Proc. ICML , 2025, pp. 57503– 57522. [20] Songlin Yang, Bailin Wang, Yu Zhang, Yikang Shen, and Yoon Kim, “Parallelizing linear transformers with the delta rule over sequence length,” in Advances in Neural Information Process-ing Systems . 2024, vol. 37, pp. 115491–115522, Curran Asso-ciates, Inc. [21] Ali Behrouz, Peilin Zhong, and Vahab Mirrokni, “Ti-tans: Learning to memorize at test time,” arXiv preprint arXiv:2501.00663 , 2025. [22] Qwen Team, “Qwen3 technical report,” arXiv preprint arXiv:2505.09388, 2025. [23] Meta, “Llama 3.2 model card,” https://huggingface. co/meta-llama/Llama-3.2-1B , 2024. [24] Danchun Chen et al., “Towards a mechanistic understanding of propositional logical reasoning in large language models,” arXiv:2601.04260, 2026. [25] Boyi Deng et al., “Qwen-Scope: Turning sparse fea-tures into development tools for large language models,” arXiv:2605.11887, 2026. 
+
+COMPLIANCE WITH ETHICAL STANDARDS 
+
+This study uses synthetic data and does not involve human partici-pants or animal subjects. Ethical approval was not required.
