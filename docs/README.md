@@ -6,27 +6,24 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-25
-- 运行时间：2026-09-25 22:05:28 UTC
+- 最新运行日期：2026-09-26
+- 运行时间：2026-09-26 21:59:24 UTC
 - 运行状态：成功
-- 本次总论文数：2
+- 本次总论文数：1
 - 精读区：0
-- 速读区：2
+- 速读区：1
 
 ### 今日简报（AI）
-今日速读2篇，聚焦在线任务自适应与量子纠缠态关联记忆。最值得关注《Online Task Adaptation via Self-Organisation》（7.0/10）的自组织在线适应思路。普通读者可先读这篇，理解模型如何边用边调，再决定是否深挖量子方向。
-- 详情：[/202609/25/README](/202609/25/README)
+今日仅速读1篇，聚焦《C3M: Cross-Session Multimodal Memory Maintenance for Long-Horizon Tasks》（6.0/10）。该文方向是长程任务中的跨会话多模态记忆维护，适合关注智能体长期记忆的读者浏览。若时间有限可先看摘要与记忆维护机制，再决定是否深读。
+- 详情：[/202609/26/README](/202609/26/README)
 
 ### 精读区论文标签
 - 本次无精读推荐。
 
 ### 速读区论文标签
-1. [Online Task Adaptation via Self-Organisation](/202609/25/2609.29281v1-online-task-adaptation-via-self-organisation)  
-   标签：评分：7.0/10、query:la
-   evidence：由局部delta规则更新的快速联想记忆
-2. [Associative Memory for Quantum Entangled States](/202609/25/2609.28726v1-associative-memory-for-quantum-entangled-states)  
+1. [C3M: Cross-Session Multimodal Memory Maintenance for Long-Horizon Tasks](/202609/26/2609.29735v1-c3m-cross-session-multimodal-memory-maintenance-for-long-horizon-tasks)  
    标签：评分：6.0/10、query:la
-   evidence：将Hopfield联想记忆模型推广到存储量子态
+   evidence：有界记忆索引与预算化查询路由检索
 
 
 <div class="dpr-home-promo-card">

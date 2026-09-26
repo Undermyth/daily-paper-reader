@@ -1,6 +1,9 @@
 * <a class="dpr-sidebar-root-link" href="#/">首页</a>
 * <a class="dpr-sidebar-root-link dpr-sidebar-noactive-link" href="javascript:void(0)" data-dpr-hash="#/tutorial/README">使用教程</a>
 * Daily Papers
+  * 2026-09-26 <!--dpr-date:20260926-->
+    * 速读区
+      * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/26/2609.29735v1-c3m-cross-session-multimodal-memory-maintenance-for-long-horizon-tasks" data-sidebar-item="{&quot;title&quot;: &quot;C3M: Cross-Session Multimodal Memory Maintenance for Long-Horizon Tasks&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.29735v1-c3m-cross-session-multimodal-memory-maintenance-for-long-horizon-tasks&quot;, &quot;score&quot;: &quot;6.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;有界记忆索引与预算化查询路由检索&quot;}">C3M: Cross-Session Multimodal Memory Maintenance for Long-Horizon Tasks</a>
   * 2026-09-25 <!--dpr-date:20260925-->
     * 速读区
       * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/25/2609.29281v1-online-task-adaptation-via-self-organisation" data-sidebar-item="{&quot;title&quot;: &quot;Online Task Adaptation via Self-Organisation&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.29281v1-online-task-adaptation-via-self-organisation&quot;, &quot;score&quot;: &quot;7.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;由局部delta规则更新的快速联想记忆&quot;}">Online Task Adaptation via Self-Organisation</a>
