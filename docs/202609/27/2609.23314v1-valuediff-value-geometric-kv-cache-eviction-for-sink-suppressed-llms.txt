@@ -1,0 +1,1250 @@
+Title: ValueDiff: Value-Geometric KV Cache Eviction for Sink-Suppressed LLMs
+
+URL Source: https://arxiv.org/pdf/2609.23314v1
+
+Published Time: Tue, 22 Sep 2026 01:37:34 GMT
+
+Number of Pages: 29
+
+Markdown Content:
+## Qualcomm AI Research 
+
+# ValueDiff: Value-Geometric KV Cache Eviction for Sink-Suppressed LLMs 
+
+Junyoung Park 1, Jungwook Choi 2,† , Mingu Lee 11Qualcomm AI Research 2Hanyang University 
+
+{junpark, mingul }@qualcomm.com, choij@hanyang.ac.kr 
+
+> †Contributed to this work while a visiting scholar at Qualcomm AI Research.
+
+Modern LLMs with QK-normalization, gated attention, learned attention sinks, or logit softcapping exhibit weaker persistent attention sinks, on which existing KV cache eviction methods primarily rely. We observe that across these models, weaker sinks co-occur with greater value-vector dispersion relative to key-vector dispersion. Motivated by this value-side dispersion, we present ValueDiff, a value-geometric eviction that ranks tokens by the L2 deviation of their value vectors from the cache mean. The same score arises as the minimal-disturbance eviction under a max-entropy assumption about future attention. We evaluate under fixed cache budgets, with eviction at every block boundary during prefill and at every decoding step during generation. On RULER at a tight 2k token budget, ValueDiff retains 88–99% of dense across seven sink-suppressed models (best on 6 out of 7). On LongBench at the 4k budget, ValueDiff averages 92% retention across sink-suppressed models versus 83% for the strongest prior baseline. On MATH-500, ValueDiff is the strongest non-dense method on every sink-suppressed model tested at the 25% cache budget, outperforming prior methods by up to ∼20 points on gated-attention models. Across all three benchmarks, value geometry emerges as the more reliable query-invariant eviction signal for sink-suppressed models. 
+
+## 1 Introduction 
+
+Deploying large language models under strict memory constraints (on edge devices with fixed RAM budgets [1– 3], or in serving systems where peak GPU memory bounds throughput) requires the KV cache to stay within a bounded footprint throughout inference, not only during generation. KV cache eviction addresses this by assigning each cached token a score and discarding the lowest-scoring tokens whenever the cache exceeds a budget N. With long prompts of length T , eviction must run during prefill as well. The prompt is processed in non-overlapping blocks of size B ≪ T and the cache is pruned at each block boundary, a procedure known as block prompt processing [1, 3, 4]. Every eviction decision is permanent : a discarded token cannot be recovered from later context and must remain valid against all future queries. 
+
+Attention sinks and architectural trend. Attention’s spikiness is well-studied as the attention sink 
+
+phenomenon [5–7], in which a small set of tokens absorbs disproportionate attention mass. The mechanism is fundamentally key-side: sink tokens receive disproportionate attention because their key vectors are positively aligned with most query vectors, yielding consistently high dot products across the majority of query positions [4, 8]. Prior eviction methods rely on this key-side structure, whether through attention scores (which measure current key–query alignment) or key-geometry signals (which use key-vector structure as a proxy for token importance) [4, 9–12, 8]. However, recent LLMs incorporating QK-normalization [13], gated attention hybrids [14], learned attention sinks [15], and logit softcapping [16] exhibit lower sink rates: the sink key vectors no longer maintain persistent alignment with query vectors nor geometric distinctiveness from  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 1arXiv:2609.23314v1 [cs.LG] 20 Sep 2026
+
+content keys (Table 5). This motivates inspecting eviction signals that do not rely on key-side information. 
+
+Increased value-vector diversity. As the key-side signal weakens, value vectors, which form the “basis” of the attention output, become the natural place to look for eviction signals. Since eviction asks which tokens are redundant and which are distinctive, we characterize both sides by the spread of value and key vectors around their respective means, 𝜎 V and 𝜎 K . Across models spanning four recent architectural families and standard controls, we find a consistent pattern: models where attention sinks are weaker tend toward higher 
+
+𝜎 V /𝜎 K , ranging from key-dominant ( 𝜎 V < 𝜎 K ) to value-dominant ( 𝜎 V > 𝜎 K ), as shown in Figure 1. 
+
+Value-diversity-based KV cache eviction. These observations suggest that value geometry carries more diversity than key geometry in models with weaker sinks. We therefore propose ValueDiff, which scores each token by sj = ∥vj − ¯v∥ where ¯ v is the cache mean (Equation (4)). Low-sj tokens are near-redundant and evicted first, while high-sj tokens carry distinctive content and are retained. The same score arises from symmetry: when future attention is unknown, ValueDiff is the eviction that least disturbs the attention output under a uniform default (Section 3.3). 
+
+Contributions. 
+
+• Value-geometric eviction. Across models spanning four recent architectural families and standard controls, weakened sink behavior co-occurs with value-dominant geometry. This motivates ValueDiff, sj = ∥vj − ¯v∥,and a pair of endpoint ablations, ValueDiff-Dir and ValueDiff-Norm, used to test whether value information is carried more by direction or by norm (Sections 3.1 and 3.2). 
+
+• Max-entropy interpretation. When future attention is unknown, ValueDiff is the eviction that minimally disturbs the attention output under the least-informative assumption, providing a principled derivation of the score from a symmetry argument (Theorem 3.1, Section B). 
+
+• Empirical validation. ValueDiff achieves best or tied-best RULER retention on 6 of the 7 sink-suppressed models at the tight 2k-token budget. On LongBench, ValueDiff averages 92% retention across the sink-suppressed models at the tighter 4k budget, versus 83% for the strongest prior baseline (Section 4). Further analysis shows that the observed benchmark patterns are well-accounted for by a two-axis geometric picture combining 𝜎 V /𝜎 K and key-space alignment (Section 4.4). 
+
+## 2 Background 
+
+2.1 KV Caching and Eviction 
+
+The attention operator [17] projects input tokens into queries, keys, and values ( Q = XW Q , K = XW K ,
+
+V = XW V ) and computes 
+
+O = Softmax 
+
+
+
+QK ⊤/√d + M
+
+
+
+V = AV , (1) where M is the causal mask. During autoregressive generation, previously computed key-value pairs are stored in a KV cache C = (K, V) and reused. The cache grows linearly with the number of processed tokens and dominates memory for long sequences. Architectural sharing such as grouped-query attention [18] reduces per-token cache size but leaves the linear-in-length growth unchanged, and IO-efficient attention kernels [19] that can accelerate the computation do not reduce the cache footprint.              
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 20.0 0.2 0.4 0.6 0.8 1.0
+> Sink rate
+> 0.25 0.50 0.75 1.00 1.25 1.50 1.75 2.00
+> V/ K
+> Spearman =0.76
+> Pearson r=0.84
+> n= 12
+> None Softcap QKnorm Gated Learned bias
+> Llama 3.18B Llama 3.23B Qwen2.53B Qwen2.57B Gemma22B Gemma29B Qwen34B Qwen34BInst Gemma34B Qwen3.54B Qwen3.59B GPTOSS20B
+
+Figure 1: Sink rate versus 𝜎 V /𝜎 K . Color and marker encode suppression category; shaded band = 95% conditional-mean CI; region above 𝜎 V /𝜎 K = 1 marks value-dominant geometry To bound memory usage, an eviction policy 𝜋 N (C) removes tokens whenever the cache size exceeds a budget 
+
+N. Given a scoring function s (·) , eviction retains the N highest-scoring tokens: 
+
+S = top-N (s (C)) , K′ = gather (K, S) , V′ = gather (V, S) . (2) Attention-score methods (H 2O [11], TOVA [9], SnapKV [10], KVZip [20]) define s (·) using attention weights, either from observed queries or from reconstruction prompts. Key-geometric methods such as KeyDiff [4] and ManifoldKV [8] use query-invariant properties of the keys. 
+
+2.2 Block Prompt Processing 
+
+Standard KV cache eviction assumes the full prompt is processed before eviction begins. This requires materializing the entire KV cache during prefill, which may exceed the memory budget on resource constrained devices. Block prompt processing [4, 21] addresses this by segmenting the input X = [X0, X1, ... , Xm−1] into non-overlapping blocks of size B and applying eviction after each block. 
+
+Ci ← ( [ Ki −1 ∥kBi :B (i+1) − 1], [Vi −1 ∥vBi :B (i+1) − 1] ) , Ci ← 𝜋 N (C i ) (3) with C−1 = ∅, for i = 0, ... , m − 1. By applying 𝜋 N at every block boundary, this bounds the cache to N
+
+tokens during prefill as well as generation. We note that block prompt processing with B = T (the full prompt length) recovers standard eviction, and B = 1 corresponds to token-by-token generation. 
+
+## 3 ValueDiff for Value-Geometric KV Cache Eviction 
+
+3.1 Sink Rate and Value Geometry 
+
+We measure the maximum sink rate and the per-token L2 dispersion of key and value vectors across models spanning four recent architectural families and standard controls (Figure 1; full statistics in Table 4). As a general trend, models with lower sink rates tend to exhibit greater value-vector dispersion relative to keys. For head h at layer ℓ with n tokens, let 𝜎 (ℓ,h) 
+
+> K
+
+= std i (∥ k (ℓ,h) 
+
+> i
+
+− ¯k (ℓ,h) ∥2) and 𝜎 (ℓ,h) 
+
+> V
+
+= std i (∥ v (ℓ,h) 
+
+> i
+
+− ¯v (ℓ,h) ∥2),where ¯ k (ℓ,h) = 1
+
+> n
+
+Íi k (ℓ,h) 
+
+> i
+
+. Each model’s position in Figure 1 uses the mean of 𝜎 (ℓ,h) 
+
+> K
+
+and 𝜎 (ℓ,h) 
+
+> V
+
+across all layers and heads. Sink rate—the fraction of heads where the leading token exceeds weight 𝜏 =0.3 [22]—ranges from 0.86–0.90 on Llama 3 to near zero on Qwen3.5 and GPT-OSS-20B. Models with lower sink rates tend to  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 3
+
+show higher 𝜎 V /𝜎 K (Figure 1). Qwen2.5 is a notable exception with high per-layer geometric heterogeneity; we discuss this separately in Section C. The sink-rate observation directly challenges sink-preserving eviction. When leading-token sink rates approach zero, fixed-sink policies such as StreamingLLM [5] have less reason to privilege the earliest cache positions. For attention-score methods such as TOVA [9] and SnapKV [10], the implication is subtler. Persistent high-mass sink positions provide a stable shortcut; as those sinks weaken, attention-score methods fall back on query-specific rankings under block prompt processing, where evictions are permanent and future queries are unavailable. Attention-ranking overlap is consistently modest (top-256 Jaccard ≈ 0.4; Section D), making this fallback an unreliable proxy for future cache utility. The value-geometry observation challenges key-only geometric eviction. Since eviction asks which tokens are redundant and which are distinctive, the rising 
+
+𝜎 V /𝜎 K points to value geometry as the stronger query-invariant signal for this discrimination. We revisit this picture after the empirical results through an additional key-space alignment measure that further characterizes the geometric conditions (Section 4.4). 
+
+3.2 ValueDiff Score 
+
+We define the ValueDiff score as 
+
+sj = ∥vj − ¯v∥, ¯v = 1
+
+> n
+
+Íi vi , (4) where n is the number of cached tokens. Intuitively, a high sj marks a token as geometrically distinctive and worth retaining; a low sj marks it as near-redundant and safely discarded. 
+
+Two axes of content. Expanding Equation (4) via the law of cosines isolates two distinct geometric quantities, 
+
+s2 
+
+> j
+
+= ∥vj ∥2 − 2∥vj ∥∥ ¯v∥ cos 𝜃 j + ∥ ¯v∥2, (5) where 𝜃 j is the angle between vj and ¯ v. This L2 score is shaped by magnitude (∥vj ∥, tokens with large value norms) and direction (1 − cos 𝜃 j , tokens pointing away from the mean regardless of norm). To understand the role of each axis, we further evaluate two ValueDiff variants. ValueDiff-Dir keeps only the directional score 1 − cos (vj , ¯v), and ValueDiff-Norm keeps only the magnitude score ∥vj ∥. These variants ask whether value information is carried more by direction or by norm. 
+
+3.3 A Max-Entropy Interpretation of ValueDiff 
+
+Eviction ultimately aims to preserve information that may be useful under unknown future attention distributions. Modeling those distributions is challenging in both block prompt processing and standard full-prefill eviction. We therefore ask which token is safest to remove under the least-informative assumption about future attention. 
+
+Expected output disturbance. The attention output under a future attention vector 𝜶 ∈ Δn−1 is o(𝜶 ) =Íi 𝛼 i vi . A natural eviction criterion is the expected disturbance to the attention output when token j is removed and the remaining attention weights are renormalized over the survivors. 
+
+j★ = arg min  
+
+> j
+
+E𝜶 ∼P
+
+h
+
+o(𝜶 ) − o\j (𝜶 ) 2i
+
+, o\j (𝜶 ) =∑︁   
+
+> i≠j
+> 𝛼 i
+> 1−𝛼 j
+
+vi , (6)  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 4
+
+where P is a distribution on Δn−1 encoding our belief about the future attention vector. With no information distinguishing tokens at eviction time, the symmetric choice is the uniform attention vector 𝜶 ★ = (1/n, ... , 1/n),the unique point on Δn−1 invariant under permutations of token indices. 
+
+Reduction at 𝜶 ★. Substituting 𝜶 = 𝜶 ★, the attention output collapses to the per-head cache mean, and uniform redistribution over the remaining n − 1 tokens gives the post-eviction output. 
+
+o★ = ¯v, o★ 
+
+> \j
+
+=∑︁  
+
+> i≠j
+> 1
+> n−1
+
+vi = n ¯v − vj
+
+n − 1 . (7) Evaluating the integrand of Equation (6) at 𝜶 = 𝜶 ★ reduces the objective to 
+
+o★ − o★ 
+
+> \j
+> 2
+
+= 1
+
+(n − 1)2 vj − ¯v 2, (8) whose minimizer over j is exactly the ValueDiff score. 
+
+Proposition 3.1 (ValueDiff as the symmetric optimum) . At the symmetric attention vector 𝜶 = 𝜶 ★ =
+
+(1/n, ... , 1/n), the eviction objective in Equation (6) is minimized at 
+
+j★ = arg min  
+
+> j
+
+vj − ¯v , ¯v = 1
+
+> n
+
+Íi vi .
+
+Remark. The derivation above uses the symmetric reference point 𝜶 ★. The same ranking also arises from the max-entropy version of the reconstruction objective under an unconstrained Dirichlet (1, ... , 1) distribution over future attention (Section A). The relevance of this reference point grows as attention distributions flatten; Section B formalizes how the distance from the symmetric limit bounds the approximation error. 
+
+## 4 Experiments 
+
+Evaluation protocol. We evaluate under block prompt processing (Equation (3)) with a chunk size of 
+
+B = 128 combined with decode-time token eviction, following the same protocol as [4, 21, 2, 3]. This is strictly harder than the full-prefill setting assumed by most token eviction work because decisions are made with only partial context available, and discarded tokens cannot be recovered when later chunks arrive. 
+
+Models. Models span four architectural mechanisms. QK-normalization (per-head RMSNorm on queries and keys; Qwen3-4B, Gemma3-4B); gated attention (Qwen3.5-4B, 9B); learned attention sink (per-head sink logit appended to the attention logits; GPT-OSS-20B); and logit softcapping (tanh-bounded attention logits; Gemma2-2B, 9B). Standard architectures (Llama 3.1-8B, 3.2-3B [23]; Qwen2.5-3B, 7B [24]) serve as controls. 
+
+Baselines. Baselines span the main eviction signal categories. Attention sink. StreamingLLM [5] (fixed sink + recent window). Attention score. TOVA [9] and SnapKV [10]. Key geometry. KeyNorm [12] ranks tokens by key-vector norm, preferring smaller norms; KeyDiff [4] scores cosine distance from the mean key; and ManifoldKV [8] scores Euclidean distance from a key centroid. These key-side baselines match the radial, directional, and Euclidean value-side signals tested by ValueDiff-Norm, ValueDiff-Dir, and ValueDiff, respectively, except that KeyNorm uses the opposite radial preference from ValueDiff-Norm. Attention  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 5
+
+Table 1: RULER accuracy retention (% of dense, ↑; ctx=8192). Each model has two budget rows (2048, 4096). Bold marks the best non-dense strategy per budget, and underline marks the second best.                                                                                                                                                                                                                                                       
+
+> Sink Attn Key Geometry Attn ×Val. Value Geometry
+> Model Bud. Streaming TOVA SnapKV KNorm KeyDiff ManifKV F-CAOTE V-Norm V-Dir ValueDiff
+> Standard
+> Llama 3.1-8B 2k 40.1 62.0 75.5 91.8 89.6 60.9 78.8 53.1 88.7 88.1 4k 60.4 85.6 85.0 95.5 95.2 84.9 90.0 82.9 94.1 95.0 Llama 3.2-3B 2k 40.2 59.7 72.2 79.6 92.9 40.5 72.3 44.5 89.3 88.8 4k 60.6 82.4 82.3 94.1 97.4 89.9 87.9 78.7 96.5 94.7 Qwen2.5-3B 2k 18.0 22.1 23.7 31.4 39.8 34.4 28.8 19.6 39.7 41.1
+> 4k 22.0 48.5 39.6 60.7 63.6 62.7 55.5 43.9 63.7 65.4
+> Qwen2.5-7B 2k 10.9 14.0 18.7 23.1 31.9 13.1 20.3 19.3 32.4 21.8 4k 14.5 36.8 43.1 52.3 56.2 46.7 42.6 36.6 56.6 46.7
+> Logit softcapping
+> Gemma2-2B 2k 48.7 59.2 64.5 79.8 96.4 50.6 71.1 54.9 93.7 89.6 4k 63.7 82.8 80.0 86.5 98.7 57.6 86.2 61.5 98.1 95.7 Gemma2-9B 2k 52.3 66.7 81.7 59.5 99.0 66.0 72.4 54.2 97.8 99.4
+> 4k 66.5 69.7 85.8 67.9 99.3 80.6 77.8 72.2 99.6 100.0
+> QK-normalization
+> Qwen3-4B 2k 42.4 44.5 52.8 40.5 89.6 92.7 71.7 89.7 89.8 95.2
+> 4k 63.0 81.0 78.6 69.8 95.1 98.0 91.6 98.4 97.1 98.0 Gemma3-4B 2k 40.6 54.7 66.2 11.9 81.7 87.1 69.1 59.4 86.2 87.6
+> 4k 63.0 76.1 80.5 19.9 91.9 94.6 91.7 94.5 95.0 96.1
+> Gated attention
+> Qwen3.5-4B 2k 42.0 42.0 62.6 59.7 93.3 92.5 67.6 93.7 94.7 97.6
+> 4k 61.4 66.5 82.2 96.0 96.6 97.0 84.1 98.7 99.5 99.7
+> Qwen3.5-9B 2k 42.9 42.0 77.2 24.2 91.9 92.1 66.4 86.9 95.4 95.6
+> 4k 61.6 61.6 84.3 70.2 96.2 96.7 81.8 98.4 98.2 98.2
+> Learned Sink
+> GPT-OSS-20B 2k 39.3 54.2 80.2 64.1 88.9 68.5 75.7 50.2 90.1 91.3
+> 4k 62.8 85.0 87.1 88.0 93.1 94.9 90.1 86.6 93.2 97.8
+
+× value geometry. FastCAOTE [21] ( 𝛼 j  
+
+> 1−𝛼 j
+
+· ∥ vj − ¯v∥), which combines value geometry with an attention multiplier; comparing it with ValueDiff directly isolates the effect of that multiplier. Value geometry. 
+
+ValueDiff-Dir (direction-only), ValueDiff (L2), and ValueDiff-Norm (magnitude-only). KVZip [20] is excluded: its doubled-length prefill per eviction step is prohibitive under block prompt processing. 
+
+Benchmarks. We cover both long-context prefill and long decode. RULER [25] evaluates long-context capability in controlled 8k-context tasks spanning retrieval (NIAH [26]), variable tracking, aggregation, and multi-hop QA, while LongBench [27] tests transfer to 21 heterogeneous document tasks with contexts reaching up to 65k tokens. MATH-500 [28, 29] stresses decode-time cache growth during chain-of-thought reasoning. 
+
+4.1 RULER 
+
+On RULER, we evaluate long-context capability at 8k context under tight cache budgets of 2k and 4k tokens. Table 1 reports retention versus each model’s dense score across 13 RULER tasks. The results split across three geometry regimes consistent with Section 3.1. On value-dominant models (Qwen3.5, GPT-OSS-20B; 
+
+𝜎 V /𝜎 K > 1.3), ValueDiff is the strongest. On mixed-geometry models ( 𝜎 V /𝜎 K ≈ 1; Qwen3, Gemma2, Gemma3), ValueDiff generally performs best, with key-geometry methods such as KeyDiff and ManifoldKV remaining competitive. In this regime neither signal has a clear geometric advantage; ValueDiff leads on most  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 6
+
+Table 2: LongBench accuracy retention (% of dense, ↑) at 4k / 8k budgets. Bold marks the best non-dense strategy by average retention over the two reported budgets for each model.                                                                                     
+
+> Sink Attn Key Geometry Attn ×Val. Value Geometry
+> Model Streaming TOVA SnapKV KeyNorm KeyDiff ManifoldKV F-CAOTE V-Norm V-Dir ValueDiff
+> Standard
+> Llama3.1-8B 55.0 / 74.4 69.0 / 88.4 70.6 / 91.0 73.5 / 90.3 82.6 / 93.6 71.7 / 91.9 71.4 / 90.0 65.1 / 85.2 79.7 / 91.5 73.1 / 88.0 Llama3.2-3B 70.0 / 79.4 74.8 / 85.5 75.9 / 85.6 76.6 / 86.3 85.4 / 89.2 76.9 / 86.8 76.4 / 85.3 69.6 / 82.2 79.7 / 87.5 75.9 / 85.1
+> QK-normalization
+> Qwen3-4B 78.0 / 89.4 81.3 / 92.0 83.8 / 93.7 71.9 / 87.4 85.0 / 94.6 89.5 / 97.1 84.0 / 94.9 95.2 / 98.8 91.2 / 97.4 95.3 / 98.7
+> Gemma3-4B 72.1 / 83.7 77.0 / 90.5 72.7 / 86.6 49.5 / 58.2 76.7 / 90.9 73.0 / 79.8 78.2 / 92.5 82.6 / 93.0 90.5 / 96.5 88.1 / 94.5
+> Gated attention
+> Qwen3.5-4B 77.7 / 87.9 84.0 / 91.2 83.1 / 93.0 79.4 / 92.0 78.6 / 90.7 80.5 / 93.1 86.2 / 94.1 92.8 / 97.6 88.4 / 95.8 92.2 / 95.5 Qwen3.5-9B 74.1 / 86.7 84.6 / 95.2 85.6 / 95.1 82.2 / 92.4 81.3 / 92.9 80.9 / 92.8 87.1 / 95.7 92.4 / 96.7 90.0 / 95.5 92.1 / 97.2
+> Learned Sink
+> GPT-OSS-20B 60.7 / 79.1 75.3 / 91.3 74.4 / 90.2 25.3 / 28.5 83.4 / 94.5 31.0 / 33.2 77.8 / 93.6 81.9 / 96.3 84.4 / 95.9 91.0 / 96.6
+
+models here, with Gemma2-2B the exception where KeyDiff leads—consistent with its 𝜎 V /𝜎 K =0.88 placing it toward the key-dominant side (Section 4.4). On key-dominant non-suppressed controls ( 𝜎 V /𝜎 K < 0.5; Llama), KeyDiff and KeyNorm lead. Qwen2.5 is an outlier: both value- and key-geometry methods degrade substantially, consistent with the high per-layer geometry variance discussed in Section C. 
+
+Sink and attention baselines. The non-geometric baselines expose two different failure modes. Streaming’s fixed-window design fails broadly at tight budgets regardless of sink behavior; on sink-suppressed models it additionally loses the stable BOS anchor that partially compensates on sink-dominated architectures. TOVA and SnapKV face a different problem. The attention scores available at a block boundary must predict token importance for later blocks and decoding, and the low rank overlap in Section D suggests that this proxy is unreliable. 
+
+Key vs. value geometry. Matched key/value pairs consistently favor the value side on sink-suppressed models: ValueDiff matches or improves on ManifoldKV (centroid), and ValueDiff-Dir improves over KeyDiff (directional). The norm-only comparison is less diagnostic because both KeyNorm and ValueDiff-Norm underperform their directional or L2 counterparts, indicating norm alone is not dominant. Overall, value geometry is the more robust query-invariant signal; we examine the underlying geometric conditions in Section 4.4. 
+
+Comparison with FastCAOTE. FastCAOTE keeps the same centroid-distance signal as ValueDiff but weights it by observed attention. The multiplier consistently hurts relative to ValueDiff (Table 1), matching the broader failure mode of attention-based eviction: observed attention is query-local, not a stable estimate of future cache utility (Section D). 
+
+Direction and magnitude ablations. Within the value-side family, ValueDiff-Dir is often close to the default score, suggesting that much of the useful signal is directional. However, ValueDiff-Norm is much less reliable on its own, and the default L2 score is the most stable variant overall. This suggests that magnitude is not a strong standalone eviction criterion, but it helps calibrate the directional signal when combined through centroid distance. 
+
+Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 7Table 3: MATH-500 reasoning retention (% of dense flex@5 except Qwen3.5; pass@1 greedy; ↑; n = 100) at 
+
+25% / 50% cache budgets, set per model as fractions of average sequence length (see Section F). Bold marks the best non-dense strategy by average retention over the two budgets. †Sink on Qwen3.5-4B collapses output formatting; see Section G.                                                                                      
+
+> Sink Attn Key Geometry Attn ×Val. Value Geometry
+> Model Streaming TOVA SnapKV KeyNorm KeyDiff ManifoldKV F-CAOTE V-Norm V-Dir ValueDiff
+> Standard
+> DS-R1-Qwen-1.5B 74.2 / 89.7 70.3 / 88.8 81.1 / 91.1 45.7 / 75.4 89.2 / 99.0 95.9 / 97.1 75.1 / 93.1 85.4 / 94.5 79.2 / 93.1 89.0 / 97.6 DS-R1-Llama-8B 63.1 / 73.9 69.8 / 79.1 76.0 / 83.7 64.3 / 79.1 79.4 / 84.9 77.0 / 84.9 74.1 / 84.9 77.7 / 83.2 75.8 / 84.7 77.9 / 85.1
+> QK-normalization
+> Gemma3-4B 81.1 / 94.6 94.3 / 104.9 88.1 / 98.1 75.5 / 90.0 87.1 / 97.8 87.3 / 100.0 95.4 / 103.2 92.7 / 101.3 91.9 / 100.5 96.8 / 102.2 Qwen3-4B 71.3 / 87.9 81.7 / 92.0 83.8 / 93.1 67.2 / 86.4 79.5 / 90.9 87.3 / 94.2 84.9 / 93.5 87.9 / 95.7 85.3 / 94.2 90.5 / 96.3
+> Gated attention (pass@1 greedy)
+> Qwen3.5-4B 1.1 †/ 31.5 39.3 / 80.9 24.7 / 84.3 40.4 / 75.3 65.2 / 86.5 62.9 / 89.9 34.8 / 83.1 76.4 / 94.4 79.8 / 96.6 84.3 / 100.0
+> Qwen3.5-9B 2.2 / 27.0 42.7 / 82.0 19.1 / 73.0 48.3 / 80.9 68.5 / 89.9 71.9 / 92.1 49.4 / 89.9 87.6 / 94.4 87.6 / 97.8 92.1 / 100.0
+> Learned Sink
+> GPT-OSS-20B 73.9 / 87.1 71.9 / 86.5 74.9 / 88.4 61.7 / 84.4 89.1 / 96.1 90.1 / 95.9 75.6 / 90.1 91.2 / 96.8 76.7 / 91.0 93.1 / 96.6
+
+4.2 LongBench 
+
+Through RULER, we confirmed that the value-geometry advantage holds in controlled, synthetic long-context conditions. In LongBench, we further evaluate the methods on 21 heterogeneous tasks spanning bilingual QA, multi-document summarization, code completion, and open-ended retrieval. In this more diverse setting, ValueDiff retains 88–95% of dense performance on sink-suppressed models at the tighter 4k budget (see Table 2). Note that logit softcapping models (Gemma2-2B and Gemma2-9B) are excluded from the evaluation as their trained context length is 8k [16]. Qwen2.5 models are also excluded: severe per-layer geometry heterogeneity causes all eviction strategies to degrade substantially regardless of signal type (see Section C), making their inclusion uninformative for the geometric comparison. Magnitude-based key selection (KeyNorm, ManifoldKV) shows architecture-dependent failures in LongBench. On Gemma3-4B (QK-norm), KeyNorm collapses to 49.5% retention at the 4k budget; on GPT-OSS-20B (learned sink), both KeyNorm (25.3%) and ManifoldKV (31.0%) fail catastrophically. KeyDiff, insensitive to key magnitude, avoids these collapses and remains the strongest key-side method overall, though it is still outperformed by ValueDiff on sink-suppressed models. 
+
+4.3 MATH-500 
+
+On MATH-500, we examine a complementary pressure point, decode-time cache growth during chain-of-thought reasoning. We evaluate models that natively support chain-of-thought reasoning, specifically those trained with reasoning supervision or explicit thinking-token mechanisms [16]. Budgets are model-specific, set at approximately 25% and 50% of each model’s average sequence length, so compression ratios remain comparable despite different decode lengths; dense decode lengths and truncation rates are reported in Section F. ValueDiff remains at or near the top across budgets on sink-suppressed models and is most clearly separated on Qwen3.5 at the tight 25% budget, where attention- and key-based alternatives trail by roughly 19–24 points. Across sink-suppressed models, ValueDiff retains at least 84% of dense performance even at the tight budget, showing that the value-geometry signal transfers to reasoning. 
+
+Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 80.5 0.0 0.5 
+
+> BOS cosine similarity
+> 0.4 0.6 0.8 1.0 1.2 1.4 1.6
+> V/ K
+
+III III IV    
+
+> RULER (b=4096)
+> Llama 3.18B Gemma22B Gemma29B Qwen34B Gemma34B Qwen3.54B GPTOSS20B Qwen3.59B
+> 0.5 0.0 0.5
+> BOS cosine similarity
+> 0.4 0.6 0.8 1.0 1.2 1.4 1.6
+> V/ K
+
+III III IV   
+
+> LongBench (b=4096)
+> Llama 3.18B Qwen34B Gemma34B Qwen3.54B Qwen3.59B GPTOSS20B
+> 0.5 0.0 0.5
+> BOS cosine similarity
+> 0.4 0.6 0.8 1.0 1.2 1.4 1.6
+> V/ K
+
+III III IV     
+
+> MATH500
+> Gemma34B GPTOSS20B Qwen3.54B Qwen3.59B Qwen34B R1Llama8B R1Qwen1.5B
+> 3
+> 2
+> 1
+> 0123
+> ValueDiff  KeyDiff (%p)
+> 6
+> 4
+> 2
+> 0246
+> ValueDiff  KeyDiff (%p)
+> 20
+> 15
+> 10
+> 5
+> 0510 15 20
+> ValueDiff  KeyDiff (%p)
+> None Softcapping QKnorm Gated attn Learned sink
+
+Figure 2: bos-cosim vs. 𝜎 V /𝜎 K for all models, colored by ValueDiff −KeyDiff gap, across RULER (left), LongBench (center), and MATH-500 (right). 
+
+4.4 Discussion 
+
+The empirical results above show that ValueDiff consistently matches or outperforms key-geometry baselines across architectures and benchmarks. We now characterize the geometric conditions underlying this pattern through a lens that completes the picture established in Section 3.1. 
+
+BOS cosine similarity. Sink rate (Section 3.1) is a post-softmax measure. It summarizes the attention output after temperature scaling and normalization, compressing the underlying key geometry into a threshold-crossing fraction. We instead examine a more direct geometric quantity, the cosine similarity between the BOS key vector and the mean of content key vectors, bos-cosim = cos  kBOS , 1
+
+n−1
+
+Íi >0 ki
+
+.
+
+This quantity lives in the pre-softmax key space and is query-invariant, measuring whether the BOS token occupies a geometrically distinctive position relative to the content key distribution: a negative bos-cosim is the structural signature of attention sinks, with BOS anti-aligned with the content mean, while a positive value indicates no such distinction. 
+
+Two-axis picture. The KeyDiff eviction score implicitly depends on this distinction. As established theoretically in [4], KeyDiff retains tokens whose keys diverge from the cache mean ¯ k. When bos-cosim < 0, ¯k is pulled toward the content direction and BOS is a clear geometric outlier: the anchor is meaningful. When bos-cosim > 0, ¯ k is no longer a clean reference and the anchor dissolves, degrading KeyDiff’s discriminative signal. Figure 2 plots bos-cosim against 𝜎 V /𝜎 K for all evaluated models, colored by the ValueDiff −KeyDiff gap, across RULER, LongBench, and MATH-500. Two dashed lines divide the space into four quadrants. The pattern is consistent across benchmarks. ValueDiff outperforms KeyDiff in Quadrants I, II, and IV; KeyDiff leads only in Quadrant III (bos-cosim < 0 and 𝜎 V /𝜎 K < 1), where the BOS anchor is intact and key geometry dominates. Gemma2-9B is particularly informative, sitting close to the 𝜎 V /𝜎 K =1.0 boundary (bos-cosim ≈ − 0.4, 𝜎 V /𝜎 K ≈ 1.0) with near-parity between the two methods (+0.6 pt), consistent with neither signal being dominant. 
+
+Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 94.5 Latency and Memory 
+
+We focus on memory-constrained long-context inference, measuring peak memory during long-prefill processing and time-to-first-token (TTFT). Decode throughput depends on kernel-level cache management orthogonal to the eviction scoring rule. 
+
+Peak memory. Eviction caps the cache at O (budget ) regardless of input length, while dense scales linearly (Figure 3). On Qwen3.5-4B at context length 128k, peak GPU memory drops from 15.0 GB to 8.6 GB (−43%); on GPT-OSS-20B at context length 65k the reduction is 29%. These savings follow from the budget itself and are shared by token eviction methods. 
+
+Prefill latency. Under block prompt processing ( B=128), each chunk after cache fill attends only to the post-eviction budget-sized cache. In our implementation, ValueDiff reduces TTFT relative to dense on both long-context settings and stays within 3–4% of the cheapest eviction baseline. These measurements are intended to characterize scoring overhead under a fixed block-processing implementation; optimized serving performance also depends on kernel-level cache management and implementation details. The full TTFT table is reported in Table 9. Among the evaluated eviction rules, ValueDiff has the same asymptotic online cost as TOVA, SnapKV, and KeyDiff; fixed-window sink eviction is cheaper but significantly less accurate on sink-suppressed models. 
+
+## 5 Related Work 
+
+Attention sinks. Xiao et al. [5] identified attention sinks and proposed StreamingLLM, which preserves fixed sink tokens plus a recent window. Follow-up work examines sink emergence and control [7, 30, 31, 22]. Modern architectures also include QK-normalization [13], gated attention and hybrid linear/softmax models [14, 32], logit softcapping [16], and learned attention sinks [15], which are associated with weaker attention sinks. Our work connects this architectural trend to KV eviction. As sink behavior weakens, value geometry becomes a more useful query-invariant signal. 
+
+Attention-score eviction. H2O [11], TOVA [9], and SnapKV [10] score cached tokens using observed attention mass or local attention windows. KVZip [20] is query-agnostic but still attention-scored. It uses a repeat prompt to induce context reconstruction and scores KV pairs by the maximum cross-attention they receive. These methods rely on attention as a useful token-importance signal; our work studies how that signal changes under modern sink-suppression mechanisms. 
+
+Key-geometric eviction. Key-geometric methods rank tokens without using attention scores. Key-norm scoring ranks keys by L2 norm [12], KeyDiff [4] scores cosine distance from the mean key, and ManifoldKV [8] scores Euclidean distance from a key centroid, the key-side counterpart of our L2 value score. These methods implicitly assume key geometry is the dominant eviction signal; our two-axis analysis (Section 4.4) shows this is architecture-dependent: key geometry leads where sinks are strong, value geometry leads where they weaken. ValueDiff uses the value side of the cache, motivated by our observation that value geometry becomes more discriminative than key geometry in sink-suppressed models. 
+
+Attention-weighted value eviction. FastCAOTE [21] is closest to ValueDiff in form, combining the same centroid-distance value score with an additional query-specific attention multiplier 𝛼 j  
+
+> 1−𝛼 j
+
+. Under block prompt processing, this multiplier is computed from past queries and may not reflect future cache utility,           
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 10 4816 32 64 128
+> Context length (k tokens)
+> 10.0 12.5
+> Peak GPU memory (GB)
+> Qwen3.5-4B
+> Dense Eviction ( b= 2048 )16 32 64
+> Context length (k tokens)
+> 15.0 17.5
+> Peak GPU memory (GB)
+> GPT-OSS-20B
+> Dense Eviction ( b= 2048 )
+
+Figure 3: Peak GPU memory vs. context length on Qwen3.5-4B and GPT-OSS-20B (H100 80 GB, bud-get = 2048). Dense scales linearly; eviction caps at O (budget ). All eviction methods overlap within 0.1%; ValueDiff is representative eviction curve. introducing noise. Section A derives both scores from the same reconstruction objective: ValueDiff arises as the consistent max-entropy limit. 
+
+## 6 Conclusion 
+
+We revisited KV cache eviction for sink-suppressed LLMs, where models incorporating QK-normalization, gated attention, learned attention sinks, or logit softcapping exhibit weaker attention sinks. In this regime, weakened sink behavior co-occurs with greater value-vector dispersion relative to key-vector dispersion, making values a stronger query-invariant eviction signal. This motivates ValueDiff, the score sj = ∥vj − ¯v∥,which also arises as the symmetric, max-entropy solution to minimizing attention-output disturbance when future queries are unknown. Across RULER, LongBench, and MATH-500, ValueDiff is strongest on sink-suppressed models while remaining competitive on mixed and key-dominant models, supporting value geometry as a more reliable eviction signal than both attention-based and key-geometry methods in sink-suppressed architectures. The mixed-geometry regime further motivates hybrid eviction scores that combine key- and value-side geometry adaptively across layers as a promising direction for future research. 
+
+## References 
+
+[1] Apple. Apple intelligence foundation language models. arXiv preprint arXiv:2407.21075 , 2024. On-device model uses QK-normalization, GQA, ¡4-bit quantization under constrained memory budget. [2] Daliang Xu, Hao Zhang, Liming Yang, Ruiqi Liu, Gang Huang, Mengwei Xu, and Xuanzhe Liu. Fast on-device LLM inference with NPUs. arXiv preprint arXiv:2407.05858 , 2024. [3] Zhiyang Chen, Daliang Xu, Haiyang Shen, Chiheng Lou, Mengwei Xu, Shangguang Wang, Xin Jin, and Yun Ma. Accelerating mobile language model via speculative decoding and NPU-coordinated execution. 
+
+arXiv preprint arXiv:2510.15312 , 2025. [4] Junyoung Park, Dalton Jones, Matthew J Morse, Raghavv Goel, Mingu Lee, and Chris Lott. KEYDIFF: Key similarity-based KV cache eviction for long-context LLM inference in resource-constrained environments. In Advances in Neural Information Processing Systems (NeurIPS) , 2025. [5] Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song Han, and Mike Lewis. Efficient streaming language models with attention sinks. In International Conference on Learning Representations (ICLR) , 2024. [6] Zunhai Su, Hengyuan Zhang, Wei Wu, Yifan Zhang, Yaxiu Liu, He Xiao, Qingyao Yang, Yuxuan Sun, Rui Yang, Chao Zhang, Keyu Fan, Weihao Ye, Jing Xiong, Hui Shen, Chaofan Tao, Taiqiang Wu,  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 11
+
+Zhongwei Wan, Yulei Qian, Yuchen Xie, and Ngai Wong. Attention sink in transformers: A survey on utilization, interpretation, and mitigation. arXiv preprint arXiv:2604.10098 , 2026. [7] Federico Barbero, ´ Alvaro Arroyo, Xiangming Gu, Christos Perivolaropoulos, Michael Bronstein, Razvan Pascanu, et al. Why do LLMs attend to the first token? arXiv preprint arXiv:2504.02732 , 2025. [8] Debajyoti Datta, Trishala Neeraj, Bibek Paudel, Vyom Sharma, and Subhabrata Mukherjee. ManifoldKV: Training-free KV cache compression via euclidean outlier detection. arXiv preprint arXiv:2602.08343 ,2026. [9] Matanel Oren, Michael Hassid, Nir Yarden, Yossi Adi, and Roy Schwartz. Transformers are multi-state RNNs. In Conference on Empirical Methods in Natural Language Processing (EMNLP) , 2024. [10] Yuhong Li, Yingbing Huang, Bowen Yang, Bharat Venkitesh, Acyr Locatelli, Hanchen Ye, Tianle Cai, Patrick Lewis, and Deming Chen. SnapKV: LLM knows what you are looking for before generation. In 
+
+Advances in Neural Information Processing Systems (NeurIPS) , 2024. [11] Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai, Zhao Song, Yuandong Tian, Christopher R´ e, Clark Barrett, Zhangyang Wang, and Beidi Chen. H 2O: Heavy-hitter oracle for efficient generative inference of large language models. In Advances in Neural Information Processing Systems (NeurIPS) , 2023. [12] Alessio Devoto, Yu Zhao, Simone Scardapane, and Pasquale Minervini. A simple and effective L2
+
+norm-based strategy for KV cache compression. arXiv preprint arXiv:2406.11430 , 2024. [13] Mostafa Dehghani, Josip Djolonga, Basil Mustafa, Piotr Padlewski, Jonathan Heek, Justin Gilmer, Andreas Peter Steiner, Mathilde Caron, Robert Geirhos, Ibrahim Alabdulmohsin, et al. Scaling vision transformers to 22 billion parameters. In International Conference on Machine Learning (ICML) , 2023. [14] Zihan Qiu, Zekun Wang, Bo Zheng, Zeyu Huang, Kaiyue Wen, Songlin Yang, Rui Men, Le Yu, Fei Huang, Suozhi Huang, Dayiheng Liu, Jingren Zhou, and Junyang Lin. Gated attention for large language models: Non-linearity, sparsity, and attention-sink-free. arXiv preprint arXiv:2505.06708 , 2025. [15] Sandhini Agarwal et al. gpt-oss-120b & gpt-oss-20b model card. arXiv preprint arXiv:2508.10925 ,2025. [16] Gemma Team. Gemma 2: Improving open language models at a practical size. arXiv preprint arXiv:2408.00118 , 2024. [17] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in Neural Information Processing Systems (NeurIPS) , 2017. [18] Joshua Ainslie, James Lee-Thorp, Michiel de Jong, Yury Zemlyanskiy, Federico Lebr´ on, and Sumit Sanghai. GQA: Training generalized multi-query transformer models from multi-head checkpoints. In 
+
+Conference on Empirical Methods in Natural Language Processing (EMNLP) , 2023. [19] Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, and Christopher R´ e. FlashAttention: Fast and memory-efficient exact attention with IO-awareness. In Advances in Neural Information Processing Systems (NeurIPS) , 2022. [20] Jang-Hyun Kim, Jinuk Kim, Sangwoo Kwon, Jae W. Lee, Sangdoo Yun, and Hyun Oh Song. KVzip: Query-agnostic KV cache compression with context reconstruction. arXiv preprint arXiv:2505.23416 ,2025.  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 12
+
+[21] Raghavv Goel, Junyoung Park, Mukul Gagrani, Dalton Jones, Matthew Morse, Harper Langston, Mingu Lee, and Chris Lott. CAOTE: KV cache selection for LLMs via attention output error-based token eviction. arXiv preprint arXiv:2504.14051 , 2025. [22] Valeria Ruscio, Umberto Nanni, and Fabrizio Silvestri. What are you sinking? a geometric approach on attention sink. arXiv preprint arXiv:2508.02546 , 2025. [23] Aaron Grattafiori et al. The Llama 3 herd of models. arXiv preprint arXiv:2407.21783 , 2024. [24] An Yang et al. Qwen2.5 technical report. arXiv preprint arXiv:2412.15115 , 2024. [25] Cheng-Ping Hsieh, Simeng Sun, Samuel Kriman, Shantanu Acharya, Dima Rekesh, Fei Jia, Yang Zhang, and Boris Ginsburg. RULER: What’s the real context size of your long-context language models? arXiv preprint arXiv:2404.06654 , 2024. [26] Greg Kamradt. Needle in a haystack — pressure testing LLMs. https://github.com/gkamradt/ LLMTest_NeedleInAHaystack , 2023. [27] Yushi Bai, Xin Lv, Jiajie Zhang, Hongchang Lyu, Jiankai Tang, Zhidian Huang, Zhengxiao Du, Xiao Liu, Aohan Zeng, Lei Hou, Yuxiao Dong, Jie Tang, and Juanzi Li. LongBench: A bilingual, multitask benchmark for long context understanding. In Annual Meeting of the Association for Computational Linguistics (ACL) , 2024. [28] Dan Hendrycks, Collin Burns, Saurav Kadavath, Akul Arora, Steven Basart, Eric Tang, Dawn Song, and Jacob Steinhardt. Measuring mathematical problem solving with the MATH dataset. arXiv preprint arXiv:2103.03874 , 2021. [29] Hunter Lightman, Vineet Kosaraju, Yura Burda, Harri Edwards, Bowen Baker, Teddy Lee, Jan Leike, John Schulman, Ilya Sutskever, and Karl Cobbe. Let’s verify step by step. arXiv preprint arXiv:2305.20050 , 2023. [30] Mingjie Sun, Xinlei Chen, J. Zico Kolter, and Zhuang Liu. Massive activations in large language models. In International Conference on Machine Learning (ICML) , 2024. [31] Nathan Godey, ´ Eric de la Clergerie, and Benoˆ ıt Sagot. Anisotropy is inherent to self-attention in transformers. arXiv preprint arXiv:2401.12143 , 2024. [32] Songlin Yang, Jan Kautz, and Ali Hatamizadeh. Gated delta networks: Improving Mamba2 with delta rule. In International Conference on Learning Representations (ICLR) , 2025. [33] Edwin T. Jaynes. Information theory and statistical mechanics. Physical Review , 106(4):620–630, 1957.  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 13
+
+# ValueDiff Supplementary Material 
+
+## A ValueDiff under Dirichlet Max-Entropy, and Relationship to FastCAOTE 
+
+Theorem 3.1 in the main body establishes ValueDiff as the minimizer of the CAOTE reconstruction objective Equation (6) evaluated at the symmetric attention vector 𝜶 ★ = (1/n, ... , 1/n), using only the observation that 
+
+𝜶 ★ is the mean of any exchangeable prior on Δn−1. This appendix formalizes the prior via Jaynes’ max-entropy principle [33]. On Δn−1 without further constraints, the maximum-entropy distribution is Dirichlet (1, ... , 1), a specific exchangeable prior with strictly positive density throughout the simplex. We (i) recover the ValueDiff ranking under the full expectation EP [∥ o(𝜶 ) − o\j (𝜶 )∥ 2] with P = Dirichlet (1, ... , 1), and (ii) clarify the precise relationship to FastCAOTE [21], whose score corresponds to a partial max-entropy approximation of the same objective. 
+
+Claim. Let 𝜶 ∼ Dirichlet (1, ... , 1) on Δn−1 and ¯ v = 1
+
+> n
+
+Íi vi . Then 
+
+E𝜶 
+
+" 𝛼 j
+
+1 − 𝛼 j
+
+2
+
+∥vj − o(𝜶 )∥ 2
+
+#
+
+= 2
+
+n(n − 1) ∥vj − ¯v∥2 + C (n), (A.1) where o(𝜶 ) = Íi 𝛼 i vi and C (n) depends only on n and the cache (not on j). The integrand is the per-query squared reconstruction error after evicting j and renormalizing the softmax, with ∥o − o′ ∥2 =
+
+(𝛼 j /( 1 − 𝛼 j )) 2 ∥vj − o∥2 and o′ = (o − 𝛼 j vj )/( 1 − 𝛼 j ). The minimizer is j★ = arg min j ∥vj − ¯v∥, matching the main-body proposition and confirming that ValueDiff is robust to the specific form of max-entropy adopted. The proof proceeds in three steps. First, a renormalization identity rewrites the integrand in a more tractable form. Second, a Dirichlet independence property factors the expectation. Third, elementary moment calculations finish the reduction. 
+
+Step 1. Renormalization identity. Define the post-eviction output o′ 
+
+> j
+
+:= Íi≠j (𝛼 i /( 1 − 𝛼 j )) vi . Direct algebra gives 
+
+vj − o = (1 − 𝛼 j )vj −∑︁ 
+
+> i≠j
+
+𝛼 i vi = (1 − 𝛼 j )( vj − o′ 
+
+> j
+
+),
+
+so that  𝛼 j
+
+1 − 𝛼 j
+
+2
+
+∥vj − o∥2 = 𝛼 2 
+
+> j
+
+∥vj − o′ 
+
+> j
+
+∥2. (A.2) 
+
+Step 2. Dirichlet independence. A standard property of the Dirichlet distribution states that if 𝜶 ∼
+
+Dirichlet (a1, ... , an), then the marginal 𝛼 j ∼ Beta (aj , Íi≠j ai ) is independent of the renormalized other  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 14
+
+weights 𝜷 = (𝛼 i /( 1 − 𝛼 j )) i≠j ∼ Dirichlet (a−j ). In the symmetric case ai = 1 this gives 
+
+𝛼 j ∼ Beta (1, n − 1), 𝜷 ∼ Dirichlet (1, ... , 1) on Δn−2, 𝛼 j ⊥ 𝜷 .
+
+Since o′ 
+
+> j
+
+is a function only of 𝜷 (and the fixed cache values), o′ 
+
+> j
+
+⊥ 𝛼 j . Combined with Equation (A.2), 
+
+E
+
+" 𝛼 j
+
+1 − 𝛼 j
+
+2
+
+∥vj − o∥2
+
+#
+
+= E[𝛼 2 
+
+> j
+
+] · E[∥ vj − o′ 
+
+> j
+
+∥2]. (A.3) 
+
+Step 3. Moments. First factor. For 𝛼 j ∼ Beta (1, n − 1), standard Beta moments give E[𝛼 j ] = 1/n and 
+
+E[𝛼 2 
+
+> j
+
+] = 2
+
+n(n + 1) . (A.4) 
+
+Second factor. Since Íi≠j 𝛽 i = 1, we can rewrite 
+
+vj − o′ 
+
+> j
+
+=∑︁ 
+
+> i≠j
+
+𝛽 i (vj − vi ) =∑︁ 
+
+> i≠j
+
+𝛽 i di , (A.5) where di := vj − vi . Standard Dirichlet(1,. . . ,1) moments on Δn−2 give E[𝛽 2 
+
+> i
+
+] = 2/(( n − 1)n) and 
+
+E[𝛽 i 𝛽 k ] = 1/(( n − 1)n) for i ≠ k, which can be combined as E[𝛽 i 𝛽 k ] = (1 + 1[i = k])/(( n − 1)n).Therefore 
+
+E
+
+h Íi≠j 𝛽 i di 2i
+
+= 1
+
+(n − 1)n
+
+Íi≠j ∥di ∥2 + Íi≠j di 2
+
+. (A.6) Both sums reduce to cache-level quantities. Using Íi≠j vi = n¯v − vj ,
+
+Íi≠j di
+
+> 2
+
+= (n − 1)vj − ( n¯v − vj ) 2 = n2 ∥vj − ¯v∥2. (A.7) Expanding the squared distances with S2 := Íi ∥vi ∥2 and using ∥vj ∥2 − 2v⊤ 
+
+> j
+
+¯v = ∥vj − ¯v∥2 − ∥ ¯v∥2,∑︁ 
+
+> i≠j
+
+∥di ∥2 = n∥vj ∥2 − 2nv⊤ 
+
+> j
+
+¯v + S2 = n∥vj − ¯v∥2 +  S2 − n∥ ¯v∥2. (A.8) Substituting Equations (A.7) and (A.8) into Equation (A.6), 
+
+E[∥ vj − o′ 
+
+> j
+
+∥2] = n + 1
+
+n − 1 ∥vj − ¯v∥2 + S2 − n∥ ¯v∥2
+
+(n − 1)n . (A.9) The second term depends only on n and the cache, not on j.
+
+Conclusion. Substituting Equations (A.4) and (A.9) into Equation (A.3), 
+
+E
+
+" 𝛼 j
+
+1 − 𝛼 j
+
+2
+
+∥vj − o∥2
+
+#
+
+= 2
+
+n(n + 1) ·
+
+ n + 1
+
+n − 1 ∥vj − ¯v∥2 + S2 − n∥ ¯v∥2
+
+(n − 1)n
+
+
+
+= 2
+
+n(n − 1) ∥vj − ¯v∥2 + 2 (S2 − n∥ ¯v∥2)
+
+n2 (n − 1)( n + 1)
+
+| {z }  
+
+> =:C(n)
+
+,
+
+which is Equation (A.1). Since C (n) does not depend on j, the minimizer of the expected reconstruction error is j★ = arg min j ∥vj − ¯v∥. ■ 
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 15
+
+Relationship to FastCAOTE. The renormalization identity in Step 1, taken in unsquared form, reads 
+
+o(𝜶 ) − o′ 
+
+> j
+
+= 𝛼 j
+
+1 − 𝛼 j
+
+∥vj − o(𝜶 )∥ , (A.10) where o′ 
+
+> j
+
+= Íi≠j (𝛼 i /( 1 − 𝛼 j )) vi is the post-eviction softmax-renormalized output. FastCAOTE [21] evaluates Equation (A.10) at an observed attention vector ˜ 𝜶 and applies a single approximation, o( ˜𝜶 ) → ¯v, yielding the score 
+
+sFastCAOTE  
+
+> j
+
+= ˜𝛼 j
+
+1 − ˜𝛼 j
+
+∥vj − ¯v∥ (A.11) (Eq. 23 of [21]). The substitution o → ¯v is itself max-entropy in character. Under 𝜶 ∼ Uniform, E[o(𝜶 )] = ¯v,and the approximation is exact at 𝜶 ★. The factor ˜ 𝛼 j /( 1 − ˜𝛼 j ), in contrast, retains the observed attention weight without a corresponding max-entropy substitution. Applying max-entropy consistently to both quantities, as ValueDiff does, additionally substitutes 𝛼 j → 1/n,giving 𝛼 j /( 1 − 𝛼 j ) → 1/( n − 1). This collapses Equation (A.11) to ∥vj − ¯v∥/( n − 1), and the j-independent factor 1 /( n − 1) drops out of the argmin, recovering ValueDiff. From this angle, ValueDiff is the consistent max-entropy limit of the same reconstruction error in which FastCAOTE is rooted, differing only in that the attention weighting is also max-entropy approximated and thus vanishes from the ranking. 
+
+## B Distance from the Symmetric Limit 
+
+The symmetric reference point in Section 3.3 is useful because it makes the absence of future query information explicit. In this appendix we analyze the eviction error in the more general setting where 𝜶 may deviate from 
+
+𝜶 ∗, and quantify how that deviation controls the gap from the exact rule. For any realized attention vector, the attention output decomposes as 
+
+o(𝜶 ) =∑︁ 
+
+> i
+
+𝛼 i vi = ¯v +∑︁ 
+
+> i
+
+
+
+𝛼 i − 1
+
+> n
+
+
+
+vi , ¯v = 1
+
+> n
+
+∑︁ i
+
+vi . (A.12) Substituting Equation (A.12) into Equation (A.10) makes the dependence on the attention weights explicit: 
+
+ej (𝜶 ) = 𝛼 j
+
+1 − 𝛼 j
+
+(vj − ¯v) − Íi
+
+ 𝛼 i − 1
+
+> n
+
+vi . (A.13) When 𝜶 = 𝜶 ∗, the sum Íi (𝛼 i − 1/n)vi vanishes and 𝛼 j = 1/n, so Equation (A.13) reduces to the ValueDiff score sj = ∥vj − ¯v∥ scaled by 1 /( n − 1), recovering Theorem 3.1 exactly. To bound Equation (A.13) for general 𝜶 , we introduce a scalar measuring how far 𝜶 departs from 𝜶 ∗:
+
+𝛿 (𝜶 ) = 𝜶 − 1 
+
+> n
+
+1 1 , (A.14) the total attention mass displaced from uniform — zero when 𝜶 = 𝜶 ∗ and growing as attention concentrates. 
+
+𝛿 (𝜶 ) captures the attention weight departure, but the resulting displacement of the attention output also depends on how spread out the cached value vectors are. The following bound makes this connection explicit, combining the attention deviation 𝛿 with the value geometry to translate one into an output error. For the sum in Equation (A.13), let 𝜀 i = 𝛼 i − 1/n and let V = {vi }ni=1, diam (V) = max i,k ∥vi − vk ∥.Since Íi 𝜀 i = 0, the total positive mass D+ = Íi:𝜀 i >0 𝜀 i equals the total negative mass Íi:𝜀 i <0 |𝜀 i |, and both equal 𝛿 /2. Define convex combinations p = Íi:𝜀 i >0 (𝜀 i /D+)vi and q = Íi:𝜀 i <0 (| 𝜀 i |/ D − )vi ; then 
+
+Íi 𝜀 i vi = 𝛿  
+
+> 2
+
+(p − q) and ∥p − q∥ ≤ diam (V) . Therefore ∑︁ 
+
+> i
+
+
+
+𝛼 i − 1
+
+> n
+
+
+
+vi ≤ 𝛿 (𝜶 )
+
+2 diam (V) . (A.15)  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 16
+
+Applying the triangle inequality to Equation (A.13) with Equation (A.15) and 𝛼 j ≤ 1/n + 𝛿 (𝜶 ),
+
+ej (𝜶 ) ≤ 𝜑  𝛿 (𝜶 )| {z }
+
+> attention factor
+
+
+
+sj
+
+|{z} 
+
+> ValueDiff score
+
++ 𝛿 (𝜶 ) 
+
+> 2
+
+diam (V) 
+
+| {z }
+
+> value spread
+
+
+
+, 𝜑 (𝛿 ) = 
+
+> 1
+> n
+
++ 𝛿 
+
+1 − 1 
+
+> n
+
+− 𝛿 . (A.16) The attention factor 𝜑 (𝛿 ) captures how far 𝛼 j departs from 1 /( n − 1) due to non-uniform attention. The ValueDiff score sj is the exact eviction cost at the symmetric point. 
+
+## C KV Geometry Across Architectures 
+
+Aggregate statistics 
+
+Table 4 reports sink rate and key/value L2 diversity for all 11 models in the same order as Table 1. Statistics are computed on 20 calibration prompts spanning diverse content categories (narrative, QA, code, math, retrieval), each processed at context length 2048. 𝜎 K and 𝜎 V are the standard deviation of per-token L2 distances from the cache mean, averaged over layers, heads, and the 20 prompts. Table 4: Sink rate and K/V L2 diversity across 11 models. 𝜎 V /𝜎 K > 1 indicates value-dominant geometry. 
+
+Model Mechanism Sink rate 𝜎 K 𝜎 V 𝜎 V /𝜎 K
+
+Llama 3.1-8B None 0.801 1.783 0.583 0.33 Llama 3.2-3B None 0.835 1.478 0.584 0.40 Qwen2.5-3B None 0.446 1.561 1.851 1.19 Qwen2.5-7B None 0.392 1.597 2.133 1.34 Gemma2-2B Softcapping 0.464 1.807 1.590 0.88 Gemma2-9B Softcapping 0.542 1.808 1.808 1.00 Qwen3-4B QK-norm 0.548 2.322 2.263 0.97 Gemma3-4B QK-norm 0.271 12.506 8.377 0.67 Qwen3.5-4B Gated attn 0.015 1.596 2.164 1.36 Qwen3.5-9B Gated attn 0.012 2.344 3.488 1.49 GPT-OSS-20B Learned sink 0.029 2.191 3.652 1.67 
+
+BOS token Q-K alignment and key-space geometric distinctiveness 
+
+Table 5 reports two complementary signals that characterize the attention sink mechanism across our 11 evaluation models. BOS Q-K weight ( ¯ 𝛼 BOS ) is the mean attention mass received by the BOS token from non-BOS query positions ( t ≥ 1), ¯𝛼 BOS = 1
+
+T − 1 
+
+> T−1
+
+∑︁ 
+
+> t=1
+
+𝛼 t,0,
+
+where 𝛼 t,0 is the attention weight query position t assigns to position 0 (BOS), and the sum excludes t=0since the BOS token can only attend to itself under causal masking. High values indicate the BOS key vector aligns strongly with most query vectors, yielding disproportionate attention regardless of query content. BOS key cosim is the cosine similarity between the BOS key vector and the mean of non-BOS key vectors ( i ≥ 1), bos-cossim = cos 
+
+
+
+k0, 1 
+
+> T−1
+
+ÍT −1 
+
+> i=1
+
+ki
+
+
+
+, 
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 17
+
+where k0 is the BOS key and ki (i ≥ 1) are the remaining key vectors. Negative values indicate the BOS key is a geometric outlier in key space (Figure 6). Together, these two signals capture the dual mechanism that prior eviction methods rely on: high Q-K alignment makes BOS a reliable attentional anchor, while geometric distinctiveness from content keys makes BOS a reliable key-geometry outlier. Both signals weaken in architectures where sinks are suppressed. Table 5: BOS token Q-K alignment and key-space geometric distinctiveness across 11 models. High ¯ 𝛼 BOS 
+
+indicates strong persistent Q-K alignment (attentional anchor). Negative BOS key cosim indicates the BOS key is anti-aligned with the content key mean (geometric outlier). 
+
+Model Mechanism ¯𝛼 BOS BOS key cos. sim. Llama 3.1-8B None 0.591 −0.604 Llama 3.2-3B None 0.612 −0.586 Qwen2.5-3B None 0.317 0.091 Qwen2.5-7B None 0.279 0.337 Gemma2-2B Softcapping 0.333 −0.350 Gemma2-9B Softcapping 0.396 −0.424 Qwen3-4B QK-norm 0.408 0.182 Gemma3-4B QK-norm 0.199 0.555 Qwen3.5-4B Gated attn 0.034 0.115 Qwen3.5-9B Gated attn 0.031 0.137 GPT-OSS-20B Learned sink 0.030 0.663 
+
+To further characterize the geometric regime difference, we compare 𝜎 V /𝜎 K against two additional metrics. The weight-space spectral norm ratio ∥WV ∥2/∥ WK ∥2 is entirely data-independent: it requires no calibration text and captures only how much each projection amplifies a unit-norm input, a property fixed in the model weights. The activation-space spectral norm ratio 𝜎 1 (V )/ 𝜎 1 (K ), where 𝜎 1 (·) denotes the largest singular value of the stacked activation matrix, is data-dependent like 𝜎 V /𝜎 K but measures a different geometric property (dominant variance direction rather than radial spread). Table 6: Three geometric metrics across architectures. The weight ratio is data-independent (projection matrix structure only); the other two require forward passes on calibration text. All three preserve the same architectural ordering. 
+
+Model Mechanism ∥WV ∥2/∥ WK ∥2 𝜎 1 (V )/ 𝜎 1 (K ) 𝜎 V /𝜎 K
+
+Llama 3.1-8B None 0.192 0.057 0.33 Llama 3.2-3B None 0.195 0.071 0.40 Qwen2.5-3B None 0.668 0.216 1.19 Qwen2.5-7B None 0.743 0.194 1.34 Gemma2-2B Softcapping 0.550 0.257 0.88 Gemma2-9B Softcapping 0.632 0.288 1.00 Qwen3-4B QK-norm 0.651 0.320 1.00 Gemma3-4B QK-norm 0.497 0.397 0.67 Qwen3.5-4B Gated attn 1.174 1.358 1.36 Qwen3.5-9B Gated attn 1.134 1.339 1.49 GPT-OSS-20B Learned sink 1.120 0.815 1.67 
+
+Two observations follow from Table 6. First, all three metrics preserve the same architectural ordering: Llama at the key-dominant extreme, Qwen3.5 and GPT-OSS at the value-dominant extreme, with intermediate architectures between. Second, and more importantly, the weight ratio and the activation ratio diverge  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 18
+
+substantially in magnitude. For Llama, ∥WV ∥2/∥ WK ∥2 = 0.19 but 𝜎 1 (V )/ 𝜎 1 (K ) = 0.06—the activation-level key dominance is roughly three times stronger than the weight-level bias alone predicts. For Qwen3.5 the gap runs in the opposite direction (1 .17 vs 1 .36). This systematic divergence shows that token content contributes an independent geometric signal on top of the projection structure: 𝜎 V /𝜎 K measures a genuine property of how tokens distribute in the projected spaces, not an artifact of how the weight matrices are scaled. 
+
+Per-layer sink rate 
+
+Figure 4 shows the per-layer sink rate ( 𝜏 = 0.3) for all 11 models. Non-suppressed models (Llama) maintain high sink rates consistently across all layers. Sink-suppression models split into two patterns: gated-attention and learned-bias models (Qwen3.5, GPT-OSS) show near-zero sink rates throughout, while QK-norm and softcapping models (Qwen3, Gemma2, Gemma3) show intermediate rates with moderate layer-to-layer variation. Qwen2.5 is the sole exception with sharp, alternating oscillations discussed further in Section C.  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 19
+
+0 5 10 15 20 25 30 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 Sink rate ( =0.3) 
+
+Llama 3.18B 
+
+0 5 10 15 20 25 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 
+
+Llama 3.23B 
+
+0 5 10 15 20 25 30 35 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 
+
+Qwen2.53B 
+
+0 5 10 15 20 25 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 Sink rate ( =0.3) 
+
+Qwen2.57B 
+
+0 5 10 15 20 25 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 
+
+Gemma22B 
+
+0 10 20 30 40 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 
+
+Gemma29B 
+
+0 5 10 15 20 25 30 35 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 Sink rate ( =0.3) 
+
+Qwen34B 
+
+0 5 10 15 20 25 30 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 
+
+Gemma34B 
+
+0 1 2 3 4 5 6 7Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 
+
+Qwen3.54B 
+
+0 1 2 3 4 5 6 7Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 Sink rate ( =0.3) 
+
+Qwen3.59B 
+
+0 5 10 15 20 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 
+
+GPTOSS20B 
+
+Sink rate ( =0.3) per layer all 11 models 
+
+None Softcapping QKnorm Gated attn Learned sink Figure 4: Per-layer sink rate ( 𝜏 = 0.3) for all 11 models. Llama maintains high sink rates throughout; Qwen3.5 and GPT-OSS show near-zero; mixed-regime models show intermediate rates. Qwen2.5-3B uniquely exhibits sharp oscillations attributable to its 2 KV heads. 
+
+Per-layer 𝜎 K and 𝜎 V
+
+Figure 5 shows 𝜎 (ℓ )
+
+K and 𝜎 (ℓ )
+
+V at each attention layer for all 11 models. Error bars reflect per-head standard deviation within each layer, averaged over samples. For Qwen3.5, only the 8 full-attention layers are shown; the x-axis indexes attention layers sequentially. 
+
+Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 20 0 5 10 15 20 25 30 Attention Layer Idx 012(L2 diversity) 
+
+Llama 3.18B      
+
+> 0510 15 20 25 Attention Layer Idx 0.5 1.0 1.5 2.0
+
+Llama 3.23B        
+
+> 0510 15 20 25 30 35 Attention Layer Idx 0510 15
+
+Qwen2.53B      
+
+> 0510 15 20 25 Attention Layer Idx 0510 15 (L2 diversity)
+
+Qwen2.57B      
+
+> 0510 15 20 25 Attention Layer Idx 1.0 1.5 2.0 2.5 3.0 3.5
+
+Gemma22B     
+
+> 010 20 30 40 Attention Layer Idx 1234
+
+Gemma29B        
+
+> 0510 15 20 25 30 35 Attention Layer Idx 0510 15 (L2 diversity)
+
+Qwen34B       
+
+> 0510 15 20 25 30 Attention Layer Idx 020 40 60 80 100
+
+Gemma34B        
+
+> 01234567Attention Layer Idx 12345
+
+Qwen3.54B        
+
+> 01234567Attention Layer Idx 2468(L2 diversity)
+
+Qwen3.59B     
+
+> 0510 15 20 Attention Layer Idx 02468
+
+GPTOSS20B  
+
+> K
+
+and V per layer all 11 models       
+
+> K(all)
+> V[None]
+> V[Softcapping]
+> V[QK norm]
+> V[Gated attn]
+> V[Learned sink]
+
+Figure 5: Per-layer key and value L2 diversity ( 𝜎 (ℓ )
+
+K , grey; 𝜎 (ℓ )
+
+V , mechanism color) for all 11 models. Error bars show per-head standard deviation. Qwen3.5 shows only 8 full-attention layers. 
+
+Per-layer BOS key cosine similarity 
+
+Figure 6 shows the mean BOS key cosine similarity bos-cossim (ℓ ) at each attention layer. Negative values indicate the BOS key vector is a geometric outlier relative to the content key mean—the structural signature of an attention sink. Positive values indicate BOS is not geometrically distinct from content keys. The pattern mirrors the aggregate picture in Figure 1: Llama maintains consistently negative values throughout all layers (strong geometric sink), Qwen3.5 and GPT-OSS are near zero or positive (sink suppressed), and QK-norm and softcapping models (Qwen3, Gemma2, Gemma3) sit in between. 
+
+Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 21 0 5 10 15 20 25 30 Attention Layer Idx 0.8 
+
+> 0.6
+> 0.4
+> 0.2
+> 0.0 BOS key cosim
+
+Llama 3.18B      
+
+> 0510 15 20 25 Attention Layer Idx 0.8
+> 0.6
+> 0.4
+> 0.2
+> 0.0
+
+Llama 3.23B        
+
+> 0510 15 20 25 30 35 Attention Layer Idx 0.5
+> 0.0 0.5 1.0
+
+Qwen2.53B      
+
+> 0510 15 20 25 Attention Layer Idx 0.0 0.5 1.0 BOS key cosim
+
+Qwen2.57B      
+
+> 0510 15 20 25 Attention Layer Idx 0.6
+> 0.4
+> 0.2
+> 0.0 0.2
+
+Gemma22B     
+
+> 010 20 30 40 Attention Layer Idx 0.6
+> 0.4
+> 0.2
+> 0.0 0.2
+
+Gemma29B        
+
+> 0510 15 20 25 30 35 Attention Layer Idx 0.2
+> 0.0 0.2 0.4 0.6 0.8 BOS key cosim
+
+Qwen34B       
+
+> 0510 15 20 25 30 Attention Layer Idx 0.0 0.2 0.4 0.6
+
+Gemma34B        
+
+> 01234567Attention Layer Idx 0.0 0.2 0.4
+
+Qwen3.54B        
+
+> 01234567Attention Layer Idx 0.0 0.2 0.4 BOS key cosim
+
+Qwen3.59B     
+
+> 0510 15 20 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8
+
+GPTOSS20B 
+
+BOS key cosine similarity per layer all 11 models 
+
+Negative geometric sink; Positive no sink     
+
+> None Softcapping QKnorm Gated attn Learned sink
+
+Figure 6: Per-layer BOS key cosine similarity for all 11 models. Values below zero indicate a geometrically distinct BOS key (attention sink); values above zero indicate sink suppression. The dashed line marks bos-cossim = 0. 
+
+Per-layer 𝜎 V /𝜎 K
+
+Figure 7 shows the per-layer 𝜎 V /𝜎 K ratio. The per-layer profiles reflect the three geometry regimes discussed in Section 4.1. Value-dominant models (GPT-OSS-20B, Qwen3.5) show consistently high 𝜎 V , either uniform throughout or strengthening in later full-attention layers, providing a stable value-side signal that ValueDiff exploits. Mixed-regime models (Qwen3, Gemma2, Gemma3) oscillate around 𝜎 V /𝜎 K ≈ 1within a moderate range (0.6–1.6); even here, ValueDiff generally comes out ahead as the value signal retains an edge (Section 4.1). Key-dominant models (Llama) are consistently below 1 across all layers, where 
+
+Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 22 KeyDiff is the strongest method and ValueDiff remains competitive. Each of these patterns is geometrically coherent, and a single eviction strategy applies consistently within each model. 0 5 10 15 20 25 30 Attention Layer Idx 0.0 0.2 0.4 0.6 0.8 1.0 1.2 
+
+> V/ K
+
+Llama 3.18B      
+
+> 0510 15 20 25 Attention Layer Idx 0.2 0.4 0.6 0.8 1.0 1.2
+
+Llama 3.23B        
+
+> 0510 15 20 25 30 35 Attention Layer Idx 0246810
+
+Qwen2.53B      
+
+> 0510 15 20 25 Attention Layer Idx 02468
+> V/ K
+
+Qwen2.57B      
+
+> 0510 15 20 25 Attention Layer Idx 0.4 0.6 0.8 1.0 1.2 1.4 1.6
+
+Gemma22B     
+
+> 010 20 30 40 Attention Layer Idx 0.5 1.0 1.5 2.0
+
+Gemma29B        
+
+> 0510 15 20 25 30 35 Attention Layer Idx 0.50 0.75 1.00 1.25 1.50 1.75
+> V/ K
+
+Qwen34B       
+
+> 0510 15 20 25 30 Attention Layer Idx 0.00 0.25 0.50 0.75 1.00 1.25 1.50
+
+Gemma34B        
+
+> 01234567Attention Layer Idx 0.5 1.0 1.5 2.0 2.5 3.0
+
+Qwen3.54B        
+
+> 01234567Attention Layer Idx 0.5 1.0 1.5 2.0 2.5 3.0
+> V/ K
+
+Qwen3.59B     
+
+> 0510 15 20 Attention Layer Idx 0246810 12
+
+GPTOSS20B 
+
+> V
+
+/ K per attention layer all 11 models     
+
+> None Softcapping QKnorm Gated attn Learned sink
+
+Figure 7: Per-layer 𝜎 V /𝜎 K ratio for all 11 models. The dashed horizontal line marks 𝜎 V = 𝜎 K . All models except Qwen2.5 maintain a coherent regime across layers. 
+
+The Qwen2.5 Anomaly 
+
+Qwen2.5 stands out visually in both per-layer figures above. Its sink rate oscillates sharply between high and low values across consecutive layers (Figure 4), a pattern unique to this family in our evaluation. Its 𝜎 V /𝜎 K
+
+ratio crosses the key/value boundary in both directions with extreme amplitude (Figure 7): Qwen2.5-3B ranges from 0.31 to 8.77 (std = 1.56) and Qwen2.5-7B from 0.30 to 6.81 (std = 1.63). Figure 8 summarizes why this 
+
+Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 23 is unique: plotting per-layer sink rate std against 𝜎 V /𝜎 K std across all 11 models, Qwen2.5 is the only family occupying the high-high quadrant. Qwen3 has comparable sink rate variance (std = 0.31) but stable 𝜎 V /𝜎 K
+
+(std = 0.20); GPT-OSS has high 𝜎 V /𝜎 K variance (std = 1.78) but near-zero sink oscillation (std = 0.05); crucially, its ratio remains consistently above 1 across all layers, so the variance reflects magnitude differences rather than regime instability, and ValueDiff reliably exploits the value-dominant signal throughout. No other model has both instabilities simultaneously, and every eviction method relies on at least one consistent signal to identify important tokens; Qwen2.5 offers neither. We also confirmed that Qwen 2.5 models have extreme grouped-query attention ratio. Table 7 shows the GQA ratios across all 11 models: Qwen2.5-3B and 7B have the highest ratios (8:1 and 7:1) among all-full-attention models. GPT-OSS-20B shares an 8:1 ratio but uses a 128-token sliding window in half its layers, substantially reducing the diversity burden per KV pair. For Qwen2.5, the high GQA compression means each cached KV pair must serve many query heads simultaneously across the full context, leaving the cache dense with non-redundant information and little room for token eviction without significant information loss. Table 7: GQA compression ratios and effective attention scope across 11 models. Qwen2.5-3B and 7B have the highest GQA ratios among all-full-attention models; GPT-OSS shares an 8:1 ratio but limits the context burden via a 128-token sliding window in half its layers.                                                                        
+
+> Model Mechanism Q heads KV heads GQA ratio Attention scope Llama 3.1-8B None 32 84:1 Full Llama 3.2-3B None 24 83:1 Full Qwen2.5-3B None 16 28:1 Full Qwen2.5-7B None 28 47:1 Full Gemma2-2B Softcapping 842:1 Local 4096 (alt.) Gemma2-9B Softcapping 16 82:1 Local 4096 (alt.) Qwen3-4B QK-norm 32 84:1 Full Gemma3-4B QK-norm 842:1 Local 1024 (alt.) Qwen3.5-4B Gated attn 16 44:1 Linear+full hybrid Qwen3.5-9B Gated attn 16 44:1 Linear+full hybrid GPT-OSS-20B Learned sink 64 88:1 Local 128 (half layers)
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 24 0.00 0.05 0.10 0.15 0.20 0.25 0.30
+> Sink rate std across layers
+> 0.00 0.25 0.50 0.75 1.00 1.25 1.50 1.75
+> V/ K std across layers
+> both unstable
+> Llama 3.18B Llama 3.23B Qwen2.53B Qwen2.57B Gemma22B Gemma29B Qwen34B Qwen34BInst Gemma34B Qwen3.54B Qwen3.59B GPTOSS20B
+> None Softcapping QKnorm Gated attn Learned bias
+
+Figure 8: Per-layer instability of sink rate (x-axis) vs. 𝜎 V /𝜎 K (y-axis) across 11 models. Each point is one model. Qwen2.5 uniquely occupies the top-right quadrant where both signals are simultaneously unstable across layers. 
+
+## D Attention Ranking Stability Across Architectures 
+
+Motivation 
+
+Attention-score eviction methods (TOVA [9], SnapKV [10], H 2O [11]) retain tokens with the highest observed attention weight. Under block prompt processing, the eviction decision at block boundary b is made using only the attention computed from queries in blocks 1 ... b; queries in all later blocks and all decode steps are unavailable. For this to work, the top-k set identified by queries in block b must be a good proxy for what future queries will need. We measure how stable the top-k set actually is across different query positions and whether this stability differs between sink-suppressed and non-suppressed models. 
+
+Measurement procedure 
+
+For each model we run forward passes on 8 calibration sequences at context length 2048, collecting the full attention weight matrix W (ℓ ) ∈ RH ×T ×T at each layer ℓ. We then sample nq = 128 query positions evenly spaced over the valid range t ∈ [ k + 32 , T − 1] (requiring a KV prefix of at least k + 32 = 288 tokens to form a meaningful top-k set). For each ordered pair of query positions (ti , tj ), we compare the top-k attention sets over the shared KV prefix of length min (ti , tj ).
+
+J (ti , tj , h, ℓ) = Ahti ∩ Ahtj
+
+Ahti ∪ Ahtj
+
+, Aht = top-k  W (ℓ )  
+
+> h,t,:c
+
+, c = min (ti , tj ), 
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 25
+
+where k = 256 (a representative eviction budget). Using the shared prefix ensures both queries rank over the same token set. For each query position ti , we define its positional stability as 
+
+s (ti , h, ℓ) = 1
+
+nq − 1∑︁ j≠i
+
+J (ti , tj , h, ℓ).
+
+The model-level aggregate is the mean of s (ti , h, ℓ) over all positions, heads, and layers, averaged over the 8 calibration samples. 
+
+Results 
+
+Table 8 reports the mean positional stability and its standard deviation across layers for the 8 models evaluated. Table 8: Mean top-256 attention Jaccard across query positions (model-level aggregate). Higher = more consistent rankings. Seven of nine models cluster in [0.33 , 0.40 ]; Qwen3.5-4B falls slightly below (0.319) and GPT-OSS-20B is the sole high outlier (0.477).                               
+
+> Model Mechanism Mean Jaccard Std (across layers) Qwen2.5-7B None 0.334 0.023 Qwen2.5-3B None 0.338 0.030 Llama 3.2-3B None 0.339 0.022 Llama 3.1-8B None 0.347 0.031 Qwen3-4B QK-norm 0.347 0.040 Gemma2-9B Logit-cap 0.347 0.026 Gemma3-4B QK-norm 0.398 0.036 GPT-OSS-20B Learned sink 0.477 0.141 Qwen3.5-4B Gated attn 0.319 0.030
+
+Observed patterns 
+
+Universal instability. Seven of nine models cluster tightly in [0.33 , 0.40 ] regardless of whether attention is flattened. Qwen3.5-4B falls slightly below this range at 0.319, consistent with near-zero attention sinks providing no stable high-mass anchor. The Jaccard ≈0.4 cited in the main body (Section 3.1) is therefore not an artifact of a particular architecture. It reflects a baseline property of attention itself. Attention rankings over the full KV prefix are moderately inconsistent across query positions in every architecture tested. 
+
+Position-dependent decay. The aggregate Jaccard mixes positions with very different pool sizes. At early query positions ( t ≈ 288–714), the shared KV prefix is short and selecting 256 tokens out of ∼ 300 is nearly forced, inflating Jaccard mechanically. At later positions ( t ≈ 1600–2034), where the KV pool is large and eviction is most consequential, the per-layer Jaccard falls to 0 .25–0 .27 on both non-suppressed (Llama 3.1-8B) and sink-suppressed (Qwen3-4B) models. This decay is consistent across architectures. The instability of attention rankings grows with KV pool size, and is equally pronounced in the sink-suppressed models. 
+
+GPT-OSS-20B outlier. GPT-OSS-20B registers a mean Jaccard of 0.477, substantially above the other models. Its learned per-head sink logit absorbs the attention probability that would otherwise concentrate on content-token sink positions, redistributing the remaining probability across content tokens. This redistribution  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 26
+
+Table 9: Long-context inference efficiency on H100 80 GB (budget = 2048). All eviction methods keep peak memory at O (budget ) regardless of context length; ValueDiff variants match the cheapest eviction baseline (Sink) within 3–4% on TTFT. 
+
+Dense Sink TOVA SnapKV KeyDiff ValueDiff V-Dir 
+
+Qwen3.5-4B (gated attention), ctx = 128k 
+
+Peak memory (GB) 15.0 8.6 8.6 8.6 8.6 8.6 8.6 TTFT (s) 70.6 59.7 61.9 61.9 62.6 61.5 62.2 
+
+GPT-OSS-20B (learned sink), ctx = 65k 
+
+Peak memory (GB) 19.8 14.0 14.0 14.0 14.0 14.0 14.0 TTFT (s) 50.2 32.7 33.3 34.4 34.8 34.0 34.6 
+
+makes the attention distribution closer to uniform over content tokens, which has a dual effect. It removes any stable high-contrast anchor (consistent with near-zero sink rate; Table 4), while also making the top-k set less sensitive to which query is used to evaluate it (many tokens receive similar moderate weight, so the top-k
+
+boundary is relatively stable). The high Jaccard therefore does not reflect reliable discriminative signal for eviction; it reflects that attention cannot distinguish which tokens matter, a different form of failure. 
+
+No architecture-level separation. QK-norm, logit-capping, and no-suppression models all fall in the same Jaccard band. This rules out the hypothesis that sink-suppressed models have worse ranking stability than sink-dominated ones. Instead, the data support a different account. Attention rankings are universally unreliable at moderate to large KV pool sizes. In sink-dominated models, TOVA is partially compensated by the sink. The leading token(s) are in the top-k of almost every query regardless of content, providing a stable anchor. When sinks are suppressed, this anchor disappears and attention-based eviction is left with only the unstable content-token component, with no compensating mechanism. This is consistent with the large performance gap on sink-suppressed architectures (Section 4.1). The gap reflects the loss of compensation ,not an increase in ranking instability. 
+
+## E Latency and Memory Sanity Check 
+
+The TTFT measurements characterize scoring overhead under the same block prompt processing setup and cache budget across eviction methods. Under this setup, eviction reduces peak memory relative to dense inference, and ValueDiff stays within a few percent of the cheapest eviction baseline while substantially improving retention on sink-suppressed models. Further serving optimizations, including decode throughput and kernel-level cache management, are complementary to the eviction scoring rule studied in this paper. 
+
+## F MATH-500 Dense Decode Lengths 
+
+Standard sampling protocol. For all models except Qwen3.5, we sample k=5 generations per problem using the temperature and top-p from each model’s official card, with a maximum of 16k or 32k new tokens as shown in Table 10. Cache eviction budgets are set to approximately 25% and 50% of the average dense generation length, rounded to clean multiples of 256/512 tokens for Gemma3-4B and Qwen3.5, 512/1024 tokens for Qwen3-4B and GPT-OSS-20B, and 1024/2048 tokens for the R1-Distill models.  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 27
+
+Table 10: MATH-500 dense baselines ( n = 100, first 100 problems). For all models except Qwen3.5, 
+
+k = 5 generations per problem, flex@ k = mean grade answer accuracy, and score = pass@ k (≥1 correct). For Qwen3.5 ★, greedy k = 1 with thinking disabled; flex@ k and score both equal pass@1. Tokens and empty-response rate are per-generation. Budget is max new tokens ; Trunc% is the fraction of generations that hit it. ‡deepseek-r1-distill-llama-8b aggregated from dense decoded/ after a BPE-marker post-processing fix. ★Qwen3.5 uses enable thinking=False , greedy ( do sample=False ). Average token counts for Qwen3.5 set the reference lengths for eviction budgets b = 256 and b = 512 in Table 3. Category Model Budget flex@ k exact@ k score Avg tok Empty% Trunc% Logit softcapping Gemma2-2B 16k 0.216 0.176 0.430 572 45.2 0.0 Gemma2-9B 16k 0.526 0.446 0.680 430 16.6 0.0 QK-normalization Gemma3-4B 16k 0.742 0.682 0.820 932 11.2 0.0 Qwen3-4B 16k 0.928 0.792 0.960 1 947 1.4 0.0 Qwen3-4B-Thinking-2507 32k 0.888 0.704 0.940 6 974 6.6 0.0 Gated hybrid Qwen3.5-4B ★ 32k 0.890 0.780 0.890 1 124 0.0 0.0 Qwen3.5-9B ★ 32k 0.890 0.790 0.890 1 228 0.0 0.0 Learned attention sink GPT-OSS-20B (reasoning=high) 16k 0.934 0.772 0.960 2 432 1.4 5.0 Reasoning distill DS-R1-Distill-Qwen-1.5B 32k 0.836 0.636 0.930 3 708 8.0 0.0 DS-R1-Distill-Llama-8B ‡ 32k 0.834 0.624 0.920 4 147 4.2 0.0 
+
+Qwen3.5 no-think greedy protocol. With enable thinking=True (k=5, recommended sampling param-eters), the dense pilot on 100 problems yielded average generation lengths of 21,620 tokens (4B) and 18,611 tokens (9B) with a 32k max new tokens cap, and 39% and 35% of generations were truncated at that limit. For context, every other model in this evaluation averages 932–4,147 tokens per generation (see Table 10), making Qwen3.5 think-on traces 5–18 × longer than the next longest model. Even at a 6-hour per-sample generation timeout, many traces did not complete. Beyond the engineering obstacle, the truncation severely degrades accuracy: a generation cut off mid-reasoning cannot produce a correctly-formatted \boxed {} answer, inflating the empty-response rate to 19% (4B) and 15.4% (9B). The resulting think-on dense baselines of flex@5 = 0.790 (4B) and 0.828 (9B) are suppressed by this artifact and understate the model’s actual capability. We confirmed that enable thinking=False 
+
+outperforms enable thinking=True on MATH-500 for both model sizes. We therefore evaluated Qwen3.5 with thinking disabled ( enable thinking=False ), greedy decoding (do sample=False , temperature 0), and k=1. Despite the setting name, no-think mode still generates step-by-step mathematical reasoning : the model works through problems with structured intermediate steps in its response. The resulting responses are complete solutions averaging 1,124 tokens (4B) and 1,228 tokens (9B) with zero truncation. The no-think dense baseline of flex@1 = 0.890 for both models is 10.0 pp (4B) and 6.2 pp (9B) higher than the truncation-affected think-on baseline, making it the more reliable reference for measuring eviction retention. The eviction budgets b=256 and b=512 correspond to approximately 23% and 46% of the no-think dense length for the 4B model, and 21% and 42% for the 9B model. Retention in Table 3 is computed relative to the no-think greedy dense baseline for Qwen3.5, and relative to the k=5 flex@5 baseline for all other models. 
+
+## G Sink Formatting Collapse on Qwen3.5-4B 
+
+Sink eviction on Qwen3.5-4B produces near-zero flex match at both budgets (1.1% at b=256, 31.5% at 
+
+b=512), far below every other method. We analyze all 100 MATH-500 generations at each budget to identify the failure mechanism.  
+
+> Qualcomm AI Research is an initiative of Qualcomm Technologies, Inc. 28
+
+Table 11: Failure categories for Sink eviction on Qwen3.5-4B, MATH-500 ( n=100). “Format (no box)” = correct reasoning, answer present but not in \boxed {} . “Truncated” = generation ends mid-reasoning without conclusion. “Context lost” = model states the problem was not provided (input fidelity failure). “Wrong answer” = \boxed {} present but mathematically incorrect.                       
+
+> Category b256 %b512 %Format (no \boxed {} )59 60% 40 56% Truncated mid-reasoning 37 37% ––Context lost (input fidelity) 25 25% <5–Wrong answer ( \boxed {} present) 22% 11%
+
+Math is largely correct; output format is not. Of the 99 failures at b=256, 67% contain the ground-truth answer string somewhere in the response (stripping whitespace and L ATEX delimiters); at b=512 this rises to 74%. The model solves the problem but fails to wrap the final answer in \boxed {} , which is required for flex match scoring. Table 11 breaks down the failure categories. 
+
+Three failure categories (not mutually exclusive). (1) Format regression (60% of b256 failures). The model produces a fully correct solution ending with **Final Answer:** $...$ or Answer: $...$ but omits \boxed {} , which is required for flex match scoring. 
+
+(2) Truncated generation (37% of b256 failures). The response ends abruptly mid-reasoning, without a concluding answer line. The model’s state for tracking generation progress is degraded by aggressive context compression, producing premature termination. 
+
+(3) Context collapse (25% of b256 failures). The model outputs “ It appears that the math problem you intended to ask about was not included in your message. Please provide the problem statement. ” The KV cache at b=256 (25% retention) is too compressed to reconstruct the question, which is a pure input-fidelity failure. 
+
+Contrast with other b256 methods. FastCAOTE, TOVA, and SnapKV also show low flex match at b256 (34.8%, 39.3%, 24.7% respectively), and their failures also exhibit format regression and truncation at similar rates (55–68% of failures contain the correct answer). However, all three recover strongly at b512 (83.1%, 80.9%, 84.3%), demonstrating that their b256 failures are budget-pressure effects. A 25% retention budget is simply too little capacity for reliable formatting and extended reasoning chains. Sink’s failure is qualitatively different. It persists at b512 (31.5%), indicating that the problem is not resolved by increasing budget alone.

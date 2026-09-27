@@ -6,24 +6,35 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-26
-- 运行时间：2026-09-26 21:59:24 UTC
+- 最新运行日期：2026-09-27
+- 运行时间：2026-09-27 22:39:27 UTC
 - 运行状态：成功
-- 本次总论文数：1
+- 本次总论文数：4
 - 精读区：0
-- 速读区：1
+- 速读区：4
 
 ### 今日简报（AI）
-今日仅速读1篇，聚焦《C3M: Cross-Session Multimodal Memory Maintenance for Long-Horizon Tasks》（6.0/10）。该文方向是长程任务中的跨会话多模态记忆维护，适合关注智能体长期记忆的读者浏览。若时间有限可先看摘要与记忆维护机制，再决定是否深读。
-- 详情：[/202609/26/README](/202609/26/README)
+今日速读4篇，聚焦LLM推理与注意力效率，精读0篇，整体以速览为主。  
+最值得看KV Cache淘汰（ValueDiff）和Softmax Attention精确反向传播的I/O优化（FlashBoB），另有共享全局KV与层局部历史思路。  
+普通读者可先关注“长上下文推理如何更省显存/带宽”，后续再挑一篇复现或对比实测。
+- 详情：[/202609/27/README](/202609/27/README)
 
 ### 精读区论文标签
 - 本次无精读推荐。
 
 ### 速读区论文标签
-1. [C3M: Cross-Session Multimodal Memory Maintenance for Long-Horizon Tasks](/202609/26/2609.29735v1-c3m-cross-session-multimodal-memory-maintenance-for-long-horizon-tasks)  
+1. [ValueDiff: Value-Geometric KV Cache Eviction for Sink-Suppressed LLMs](/202609/27/2609.23314v1-valuediff-value-geometric-kv-cache-eviction-for-sink-suppressed-llms)  
    标签：评分：6.0/10、query:la
-   evidence：有界记忆索引与预算化查询路由检索
+   evidence：面向高效注意力记忆的值几何 KV 缓存淘汰
+2. [FlashBoB: I/O-Efficient Exact Backward-over-Backward for Softmax Attention](/202609/27/2609.24089v1-flashbob-io-efficient-exact-backward-over-backward-for-softmax-attention)  
+   标签：评分：6.0/10、query:la
+   evidence：面向长上下文的 I/O 高效注意力算法
+3. [Shared Global KV with Layer-Specific Local History](/202609/27/2609.28006v1-shared-global-kv-with-layer-specific-local-history)  
+   标签：评分：6.0/10、query:la
+   evidence：共享KV与局部记忆保留
+4. [FlashLoop: Fast and Memory-Efficient Looped Transformers via Lazy Updates](/202609/27/2609.29812v1-flashloop-fast-and-memory-efficient-looped-transformers-via-lazy-updates)  
+   标签：评分：6.0/10、query:la
+   evidence：降低KV缓存开销的内存高效循环Transformer
 
 
 <div class="dpr-home-promo-card">
