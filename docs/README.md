@@ -6,35 +6,34 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-27
-- 运行时间：2026-09-27 22:39:27 UTC
+- 最新运行日期：2026-09-29
+- 运行时间：2026-09-29 00:14:32 UTC
 - 运行状态：成功
-- 本次总论文数：4
+- 本次总论文数：3
 - 精读区：0
-- 速读区：4
+- 速读区：3
 
 ### 今日简报（AI）
-今日速读4篇，聚焦LLM推理与注意力效率，精读0篇，整体以速览为主。  
-最值得看KV Cache淘汰（ValueDiff）和Softmax Attention精确反向传播的I/O优化（FlashBoB），另有共享全局KV与层局部历史思路。  
-普通读者可先关注“长上下文推理如何更省显存/带宽”，后续再挑一篇复现或对比实测。
-- 详情：[/202609/27/README](/202609/27/README)
+今日速读 3 篇注意力机制新作，聚焦稀疏化、自适应几何与长序列记忆，无精读。
+
+最值得看的是《Block Sparse Attention with Log-Linear Complexity》（7.0），用分块稀疏把复杂度压到对数线性；其次《MoSAR》（6.0）探索按语义动态切换注意力几何。
+
+普通读者可先读块稀疏那篇了解长上下文提速思路，再顺带看《Progressive Memory Transformer》如何为时间序列做记忆感知注意力。
+- 详情：[/202609/29/README](/202609/29/README)
 
 ### 精读区论文标签
 - 本次无精读推荐。
 
 ### 速读区论文标签
-1. [ValueDiff: Value-Geometric KV Cache Eviction for Sink-Suppressed LLMs](/202609/27/2609.23314v1-valuediff-value-geometric-kv-cache-eviction-for-sink-suppressed-llms)  
+1. [Block Sparse Attention with Log-Linear Complexity](/202609/29/2609.31093v1-block-sparse-attention-with-log-linear-complexity)  
+   标签：评分：7.0/10、query:la
+   evidence：达到对数线性复杂度的块稀疏注意力
+2. [MoSAR: Mixture of Semantic Attention Regimes for Learning Adaptive and Approximable Attention Geometries](/202609/29/2609.31261v1-mosar-mixture-of-semantic-attention-regimes-for-learning-adaptive-and-approximable-attention-geometries)  
    标签：评分：6.0/10、query:la
-   evidence：面向高效注意力记忆的值几何 KV 缓存淘汰
-2. [FlashBoB: I/O-Efficient Exact Backward-over-Backward for Softmax Attention](/202609/27/2609.24089v1-flashbob-io-efficient-exact-backward-over-backward-for-softmax-attention)  
+   evidence：面向长上下文效率的可学习自适应注意力几何
+3. [Progressive Memory Transformer: Memory-Aware Attention for Time-Series](/202609/29/2609.31351v1-progressive-memory-transformer-memory-aware-attention-for-time-series)  
    标签：评分：6.0/10、query:la
-   evidence：面向长上下文的 I/O 高效注意力算法
-3. [Shared Global KV with Layer-Specific Local History](/202609/27/2609.28006v1-shared-global-kv-with-layer-specific-local-history)  
-   标签：评分：6.0/10、query:la
-   evidence：共享KV与局部记忆保留
-4. [FlashLoop: Fast and Memory-Efficient Looped Transformers via Lazy Updates](/202609/27/2609.29812v1-flashloop-fast-and-memory-efficient-looped-transformers-via-lazy-updates)  
-   标签：评分：6.0/10、query:la
-   evidence：降低KV缓存开销的内存高效循环Transformer
+   evidence：面向多尺度序列的记忆感知注意力Transformer
 
 
 <div class="dpr-home-promo-card">
