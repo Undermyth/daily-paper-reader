@@ -1,0 +1,693 @@
+Title: ROTE: Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences
+
+URL Source: https://arxiv.org/pdf/2609.31918v1
+
+Published Time: Tue, 29 Sep 2026 00:14:52 GMT
+
+Number of Pages: 14
+
+Markdown Content:
+# ROTE: B ENCHMARKING NEURAL MEMORIZATION ON 
+
+# COMPLEXITY -C ONTROLLED SYMBOLIC SEQUENCES 
+
+A P REPRINT 
+
+Xinye Chen ∗
+
+Sorbonne Université, CNRS, LIP6 Paris, France 
+
+xinye.chen@lip6.fr 
+
+Stefan Güttel 
+
+The University of Manchester Manchester, United Kingdom 
+
+stefan.guettel@manchester.ac.uk 
+
+Mohammad Mozaffari 
+
+University of Toronto Toronto, Canada 
+
+mmozaffari@cs.toronto.edu 
+
+# ABSTRACT 
+
+We introduce ROTE (RollOut Testing of Exact memorization), a benchmarking protocol for eval-uating symbolic memorization of neural architectures. We study memorization and the extension of symbolic rules in neural sequence models by using sequences whose complexity is regulated by Lempel–Ziv–Welch (LZW) compression. Under ROTE, each architecture is trained as the same finite-context conditional predictor and is evaluated using teacher-forced one-step prediction as well as closed-loop rollout on the withheld symbols. Following a shared prediction-and-rollout eval-uation routine, the benchmark evaluates gated recurrent, minimal recurrent, attention-based, and hybrid recurrent-attention models with their native computational characteristics preserved. Be-yond standard predictive metrics, the benchmark reports normalized string distances, training time, memory usage, and parameter count across an LZW-complexity sweep. The study establishes a connection between the complexity of algorithmic sequences and the memorization capacity of neural architectures, revealing the trade-offs involving memorization quality, rollout stability, and computational expense. Our software and reproducible experimental code can be obtained from 
+
+https://github.com/nla-group/rote .
+
+Keywords Benchmarking · Transformer · RNNs · Symbolic sequences · Memorizing ability 
+
+# 1 Introduction 
+
+RNNs and Transformers are important model architectures for sequence modeling, with applications across language, vision, audio, biology, weather, machine translation, and speech recognition [Kitaev and Klein, 2018, Howard and Ruder, 2018, Devlin et al., 2019, Jiang et al., 2019, Rives et al., 2021, Willard et al., 2025, Zhou et al., 2021, Valanarasu et al., 2022, Vaswani et al., 2017, Chung et al., 2024, Dong et al., 2018, Gulati et al., 2020, Prabhavalkar et al., 2024]. Transformers have shown strong empirical performance through content-dependent attention, but standard self-attention has quadratic complexity in sequence length. This cost has motivated efficient Transformer variants, including sparse, low-rank, reversible, and linear-attention mechanisms [Liu et al., 2018, Kitaev et al., 2020, Wang et al., 2020, Tay et al., 2020, Katharopoulos et al., 2020]. The resulting design space makes it important to evaluate not only prediction accuracy, but also rule discovery, memorization, rollout stability, and computational cost under controlled sequence complexity. Although Transformer models are considered to be a fundamentally distinct approach compared to recurrent neural networks, Katharopoulos et al. [2020] demonstrates that any Transformer layer employing causal masking can be treated as an RNN model. Transformers have been demonstrated to outperform LSTM [Hochreiter and Schmidhuber, 1997] and GRU [Cho et al., 2014] architectures on many real-world tasks. It is natural to ask whether or not the RNN cells can be discarded entirely with the development of self-attention. Finding rules consists of identifying the underlying patterns or relationships in the data, such as the syntactic structures in language, the temporal dependencies in time-series data, or the logical constraints in symbolic reasoning tasks. The ability of a model to identify and 
+
+> ∗
+
+Authors in alphabetical order. arXiv:2609.31918v1 [cs.LG] 25 Sep 2026 Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+generalize rules from sequential data is a fundamental learning capability, particularly in tasks requiring reasoning, pattern recognition, or structured prediction. Measuring this ability is therefore important for guiding architecture design. Existing benchmarking methods (e.g., [Tay et al., 2021]) lack control over sequence complexity or structure and place minimal focus on computational efficiency or sequence similarity metrics. They often focus on natural language datasets (e.g., WikiText, Penn Treebank) and simple synthetic tasks (e.g., copy tasks, arithmetic sequences) to evalu-ate perplexity and generation quality for RNNs and Transformers by simulating various tasks like machine translation, speech recognition, and sentiment analysis. However, such benchmarks often have lower complexity or rely on sta-tistical patterns that favor Transformer’s attention mechanisms over RNN’s sequential modeling, which often results in biased evaluation. Furthermore, according to the scaling law [Kaplan et al., 2020, Hoffmann et al., 2022], opti-mal performance within a fixed computational budget is achieved by balancing model size with dataset scale, rather than solely increasing the number of parameters. However, these scaling laws overlook inference budgets, critical for large-scale deployment [Touvron et al., 2023], and task complexity, such as sequence compressibility. We propose a symbolic-sequence benchmark called ROTE (RollOut Testing of Exact memorization) , in which the difficulty of the seed pattern is controlled by Lempel–Ziv–Welch (LZW) compression before the sequence is periodically extended. Each model receives the same length-w context and is trained to predict the next symbol, then tested both on held-out one-step windows and on a closed-loop rollout generated from its own predictions. This setup distinguishes two sources of difficulty that are often conflated: how compressible the seed is and whether the next symbol is identifiable from the chosen context length. In the experiments, we report DL and JW rollout distances together with test loss, accuracy, parameter count, training time, time per epoch, and peak memory, so that failures can be read as errors in memorization, rollout stability, or compute use rather than as a single aggregate score. The remainder of the paper is organized as follows: Section 2 discusses the related work on RNNs and Transformer models, examining their learning capabilities and benchmarking performance, and highlighting the respective strengths and weaknesses of these architectures; Section 3 illustrates our benchmark methods and the neural architectures we aim to simulate; Section 4 presents empirical results and defines the outcomes; Section 5 discusses limitations; Section 6 concludes and discusses future work. 
+
+# 2 Related work 
+
+The focus in natural language processing has shifted from using RNNs to using Transformers. RNNs, which include types such as LSTM and GRU, handle sequential data by keeping a hidden state, but they have difficulty with long-range dependencies because of their memory limitations and limited scalability [Vaswani et al., 2017]. Transformers [Vaswani et al., 2017] make use of multi-head attention mechanisms in order to process sequences in parallel and have achieved state-of-the-art results in tasks such as machine translation and text classification. RNNs handle inputs in a sequential fashion by updating their hidden state in order to capture temporal dependencies, a feature that makes them suitable for tasks with a recurrent structure. Nevertheless, due to their sequential nature and the problem of vanishing gradients, they are limited in their ability to effectively model long sequences. Although LSTMs and GRUs mitigate this through gating mechanisms, they remain less scalable. Guan et al. [2021] investigates how well RNNs can learn and represent languages generated by context-free grammars (CFGs), such as balanced parentheses and arithmetic expressions. It aims to bridge neural network sequence modeling with formal language theory, and it demonstrates that in principle RNNs can capture the hierarchical structures typical of CFGs. Cahuantzi et al. [2023] examines the architecture of RNNs by looking at the complexity of the string sequences that they are able to memorize; it finds that the learning rate and the number of units per layer are among the most important hyper-parameters to tune, and that GRUs perform better than LSTM networks on sequences of low complexity whereas LSTMs perform better on those of high complexity. The Transformer model, as proposed in Vaswani et al. [2017], makes use of self-attention in order to create representa-tions that are dependent on the content within a given context window. Because standard self-attention scales quadrati-cally with sequence length, many efficient attention mechanisms [Kitaev et al., 2020, Wang et al., 2020, Katharopoulos et al., 2020, Choromanski et al., 2021, Tay et al., 2021] have been proposed to reduce the cost of long-context mod-eling. However, as shown in the Long Range Arena (LRA) benchmark [Tay et al., 2021], efficient attention models involve nontrivial trade-offs between quality and memory, rather than featuring a single design that is universally su-perior. More recent models have further blurred the line between attention and recurrence: linear attention reinterprets causal attention as a recurrent computation [Katharopoulos et al., 2020], Performer approximates softmax attention using random features [Choromanski et al., 2021], RWKV combines recurrent time mixing with channel mixing in the style of Transformers [Peng et al., 2023], and minGRU/minLSTM examine whether a simplified form of recurrence can achieve a large part of the effectiveness of gated RNNs [Feng et al., 2024]. 2Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+# 3 Models and benchmarking 
+
+We formulate symbolic-sequence memorization as a controlled next-symbol prediction problem followed by a free-running rollout test. The benchmark deliberately separates the source of sequence complexity, determined by a finite seed string, from the supervised learning problem, determined by finite-context conditional prediction. This separation is important when comparing recurrent models with attention-based models: all architectures are evaluated through the same conditional distribution over the next symbol, while their internal state update, attention pattern, and pooling mechanism may differ. 
+
+3.1 Controlled symbolic sequences 
+
+Let 
+
+Σ = {A, . . . , Z, a, . . . , z}, |Σ| = 52 ,
+
+and let Σn = {σ1, . . . , σ n} ⊆ Σ denote the active alphabet, 1 ≤ n ≤ 52 . A symbolic seed is a finite word u =
+
+u1 · · · um ∈ Σ∗ 
+
+> n
+
+with support 
+
+supp( u) = {σ ∈ Σn : ∃i ∈ { 1, . . . , m }, u i = σ}.
+
+The generator is constrained to return seeds satisfying | supp( u)| = n and a target compression level c. Hence alphabet size and algorithmic compressibility are controlled independently: n fixes the output classification dimension, whereas 
+
+c controls the description length of the symbolic pattern to be memorized. 
+
+3.1.1 LZW parsing, periodic reduction, and seed generation 
+
+We use LZW compression as a deterministic finite-memory parsing procedure. For a word v ∈ Σ∗, initialize a dictionary 
+
+D0 : Σ → { 0, . . . , 51 },
+
+set the working phrase p ← ϵ, and scan v from left to right. Whenever pa is already in the dictionary, the parser extends the phrase, p ← pa . Otherwise it emits the integer code D(p), inserts the new phrase pa with the next unused integer, and restarts from p ← a. The final non-empty phrase is emitted at termination. This defines a computable transduction 
+
+CLZW : Σ ∗ → N∗, v 7 → (z1, . . . , z ℓ),
+
+and we write 
+
+LZW( v) = |C LZW (v)|
+
+for the number of emitted codes. The score is not used as an absolute Kolmogorov complexity; it is used as a repro-ducible, implementation-level proxy for symbolic description length. Before compression, we quotient out exact repetition. For u ∈ Σm, define its shortest exact period by 
+
+π(u) = min {d ∈ { 1, . . . , m } : d | m and ui = ui+d for all 1 ≤ i ≤ m − d} ,
+
+with π(u) = m when no shorter divisor exists. The reduction operator is 
+
+reduce( u) = u1: π(u),
+
+equivalently, reduce( u) = r if u = rq for some q ≥ 2 and r has minimal length; otherwise reduce( u) = u. The benchmark complexity is therefore 
+
+κ(u) = LZW(reduce( u)) . (1) This convention prevents a seed from appearing complex merely because it repeats the same block many times. Com-putationally, reduce is implemented by enumerating candidate divisor lengths d ≤ m/ 2 and checking whether tiling the prefix u1: d reconstructs u exactly. The seed generator can be viewed as a randomized hitting-time procedure. Given (n, c ), it first rejects infeasible settings with n > c and caps n at 52 . It then draws a random permutation S0 = Shuffle(Σ n) so that every symbol appears at least once. For t ≥ 0, sample At ∼ Unif(Σ n) independently and set 
+
+St+1 = StAt.
+
+The stopping time is 
+
+τc = inf {t ≥ 0 : κ(St) ≥ c},
+
+and the returned seed is u = Sτc with recorded complexity κ(u). Since the loop stops at the first threshold crossing, 
+
+κ(u) is close to c but may exceed it by one or more emitted LZW codes, depending on the phrase inserted by the final 3Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+sampled symbol. In the reported experiments, c denotes the retained measured complexity: after generation, the scripts keep only seeds satisfying κ(u) = c for the requested target and discard threshold-crossing seeds with κ(u) > c . This convention makes the table and figure indices exact while preserving the randomized construction of candidate seeds. Algorithm 1 specifies the compression transducer, Algorithm 2 specifies exact-period reduction, and Algorithm 3 gives the executable generator. 
+
+Algorithm 1 LZW Compression Transducer 
+
+Input: Word v = v1 · · · vm ∈ Σ∗
+
+Output: Code sequence C(v) 
+
+> 1:
+
+D ← { σ 7 → i : σ ∈ Σ, i = 0 , . . . , 51 } 
+
+> 2:
+
+p ← ϵ, C ← [ ]  
+
+> 3:
+
+for i = 1 to m do  
+
+> 4:
+
+a ← vi 
+
+> 5:
+
+if pa ∈ dom( D) then  
+
+> 6:
+
+p ← pa  
+
+> 7:
+
+else  
+
+> 8:
+
+append D(p) to C 
+
+> 9:
+
+D(pa ) ← | D| 
+
+> 10:
+
+p ← a 
+
+> 11:
+
+end if  
+
+> 12:
+
+end for  
+
+> 13:
+
+if p̸ = ϵ then  
+
+> 14:
+
+append D(p) to C 
+
+> 15:
+
+end if  
+
+> 16:
+
+return C
+
+Algorithm 2 Exact-Period Reduction 
+
+Input: Word u = u1 · · · um ∈ Σ∗
+
+Output: Reduced word reduce( u) 
+
+> 1:
+
+for d = 1 to ⌊m/ 2⌋ do  
+
+> 2:
+
+if d | m and ui = ui+d for all 1 ≤ i ≤ m − d
+
+then  
+
+> 3:
+
+return u1: d 
+
+> 4:
+
+end if  
+
+> 5:
+
+end for  
+
+> 6:
+
+return u
+
+Algorithm 3 LZW-Controlled Seed Generator 
+
+Input: Alphabet size n, target complexity c, random seed r
+
+Output: Seed u, measured complexity κ(u) 
+
+> 1:
+
+if n > 52 then  
+
+> 2:
+
+n ← 52  
+
+> 3:
+
+end if  
+
+> 4:
+
+if n = 1 then  
+
+> 5:
+
+return (A , 1)  
+
+> 6:
+
+end if  
+
+> 7:
+
+if n > c then  
+
+> 8:
+
+return (invalid , 0)  
+
+> 9:
+
+end if  
+
+> 10:
+
+initialize pseudo-random generator with r 
+
+> 11:
+
+Σn ← { σ1, . . . , σ n} 
+
+> 12:
+
+u ← Shuffle(Σ n) 
+
+> 13:
+
+κ ← LZW(reduce( u))  
+
+> 14:
+
+while κ < c do  
+
+> 15:
+
+draw a ∼ Unif(Σ n) 
+
+> 16:
+
+u ← ua  
+
+> 17:
+
+κ ← LZW(reduce( u))  
+
+> 18:
+
+end while  
+
+> 19:
+
+return (u, κ )
+
+3.2 Finite-context identifiability 
+
+The LZW complexity controls the description length of a seed, but it does not by itself determine whether the next-symbol task is identifiable from a context of length w. To make this distinction explicit, let u ∈ Σmn denote the reduced seed and interpret indices cyclically, i.e., ui = u1+(( i−1) mod m) for all i ∈ Z. For a context length r ≥ 1, define the set of cyclic contexts 
+
+Zr (u) = {ui−r+1: i : i = 1 , . . . , m } ⊆ Σrn
+
+and the set of admissible next symbols after a context z ∈ Z r (u) by 
+
+Next r (z; u) = {ui+1 : ui−r+1: i = z, i = 1 , . . . , m } .
+
+The finite-context ambiguity rate is 
+
+αr (u) = 1
+
+m
+
+> m
+
+X
+
+> i=1
+
+1 {| Next r (ui−r+1: i; u)| > 1} . (2) Thus αr (u) measures the fraction of phases whose length-r suffix does not uniquely determine the next symbol. The minimal predictive order is 
+
+r⋆(u) = min {r ≥ 1 : αr (u) = 0 }. (3) 4Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+For a primitive reduced seed, r⋆(u) ≤ m, but it can be much smaller than m when short contexts already determine the symbolic dynamics. 
+
+Proposition 3.1 (Finite-context identifiability) For a periodic symbolic source generated by u, there exists a deter-ministic map gr : Σ rn → Σn such that 
+
+gr (ui−r+1: i) = ui+1 , i = 1 , . . . , m, 
+
+if and only if αr (u) = 0 . Consequently, r⋆(u) is the smallest context length for which perfect one-step prediction is identifiable from finite contexts. Proof sketch. If αr (u) = 0 , every observed context z has a singleton next-symbol set, so gr (z) can be defined as that unique element and extended arbitrarily outside Zr (u). Conversely, if some context has two distinct admissible next symbols, no deterministic function of that context alone can match both transitions. For probabilistic models, the same obstruction appears as conditional entropy. Let bpr (z, a ) be the empirical distribution over cyclic context–next-symbol pairs and let bpr (a | z) be the induced conditional law. The Bayes-optimal empirical cross-entropy at context length r is 
+
+Hr (u) = − X 
+
+> z∈Z r(u)
+
+bpr (z) X
+
+> a∈Σn
+
+bpr (a | z) log bpr (a | z), (4) which vanishes exactly when every context has a unique next symbol. Hence κ(u) measures compressibility, whereas 
+
+r⋆(u) and αw(u) measure whether the supervised finite-context task is intrinsically learnable at the chosen window length. 
+
+3.3 Finite-context prediction and rollout 
+
+For each seed string u, define the length-N periodic extension operator Per N by 
+
+x = Per N (u), xi = u1+(( i−1) mod |u|), i = 1 , . . . , N. 
+
+Let w denote the context-window length and k the forecast horizon. The final target block 
+
+y⋆ = xN −k+1: N ∈ Σkn
+
+is removed from supervised training and used only for sequence-level forecasting. The observable prefix is xobs =
+
+x1: N −k.Let ϕ : Σ n → { e1, . . . , e n} ⊂ Rn be the one-hot encoder and extend it tokenwise to windows by 
+
+Φw(xi−w+1: i) = 
+
+
+
+ϕ(xi−w+1 )⊤
+
+...
+
+ϕ(xi)⊤
+
+ ∈ { 0, 1}w×n.
+
+The supervised examples are the ordered pairs 
+
+D(x; w, k ) = {(Xi, y i) : Xi = Φ w(xi−w+1: i), y i = xi+1 , w ≤ i ≤ N − k − 1} . (5) The split into Dtr , Dval , and Dte is chronological, so later windows are never used to predict earlier windows. This is the finite-context analogue of a one-step-ahead time-series protocol. Every architecture is wrapped as the same scorer 
+
+fθ : {0, 1}w×n → Rn,
+
+where the ath logit scores the next symbol σa. The conditional distribution is 
+
+Pθ (σa | X) = exp( fθ (X)a)
+
+Pnb=1 exp( fθ (X)b) , a = 1 , . . . , n. (6) The architectures differ only in how fθ is computed: gated recurrent models update hidden states sequentially; minimal recurrent models simplify the gating map while preserving a recurrent state; softmax and linear-attention Transformers compute contextual representations over the fixed window; Performer uses random-feature attention; and RWKV-style models combine recurrent time mixing with channel mixing. No model is given access to y⋆ during fitting. 5Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+The fitted parameters minimize the empirical negative conditional log-likelihood 
+
+ˆθ ∈ arg min 
+
+> θ
+
+− 1
+
+|D tr |
+
+X
+
+> (Xi,y i)∈D tr
+
+log Pθ (yi | Xi)
+
+ , (7) optimized by mini-batch first-order methods. Validation loss is used only for hyperparameter selection and early stopping, while Dte provides teacher-forced one-step loss and accuracy. After training, memorization is tested by closed-loop decoding. Initialize 
+
+c0 = xN −k−w+1: N −k ∈ Σwn .
+
+For j = 1 , . . . , k , form X(cj−1) = Φ w(cj−1) and generate greedily 
+
+ˆxN −k+j = arg max 
+
+> σa∈Σn
+
+Pˆθ (σa | X(cj−1)) , cj = ( cj−1,2, . . . , c j−1,w , ˆxN −k+j ). (8) Ties in the maximization are resolved by the fixed alphabet order σ1, . . . , σ n. The rollout forecast is ˆy = ˆ xN −k+1: N .Teacher-forced metrics evaluate the local conditional model in Equation (6); rollout metrics evaluate the stability of the induced dynamical system when predictions are recursively fed back as inputs. 
+
+3.3.1 Teacher-forced error versus rollout stability 
+
+Teacher-forced evaluation samples contexts from the true trajectory, while closed-loop rollout samples contexts from the model-induced trajectory. When an early prediction is wrong, the next context may leave the empirical context distribution even if the one-step test error is small. Let Ej denote the event that the first j rollout symbols are correct, with E0 the sure event, and define the conditional rollout error 
+
+ϵj = Pr( Ecj | Ej−1), j = 1 , . . . , k. 
+
+Then the exact-reconstruction probability satisfies 
+
+Pr(ˆ y = y⋆) = Pr( Ek) = 
+
+> k
+
+Y
+
+> j=1
+
+(1 − ϵj ), 1 − Pr(ˆ y = y⋆) ≤
+
+> k
+
+X
+
+> j=1
+
+ϵj . (9) This elementary chain-rule identity shows why a model can have high teacher-forced accuracy but poor long-horizon reconstruction. Rollout metrics therefore test not only the learned local transition rule, but also the stability of that rule under its own generated contexts. 
+
+3.4 A complexity-aware scaling view 
+
+Classical neural scaling laws model error primarily as a function of trainable parameter count Pθ , training-token budget 
+
+Ntok , and compute budget Bcomp [Kaplan et al., 2020, Hoffmann et al., 2022]. In the present benchmark, each data point also has an algorithmic and finite-context profile 
+
+ζ(u; w, k ) = ( n, κ (u), r ⋆(u), α w(u), w, k ) .
+
+For a model family M, the relevant response surface is therefore better viewed as 
+
+EM = FM (Pθ , N tok , B comp | ζ(u; w, k )) , (10) rather than as a function of (Pθ , N tok , B comp ) alone. Equation (10) is not proposed as a fitted law in this paper; it is the organizing principle behind the benchmark. It explains why model-size comparisons are ambiguous unless the sequence complexity, context length, and rollout horizon are reported together, and it motivates future sweeps in which 
+
+Pθ , Ntok , w, k, κ(u), and r⋆(u) are varied jointly. 
+
+# 4 Experiments 
+
+4.1 Experimental protocol 
+
+We run a focused architecture comparison on the LZW-controlled symbolic benchmark. The evaluated models are LSTM, GRU, minGRU, minLSTM, a softmax-attention Transformer, a linear-attention Transformer, Performer, and RWKV. This set was chosen to compare three families of inductive bias under a common prediction protocol: explicit recurrent state, finite-window attention, and hybrid or linearized alternatives to quadratic attention. 6Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+Table 1: Seed diagnostics grouped by target LZW complexity. Statistics summarize the eight generated seeds at each 
+
+c value, corresponding to four alphabet sizes and two stochastic seeds. Length and r⋆ are reported as median with range; αmax 100 is the maximum ambiguity rate at the benchmark context length w = 100 .
+
+c = κ(u) |u| median (range) r⋆(u) median (range) αmax 100 
+
+10 11.0 (10–18) 3.0 (2–9) 0.000 30 42.0 (33–82) 5.0 (4–12) 0.000 50 83.5 (65–171) 6.0 (4–14) 0.000 70 127.5 (97–263) 6.5 (4–16) 0.000 90 174.0 (127–365) 7.0 (4–18) 0.000 For each alphabet size n ∈ { 2, 4, 6, 8} and target LZW complexity c ∈ { 10 , 30 , 50 , 70 , 90 }, we generate a seed string, extend it periodically to length N = 3500 , construct windows of length w = 100 , and reserve the final k = 100 
+
+symbols for closed-loop rollout. We use two stochastic seeds and two independent training runs for each architecture– complexity–alphabet configuration, yielding 8 × 4 × 5 × 2 × 2 = 640 trained models. All models have two layers. LSTM, GRU, minGRU, and minLSTM use recurrent width 128 ; Transformer, LinearAttention, Performer, and RWKV use model dimension 256 . We optimize with AdamW, learning rate 3 × 10 −4, weight decay 10 −2, batch size 128 , a maximum of 200 epochs, early-stopping patience 10, and stopping loss threshold 0.05 .All experiments were run with CUDA 13.0 and cuDNN 9.22.0 on a single NVIDIA A100 GPU. During these runs, Performer was used with causal attention to match the autoregressive next-symbol prediction protocol; its implemen-tation fell back to the non-CUDA autoregressive kernel, so the reported memory and runtime for Performer should be interpreted as conservative implementation-level costs rather than as hardware-optimal Performer costs. Following scaling-law practice [Kaplan et al., 2020, Hoffmann et al., 2022], we do not treat parameter count alone as a sufficient explanation of quality. Instead, each architecture is represented by the tuple 
+
+(Pθ , T train , T epoch , M peak , Lte , A te , DL , JW) ,
+
+where Pθ is the number of trainable parameters, Ttrain is total training time, Tepoch is time per epoch, Mpeak is peak memory, Lte and Ate are teacher-forced test loss and accuracy, and DL and JW are normalized rollout distances. This fixed-budget design is not a compute-optimal scaling sweep; it is a controlled stress test for architecture-induced differences as symbolic description length varies. To check whether the main ranking is driven by unequal parameter counts, we additionally run a high-complexity matched-size experiment. In this auxiliary track, we fix c = 90 , n ∈ { 4, 8}, N = 3500 , w = k = 100 , two generated seeds, and two independent training runs. For each alphabet size and each architecture in the set {LSTM, GRU, Transformer, LinearAttention, Performer, RWKV}, we select the closest configuration to a target size P0 = 0 .2 M 
+
+trainable parameters from the same width grids used by the experiment code. This yields 48 additional fits under the same optimizer, stopping rule, CUDA version, and cuDNN version as the main study. The matched-size track is a robustness check, not a full scaling-law sweep: it tests one hard symbolic regime while holding the training-token budget and evaluation protocol fixed. 
+
+4.2 Accuracy under increasing symbolic complexity 
+
+Figure 1 shows that LZW complexity induces a clear degradation in both local prediction and closed-loop rollout. Averaged across models, the normalized DL distance increases from 0.003 at c = 10 to 0.099 at c = 70 , while test accuracy decreases from 0.999 to 0.922 . The non-monotonic improvement from c = 70 to c = 90 indicates that LZW description length is a useful but not total ordering of difficulty: alphabet size, seed periodicity, finite-context ambiguity αw(u), and predictive order r⋆(u) can vary across seeds with the same or larger compression threshold. Table 1 reports these seed-level quantities for the generated strings. The benchmark window w = 100 gives α100 (u) = 0 for all seeds, so the supervised one-step task is identifiable from the chosen context length. However, the seed length and the predictive order still increase with c, and the spread across alphabet sizes remains substantial. In particular, the transition from c = 70 to c = 90 increases median seed length and median r⋆(u) only mildly, which helps explain why the empirical curves need not be monotone in c alone. The architecture ranking is not determined by model size. GRU and LinearAttention are the strongest overall: their exact 100-step rollout rates are 0.925 and 0.912 , respectively, and at the hardest reported complexity c = 90 they obtain mean DL distances 0.015 and 0.013 . LSTM remains competitive with exact rollout rate 0.887 , but its higher test loss at c = 90 suggests less stable optimization under the same budget. The vanilla Transformer, despite having 7Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 10 30 50 70 90 
+
+LZW complexity, c
+
+> 0.00 0.25 0.50 0.75 1.00
+> Next-token cross-entropy
+
+|Σ| = 2     
+
+> 10 30 50 70 90
+
+LZW complexity, c
+
+|Σ| = 4     
+
+> 10 30 50 70 90
+
+LZW complexity, c
+
+|Σ| = 6     
+
+> 10 30 50 70 90
+
+LZW complexity, c
+
+|Σ| = 8            
+
+> LSTM GRU minGRU minLSTM Transformer LinearAttention Performer RWKV 10 30 50 70 90
+
+LZW complexity, c
+
+> 0.00.20.4
+> Normalized  DL  distance
+
+|Σ| = 2     
+
+> 10 30 50 70 90
+
+LZW complexity, c
+
+|Σ| = 4     
+
+> 10 30 50 70 90
+
+LZW complexity, c
+
+|Σ| = 6     
+
+> 10 30 50 70 90
+
+LZW complexity, c
+
+|Σ| = 8        
+
+> LSTM GRU minGRU minLSTM Transformer LinearAttention Performer RWKV
+
+Figure 1: Teacher-forced loss and closed-loop rollout error as functions of LZW complexity. Both panels use the same model identities and summarize the 640 training runs. Lower values are better for both metrics. the largest parameter count in the experiment, has an overall exact rollout rate of 0.613 and mean DL distance 0.132 
+
+at c = 90 . Thus, on this memorization benchmark, attention capacity without a matching inductive bias or compute allocation does not guarantee stable symbolic extrapolation. 0 20 40 60 80 100 
+
+Forecast horizon, k
+
+> 0.00 0.05 0.10 0.15
+> Cumulative rollout error
+> LSTM GRU minGRU minLSTM Transformer LinearAttention Performer RWKV
+
+Figure 2: Closed-loop degradation over the rollout horizon. Errors introduced early in the rollout become part of the subsequent context, so this plot measures stability of the learned symbolic dynamics rather than one-step classification alone. Markers are shown every ten rollout steps to improve readability; the curves are computed over all horizons. 
+
+4.3 Compute–accuracy trade-offs 
+
+Table 2 and Figure 3 summarize the performance–cost frontier. minGRU is the smallest and fastest model in wall-clock time, with median 0.067 M parameters and 6.30 s training time, but this speed comes with lower rollout fidelity than 8Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+Table 2: Model-level summary over all alphabet sizes and LZW complexities. Exact denotes the fraction of runs for which the 100-symbol rollout exactly matches the withheld suffix. Exact and DL@ c = 90 are reported as mean ±
+
+standard deviation over successful evaluations (runs that completed training); cost statistics are medians. Model Exact DL@ c = 90 Params (M) Time (s) Time/epoch (s) Memory (MB) GRU 0.925 ± 0.265 0.015 ± 0.034 0.152 47.59 1.11 187.30 LinearAttention 0.912 ± 0.284 0.013 ± 0.040 1.581 8.88 1.27 2407.24 LSTM 0.887 ± 0.318 0.041 ± 0.092 0.202 74.56 1.14 213.13 minGRU 0.787 ± 0.412 0.079 ± 0.141 0.067 6.30 0.11 196.04 minLSTM 0.762 ± 0.428 0.082 ± 0.146 0.101 114.09 2.78 130.48 RWKV 0.613 ± 0.490 0.113 ± 0.161 1.585 10.99 1.68 656.22 Transformer 0.613 ± 0.490 0.132 ± 0.203 3.690 19.83 1.54 1313.01 Performer 0.575 ± 0.497 0.221 ± 0.217 1.582 87.78 6.28 3782.05 GRU or LinearAttention. LinearAttention reaches near-GRU rollout quality with substantially fewer epochs and lower wall-clock time, although its memory footprint is larger in the present implementation. RWKV converges quickly and uses less memory than attention baselines, but its rollout error remains higher than the best gated recurrent and linear-attention models. 10 1 10 2    
+
+> Median training time (s)
+> −0.050
+> −0.025 0.000 0.025 0.050
+> Median normalized
+> DL  distance
+> LSTM GRU minGRU minLSTM Transformer LinearAttention Performer RWKV 10 510 6
+> Model parameters, |θ|
+> 10 −1
+> Next-token cross-entropy
+> LSTM GRU minGRU minLSTM Transformer LinearAttention Performer RWKV 10 510 6
+> Model parameters, |θ|
+> 0.00.10.20.3
+> Normalized
+> DL  distance
+> LSTM GRU minGRU minLSTM Transformer LinearAttention Performer RWKV
+
+Figure 3: Efficiency views of the same benchmark results. The Pareto plot compares rollout quality against measured compute, while the parameter plots show that increasing Pθ alone does not explain the observed ordering. 
+
+4.4 Matched-size high-complexity check 
+
+The main comparison intentionally preserves each architecture’s native computational profile, which means that the parameter counts in Table 2 are not equal. Table 3 reports the auxiliary matched-size check at c = 90 . After reducing all models to roughly the same scale, the qualitative ordering does not reverse. LSTM, GRU, LinearAttention, and Performer exactly reproduce every 100-symbol rollout in this small high-complexity track. The vanilla Transformer misses one of eight rollouts, while RWKV remains accurate in teacher-forced prediction but is less stable in closed-loop generation. LinearAttention is the fastest exact model in this setting, whereas Performer is exact but expensive 9Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+Table 3: High-complexity matched-size robustness check at c = 90 . Each row summarizes eight evaluations: two alphabet sizes n ∈ { 4, 8}, two generated seeds, and two training runs. Widths are chosen to approximate a target size 
+
+P0 = 0 .2 M parameters. Exact is the fraction of 100-step rollouts with zero DL distance. DL, test loss, train time, and memory are reported as mean ± standard deviation.                                                                                                       
+
+> Model Params (M) Exact DL Test loss Time (s) Memory (MB) GRU 0.236 ±0.001 1.000 0.000 ±0.000 0.047 ±0.003 58 .10 ±9.93 230 .59 ±3.12
+> LSTM 0.203 ±0.001 1.000 0.000 ±0.000 0.056 ±0.014 101 .04 ±11 .98 214 .64 ±3.04
+> LinearAttention 0.224 ±0.000 1.000 0.000 ±0.000 0.031 ±0.010 6.93 ±1.35 445 .91 ±3.03
+> Performer 0.188 ±0.000 1.000 0.000 ±0.000 0.036 ±0.011 105 .68 ±29 .92 953 .26 ±2.53
+> Transformer 0.235 ±0.000 0.875 0.005 ±0.014 0.040 ±0.010 12 .08 ±3.23 335 .90 ±2.44
+> RWKV 0.226 ±0.000 0.625 0.134 ±0.197 0.039 ±0.006 26 .05 ±15 .14 253 .61 ±3.43
+
+because the run uses the non-CUDA autoregressive fallback. Appendix Figure 4 shows the same comparison against the fixed-budget high-complexity subset for both rollout distance and teacher-forced loss. These results support three conclusions. First, controlled compressibility is a meaningful axis for symbolic sequence benchmarks, but it should be interpreted together with r⋆(u) and αw(u) because finite-window identifiability is the immediate learning constraint. Second, recurrence remains a strong inductive bias for finite-context symbolic mem-orization, with GRU forming the most reliable low-memory baseline. Third, efficient attention can be competitive when the architecture preserves the autoregressive structure of the task, as shown by LinearAttention. The matched-size check sharpens this point: reducing the parameter-count gap removes one possible confound, but it does not by itself explain the remaining gap. Larger softmax-attention models still require a more careful scaling of tokens, parameters, and optimization budget before their parameter advantage can be interpreted fairly. 
+
+# 5 Limitations 
+
+The comparison controls the data, optimizer settings, and stopping rules, but not the realized number of optimizer updates: early stopping gives different training durations across runs. Neither track is therefore a compute-matched or architecture-specifically tuned comparison. The high-complexity check in Section 4.4 approximately matches param-eter counts around P0 = 0 .2 M for six model families; it does not fix the number of training tokens per parameter and does not include minGRU or minLSTM. In particular, the Transformer and Performer results should not be interpreted as their best attainable performance. The benchmark studies models with at most a few million parameters on periodically extended symbolic sequences. The withheld suffix lies within the same period, so the task probes reproduction of a known pattern rather than discov-ery of an unknown rule, and these results should not be extrapolated to natural language data or large-scale training. For each main configuration two generated seeds are used together with two training runs for each seed. The matched-size check includes eight evaluations per architecture for two different alphabet sizes, but the runs that share a seed are not independent samples of symbolic structure. Exact reconstruction yields a binary result; the reported standard deviations are descriptive rather than confidence intervals, and the small differences between the leading models are still uncertain. For all tested seeds, r⋆(u) ≤ 18 and α100 (u) = 0 . This means the experiments do not test for intrinsic finite-context ambiguity. The case where w < r ⋆(u), so αw(u) > 0 and perfect one-step prediction is not possible, is still unexplored. Also, elapsed time and peak PyTorch CUDA usage depend on the specific implementation and the A100 GPU slice used. Performer was run without the optional custom causal CUDA kernel, so its measured costs should not be compared to optimized versions. State-space models like Mamba are not included in this comparison. 
+
+# 6 Conclusion 
+
+We presented a symbolic-sequence benchmark for studying the memorization ability of neural models. The benchmark controls input complexity via LZW compression and evaluates neural models through both teacher-forced prediction and closed-loop rollout. The empirical study shows that the best model is not the largest model under a fixed budget: GRU and LinearAttention dominate the main trade-off between accuracy and cost, while minGRU is highly efficient but less reliable for exact long-horizon reconstruction. The vanilla Transformer and Performer baselines do not auto-matically benefit from their larger parameter counts in this finite-data, finite-context setting, highlighting the need to report model size, training tokens, memory, and runtime together. 10 Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+The empirical result of our extensive experiments is methodological. Scaling laws already tell us that model size and data budget need to be considered together; our findings further show that task complexity, predictive order, finite-context ambiguity, and rollout horizon must likewise be stated clearly when studying symbolic sequence learning. A full matched-scaling analysis would additionally sweep sequence length, training-token multiplier, and parameter quantity, and would revisit efficient attention and hybrid recurrent models with optimized kernels. Such studies would turn the present benchmark from a fixed-budget comparison with a targeted robustness check into a compute-optimal scaling analysis for algorithmic memorization. 
+
+# References 
+
+Nikita Kitaev and Dan Klein. Constituency parsing with a self-attentive encoder. In Proceedings of the 56th An-nual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 2676–2686, Mel-bourne, Australia, 2018. Association for Computational Linguistics. doi:10.18653/v1/P18-1249. URL https: //aclanthology.org/P18-1249/ .Jeremy Howard and Sebastian Ruder. Universal language model fine-tuning for text classification. In Proceedings of the 56th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 328– 339, Melbourne, Australia, 2018. Association for Computational Linguistics. doi:10.18653/v1/P18-1031. URL 
+
+https://aclanthology.org/P18-1031/ .Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of deep bidirectional transformers for language understanding. In Proceedings of the 2019 Conference of the North American Chap-ter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers) , pages 4171–4186, Minneapolis, Minnesota, 2019. Association for Computational Linguistics. doi:10.18653/v1/N19-1423. URL https://aclanthology.org/N19-1423/ .Jyun-Yu Jiang, Mingyang Zhang, Cheng Li, Michael Bendersky, Nadav Golbandi, and Marc Najork. Semantic text matching for long-form documents. In The World Wide Web Conference , WWW ’19, pages 795–806, New York, NY, USA, 2019. ACM. doi:10.1145/3308558.3313707. Alexander Rives, Joshua Meier, Tom Sercu, Siddharth Goyal, Zeming Lin, Jason Liu, Demi Guo, Myle Ott, C. Lawrence Zitnick, Jerry Ma, and Rob Fergus. Biological structure and function emerge from scaling unsu-pervised learning to 250 million protein sequences. Proc. Natl. Acad. Sci. USA , 118(15):e2016239118, 2021. doi:10.1073/pnas.2016239118. Jared D. Willard, Peter Harrington, Shashank Subramanian, Ankur Mahesh, Travis A. O’Brien, and William D. Collins. Analyzing and exploring training recipes for large-scale transformer-based weather prediction. Artif. Intell. Earth Syst. , 4(2):e240061, 2025. doi:10.1175/AIES-D-24-0061.1. Haoyi Zhou, Shanghang Zhang, Jieqi Peng, Shuai Zhang, Jianxin Li, Hui Xiong, and Wancai Zhang. Informer: Beyond efficient transformer for long sequence time-series forecasting. Proc. AAAI Conf. Artif. Intell. , 35(12): 11106–11115, 2021. doi:10.1609/aaai.v35i12.17325. Jeya Maria Jose Valanarasu, Rajeev Yasarla, and Vishal M. Patel. TransWeather: Transformer-based restoration of images degraded by adverse weather conditions. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , pages 2353–2363, 2022. doi:10.1109/CVPR52688.2022.00239. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in Neural Information Processing Systems , volume 30, pages 5998–6008, 2017. doi:10.5555/3295222.3295349. Hyung Won Chung, Le Hou, Shayne Longpre, Barret Zoph, Yi Tay, William Fedus, Yunxuan Li, Xuezhi Wang, Mostafa Dehghani, Siddhartha Brahma, Albert Webson, Shixiang Shane Gu, Zhuyun Dai, Mirac Suzgun, Xinyun Chen, Aakanksha Chowdhery, Alex Castro-Ros, Marie Pellat, Kevin Robinson, Dasha Valter, Sharan Narang, Gau-rav Mishra, Adams Yu, Vincent Zhao, Yanping Huang, Andrew Dai, Hongkun Yu, Slav Petrov, Ed H. Chi, Jeff Dean, Jacob Devlin, Adam Roberts, Denny Zhou, Quoc V. Le, and Jason Wei. Scaling instruction-finetuned language models. J. Mach. Learn. Res. , 25(70):1–53, 2024. URL https://www.jmlr.org/papers/v25/23-0870.html .Linhao Dong, Shuang Xu, and Bo Xu. Speech-transformer: A no-recurrence sequence-to-sequence model for speech recognition. In 2018 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) , pages 5884–5888. IEEE, 2018. doi:10.1109/ICASSP.2018.8462506. Anmol Gulati, James Qin, Chung-Cheng Chiu, Niki Parmar, Yu Zhang, Jiahui Yu, Wei Han, Shibo Wang, Zhengdong Zhang, Yonghui Wu, and Ruoming Pang. Conformer: Convolution-augmented transformer for speech recognition. In Interspeech 2020 , pages 5036–5040, 2020. doi:10.21437/Interspeech.2020-3015. 11 Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+Rohit Prabhavalkar, Takaaki Hori, Tara N. Sainath, Ralf Schlüter, and Shinji Watanabe. End-to-end speech recog-nition: A survey. IEEE/ACM Transactions on Audio, Speech, and Language Processing , 32:325–351, 2024. doi:10.1109/TASLP.2023.3328283. URL https://arxiv.org/abs/2303.03329 .Peter J. Liu, Mohammad Saleh, Etienne Pot, Ben Goodrich, Ryan Sepassi, Łukasz Kaiser, and Noam Shazeer. Gener-ating wikipedia by summarizing long sequences. In International Conference on Learning Representations , 2018. URL https://openreview.net/forum?id=Hyg0vbWC-.Nikita Kitaev, Łukasz Kaiser, and Anselm Levskaya. Reformer: The efficient transformer. In International Conference on Learning Representations , 2020. URL https://openreview.net/forum?id=rkgNKkHtvB .Sinong Wang, Belinda Z. Li, Madian Khabsa, Han Fang, and Hao Ma. Linformer: Self-attention with linear complex-ity, 2020. URL https://arxiv.org/abs/2006.04768 .Yi Tay, Dara Bahri, Liu Yang, Donald Metzler, and Da-Cheng Juan. Sparse Sinkhorn attention. In Proceedings of the 37th International Conference on Machine Learning , volume 119 of Proceedings of Machine Learning Research ,pages 9438–9447. PMLR, 2020. URL https://proceedings.mlr.press/v119/tay20a.html .Angelos Katharopoulos, Apoorv Vyas, Nikolaos Pappas, and François Fleuret. Transformers are RNNs: Fast au-toregressive transformers with linear attention. In Proceedings of the 37th International Conference on Machine Learning , volume 119 of Proceedings of Machine Learning Research , pages 5156–5165. PMLR, 2020. URL 
+
+https://proceedings.mlr.press/v119/katharopoulos20a.html .Sepp Hochreiter and Jürgen Schmidhuber. Long short-term memory. Neural Comput. , 9(8):1735–1780, 1997. doi:10.1162/neco.1997.9.8.1735. Kyunghyun Cho, Bart van Merriënboer, Dzmitry Bahdanau, and Yoshua Bengio. On the properties of neural machine translation: Encoder-decoder approaches. In Proceedings of SSST-8, Eighth Workshop on Syntax, Semantics and Structure in Statistical Translation , pages 103–111, Doha, Qatar, 2014. Association for Computational Linguistics. doi:10.3115/v1/W14-4012. URL https://aclanthology.org/W14-4012/ .Yi Tay, Mostafa Dehghani, Samira Abnar, Yikang Shen, Dara Bahri, Philip Pham, Jinfeng Rao, Liu Yang, Sebastian Ruder, and Donald Metzler. Long range arena: A benchmark for efficient transformers. In International Conference on Learning Representations , 2021. URL https://openreview.net/forum?id=qVyeW-grC2k .Jared Kaplan, Sam McCandlish, Tom Henighan, Tom B. Brown, Benjamin Chess, Rewon Child, Scott Gray, Alec Radford, Jeffrey Wu, and Dario Amodei. Scaling laws for neural language models, 2020. URL https://arxiv. org/abs/2001.08361 .Jordan Hoffmann, Sebastian Borgeaud, Arthur Mensch, Elena Buchatskaya, Trevor Cai, Eliza Rutherford, Diego de Las Casas, Lisa Anne Hendricks, Johannes Welbl, Aidan Clark, Tom Hennigan, Eric Noland, Katie Millican, George van den Driessche, Bogdan Damoc, Aurelia Guy, Simon Osindero, Karen Simonyan, Erich Elsen, Jack W. Rae, Oriol Vinyals, and Laurent Sifre. Training compute-optimal large language models. In Advances in Neural Information Processing Systems , volume 35, pages 30016–30030, 2022. doi:10.52202/068431-2176. Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timothée Lacroix, Baptiste Rozière, Naman Goyal, Eric Hambro, Faisal Azhar, Aurelien Rodriguez, Armand Joulin, Edouard Grave, and Guillaume Lample. LLaMA: Open and efficient foundation language models, 2023. URL https://arxiv.org/ abs/2302.13971 .Hui Guan, Umang Chaudhary, Yuanchao Xu, Lin Ning, Lijun Zhang, and Xipeng Shen. Recurrent neural networks meet context-free grammar: Two birds with one stone. In 2021 IEEE International Conference on Data Mining (ICDM) , pages 1078–1083. IEEE, 2021. doi:10.1109/ICDM51629.2021.00125. Roberto Cahuantzi, Xinye Chen, and Stefan Güttel. A comparison of LSTM and GRU networks for learning symbolic sequences. In Intelligent Computing , pages 771–785, Cham, 2023. Springer Nature Switzerland. doi:10.1007/978-3-031-37963-5_53. Krzysztof Choromanski, Valerii Likhosherstov, David Dohan, Xingyou Song, Andreea Gane, Tamás Sarlós, Peter Hawkins, Jared Davis, Afroz Mohiuddin, Lukasz Kaiser, David Belanger, Lucy Colwell, and Adrian Weller. Re-thinking attention with performers. In International Conference on Learning Representations , 2021. Bo Peng, Eric Alcaide, Quentin Anthony, Alon Albalak, Samuel Arcadinho, Stella Biderman, Huanqi Cao, Xin Cheng, Michael Chung, Leon Derczynski, Xingjian Du, Matteo Grella, Kranthi Gv, Xuzheng He, Haowen Hou, Przemys-law Kazienko, Jan Kocon, Jiaming Kong, Bartłomiej Koptyra, Hayden Lau, Krishna Sri Ipsit Mantri, Ferdinand Mom, Atsushi Saito, Guangyu Song, Xiangru Tang, Johan Wind, Stanisław Wo´ zniak, Zhenyuan Zhang, Qinghua Zhou, Jian Zhu, and Rui-Jie Zhu. RWKV: Reinventing RNNs for the transformer era. In Findings of the Associ-ation for Computational Linguistics: EMNLP 2023 , pages 14048–14077, Singapore, 2023. Association for Com-putational Linguistics. doi:10.18653/v1/2023.findings-emnlp.936. URL https://aclanthology.org/2023. findings-emnlp.936/ .12 Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT LSTM GRU Transformer LinearAttention Performer RWKV 
+
+Model 
+
+> 0.00.10.20.30.4
+
+DL distance 
+
+> LSTM GRU Transformer LinearAttention Performer RWKV
+
+Model 
+
+> 0.00.20.40.60.8
+
+Test loss 
+
+Fixed-budget versus matched-size results at high LZW complexity        
+
+> Points show means; vertical bars show one standard deviation over runs at c= 90 and n∈ { 4,8}.Fixed budget Matched size
+
+Figure 4: Fixed-budget and matched-size results on the common high-complexity subset c = 90 , n ∈ { 4, 8}. Points show means and vertical bars show one standard deviation over two seeds and two runs for each alphabet size. The left panel measures closed-loop symbolic stability through normalized DL distance; the right panel measures local teacher-forced prediction through test loss. Leo Feng, Frederick Tung, Mohamed Osama Ahmed, Yoshua Bengio, and Hossein Hajimirsadeghi. Were RNNs all we needed?, 2024. URL https://arxiv.org/abs/2410.01201 .
+
+# A Appendix 
+
+A.1 Fixed-budget and matched-size comparison 
+
+Figure 4 compares the main fixed-budget experiment with the matched-size robustness check on the common high-complexity subset c = 90 and n ∈ { 4, 8}. The two panels report the two complementary measurements used through-out the benchmark: closed-loop rollout distance and teacher-forced test loss. 
+
+A.2 Distance Metrics 
+
+Let ˆy, y ⋆ ∈ Σk denote the rollout forecast and the withheld target string. Since Σk is not naturally embedded in a Euclidean space, we evaluate sequence-level prediction using normalized string distances. The reported DL metric is a normalized Damerau–Levenshtein distance, and the reported JW metric is a normalized Jaro–Winkler distance. Smaller values are better for both metrics; exact reconstruction gives DL = JW = 0 .The Damerau–Levenshtein edit distance dedit (i, j ) between prefixes ˆy1: i and y⋆ 
+
+> 1: j
+
+is defined recursively by 
+
+dedit (i, j ) = min 
+
+
+
+0, i = j = 0 ,dedit (i − 1, j ) + 1 , i > 0,dedit (i, j − 1) + 1 , j > 0,dedit (i − 1, j − 1) + 1{ˆyi̸ = y⋆j }, i, j > 0,dedit (i − 2, j − 2) + 1 , i, j > 1, ˆyi = y⋆j−1, ˆyi−1 = y⋆j .
+
+(11) For equal-length strings, the normalized score is 
+
+DL(ˆ y, y ⋆) = dedit (k, k )
+
+k ∈ [0 , 1] . (12) 13 Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences A P REPRINT 
+
+For Jaro–Winkler, let μ be the number of matching symbols, where two symbols are considered matching if they are equal and their positions differ by at most  max( |ˆy|, |y⋆|)2
+
+
+
+− 1,
+
+and let t be half the number of transpositions among matched symbols. The Jaro similarity is 
+
+Jaro(ˆ y, y ⋆) = 
+
+(0, μ = 0 ,
+
+> 13
+
+ μ 
+
+> |ˆy|
+
++ μ 
+
+> |y⋆|
+
++ μ−tμ
+
+
+
+, μ > 0. (13) Let ℓ ≤ 4 be the common-prefix length and let ρ = 0 .1 be the standard prefix-scaling parameter. The Jaro–Winkler similarity is 
+
+SJW (ˆ y, y ⋆) = Jaro(ˆ y, y ⋆) + ℓρ (1 − Jaro(ˆ y, y ⋆)) . (14) We report the corresponding distance 
+
+JW(ˆ y, y ⋆) = 1 − SJW (ˆ y, y ⋆). (15) 
+
+A.3 Model architectures 
+
+All architectures instantiate the scorer fθ in Equation (6) and map a one-hot context X ∈ { 0, 1}w×n to next-symbol logits in Rn. The benchmark therefore controls the input–output contract while allowing each model family to use its native state representation. • LSTM and GRU. The classical recurrent baselines process the window sequentially and predict from the final hidden state. LSTM uses input, forget, and output gates with an explicit cell state [Hochreiter and Schmidhuber, 1997]; GRU uses reset and update gates with a lighter hidden-state update [Cho et al., 2014]. These models have linear cost in the window length and expose a direct recurrent inductive bias for periodic symbolic dynamics. • minGRU and minLSTM. The minimal recurrent baselines follow the recent view that simplified gated recurrences can retain much of the sequence-modeling advantage of RNNs while improving parallelizability and implementation simplicity [Feng et al., 2024]. In our benchmark they use the same finite-context input and next-symbol objective as the classical recurrent models. • Transformer. The softmax-attention Transformer projects the context window to dm dimensions, adds po-sitional information, applies multi-head self-attention and feed-forward blocks, and predicts from the final contextual representation [Vaswani et al., 2017]. Its attention cost is O(w2dm) per layer, which is visible in the memory–accuracy analysis. • LinearAttention. LinearAttention replaces softmax attention by a kernelized attention map whose associa-tivity permits O(wd 2
+
+> m
+
+) or linear-in-length autoregressive computation, depending on implementation details [Katharopoulos et al., 2020]. It is included to test whether an attention model with recurrent-style computa-tion can match gated recurrence on symbolic memorization. • Performer. Performer approximates softmax attention through positive random features, reducing the nomi-nal attention cost from quadratic to linear in sequence length [Choromanski et al., 2021]. The measured run used the available non-CUDA autoregressive fallback, so its empirical cost should be read as implementation-specific. • RWKV. RWKV combines Transformer-like channel mixing with an RNN-like time-mixing recurrence [Peng et al., 2023]. It is included as a modern hybrid baseline that keeps constant-size recurrent state at inference while retaining several Transformer design elements. 14

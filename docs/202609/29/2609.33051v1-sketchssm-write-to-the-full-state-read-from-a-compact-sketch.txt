@@ -1,0 +1,1532 @@
+Title: SketchSSM: Write to the Full State, Read from a Compact Sketch
+
+URL Source: https://arxiv.org/pdf/2609.33051v1
+
+Published Time: Tue, 29 Sep 2026 01:35:40 GMT
+
+Number of Pages: 28
+
+Markdown Content:
+# SKETCH SSM: W RITE TO THE FULL STATE , R EAD FROM A COMPACT SKETCH 
+
+Omin Kwon 1 JoongWon Shin 1 Minseo Kim 2 Kurt Keutzer 2 Sehoon Kim 3, † Jae W. Lee 1, †
+
+> 1
+
+Seoul National University 2UC Berkeley 3KAIST 
+
+om0127@snu.ac.kr leodal@snu.ac.kr minseo.kim@berkeley.edu keutzer@berkeley.edu sehoonkim@kaist.ac.kr jaewlee@snu.ac.kr 
+
+## ABSTRACT 
+
+Hybrid-attention models replace most softmax attention layers with linear attention, reducing KV-cache growth and enabling larger decode batches where recurrent-state access becomes a major bottleneck. ReplaySSM amortizes state updates by buffering keys and values, but each new query still requires a full-state read even though the state remains unchanged between state updates. We observe that low-rank state-weighted query approximation accurately preserves state-read outputs. Although future queries are unknown, the basis vectors used to approximate them can be fixed offline. Based on this observation, we introduce SketchSSM, which preserves full-state updates while approximating reads. At each state update, SketchSSM reads the full state once to precompute outputs for these basis vectors, storing them in a compact sketch. Each subsequent decode step combines the sketch vectors with query-dependent coefficients to reconstruct the output without a full-state read. Across four Mamba-2-, GDN-, and KDA-based models, SketchSSM reduces state-access traffic by approximately 10 × while largely preserving average accuracy across four decode benchmarks and recall on four RULER retrieval tasks. On one NVIDIA B300, linear-attention kernel speedups over the standard vLLM baseline reach 7.78 ×, 5.22 ×, and 5.20 × for Mamba-2, GDN, and KDA, respectively, with up to 2.64 × higher decode throughput on Nemotron 3 Super. 
+
+## 1 INTRODUCTION 
+
+Recent hybrid attention models replace most softmax attention layers with linear attention while retaining high accuracy (Team, 2026; Qwen Team, 2026b; GLM-5-Team, 2026). Replacing KV caches with fixed-size recurrent states reduces cache memory, enabling larger decode batches with higher throughput. However, in this large-batch regime, reading and updating the entire recurrent state every decode step becomes a major decode bottleneck as shown in Fig. 1. A common approach to reducing this traffic is to reduce the recurrent state size. Quantization lowers state precision (Tianqi et al., 2025; Chiang et al., 2025; Zhang et al., 2026), while pruning removes state entries (Menezes & Kyrillidis, 2026; Nazari & Rusch, 2026). However, reducing the state size introduces state approximation errors that propagate and accumulate through subsequent decode steps, resulting in substantial accuracy degradation, as we show in Section 5.1. To reduce state-write traffic associated with state updates, ReplaySSM (Liou & Dao, 2026) and KVBuffer (Zou & Zhong, 2026) buffer the much smaller keys and values and apply their accumulated updates to the full state once every several decode steps, thereby amortizing state writes. However, 
+
+state-read traffic remains unchanged: computing each output vector requires multiplying the new query by the full state. Therefore, a full state-read occurs at every decode step even though the state remains fixed until the buffered updates are applied. As shown in Fig. 1, linear attention remains a major bottleneck even after applying ReplaySSM due to this repeated state-read overhead. We identify a key opportunity to avoid repeated full-state reads while accurately reconstructing state-read outputs. Although the query changes at every decode step, the state-read output can be approximated using fixed query basis vectors with reconstruction adapted to the current state and 
+
+> †
+
+Corresponding authors: Sehoon Kim and Jae W. Lee. 
+
+1arXiv:2609.33051v1 [cs.LG] 27 Sep 2026 256 512 Bmax                   
+
+> 976 256 512 Bmax
+> 864
+> 025 50 75 100
+> Decode latency (ms/step)
+> 2K 8K
+> Nemotron 3 Super 120B-A12B (Mamba-2; B300 ×1)
+> 010 20
+> 256 512 Bmax
+> 1306 256 512 Bmax
+> 898
+> 020 40
+> 2K 8K
+> Qwen3.8 Flash Next (GDN; B300 ×2)
+> 015 30
+> 256 512 Bmax
+> 1054 256 512 Bmax
+> 904
+> 020 40 60
+> 2K 8K
+> GLM 5.3 Flash (KDA; B300 ×2)
+> 010 20
+> GPU throughput (ktokens/s)
+> Model-weight GEMM Linear Attention Softmax Attention Others ReplaySSM Standard
+
+Fig. 1: Decode latency breakdown and decode throughput at batch sizes 256 , 512 , and Bmax for 2Kand 8K contexts. At Bmax , linear attention accounts for 41 –70% of decode latency with Standard, and 
+
+31 –53% with ReplaySSM. Bmax denotes the largest tested batch size that fits within GPU memory for each model and context length. Throughput generally increases as batch size grows toward Bmax .GLM uses only Standard because KDA lacks an official ReplaySSM implementation. query. We observe that even a small number of query basis vectors is sufficient to reconstruct outputs with low error, as shown in Fig. 2. SketchSSM exploits this opportunity by using a single full-state read at each update step to multiply the state by all fixed query basis vectors and precompute their outputs. We store these output vectors in a compact matrix called a sketch . At each decode step between updates, SketchSSM approximates the new query’s output as a linear combination of sketch vectors with query-dependent coefficients, without reading the full state. With G fixed query basis vectors and a K-dimensional query, the sketch is only G/K the size of the full state, where G ≪ K (Equation 7). Reading this compact sketch instead of the full state substantially reduces state-read traffic, as shown in Fig. 3. By approximating only reads while preserving exact full-state updates, SketchSSM avoids propagating state compression errors through updates. Across four Mamba-2-, GDN-, and KDA-based models, SketchSSM reduces state-access traffic by approximately 10 × while largely preserving average accuracy across four benchmarks. In vLLM on one NVIDIA B300 GPU, SketchSSM achieves linear-attention kernel speedups of up to 7.78 ×,5.22 ×, and 5.20 × over the standard full-state baseline for Mamba-2, GDN, and KDA, respectively, and up to 2.64 × higher decode throughput on Nemotron 3 Super 120B-A12B (Section 5.2). Our primary contributions can be summarized as follows: • We propose a training-free design that preserves the full state for updates while approximating only state-read outputs, reducing read traffic without propagating state-compression errors(Section 3.3). • We design a sketch of precomputed output vectors that can be constructed with a single full-state read. We improve accuracy by allocating sketch ranks differently across state heads (Section 4). • We demonstrate substantially better accuracy–traffic tradeoffs than state pruning and quantization, and accelerate linear attention across Mamba-2, GDN, and KDA with optimized kernels (Section 5). 
+
+## 2 RELATED WORK 
+
+Recurrent Linear Attention and Hybrid Models. Linear attention computes recurrent updates and reads over a fixed-size matrix state, keeping storage independent of context length (Katharopoulos et al., 2020; Yang et al., 2024a). Mamba-2 connects structured SSMs and linear attention through state-space duality, while GDN and KDA extend this recurrence with delta-rule erasure and more expressive gating (Dao & Gu, 2024; Yang et al., 2025; Zhang et al., 2025; Schlag et al., 2021). Recent hybrid-attention models interleave these recurrent layers with fewer softmax or sparse-attention layers, limiting context-growing KV caches while retaining token-level retrieval (Lieber et al., 2024; Team, 2026; Qwen Team, 2026a; GLM-5-Team, 2026). 
+
+Efficient Recurrent-state Inference. The performance bottleneck of linear attention is state access: reading and updating state at every decode step. State quantization (Chiang et al., 2025; Tianqi et al., 2025; Zhang et al., 2026) and pruning (Menezes & Kyrillidis, 2026; Nazari & Rusch, 2026) reduce traffic by shrinking the state, but limit information capacity and propagate compression errors through 2updates (Arora et al., 2024; Qin et al., 2024; Pan et al., 2026). Recently, ReplaySSM (Liou & Dao, 2026) and KVBuffer (Zou & Zhong, 2026) reduce write traffic by buffering keys and values and applying accumulated updates at each flush, leaving read traffic unchanged. SketchSSM complements buffered updates by reducing the remaining read traffic with a sketch. 
+
+Matrix Sketching. Matrix sketching constructs compact representations for approximate matrix computations (Halko et al., 2011; Woodruff, 2014), including randomized projections, streaming sketches, and learned sketches (Liberty, 2013; Indyk et al., 2019). In LLM inference, low-rank methods use activation statistics to approximate weights (Yuan et al., 2025; Wang et al., 2025), or perform low-rank attention to reduce KV-cache storage (Saxena et al., 2024). SketchSSM builds on the range-finding framework of Halko et al. (2011), as detailed in Appendix A.2.1. It sketches the state with an offline-calibrated query basis and reconstructs outputs with coefficients minimizing output error for the current state and query. 
+
+## 3 MOTIVATION 
+
+3.1 STATE -ACCESS BOTTLENECK IN HYBRID -ATTENTION DECODING 
+
+Recent hybrid-attention models substantially reduce decode latency while retaining high accu-racy (Team, 2026; Qwen Team, 2026b; GLM-5-Team, 2026). Most layers replace context-growing KV caches with fixed-size recurrent states, allowing larger decode batches. Fig. 1 profiles this large-batch regime at 2K- and 8K-token inputs on Nemotron 3 Super (Mamba-2, one B300), Qwen3.8 Flash Next (GDN, two B300s), and GLM 5.3 Flash (KDA, two B300s), all using NVFP4 weights. It separates each decode step into model-weight GEMMs, linear attention, softmax attention, and other costs. Softmax attention takes only a small fraction of decode latency because these models replace most softmax attention layers with linear attention and optimize the remaining ones. Nemotron 3 Super uses an 8-bit KV cache, Qwen3.8 Flash Next uses Qwen Sparse Attention (QSA), and GLM 5.3 Flash combines Multi-head Latent Attention (MLA) with DeepSeek Sparse Attention (DSA); QSA and DSA bound per-step KV reads during long-context serving. Linear attention emerges as the dominant decode bottleneck, as each layer reads and updates an independent recurrent state for every request at each decode step. With Standard execution, which updates the full recurrent state at every decode step, linear attention accounts for 41 –70% of decode latency at Bmax across the three models. ReplaySSM buffers keys and values over a window of decode steps to amortize state-write traffic and lower linear attention latency, but leaves state-read traffic unchanged. Further reducing this bottleneck therefore requires reducing state-read traffic. 3.2 WHY EVERY DECODE STEP READS THE FULL STATE 
+
+Reformulation: Decomposing the State Read. To examine this state-read traffic, consider a W -step buffering window starting from state S0 ∈ RK×V , with K key channels and V value channels. Let 
+
+Dt denote the decay matrix and Da:b := Db · · · Da its accumulated product. The state recurrence and output decomposition used by ReplaySSM (Liou & Dao, 2026) and KVBuffer (Zou & Zhong, 2026) can be written as                          
+
+> St=DtSt−1+ktw⊤
+> t=D1: tS0+
+> tX
+> s=1
+>  Ds+1: tks
+> w⊤
+> s(update) (1)
+> ot=S⊤
+> tqt=o′state
+> t+o′buffer
+> t,o′state
+> t:= S⊤
+> 0D⊤
+> 1: tqt,o′buffer
+> t:=
+> tX
+> s=1
+> Ds+1: tks, q tws(read) (2)
+
+Here, qt, k t ∈ RK are the query and key, vt, w t ∈ RV are the value and write vector, and βt is the write gate. The state term o′state  
+
+> t
+
+is computed directly from S0. While o′buffer  
+
+> t
+
+is computed from the buffer, its write vectors wt = βt(vt − S⊤
+
+> t−1
+
+D⊤ 
+
+> t
+
+kt) require reading S0 in delta-rule models. To isolate the effect of reading S0, we collect all state dependence into a single output term. To this end, we absorb the delta-rule erase into the transition: Mt = ( I − βtktk⊤ 
+
+> t
+
+)Dt for GDN and KDA, and Mt = Dt for Mamba-2. We define Ma:b := Mb · · · Ma and the effective query ˜qt := M ⊤
+
+> 1: t
+
+qt.An adapted WY representation (Yang et al., 2024b) evaluates ˜qt through parallel accumulation over 3128 64 16 4 1Rank G          
+
+> 020 40 60 80 100 Retained output fraction (%)  Nemotron Super (Mamba-2)
+> 128 64 16 41Rank G
+> Qwen3.8 Flash-Next (GDN)
+> 128 64 16 41Rank G
+> GLM 5.3 Flash (KDA)
+
+Fig. 2: Retained state-read output fraction ρG versus rank G on Nemotron Super (Mamba-2), Qwen3.8 Flash-Next (GDN), and GLM 5.3 Flash (KDA), using a query basis fixed offline and state-dependent coefficients. Lines show the mean across heads; shaded regions denote the interquartile range. At 
+
+G = 4 , the mean retained output fraction is 88.4–97.5% across the three models. buffered tokens (Appendix C.1). The update and read can then be written as 
+
+St = MtSt−1 + βtktv⊤ 
+
+> t
+
+= M1: tS0 +
+
+> t
+
+X
+
+> s=1
+
+βs
+
+ Ms+1: tks
+
+v⊤ 
+
+> s
+
+(update) (3) 
+
+ot = S⊤ 
+
+> t
+
+qt = ostate  
+
+> t
+
++ obuffer  
+
+> t
+
+, ostate  
+
+> t
+
+:= S⊤ 
+
+> 0
+
+˜qt, obuffer  
+
+> t
+
+:= 
+
+> t
+
+X
+
+> s=1
+
+βs Ms+1: tks, q t vs (read) (4) 
+
+All dependence on S0 is now confined to ostate  
+
+> t
+
+, while obuffer  
+
+> t
+
+is computed exactly from raw buffered inputs. Thus, computing ostate  
+
+> t
+
+= S⊤ 
+
+> 0
+
+˜qt is the source of full-state read traffic at each decode step. 
+
+Source of State Read: Changing Queries over the Same State. Although S0 remains fixed throughout the window, the effective query ˜qt = M ⊤
+
+> 1: t
+
+qt changes at each decode step as both the query qt and the accumulated transition M1: t change. Directly evaluating ostate  
+
+> t
+
+= S⊤ 
+
+> 0
+
+˜qt thus requires reading all K × V state entries for each query. The challenge is to answer these changing queries without repeatedly reading the same full state. 3.3 REPLACING FULL -S TATE READS WITH A COMPACT SKETCH 
+
+Observation: A Small, Fixed Query Basis for Accurate State Reads. We observe that a small, fixed query basis can accurately reconstruct state-read outputs for changing queries, using state- and query-dependent coefficients. Specifically, an effective query ˜qt ∈ RK can be approximated as Ωct
+
+in a G-dimensional subspace, where Ω ∈ RK×G contains G query basis vectors and ct ∈ RG gives the coefficients. Here, the goal is to preserve the state-read output ostate  
+
+> t
+
+, rather than the effective query itself. We therefore measure the approximation quality through the output reconstruction 
+
+ˆostate  
+
+> t
+
+= S⊤ 
+
+> 0
+
+Ωct and define its error as 
+
+Estate  
+
+> t
+
+:= ostate  
+
+> t
+
+− ˆostate  
+
+> t
+> 22
+
+= S⊤ 
+
+> 0
+
+˜qt − S⊤ 
+
+> 0
+
+Ωct 
+
+> 22
+
+, S⊤ 
+
+> 0
+
+˜qt ∈ RV . (5) Expanding the squared norm, we can rewrite the output error as a query approximation error weighted by the state Gram matrix S0S⊤ 
+
+> 0
+
+:
+
+Estate  
+
+> t
+
+= (˜ qt −Ωct)⊤S0S⊤ 
+
+> 0
+
+(˜ qt −Ωct) = (S0S⊤ 
+
+> 0
+
+)1/2 ˜qt − (S0S⊤ 
+
+> 0
+
+)1/2Ωct
+
+> 22
+
+, (S0S⊤ 
+
+> 0
+
+)1/2 ˜qt ∈ RK . (6) 
+
+Thus, minimizing output reconstruction error is equivalent to minimizing the state-weighted query approximation error. This means that larger query errors can be tolerated along directions that the state amplifies less. Our key observation is that the state-weighted query (S0S⊤ 
+
+> 0
+
+)1/2 ˜qt can be well approximated within the low-dimensional subspace spanned by (S0S⊤ 
+
+> 0
+
+)1/2Ω, using state- and query-dependent coefficients ct. Section 4 details how we select the fixed query basis Ω and compute coefficients ct to minimize output reconstruction error. Fig. 2 supports this observation using the retained output fraction ρG := 1 − ED [Estate  
+
+> t
+
+]/ED [∥ostate  
+
+> t
+
+∥22], computed per head and summarized by the mean across heads. Using just G = 4 basis vectors in the K = 128 -dimensional query space retains 88.4–97.5% of output energy on held-out samples, averaged across heads for each of the three model families. 4(a) ReplaySSM: 𝑜 !"#$#% = 𝑆 &'𝑞 &!
+
+# 𝑆 !" 𝑞 "!
+
+> 𝑜 !"#$#%
+
+𝐾      
+
+> State-read traffic: 𝑲𝑽
+> (b) SketchSSM: 𝑜 '!"#$#% = 𝑈 𝐶𝑞 &!= 𝑈𝑐 !
+> 𝑜 $!"#$#%
+> 𝐶 𝑈
+> State-read traffic: 𝑮 𝑽 + 𝑲
+
+𝑉 𝐺  
+
+> =
+
+𝑉 = 𝑞 "!
+
+𝐾   
+
+> =𝑈 𝑐 !
+> Read from HBM
+
+Fig. 3: (a) ReplaySSM reads full state to compute ostate  
+
+> t
+
+, incurring KV elements of state-read traffic. (b) SketchSSM reconstructs ˆostate  
+
+> t
+
+from rank-G factors, reducing traffic to G(K + V ) elements. 
+
+Key Idea: Precomputing Output Vectors as a Sketch. This observation allows us to compute 
+
+ostate  
+
+> t
+
+accurately while avoiding repeated reads of the full state for each new query. With the query approximation ˜qt ≈ Ωct, we can express the output as 
+
+ostate  
+
+> t
+
+= S⊤ 
+
+> 0
+
+˜qt ≈ S⊤ 
+
+> 0
+
+Ωct = ( S⊤ 
+
+> 0
+
+Ω) ct = U c t, U := S⊤ 
+
+> 0
+
+Ω ∈ RV ×G. (7) The approximated state-read output is then ˆostate  
+
+> t
+
+= U c t. With fixed Ω, a single read of the full state 
+
+S0 at the flush step suffices to precompute the outputs for all G query basis vectors in Ω before the actual queries arrive. Each column ug = S⊤ 
+
+> 0
+
+ωg ∈ RV stores the output for one query basis vector. We call this matrix of G precomputed output vectors the sketch . Using sketch U , each decode step between state updates no longer needs to read the full state. Instead, it reconstructs the output as a linear combination of output vectors in sketch using the query-dependent coefficients ct = C ˜qt,where C ∈ RG×K is a coefficient map precomputed from the current state S0 per window. Thus, as illustrated in Fig. 3, repeated reads of the full state S0 are replaced by reads of the much smaller sketch 
+
+U and coefficient map C, reducing state-read traffic. This design decouples read approximation from updates: the sketch serves only reads, while the full state is updated exactly from the buffered inputs. Section 4 next describes how we compute Ω, U , and ct.
+
+## 4 SKETCH SSM 
+
+SketchSSM provides an accurate, inference-efficient solution to Equation 6, as illustrated in Fig. 4. To avoid the computational overhead of repeatedly computing the query basis, we calibrate the sketching matrix Ω offline and fix it throughout inference. In contrast, we refresh the sketch U at each window boundary to reflect the current state, precomputing the outputs for these fixed query basis vectors. Finally, at each decode step between state updates, we compute query-dependent coefficients ct that linearly combine the sketch vectors to accurately approximate the current query’s output. We first detail these three computations, then describe how we allocate sketch ranks across heads for better accuracy. Algorithm 1 (Appendix B) summarizes the complete procedure. 4.1 CONSTRUCTING THE SKETCH 
+
+Offline: Sketching Matrix ( Ω). The columns of (S0S⊤ 
+
+> 0
+
+)1/2Ω span the low-dimensional subspace used to approximate the state-weighted query (S0S⊤ 
+
+> 0
+
+)1/2 ˜qt. The optimal Ω therefore depends on S0,which varies across requests and decode steps. However, optimizing Ω for each S0 is computationally expensive. We therefore fix Ω throughout inference and calibrate it offline for each state head using the average state geometry over the calibration distribution D, E0 := ED [S0S⊤ 
+
+> 0
+
+]. This means that, at runtime, we still approximate (S0S⊤ 
+
+> 0
+
+)1/2 ˜qt with (S0S⊤ 
+
+> 0
+
+)1/2Ωct, but use a shared Ω selected from calibration samples using E0. The corresponding offline loss is 
+
+LG(Ω) := ED
+
+
+
+min 
+
+> ct
+
+E1/20 ˜qt − E1/20 Ωct
+
+> 22
+
+
+
+. (8) It is solved by uncentered PCA of the state-weighted query zt := E1/20 ˜qt. With Cz := ED [ztz⊤ 
+
+> t
+
+],the solution is Ω⋆ = E−1/20 PG ∈ RK×G, where PG contains the leading G eigenvectors of Cz .Appendix A.1 gives the full derivation, and Appendix F.1 describes the detailed calibration procedure. 5Read Write  
+
+> Flush Step
+> Token W (Flush) Time
+
+## State 𝑆 !                  
+
+> Non-Flush Step
+> Token 1 Token 2 Token 3 Token 4 Token 5 Token W (Flush) Token 6 ...
+> Not Accessed
+> Coeff. Vector Sketching Matrix Ω⋆
+> ... ... Ring Buffer 𝑘, 𝑣 Ring Buffer 𝑘, 𝑣 𝑐 "
+> Output 𝑜 !
+> Query 𝑞 !
+> Coeff. map 𝐶
+> Sketch 𝑈
+> Coeff. map 𝐶
+> Sketch 𝑈
+> Output 𝑜 !
+> Query 𝑞 !
+
+## State 𝑆 !Fig. 4: SketchSSM over a window. At a flush step, SketchSSM updates full state S0 and refreshes sketch U . At non-flush steps, it multiplies U by query-dependent coefficients ct to reconstruct output. Note that S0 is not accessed between state updates. Algorithm 1 summarizes the procedure. 
+
+Per-window: Sketch ( U ). At the flush step of each window, the buffered updates are applied to the full state, producing S0 for the next window. As described in Section 3.3, we precompute the output vectors that S0 produces for the query basis vectors in Ω, forming the sketch U = S⊤ 
+
+> 0
+
+Ω. Constructing the sketch requires a single full-state read, so we fuse this computation into the flush kernel that updates S0. The kernel constructs U before writing the updated state back to memory, eliminating additional full-state traffic. 
+
+Per-step: Coefficient Vector ( ct). At each decode step between flushes, SketchSSM combines the precomputed output vectors in U to approximate ostate  
+
+> t
+
+as ˆostate  
+
+> t
+
+= U c t. We choose the coefficients to minimize output error for the current state and query: 
+
+c⋆t := arg min 
+
+> c∈RG
+
+S⊤ 
+
+> 0
+
+˜qt − U c 22 = C ˜qt, C :=  U ⊤U †U ⊤S⊤ 
+
+> 0
+
+. (9) Appendix A.2.1 gives the derivation. The coefficient map C depends on the current state, which remains fixed within a window. We therefore compute C once at each flush and obtain ct = C ˜qt for each subsequent query. A cheaper alternative is to precompute a fixed map using the average state metric E0:
+
+coffline  
+
+> t
+
+:= arg min 
+
+> c∈RG
+
+E1/20 ˜qt − E1/20 Ωc 22
+
+= Coffline ˜qt, Coffline := (Ω ⊤E0Ω) †Ω⊤E0. (10) This avoids recomputing the map at each flush, but does not adapt to the current state and substantially reduces accuracy in our ablation (Table 1). We therefore retain the state-dependent map and reduce its computation cost using a low-rank-plus-diagonal approximation detailed in Appendix A.2.2. Table 2 shows that this approximation accelerates the complete flush step by 4.41 × relative to exact coefficient-map computation on Nemotron 3 Super at ¯G = 5 and batch size 256. With this optimization, Fig. 7(b) shows that sketch and coefficient-map construction adds only 11.5–17.0% to flush-step latency relative to the same CUDA flush implementation without these operations. 4.2 ALLOCATING SKETCH RANKS ACROSS LAYERS AND HEADS 
+
+SketchSSM uses offline calibration to allocate a sketch-rank budget, which determines sketch size, non-uniformly across state heads. It assigns larger ranks to heads whose low-rank sketches leave larger ostate  
+
+> t
+
+reconstruction errors and whose ostate  
+
+> t
+
+has a stronger influence on the loss. For each head and candidate rank G, let δot,l,h (G) ∈ RV be the output reconstruction error from using a rank-G
+
+sketch instead of the full state, and let gt,l,h := ∇ostate  
+
+> t,l,h
+
+ℓ ∈ RV be the loss gradient, which measures how sensitive the model loss is to changes in ostate  
+
+> t,l,h
+
+. We define 
+
+Jl,h (G) := Et
+
+h g⊤
+
+> t,l,h
+
+δot,l,h (G)2i
+
+. (11) Our goal is to minimize the sum of these scores across state heads under a fixed mean sketch-rank budget, ¯G. We solve this problem as a multiple-choice knapsack problem using a Lagrangian 6050 100          
+
+> Acc.  MATH-500
+> 050 100 AIME25
+> 050 100 GPQA Diamond
+> 050 100 LiveCodeBench
+> 1× 3×
+> Verb.
+> 1× 3× 1× 3× 1× 3× 050 100
+> Acc.
+> 050 100
+> 050 100
+> 050 100
+> 1× 3×
+> Verb.
+> 1× 3× 1× 3× 1× 3× 050 100
+> Acc.
+> 050 100
+> 050 100
+> 050 100
+> 1× 3×
+> Verb.
+> 1× 3× 1× 3× 1× 3× 050 100
+> Acc.
+> 050 100
+> 050 100
+> 050 100
+> 2× 4× 6× 8× 10× 12× 14×
+> 1× 3×
+> Verb.
+> 2× 4× 6× 8× 10× 12× 14×
+> 1× 3×
+> 2× 4× 6× 8× 10× 12× 14×
+> 1× 3×
+> 2× 4× 6× 8× 10× 12× 14×
+> 1× 3×
+
+State access tra ffi c reduction (×)     
+
+> Nemo Nano v2 (Mamba-2) Nemo Super (Mamba-2) Qwen3.8 FN (GDN) GLM 5.3 Flash (KDA)
+> Standard ReplaySSM(W=16) GHOST/DRRQR(pruning) DSQ(quantization) SketchSSM(W=16)
+
+Fig. 5: Accuracy and verbosity versus state access traffic reduction relative to Standard as detailed in Appendix D. ReplaySSM and SketchSSM use W = 16 . DSQ uses {10 , 8, 6, 4}-bit states; GHOST (Nano/Super/GLM) and DRRQR (Qwen) prune {37 .5, 50 , 62 .5, 75 }% of the state. SketchSSM uses 
+
+¯G ∈ { 21 , 10 , 6, 4, 2}, {20 , 9, 5, 3, 2}, {26 , 11 , 7, 4, 3}, and {28 , 12 , 7, 4, 3} for Nano, Super, Qwen, and GLM, respectively. SketchSSM largely preserves average accuracy across the four benchmarks at reductions up to approximately 10 ×, whereas pruning and quantization degrade accuracy at smaller reductions. Verbosity is the mean generation length normalized to Standard. Raw accuracy results are provided in Appendix F.2. relaxation, as detailed in Appendix E. An offline calibration run computes all per-head candidate scores, which we reuse to generate allocations for different mean sketch-rank budgets ¯G. Table 1 shows our allocation improves accuracy over uniform allocation by 16 .17 percentage points on average. 
+
+## 5 EVALUATION 
+
+Evaluation Setup. We evaluate four models spanning three linear-attention methods: Nemotron Nano 9B v2 and Nemotron 3 Super (Mamba-2), Qwen3.8 Flash-Next (GDN), and GLM 5.3 Flash (KDA), all with NVFP4 weights. We evaluate accuracy on MATH-500 (Lightman et al., 2023), AIME25 Zhang & Math-AI (2025), GPQA Diamond (Rein et al., 2024), and LiveCodeBench Jain et al. (2024) against state quantization, state pruning, and full-state baselines with Standard execution and ReplaySSM (Liou & Dao, 2026). ReplaySSM represents buffered-update baselines such as KVBuffer (Zou & Zhong, 2026). For state quantization, we use Decoupled Scale Quantization(DSQ) from Q-Mamba (Tianqi et al., 2025), which dynamically computes separate scales along the two dimensions of the state. For state pruning, we use GHOST (Menezes & Kyrillidis, 2026) for Mamba-2-and KDA-based models and DRRQR (Nazari & Rusch, 2026) for GDN-based models. We integrate our optimized SketchSSM kernels into vLLM Kwon et al. (2023) and conduct all evaluations on vLLM. For speed evaluation, we measure linear attention kernel latency on Mamba-2, GDN, and KDA, and measure end-to-end decode throughput on Nemotron 3 Super using a single NVIDIA B300 GPU. Detailed evaluation settings are provided in Appendix F.1. 70 32 64 96 127               
+
+> state head (a)
+> 010 20 30 39
+> Mamba-2 layer  loss sensitivity sl,h
+> 032 64 96 127
+> state head (b)
+> 010 20 30 39
+> rank-5 error εl,h(5)
+> 032 64 96 127
+> state head (c)
+> 010 20 30 39
+> allocated rank Gl,h
+> 10 −5
+> 10 −3
+> 10 −1
+> 10 1
+> 10 −6
+> 10 −4
+> 10 −2
+> 10 0
+> 10 2
+> 124816 35
+
+Fig. 6: Illustrative head-level rank allocation on Nemotron 3 Super 120B-A12B at ¯G = 5 (11.12 ×
+
+state-access traffic reduction). (a) Loss sensitivity. (b) Rank-five state-read error. (c) Allocated rank (range 1–35; 12 heads retain the dense state, shown at the maximum color intensity). Table 1: Ablation of internal design choices on Nemotron Nano v2 9B, including sketch-basis calibration, state-dependent coefficient, sketch rank allocation, at ¯G = 6                                          
+
+> Ablation Method MATH-500 AIME25 GPQA-D LCB Average Full method SketchSSM 96.80 69.17 58.08 63.49 71.88 Sketch basis ΩRandom orthogonal 81.80 ( −15 .00 )17.50 ( −51 .67 )40.91 ( −17 .17 )38.41 ( −25 .08 )44.66 ( −27 .22 )Coefficient vector ctOffline Coefficient Map 89.40 ( −7.40 )35.42 ( −33 .75 )48.99 ( −9.09 )17.14 ( −46 .35 )47.74 ( −24 .14 )Sketch-rank allocation Uniform allocation 90.60 ( −6.20 )39.58 ( −29 .59 )52.02 ( −6.06 )40.63 ( −22 .86 )55.71 ( −16 .17 )Error-only score 96.20 ( −0.60 )57.50 ( −11 .67 )57.07 ( −1.01 )49.21 ( −14 .28 )65.00 ( −6.88 )Gradient-only score 90.60 ( −6.20 )36.25 ( −32 .92 )44.95 ( −13 .13 )40.63 ( −22 .86 )53.11 ( −18 .77 )
+
+5.1 ACCURACY 
+
+Accuracy Comparison with Baselines. As shown in Fig. 5, SketchSSM largely preserves average accuracy across four decode benchmarks for all four models at state-access traffic reductions of up to approximately 10 × relative to Standard. Larger reductions incur accuracy losses, illustrating the tradeoff between accuracy and state-access traffic. In contrast, at approximately 4 × reductions, 8-bit state quantization and 75% state pruning reduce average accuracy by 1.9–29.6 and 73.1–87.9 percentage points, respectively, relative to the full-state baseline. Appendix D defines the state-access traffic metric, including both reads and writes, and Appendix F.2 provides detailed results of accuracy evaluation. We additionally evaluate recall on four RULER retrieval tasks. SketchSSM largely preserves retrieval accuracy, whereas state pruning causes larger losses as detailed in Appendix F.3. 
+
+Accuracy Ablation. Table 1 shows the effects of basis calibration, state-dependent coefficients, and head-level rank allocation at the same mean sketch rank. First, calibrating Ω for state-weighted queries improves accuracy by 15.0–51.7 percentage points over a random orthogonal basis. Second, state-dependent coefficient maps improve accuracy by 7.4–46.4 points over an offline map. Finally, allocating ranks using both output error and loss sensitivity improves accuracy by 6.1–29.6 points over uniform allocation and yields higher average accuracy than using either criterion alone. Fig. 6 illustrates their variation across heads, motivating head-level allocation. Appendix G shows that preserving full-state updates while approximating reads substantially improves accuracy by preventing propagation of state compression errors, with sketches further improving the accuracy–traffic tradeoff over other read representations. 5.2 SPEEDUPS 
+
+Kernel Speedups. We evaluate Mamba-2, GDN, and KDA kernels on one NVIDIA B300 with 
+
+W = 16 and batch sizes 128, 256, and 512 (Fig. 7). SketchSSM reduces non-flush latency by replacing full-state reads with sketch reads. Its fused flush kernel constructs the sketch and coefficient map while applying state updates, limiting the additional construction overhead. On Nemotron Super at ¯G = 5 , this construction adds 11.5–17.0% latency over the same flush kernel without it. Including all steps in the window, total linear attention speedups over Standard reach 7.78 ×, 5.22 ×, and 5.20 ×
+
+for Nemotron Super, Qwen3.8 Flash-Next, and GLM 5.3 Flash, respectively. 89 5 9 5 9 5                                                                       
+
+> (a) Non-flush ( W−1 steps)
+> 0250 500 750
+> Latency ( μs/layer)
+> B= 128 B= 256 B= 512
+> 14.43×
+> 9 5 9 5 9 5
+> (b) Flush (1 step)
+> 00.5 1
+> Latency (ms/layer)
+> B= 128 B= 256 B= 512
+> 9 5 9 5 9 5
+> (c) Total window ( Wsteps)
+> 0510 15
+> Latency (ms/layer)
+> B= 128 B= 256 B= 512
+> 7.78×
+> 11 7 11 7 11 7
+> (a) Non-flush ( W−1 steps)
+> 0200 400
+> Latency ( μs/layer)
+> B= 128 B= 256 B= 512
+> 10.06×
+> 11 7 11 7 11 7
+> (b) Flush (1 step)
+> 00.5 1
+> Latency (ms/layer)
+> B= 128 B= 256 B= 512
+> 11 7 11 7 11 7
+> (c) Total window ( Wsteps)
+> 02.5 57.5
+> Latency (ms/layer)
+> B= 128 B= 256 B= 512
+> 5.22×
+> 12 7 12 7 12 7
+> (a) Non-flush ( W−1 steps)
+> 0250 500 750
+> Latency ( μs/layer)
+> B= 128 B= 256 B= 512
+> 10.65×
+> 12 7 12 7 12 7
+> (b) Flush (1 step)
+> 012
+> Latency (ms/layer)
+> B= 128 B= 256 B= 512
+> 12 7 12 7 12 7
+> (c) Total window ( Wsteps)
+> 0510
+> Latency (ms/layer)
+> B= 128 B= 256 B= 512
+> 5.20×
+
+Nemotron Super 
+
+(Mamba-2) 
+
+Qwen3.8 Flash-Next 
+
+(GDN) 
+
+GLM 5.3 Flash 
+
+(KDA) Standard ReplaySSM SketchSSM (numbers: rank  ̄ G) 
+
+> SketchSSM w/o sketch Sketch/Coe ffi cient Map overhead
+
+Fig. 7: Linear-attention latency on one NVIDIA B300 with W = 16 and batch sizes 128, 256, and 512. Rows show Nemotron 3 Super( ¯G ∈ { 5, 9}), Qwen3.8 Flash-Next ( ¯G ∈ { 7, 11 }), and GLM 5.3 Flash ( ¯G ∈ { 7, 12 }). (a) Non-flush-step latency, incurred at each of the W − 1 steps between flush steps. (b) Flush-step latency, incurred once per window. Hatching indicates sketch and coefficient-map construction overhead at flush step. (c) Total linear-attention latency over W steps. 1 256 512 976 Batch size 
+
+010 20 30 
+
+> Throughput (10³ tokens/s)
+
+C = 2K    
+
+> 1256 512 864 Batch size
+
+010 20 
+
+C = 8K    
+
+> StandardReplaySSM 59StandardReplaySSM 59
+
+020 40 60 80 100  
+
+> Latency (ms/step)
+> SketchSSM rank G
+
+C = 2K Bmax = 912  
+
+> SketchSSM rank G
+
+C = 8K Bmax = 808       
+
+> Standard ReplaySSM SketchSSM:̄ G= 5̄ G= 9
+
+(a) End-to-end throughput (b) Decode breakdown    
+
+> GEMM Linear attn. Softmax attn. Others
+
+Fig. 8: Decoding performance for Nemotron 3 Super on one NVIDIA B300, comparing Standard, ReplaySSM, and SketchSSM at ¯G ∈ { 5, 9}. (a) decode throughput at 2K and 8K up to each method’s maximum batch, averaged over two 128-step runs using six steady windows. (b) Decode latency breakdown at common maximum batches of 912 at C = 2 K and 808 at C = 8 K.
+
+End-to-End Decode Speedups. With ¯G = 5 , SketchSSM improves maximum decode throughput by 2.64 × at 2K and 2.41 × at 8K over the Standard full-state baseline. Fig. 8(a) shows throughput across batch sizes, up to each method’s capacity limit. These gains come from reducing recurrent computation, which accounts for much of the baseline’s decode time. While ReplaySSM improves maximum throughput by 1.59 × at 2K and 1.55 × at 8K by amortizing state updates, SketchSSM further improves throughput by 1.67 × and 1.56 ×, respectively, by reducing state-read traffic with a compact sketch. With ¯G = 5 , linear attention’s share of decode time falls from 69.0% to 21.3% at 2K and from 66.5% to 19.4% at 8K (Fig. 8(b)), so linear attention no longer dominates decode time. 
+
+## 6 CONCLUSION 
+
+We present SketchSSM, which preserves exact full-state updates while using compact sketches for output reconstruction. We construct the sketch at runtime from the current state using an offline-9calibrated sketching matrix. Sketch ranks are also allocated offline based on each state head’s output error and its impact on model loss. Across four hybrid-attention models, SketchSSM reduces state-access traffic by approximately 10 × while largely preserving accuracy and recall. On one NVIDIA B300, it achieves 5.20 –7.78 × linear-attention speedups across Mamba-2, GDN, and KDA, yielding up to 2.64 × higher maximum throughput over the full-state baseline. 10 REFERENCES 
+
+Simran Arora, Sabri Eyuboglu, Michael Zhang, Aman Timalsina, Silas Alberti, James Zou, Atri Rudra, and Christopher Re. Simple linear attention language models balance the recall-throughput tradeoff. In Ruslan Salakhutdinov, Zico Kolter, Katherine Heller, Adrian Weller, Nuria Oliver, Jonathan Scarlett, and Felix Berkenkamp (eds.), Proceedings of the 41st International Conference on Machine Learning , volume 235 of Proceedings of Machine Learning Research , pp. 1763–1840. PMLR, 21–27 Jul 2024. URL https://proceedings.mlr.press/v235/arora24a. html .Hung-Yueh Chiang, Chi-Chih Chang, Natalia Frumkin, Kai-Chiang Wu, Mohamed S. Abdelfattah, and Diana Marculescu. Quamba2: A robust and scalable post-training quantization framework for selective state space models. In Aarti Singh, Maryam Fazel, Daniel Hsu, Simon Lacoste-Julien, Felix Berkenkamp, Tegan Maharaj, Kiri Wagstaff, and Jerry Zhu (eds.), Proceedings of the 42nd International Conference on Machine Learning , volume 267 of Proceedings of Machine Learning Research , pp. 10411–10427. PMLR, 13–19 Jul 2025. URL https://proceedings.mlr. press/v267/chiang25a.html .Tri Dao and Albert Gu. Transformers are SSMs: Generalized models and efficient algorithms through structured state space duality. In Ruslan Salakhutdinov, Zico Kolter, Katherine Heller, Adrian Weller, Nuria Oliver, Jonathan Scarlett, and Felix Berkenkamp (eds.), Proceedings of the 41st International Conference on Machine Learning , volume 235 of Proceedings of Machine Learning Research , pp. 10041–10071. PMLR, 21–27 Jul 2024. URL https://proceedings.mlr. press/v235/dao24a.html .Carl Eckart and Gale Young. The approximation of one matrix by another of lower rank. Psychome-trika , 1(3):211–218, 1936. doi: 10.1007/BF02288367. GLM-5-Team. Glm-5: from vibe coding to agentic engineering, 2026. URL https://arxiv. org/abs/2602.15763 .N. Halko, P. G. Martinsson, and J. A. Tropp. Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM Review , 53(2):217–288, 2011. doi: 10.1137/090771806. URL https://doi.org/10.1137/090771806 .Cheng-Ping Hsieh, Simeng Sun, Samuel Kriman, Shantanu Acharya, Dima Rekesh, Fei Jia, Yang Zhang, and Boris Ginsburg. Ruler: What’s the real context size of your long-context language models?, 2024. URL https://arxiv.org/abs/2404.06654 .Piotr Indyk, Ali Vakilian, and Yang Yuan. Learning-based low-rank approximations. In H. Wallach, H. Larochelle, A. Beygelzimer, F. d'Alché-Buc, E. Fox, and R. Garnett (eds.), 
+
+Advances in Neural Information Processing Systems , volume 32. Curran Associates, Inc., 2019. URL https://proceedings.neurips.cc/paper_files/paper/2019/ file/1625abb8e458a79765c62009235e9d5b-Paper.pdf .Naman Jain, King Han, Alex Gu, Wen-Ding Li, Fanjia Yan, Tianjun Zhang, Sida Wang, Armando Solar-Lezama, Koushik Sen, and Ion Stoica. Livecodebench: Holistic and contamination free evaluation of large language models for code. arXiv preprint arXiv:2403.07974 , 2024. Angelos Katharopoulos, Apoorv Vyas, Nikolaos Pappas, and François Fleuret. Transformers are RNNs: Fast autoregressive transformers with linear attention. In Hal Daumé III and Aarti Singh (eds.), Proceedings of the 37th International Conference on Machine Learning , volume 119 of 
+
+Proceedings of Machine Learning Research , pp. 5156–5165. PMLR, 13–18 Jul 2020. URL 
+
+https://proceedings.mlr.press/v119/katharopoulos20a.html .Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, Lianmin Zheng, Cody Hao Yu, Joseph E. Gonzalez, Hao Zhang, and Ion Stoica. Efficient memory management for large language model serving with pagedattention. In Proceedings of the ACM SIGOPS 29th Symposium on Operating Systems Principles , 2023. Edo Liberty. Simple and deterministic matrix sketching. In Proceedings of the 19th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining , KDD ’13, pp. 581–588, New York, NY, USA, 2013. Association for Computing Machinery. ISBN 9781450321747. doi: 10.1145/2487575.2487623. URL https://doi.org/10.1145/2487575.2487623 .11 Opher Lieber, Barak Lenz, Hofit Bata, Gal Cohen, Jhonathan Osin, Itay Dalmedigos, Erez Safahi, Shaked Meirom, Yonatan Belinkov, Shai Shalev-Shwartz, Omri Abend, Raz Alon, Tomer Asida, Amir Bergman, Roman Glozman, Michael Gokhman, Avashalom Manevich, Nir Ratner, Noam Rozen, Erez Shwartz, Mor Zusman, and Yoav Shoham. Jamba: A hybrid transformer-mamba language model, 2024. URL https://arxiv.org/abs/2403.19887 .Hunter Lightman, Vineet Kosaraju, Yura Burda, Harri Edwards, Bowen Baker, Teddy Lee, Jan Leike, John Schulman, Ilya Sutskever, and Karl Cobbe. Let’s verify step by step. arXiv preprint arXiv:2305.20050 , 2023. Ze-Wei Liou and Tri Dao. ReplaySSM: Cache SSM inputs, not state. Dao AI Lab Blog, June 2026. URL https://dao-lab.ai/blog/2026/replayssm/ . Accessed: 2026-09-07. Michael Menezes and Anastasios Kyrillidis. GHOST: Grouped hidden-state output-aware selection and truncation. In Proceedings of the International Conference on Machine Learning (ICML) ,2026. Stephen Merity, Caiming Xiong, James Bradbury, and Richard Socher. Pointer sentinel mixture models, 2016. Philipp Nazari and T. Konstantin Rusch. The key to state reduction in linear attention: A rank-based perspective, 2026. URL https://arxiv.org/abs/2602.04852 .Yuqi Pan, Yongqi An, Zheng Li, Yuhong Chou, Rui-Jie Zhu, Xiaohui Wang, Mingxuan Wang, Jinqiao Wang, and Guoqi Li. Scaling linear attention capacity with sparse state expansion. In 
+
+The Fourteenth International Conference on Learning Representations , 2026. URL https: //openreview.net/forum?id=R6DrJ4tnGV .Zhen Qin, Songlin Yang, Weixuan Sun, Xuyang Shen, Dong Li, Weigao Sun, and Yiran Zhong. HGRN2: Gated linear RNNs with state expansion. In First Conference on Language Modeling ,2024. URL https://openreview.net/forum?id=y6SqbJfCSk .Qwen Team. On the design of Qwen3.8-Next architecture: Evaluation, efficiency, and training stability. Technical report, Alibaba Group, August 2026a. Qwen Team. Qwen3.8-Flash-Next: A new architecture, towards ultimate cost-efficiency, August 2026b. URL https://qwen.ai/blog?id=qwen3.8-flash-next .David Rein, Betty Li Hou, Asa Cooper Stickland, Jackson Petty, Richard Yuanzhe Pang, Julien Dirani, Julian Michael, and Samuel R. Bowman. GPQA: A graduate-level google-proof q&a benchmark. In First Conference on Language Modeling , 2024. URL https://openreview. net/forum?id=Ti67584b98 .Utkarsh Saxena, Gobinda Saha, Sakshi Choudhary, and Kaushik Roy. Eigen attention: Attention in low-rank space for KV cache compression. In Yaser Al-Onaizan, Mohit Bansal, and Yun-Nung Chen (eds.), Findings of the Association for Computational Linguistics: EMNLP 2024 , pp. 15332–15344, Miami, Florida, USA, November 2024. Association for Computational Linguistics. doi: 10.18653/v1/2024.findings-emnlp.899. URL https://aclanthology.org/2024. findings-emnlp.899/ .Imanol Schlag, Kazuki Irie, and Jürgen Schmidhuber. Linear transformers are secretly fast weight programmers. In Proc. Int. Conf. on Machine Learning (ICML) , Virtual only, July 2021. NVIDIA Team. Nemotron 3 super: Open, efficient mixture-of-experts hybrid mamba-transformer model for agentic reasoning, 2026. URL https://arxiv.org/abs/2604.12374 .Chen Tianqi, Yuanteng Chen, Peisong Wang, Weixiang Xu, Zeyu Zhu, and Jian Cheng. Q-mamba: Towards more efficient mamba models via post-training quantization. In Wanxiang Che, Joyce Nabende, Ekaterina Shutova, and Mohammad Taher Pilehvar (eds.), Findings of the Association for Computational Linguistics: ACL 2025 , pp. 10594–10610, Vienna, Austria, July 2025. Association for Computational Linguistics. ISBN 979-8-89176-256-5. doi: 10.18653/v1/2025.findings-acl.551. URL https://aclanthology.org/2025.findings-acl.551/ .12 Xin Wang, Yu Zheng, Zhongwei Wan, and Mi Zhang. SVD-LLM: Truncation-aware singular value decomposition for large language model compression. In International Conference on Learning Representations (ICLR) , 2025. URL https://openreview.net/forum?id= LNYIUouhdt .David P. Woodruff. Sketching as a tool for numerical linear algebra. Foundations and Trends in Theoretical Computer Science , 10(1-2):1–157, 10 2014. ISSN 1551-305X. doi: 10.1561/ 0400000060. URL https://doi.org/10.1561/0400000060 .Songlin Yang, Bailin Wang, Yikang Shen, Rameswar Panda, and Yoon Kim. Gated linear attention transformers with hardware-efficient training. In Ruslan Salakhutdinov, Zico Kolter, Katherine Heller, Adrian Weller, Nuria Oliver, Jonathan Scarlett, and Felix Berkenkamp (eds.), Proceedings of the 41st International Conference on Machine Learning , volume 235 of Proceedings of Machine Learning Research , pp. 56501–56523. PMLR, 21–27 Jul 2024a. URL https://proceedings. mlr.press/v235/yang24ab.html .Songlin Yang, Bailin Wang, Yu Zhang, Yikang Shen, and Yoon Kim. Parallelizing linear trans-formers with the delta rule over sequence length. In A. Globerson, L. Mackey, D. Belgrave, A. Fan, U. Paquet, J. Tomczak, and C. Zhang (eds.), Advances in Neural Information Process-ing Systems , volume 37, pp. 115491–115522. Curran Associates, Inc., 2024b. doi: 10.52202/ 079017-3668. URL https://proceedings.neurips.cc/paper_files/paper/ 2024/file/d13a3eae72366e61dfdc7eea82eeb685-Paper-Conference.pdf .Songlin Yang, Jan Kautz, and Ali Hatamizadeh. Gated delta networks: Improving mamba2 with delta rule. In The Thirteenth International Conference on Learning Representations , 2025. URL 
+
+https://openreview.net/forum?id=r8H7xhYPwz .Zhihang Yuan, Yuzhang Shang, Yue Song, Dawei Yang, Qiang Wu, Yan Yan, and Guangyu Sun. Asvd: Activation-aware singular value decomposition for compressing large language models, 2025. URL https://arxiv.org/abs/2312.05821 .Tao Zhang, Jianchao Tan, Pingwei Sun, Yanqi Yu, Zixu Jiang, Yuchen Xie, Xunliang Cai, and Ziqian Zeng. Damp: Decay-aware mixed-precision recurrent-state quantization, 2026. URL 
+
+https://arxiv.org/abs/2608.27513 .Yifan Zhang and Team Math-AI. American invitational mathematics examination (aime) 2025, 2025. Yu Zhang, Zongyu Lin, Xingcheng Yao, Jiaxi Hu, Fanqing Meng, Chengyin Liu, Xin Men, Songlin Yang, Zhiyuan Li, Wentao Li, Enzhe Lu, Weizhou Liu, Yanru Chen, Weixin Xu, Longhui Yu, Yejie Wang, Yu Fan, Longguang Zhong, Enming Yuan, Dehao Zhang, Yizhi Zhang, Y. T. Liu, Haiming Wang, Shengjun Fang, Weiran He, Shaowei Liu, Yiwei Li, Jianlin Su, Jiezhong Qiu, Bo Pang, Junjie Yan, Zhejun Jiang, Weixiao Huang, Bohong Yin, Jiacheng You, Chu Wei, Zhengtao Wang, Chao Hong, Yutian Chen, Guanduo Chen, Yucheng Wang, Huabin Zheng, Feng Wang, Yibo Liu, Mengnan Dong, Zheng Zhang, Siyuan Pan, Wenhao Wu, Yuhao Wu, Longyu Guan, Jiawen Tao, Guohong Fu, Xinran Xu, Yuzhi Wang, Guokun Lai, Yuxin Wu, Xinyu Zhou, Zhilin Yang, and Yulun Du. Kimi linear: An expressive, efficient attention architecture, 2025. Longwei Zou and Lin Zhong. Kvbuffer: Io-aware serving for linear attention, 2026. URL https: //arxiv.org/abs/2605.19049 .13 A DERIVATION OF SKETCH SSM 
+
+SketchSSM solves two related approximation problems. First, it calibrates the shared sketching matrix Ω from many state–query samples. Second, for the current state and query, it computes the coefficient vector ct used to combine the columns of the state sketch. We derive these two steps separately and then explain their efficient runtime implementation. A.1 DERIVATION OF THE OPTIMAL OFFLINE SKETCHING MATRIX (Ω)We derive the PCA solution used in Equation 8. Recall that E0 ∈ RK×K is the calibration-averaged state geometry, ˜qt ∈ RK , and Ω ∈ RK×G. The goal is to choose the G-dimensional column space of 
+
+Ω that minimizes the offline reconstruction loss in Equation 8 
+
+Step 1: Convert the weighted error to an ordinary Euclidean error. Define 
+
+zt := E1/20 ˜qt ∈ RK , B := E1/20 Ω ∈ RK×G. (12) These are only changes of variables. In particular, 
+
+E1/20 (˜ qt − Ωct) 22
+
+= ∥zt − Bc t∥22. (13) Thus, for a fixed B, the inner problem asks for the linear combination of its G columns that is closest to zt.
+
+Step 2: Solve for the best coefficient at one sample. Expanding the squared distance gives 
+
+∥zt − Bc ∥22 = ( zt − Bc )⊤(zt − Bc )= z⊤ 
+
+> t
+
+zt − 2c⊤B⊤zt + c⊤B⊤Bc. (14) Differentiating with respect to c and setting the derivative to zero produces the normal equation 
+
+B⊤Bc = B⊤zt. (15) If B has full column rank, B⊤B is invertible, and hence 
+
+c⋆t, off (B) = ( B⊤B)−1B⊤zt. (16) The reconstructed vector is Bc ⋆t, off = Π B zt, where 
+
+ΠB := B(B⊤B)−1B⊤ (17) is the orthogonal projector onto the column space of B. Therefore, the minimum sample error is 
+
+∥(I − ΠB )zt∥22, the energy left outside that column space. If B is rank deficient, the same statements hold with the Moore–Penrose pseudoinverse. 
+
+Step 3: Average the projection error over calibration samples. Let Cz := ED [ztz⊤ 
+
+> t
+
+] ∈ RK×K .Because ΠB is symmetric and idempotent, (I − ΠB )⊤(I − ΠB ) = I − ΠB . We also use the scalar identity x⊤Ax = tr( Axx ⊤). Applying these two facts one line at a time gives 
+
+LG(Ω) = ED
+
+∥(I − ΠB )zt∥22
+
+
+
+= ED
+
+z⊤ 
+
+> t
+
+(I − ΠB )zt
+
+
+
+= ED
+
+tr(( I − ΠB )ztz⊤ 
+
+> t
+
+)
+
+= tr(( I − ΠB )Cz )= tr( Cz ) − tr(Π B Cz ). (18) 
+
+Step 4: Choose the best G-dimensional subspace. The total energy tr( Cz ) does not depend on B.Minimizing Equation 18 is therefore equivalent to maximizing the captured energy tr(Π B Cz ). Write the eigendecomposition as 
+
+Cz = P Diag( λ1, . . . , λ K )P ⊤, λ1 ≥ · · · ≥ λK ≥ 0. (19) 14 The PCA variational principle states that a rank-G projector captures the most energy by selecting the eigenvectors with the G largest eigenvalues. To see this directly, let Q = [ q1, . . . , q G] be any orthonormal basis for the chosen subspace, so ΠB = QQ ⊤. Then 
+
+tr(Π B Cz ) = 
+
+> G
+
+X
+
+> g=1
+
+q⊤ 
+
+> g
+
+Cz qg =
+
+> K
+
+X
+
+> i=1
+
+λiGX
+
+> g=1
+
+(p⊤ 
+
+> i
+
+qg )2
+
+| {z }
+
+> wi
+
+. (20) The weights satisfy 0 ≤ wi ≤ 1 and P 
+
+> i
+
+wi = G. Because the eigenvalues are sorted from largest to smallest, the weighted sum is maximized by assigning unit weight to the first G eigenvectors. Let PG = [ p1, . . . , p G] contain those eigenvectors. We can therefore choose B⋆ = PG, for which 
+
+ΠB⋆ = PGP ⊤ 
+
+> G
+
+.
+
+Step 5: Map the PCA basis back to Ω. From the definition B = E1/20 Ω, the choice B⋆ = PG
+
+gives 
+
+Ω⋆ = E−1/20 PG, c⋆t, off = P ⊤ 
+
+> G
+
+zt, min  
+
+> Ω
+
+LG(Ω) = 
+
+> K
+
+X
+
+> i=G+1
+
+λi. (21) The final equality has a direct interpretation: PCA retains the first G eigen-directions, so the minimum residual is the energy in the remaining K − G directions. No centering is performed, which is why the main text calls this procedure uncentered PCA. The coefficient c⋆t, off is used only inside this offline calibration objective; inference uses the current-state coefficient derived in Appendix A.2.1. If 
+
+E0 is singular, E−1/20 denotes the Moore–Penrose pseudoinverse on the support of E0; directions in its null space do not contribute to the output error. A.2 DERIVATION OF THE COEFFICIENT VECTOR (ct )A.2.1 DERIVATION OF THE OPTIMAL COEFFICIENT VECTOR 
+
+We next derive the per-step coefficient used with the current state sketch. Within one window, 
+
+S0 ∈ RK×V and U ∈ RV ×G are fixed, whereas ˜qt ∈ RK changes at every step. The exact output 
+
+ostate  
+
+> t
+
+= S⊤ 
+
+> 0
+
+˜qt ∈ RV is approximated by U c , a linear combination of the G columns of U .
+
+Step 1: Write and expand the least-squares problem. For the current query, we solve 
+
+c⋆t := arg min 
+
+> c∈RG
+
+∥ostate  
+
+> t
+
+− U c ∥22,
+
+∥ostate  
+
+> t
+
+− U c ∥22 = ostate 
+
+> t
+> ⊤
+
+ostate  
+
+> t
+
+− 2c⊤U ⊤ostate  
+
+> t
+
++ c⊤U ⊤U c. (22) 
+
+Step 2: Solve the normal equation. Differentiating the second line with respect to c gives 
+
+2U ⊤(U c − ostate  
+
+> t
+
+) = 0 =⇒ U ⊤U c = U ⊤ostate  
+
+> t
+
+. (23) Substituting ostate  
+
+> t
+
+= S⊤ 
+
+> 0
+
+˜qt and choosing the minimum-norm solution yields 
+
+c⋆t = ( U ⊤U )†U ⊤S⊤ 
+
+> 0
+
+˜qt
+
+= C ˜qt, C := ( U ⊤U )†U ⊤S⊤ 
+
+> 0
+
+∈ RG×K . (24) Here, † denotes the Moore–Penrose pseudoinverse. The first factor (U ⊤U )† ∈ RG×G corrects for correlations among the sketch basis vectors, and U ⊤S⊤ 
+
+> 0
+
+∈ RG×K measures how the full state maps a query into those basis vectors. With the exact least-squares coefficient map, the reconstructed output is 
+
+U c ⋆t = U (U ⊤U )†U ⊤S⊤ 
+
+> 0
+
+˜qt = Π U ostate  
+
+> t
+
+, (25) where ΠU is the orthogonal projector onto range( U ) = range( S⊤ 
+
+> 0
+
+Ω) . This has the range-projection form of Halko et al. (2011), with the calibrated Ω serving as the test matrix. 15 Step 3: Reuse the query-independent factors. Both S0 and U remain fixed within a window, so 
+
+C is also fixed. SketchSSM constructs C once at the flush step. Each non-flush step then needs only the matrix–vector product c⋆t = C ˜qt. The remaining question is how to evaluate this product without serially forming the effective query; Appendix C.2 describes that separate execution optimization. A.2.2 LOW -R ANK -P LUS -D IAGONAL APPROXIMATION FOR THE COEFFICIENT MAP 
+
+Constructing the exact coefficient map C = ( U ⊤U )†U ⊤S⊤ 
+
+> 0
+
+at every flush requires forming and factoring U ⊤U and forming U ⊤S⊤ 
+
+> 0
+
+, which costs O(KV G + V G 2 + G3) arithmetic per head. This section derives the approximation used to reduce that flush-step cost. 
+
+Step 1: Express the solve in basis-aligned coordinates. For the derivation, we express the coefficient solve in coordinates aligned with the calibrated query subspace. This change of coordinates does not require storing or updating the recurrent state in the rotated basis. We use an orthonormal basis Ω for this subspace and complete it to an orthogonal matrix R⊤, where R⊤R = IK . Define 
+
+S′ 
+
+> 0
+
+:= RS 0 ∈ RK×V , xt := R˜qt ∈ RK , J := [ e1 · · · eG] ∈ RK×G. (26) Here, J selects the first G basis-aligned coordinates, so Ω = R⊤J and U = S⊤ 
+
+> 0
+
+R⊤J = S′
+
+> 0
+> ⊤
+
+J. This coordinate change preserves the output reconstruction error exactly. Define the normalized state metric 
+
+μ := ∥S′
+
+> 0
+
+∥2 
+
+> F
+
+/K, H := S′
+
+> 0
+
+S′
+
+> 0
+> ⊤
+
+/μ ∈ RK×K , (27) where we set μ = 1 for a zero state. The normalized output error is 
+
+∥S′
+
+> 0
+> ⊤
+
+(xt − Jc )∥22/μ = ( xt − Jc )⊤H(xt − Jc ). (28) We add ridge regularization λ∥c∥22 with λ = 0 .1, defined for coefficients in this orthonormal basis. Expanding Equation 28, differentiating the regularized objective with respect to c, and setting the result to zero gives 
+
+0 = 2 J⊤H(Jc − xt) + 2 λc, 
+
+(J⊤HJ + λI G)c = J⊤Hx t,ct,λ = ( J⊤HJ + λI G)−1J⊤Hx t. (29) The exact regularized solve therefore depends on the dense state metric H. Constructing the required blocks of H at every flush is the expensive operation that we approximate below. 
+
+Step 2: Approximate the state metric. Choose a small configurable pivot count P and set 
+
+p := min( G, P ). Let Q ∈ RV ×p be an orthonormal basis for the first p columns of the current sketch 
+
+U = S′
+
+> 0
+> ⊤
+
+J. The projector QQ ⊤ keeps the part of the value space spanned by these pivot sketch vectors. Define 
+
+L := S′
+
+> 0
+
+Q
+
+√μ ∈ RK×p. (30) Its product is 
+
+LL ⊤ = S′
+
+> 0
+
+QQ ⊤S′
+
+> 0
+> ⊤
+
+/μ, (31) so LL ⊤ retains the correlations in H that pass through the selected p-dimensional output subspace. A low-rank matrix alone can underestimate the energy of individual state coordinates. We preserve the remaining diagonal energy with 
+
+di := max {Hii − ∥ Li, :∥22, 0}, bH := LL ⊤ + Diag( d). (32) Since (LL ⊤)ii = ∥Li, :∥22, this choice makes bHii = Hii whenever the residual is nonnegative; the maximum with zero protects against numerical roundoff. Thus, bH keeps a small set of important cross-coordinate correlations and the per-coordinate energy left outside that set. 16 Step 3: Substitute the approximation into the solve. Let 
+
+LG := J⊤L ∈ RG×p, D0 := Diag( J⊤d), DG := D0 + λI G. (33) Substituting bH for H in the two sides of the normal equation gives 
+
+J⊤ bHJ + λI G = LGL⊤ 
+
+> G
+
++ DG, (34) 
+
+J⊤ bHx t = LG(L⊤xt) + J⊤ Diag( d)xt. (35) These equalities follow by distributing J⊤ and J over bH = LL ⊤ + Diag( d). They show explicitly that the approximation is applied to both the Gram matrix and the query-dependent right-hand side. 
+
+Step 4: Replace the G × G inverse with a p × p inverse. The approximate Gram matrix has the diagonal-plus-low-rank form DG + LGL⊤
+
+> G
+
+. The Woodbury identity gives 
+
+(DG + LGL⊤
+
+> G
+
+)−1 = D−1 
+
+> G
+
+− D−1 
+
+> G
+
+LG
+
+ Ip + L⊤
+
+> G
+
+D−1 
+
+> G
+
+LG
+
+−1 L⊤
+
+> G
+
+D−1 
+
+> G
+
+. (36) Only 
+
+TP := Ip + L⊤
+
+> G
+
+D−1 
+
+> G
+
+LG ∈ Rp×p (37) requires a dense factorization. Because p ≤ P is small, this replaces a dense G × G solve with diagonal operations in G and a dense p × p solve. 
+
+Step 5: Identify what is and is not approximated. The flush prepares the factors above in 
+
+O(KV p + V p 2 + Gp 2 + p3) arithmetic, without forming the exact K × G cross-product or factoring its G × G Gram matrix. The recurrent state and the sketch remain exact; only the state metric used to compute the coefficient vector is replaced by bH.
+
+Flush-step latency. Table 2 compares the exact regularized coefficient map with the P = 4 
+
+approximation, using the same sketch bases and rank allocations. Both paths fuse coefficient construction into the state update, without an additional full-state read. By reducing the cross-product and Gram-system computation described above, P = 4 reduces complete flush-step latency by 
+
+4.02 –4.83 × across Mamba-2, GDN, and KDA. Table 2: Complete flush-step latency on one NVIDIA B300 at batch size 256 and W = 16 , with FP32 states and BF16 sketch/coefficient map. Kernel measurements use synthetic activations and average the per-layer median latency over all recurrent layers (seven timing rounds). Exact uses the full Gram system with λ = 0 .1; speedup is Exact latency divided by P = 4 latency.                   
+
+> Model ¯GExact ( μs) P= 4 (μs) Speedup Nemotron 3 Super 51,854.55 420.20 4.41 ×
+> Qwen3.8 Flash-Next 72,120.23 439.17 4.83 ×
+> GLM 5.3 Flash 72,754.81 685.84 4.02 ×
+
+17 B SKETCH SSM A LGORITHM 
+
+Algorithm 1 summarizes SketchSSM in Section 4 for one state head. The sketching matrix Ω is calibrated offline and fixed throughout inference. After initialization, each window contains W − 1
+
+non-flush steps that read U and C, followed by one flush step that reads S0 and applies the buffered updates from B exactly. The flush step computes the output from the updated full state and constructs 
+
+U, C before writing the state back to HBM. 
+
+Algorithm 1 SketchSSM calibration and inference. 
+
+Require: Calibration distribution D, mean rank budget ¯G, window size W
+
+Offline  
+
+> 1:
+
+Calibrate Ω⋆ using Equation 8  
+
+> 2:
+
+Allocate Gl,h to each state head under ¯G using Equation 49  
+
+> 3:
+
+Fix Ω to the first Gl,h columns of Ω⋆ for each head 
+
+Inference  
+
+> 4:
+
+Initialize the full state S0 from prefill  
+
+> 5:
+
+Construct the initial U, C from S0; initialize buffer B ← ∅ 
+
+> 6:
+
+while decoding continues do Non-flush steps: W − 1 times per window  
+
+> 7:
+
+for t = 1 , . . . , W − 1 do  
+
+> 8:
+
+Append the current update inputs to B 
+
+> 9:
+
+Compute ˜qt and obuffer  
+
+> t
+
+exactly from B using Equation 4  
+
+> 10:
+
+Read U, C from HBM  
+
+> 11:
+
+ot ← U C ˜qt + obuffer  
+
+> t
+> 12:
+
+Emit ot; terminate if decoding is complete  
+
+> 13:
+
+end for Flush step: once per window, t = W 
+
+> 14:
+
+Append the current update inputs to B 
+
+> 15:
+
+Read the full state S0 from HBM  
+
+> 16:
+
+Update S0 exactly using all buffered inputs from B 
+
+> 17:
+
+ot ← S⊤ 
+
+> 0
+
+qt 
+
+> 18:
+
+Construct the sketch U ← S⊤ 
+
+> 0
+
+Ω 
+
+> 19:
+
+Construct the coefficient map C from S0 via Equation 9 and Appendix A.2.2  
+
+> 20:
+
+Write S0, U, C to HBM  
+
+> 21:
+
+Clear B; emit ot 
+
+> 22:
+
+end while 
+
+18 C WY-B ASED EFFECTIVE -Q UERY AND COEFFICIENT COMPUTATION 
+
+We adapt the WY representation used in chunkwise delta-rule computation (Yang et al., 2024b) to the decay-and-erase transitions in Equation 3. We first derive an exact effective-query evaluation without a sketch or coefficient map, then describe its implementation in coefficient space. C.1 PARALLEL EFFECTIVE -Q UERY EVALUATION 
+
+Within a window indexed by t = 1 , . . . , W , the effective query is 
+
+˜qt = M ⊤
+
+> 1: t
+
+qt, M1: t = Mt · · · M1. (38) Applying each transposed transition to the query separately creates a serial dependency chain. A WY-style factorization replaces this chain with a sum of contributions from buffered tokens. 
+
+Factor the transition product. For GDN and KDA, 
+
+Ms = ( I − βsksk⊤ 
+
+> s
+
+)Ds = Ds − βsks(k⊤ 
+
+> s
+
+Ds), (39) where Ds is diagonal, including scalar decay as a special case. Let d[t] = diag( Dt · · · D1) and 
+
+ℓs(t) := ( Dt · · · Ds+1 )ks, (40) with an empty matrix product equal to the identity. The ordered product has the exact form 
+
+M1: t = Diag( d[t]) −
+
+> t
+
+X
+
+> s=1
+
+ℓs(t)π⊤ 
+
+> s
+
+, (41) where the erase factors satisfy 
+
+πs = βs
+
+d[s] ⊙ ks −
+
+> s−1
+
+X
+
+> j=1
+
+⟨ℓj (s), k s⟩πj
+
+ ∈ RK . (42) To verify this form, the base case is π1 = β1(d[1] ⊙ k1). At step s, multiplication by Ds updates each existing left factor to ℓj (s). Multiplication by I − βsksk⊤ 
+
+> s
+
+then adds −ksπ⊤ 
+
+> s
+
+, with πs given above. Thus the recurrence retains all cross terms between erase operations. 
+
+Apply the product to the query. Transposing Equation 41 gives 
+
+˜qt = d[t] ⊙ qt −
+
+> t
+
+X
+
+> s=1
+
+πs⟨ℓs(t), q t⟩. (43) Once the factors have been maintained as tokens arrive, their contributions to the current query can be accumulated in parallel over buffer slots. This evaluation is exact and requires no read of S0; it does not remove the causal dependence between arriving tokens. For Mamba-2, the erase terms are absent and the effective query reduces to d[t] ⊙ qt.C.2 COEFFICIENT COMPUTATION WITH PROJECTED FACTORS 
+
+We need C ˜qt, not ˜qt itself. Applying C to Equation 43 and defining fs := Cπ s ∈ RG gives 
+
+c⋆t = C(d[t] ⊙ qt) −
+
+> t
+
+X
+
+> s=1
+
+fs⟨ℓs(t), q t⟩. (44) Applying C to the recurrence for πs likewise gives 
+
+fs = βs
+
+C(d[s] ⊙ ks) −
+
+> s−1
+
+X
+
+> j=1
+
+fj ⟨ℓj (s), k s⟩
+
+ . (45) For a fixed coefficient map, these identities compute C ˜qt exactly; projecting the factors introduces no additional approximation. Thus, once slot s is appended, later steps need only its G-dimensional fs,rather than its K-dimensional πs.19 Reusing buffered keys. Because the Ds matrices are diagonal, ℓs(t) = ( d[t] ⊘ d[s]) ⊙ ks. Hence, for any y ∈ RK ,
+
+⟨ℓs(t), y ⟩ = ⟨ks ⊘ d[s], d [t] ⊙ y⟩. (46) The kernel can compute the required scalar from the stored ring key and the cumulative diagonal, so no additional K-vector is needed per slot. Both sums in Equations 44 and 45 are parallel reductions over ring slots. In addition to the buffered inputs, this calculation uses the coefficient map C ∈ RG×K
+
+plus one fs ∈ RG per slot for erasing transitions. Mamba-2 has no erase, so the fs vectors and the two sums disappear. None of these transformations changes the raw ring transitions used for the exact full-state update at a flush. 20 D STATE MEMORY TRAFFIC REDUCTION 
+
+Table 3 compares amortized state-memory traffic, including state-read and state-write accesses, in bytes per state head per decode step. Standard reads and writes the full FP32 K × V state at every step, giving a reference cost of 8KV bytes. Let D := 4 KV denote the full-state size, and let Crate 
+
+be the effective state compression ratio, including auxiliary metadata such as quantization scales. 
+
+State Write. Standard writes D bytes per step. Quantization and pruning reduce this cost to D/C rate ,as they update the compressed state at every step. ReplaySSM and SketchSSM instead buffer updates and write the full FP32 state once every W steps. Their state-write traffic is zero at non-flush steps and D bytes at flush steps, averaging D/W bytes per step. 
+
+State Read. Standard and ReplaySSM read D bytes per step, while quantization and pruning read 
+
+D/C rate bytes. SketchSSM stores the sketch U and coefficient map C in BF16, so reading both at a non-flush step costs 2G(V + K) bytes. For GDN and KDA, the BF16 projected erase vectors (Appendix C.2) add 2GW bytes. The total non-flush read cost is therefore TG := 2 G(V + K + eW ),with e = 0 for Mamba-2 and e = 1 for GDN and KDA. Each flush reads the full FP32 state to apply the buffered updates and refresh these representations. Thus, SketchSSM’s average read cost is 
+
+BG := (( W − 1) TG + D)/W .Table 3: Average state-memory traffic per state head per decode step, including reads and writes, and reduction relative to Standard. D = 4 KV , BG = (( W −1) TG +D)/W , and TG = 2 G(V +K+eW ).Full states use FP32; sketches, coefficient maps, and projected erase vectors use BF16.                          
+
+> Method Read Write Total Reduction Standard DD2D1
+> ReplaySSM DD/W D+D/W 2WW+1
+> Quant./Pruning D/C rate D/C rate 2D/C rate Crate
+> SketchSSM BGD/W BG+D/W 2DBG+D/W
+
+For a sketched head, the state-memory traffic reduction is 
+
+RG = 8KV 
+
+(W − 1) TG/W + 8 KV /W . (47) For head-dependent ranks, we sum the byte costs across heads before taking the ratio. Dense-fallback heads read D bytes per step and write D/W bytes on average. At W = 16 , ReplaySSM reduces this traffic by 32 /17 ≈ 1.88 ×. Quantization and pruning retain their compression ratios because both reads and writes shrink proportionally. This metric excludes much smaller ring-buffer traffic, writes to sketches and coefficient metadata; these costs are reflected in the measured speedups. 21 E OFFLINE SKETCH -RANK ALLOCATION 
+
+For each state head, we use the first G columns of the offline basis from Section 4.1 to form a rank-G
+
+sketch. We keep the basis fixed and compare candidate ranks by their state-read reconstruction errors and the loss sensitivity of those errors. 
+
+Head-level calibration. For head j = ( l, h ), let Gmax be the largest candidate rank and Uj,G max ∈
+
+RV ×Gmax its state sketch in one calibration window. A thin QR factorization Uj,G max = Qj Rj
+
+evaluates all prefix residuals without solving a separate least-squares problem for every rank: 
+
+δot,j (G) 22 = ostate  
+
+> t,j
+> 22
+
+− Q⊤
+
+> j, 1: G
+
+ostate  
+
+> t,j
+> 22
+
+. (48) On the same token, we record gt,j = ∇ostate  
+
+> t,j
+
+ℓ and accumulate the paired score Jj (G) from Equation (11). This measures whether the discarded output is aligned with a loss-sensitive di-rection, rather than multiplying independently averaged error and gradient statistics. We also retain 
+
+εj (G) = Et[∥δot,j (G)∥22] for the gradient-free ablation. Basis fitting and allocation use disjoint calibration examples. The score is a separable first-order surrogate: it preserves the sample-wise gradient–residual interac-tion within each head but omits cross-head terms in (P 
+
+> j
+
+g⊤ 
+
+> t,j
+
+δot,j )2. Its advantage is that the resulting per-head curves can be optimized offline under an exact traffic budget. 
+
+Budgeted optimization. Let τsk := 2( V + K + eW ) be the read traffic in bytes contributed by one unit of sketch rank with BF16 storage. A full-state read costs 4KV bytes because the state remains in FP32. The largest admissible rank strictly cheaper than a full-state read is 
+
+G⋆ := min 
+
+
+
+K, V, 
+
+ 4KV τsk 
+
+
+
+− 1
+
+
+
+.
+
+Each head chooses either a prefix rank in {1, . . . , G ⋆} or a full-state read: 
+
+A := {1, . . . , G ⋆, full }, τ (G) := Gτ sk , τ (full) := 4 KV, Jj (full) := 0 ,
+
+min  
+
+> {aj∈A}
+
+X
+
+> j
+
+Jj (aj ) s.t. X
+
+> j
+
+τ (aj ) ≤ B, B := N ¯Gτ sk , (49) where N is the number of state heads and ¯G is the mean sketch-rank budget. The flush read cost is identical for every action and therefore does not affect this optimization. The measured rank curves need not have diminishing returns, so a sequential greedy rule is not guaranteed to minimize Equation (49). We instead introduce a traffic price μ ≥ 0. For any price, 
+
+D(μ) := X
+
+> j
+
+min 
+
+> a∈A
+
+{Jj (a) + μτ (a)} − μB (50) is a lower bound on the budgeted optimum. The price makes the choices independent across heads: each head selects its lowest penalized score, and bisection adjusts μ until their total traffic reaches the budget. We retain the best feasible table encountered and spend any remaining discrete slack through improving single-head substitutions. If the returned feasible table has objective P , then (P − D(μ)) /P certifies its relative gap from the optimum of the measured separable objective. This optimization runs only during offline calibration; inference stores and applies the resulting fixed rank table. 22 F EVALUATION DETAILS 
+
+F.1 DETAILED EVALUATION SETUP 
+
+Offline calibration. We use the training split of WikiText-2 ( wikitext-2-raw-v1 ) (Merity et al., 2016), tokenized with each model’s tokenizer. Basis calibration uses 65,536 input tokens per model. We collect window-boundary states and effective queries with W = 16 and estimate the state-weighted query statistics described in Appendix A.1 to construct the sketching matrix. For rank allocation, we use 8,192 post-warmup token positions per model. We compute gradients of the mean next-token cross-entropy loss and pair each head’s output gradient with its reconstruction residual to score candidate ranks (Appendix E). These scores use ideal least-squares reconstruction, while inference uses the coefficient approximation in Appendix A.2.2. Calibration leaves model weights unchanged, and the resulting sketching matrices and rank allocations remain fixed during inference. 
+
+Accuracy evaluation setup. SketchSSM settings are mean sketch-rank budgets ¯G. The coefficient approximation uses P = 4 pivots for all four models. SketchSSM maintains the full recurrent state in FP32 and stores both the sketch U and the coefficient map C in BF16. ReplaySSM and SketchSSM use a window size of W = 16 . We evaluate the Mamba-2 models using vLLM 0.27.0, and Qwen3.8 Flash-Next (GDN) and GLM 5.3 Flash (KDA) using vLLM 0.28.1. For the ReplaySSM baseline, we use the official implementation integrated into vLLM for Mamba-2-based models, the implementation from the authors’ public repository 1 for the GDN model, and our own implementation integrated into vLLM for the KDA model, for which no official implementation is available. We report full-state results for both Standard execution (without ReplaySSM) and ReplaySSM. We evaluate MATH-500 ( 500 problems), AIME25 ( 30 ), GPQA Diamond ( 198 ), and LiveCodeBench (315 , split v5_2407_2412 ). Generation caps are 32 ,768 tokens for Nemotron Nano and 65 ,536 
+
+for Nemotron Super, Qwen 3.8 Flash-Next, and GLM 5.3 Flash. 
+
+Speed Evaluation Setup. We measure kernel latency on one NVIDIA B300 with W = 16 and batch sizes 128, 256, and 512 (Fig. 7). The sketch-rank budgets are ¯G ∈ { 5, 9} for Nemotron Super, 
+
+{7, 11 } for Qwen3.8 Flash-Next, and {7, 12 } for GLM 5.3 Flash. Super and Qwen, GLM profiles average all 40, 36 and 34 recurrent layers, respectively, over six steady windows. Because no official ReplaySSM implementation is available for KDA, we implement the KDA ReplaySSM baseline ourselves. Flush overhead is measured against the same SketchSSM flush kernel with sketch and coefficient-map construction disabled. For Nemotron Super, we also measure decode throughput at 2K and 8K input lengths, up to each method’s maximum batch size (Fig. 8). Results average two 128-step runs using six steady windows. The model-forward latency breakdown uses common maximum batches of 912 at 2K and 808 at 8K. F.2 ACCURACY RESULTS ON DECODE BENCHMARKS 
+
+Tables 4–7 report the data plotted in Fig. 5. Accuracy is in percent, and verbosity is the mean number of generated tokens normalized by each model’s baseline. The traffic column includes flush traffic and DSQ’s dynamic scale-factor loads. 
+
+Verbosity. We measure normalized verbosity as the mean generated-token count relative to Standard for each benchmark, averaged across the four benchmarks. At rank budgets ¯G = 10 , 9, 11 , 4 for Nemotron Nano, Nemotron Super, Qwen3.8 Flash-Next, and GLM 5.3 Flash, respectively, state-access traffic reductions range from 8.93 –12 .81 ×, with normalized verbosity of 1.05 , 1.00 , 0.97 ,and 0.97 . At lower rank budgets ¯G = 2 , 2, 3, 3, respectively, traffic reductions reach 13 .48 –13 .88 ×,with normalized verbosity of 1.42 , 1.11 , 1.31 , and 1.10 . These results illustrate a tradeoff between state-access traffic reduction and generated response length. 
+
+> 1https://github.com/Johnny-Liou/ReplaySSM
+
+23 Table 4: Nemotron Nano v2 9B: numerical results underlying Fig. 5. ReplaySSM is additionally reported. Accuracies are in percent; token counts are mean generated tokens. Traffic is state-read plus state-write traffic reduction relative to Standard. Average is the unweighted mean accuracy across the four benchmarks. 
+
+MATH-500 AIME25 GPQA-D LiveCodeBench Average Method Setting Traffic Acc. Tokens Acc. Tokens Acc. Tokens Acc. Tokens Acc. Standard full-state 1.00 × 97.40 4,998 69.60 19,131 58.60 12,462 67.90 14,056 73.38 ReplaySSM full-state 1.88 × 97.20 5,118 73.33 19,190 59.60 12,458 66.35 14,459 74.12 SketchSSM ¯G = 21 6.15 × 96.40 5,400 74.58 19,180 56.57 12,655 66.98 14,385 73.63 SketchSSM ¯G = 10 9.08 × 97.00 5,212 70.83 19,287 62.12 12,379 66.03 15,980 74.00 SketchSSM ¯G = 6 10 .98 × 96.80 5,701 69.17 20,165 58.08 13,274 63.49 16,996 71.88 SketchSSM ¯G = 4 12 .26 × 96.40 6,447 56.25 22,235 58.59 14,054 53.97 18,933 66.30 SketchSSM ¯G = 2 13 .88 × 90.40 8,229 40.00 24,394 52.02 14,900 38.41 22,201 55.21 GHOST 37.5% 1.60 × 86.00 7,525 32.10 22,666 36.40 13,890 43.50 19,061 49.50 GHOST 50% 2.00 × 66.00 11,156 12.50 26,059 22.70 18,283 23.50 24,053 31.18 GHOST 62.5% 2.67 × 51.00 14,995 2.50 30,924 13.60 22,710 14.60 26,609 20.43 GHOST 75% 4.00 × 1.00 27,447 0.00 28,530 0.00 25,613 0.00 31,098 0.25 DSQ 10 bit 3.10 × 93.20 7,349 37.10 26,878 48.00 18,206 51.10 21,227 57.35 DSQ 8 bit 3.84 × 85.40 9,585 17.50 30,167 40.90 21,377 31.40 24,748 43.80 DSQ 6 bit 5.06 × 70.60 15,208 8.30 31,599 27.80 24,186 12.70 28,807 29.85 DSQ 4 bit 7.40 × 9.40 29,462 0.00 32,102 0.00 32,185 5.40 30,798 3.70 
+
+Table 5: Nemotron 3 Super 120B-A12B: numerical results underlying Fig. 5. ReplaySSM is additionally reported. Accuracies are in percent; token counts are mean generated tokens. Traffic is state-read plus state-write traffic reduction relative to Standard. Average is the unweighted mean accuracy across the four benchmarks. 
+
+MATH-500 AIME25 GPQA-D LiveCodeBench Average Method Setting Traffic Acc. Tokens Acc. Tokens Acc. Tokens Acc. Tokens Acc. Standard full-state 1.00 × 97.80 3,231 83.33 23,174 77.27 19,222 82.86 19,544 85.32 ReplaySSM full-state 1.88 × 97.80 3,495 83.80 22,531 74.20 19,795 77.80 20,332 83.40 SketchSSM ¯G = 20 5.80 × 97.80 3,564 81.67 22,701 77.78 17,669 80.95 19,722 84.55 SketchSSM ¯G = 9 8.93 × 98.60 3,566 83.75 24,221 76.77 17,544 77.46 18,292 84.14 SketchSSM ¯G = 5 11 .12 × 98.00 3,899 81.25 25,364 76.26 18,173 76.83 20,492 83.08 SketchSSM ¯G = 3 12 .66 × 97.60 4,004 82.08 24,945 78.28 16,411 73.97 19,745 82.98 SketchSSM ¯G = 2 13 .61 × 97.80 4,324 75.42 28,693 72.22 15,574 69.21 20,954 78.66 GHOST 37.5% 1.60 × 97.40 4,866 77.10 28,365 68.70 16,654 68.30 19,991 77.88 GHOST 50% 2.00 × 93.80 7,904 49.60 43,232 60.10 17,834 54.30 23,895 64.45 GHOST 62.5% 2.67 × 72.20 21,121 11.70 60,528 48.00 26,047 26.30 31,228 39.55 GHOST 75% 4.00 × 26.40 45,937 0.00 63,443 5.60 56,059 3.20 59,983 8.80 DSQ 10 bit 3.08 × 98.00 3,794 73.30 30,457 70.70 21,955 73.30 23,033 78.83 DSQ 8 bit 3.82 × 96.60 5,075 62.50 33,506 67.20 22,668 69.80 24,807 74.03 DSQ 6 bit 5.02 × 93.40 7,431 52.50 39,523 62.60 25,577 57.10 32,716 66.40 DSQ 4 bit 7.31 × 68.80 21,032 5.80 60,756 33.30 42,752 17.80 51,194 31.42 
+
+24 Table 6: Qwen3.8 Flash Next: numerical results underlying Fig. 5. ReplaySSM is additionally reported. Accuracies are in percent; token counts are mean generated tokens. Traffic is state-read plus state-write traffic reduction relative to Standard. Average is the unweighted mean accuracy across the four benchmarks. 
+
+MATH-500 AIME25 GPQA-D LiveCodeBench Average Method Setting Traffic Acc. Tokens Acc. Tokens Acc. Tokens Acc. Tokens Acc. Standard full-state 1.00 × 98.80 1,564 93.75 19,376 90.91 14,666 80.32 22,936 90.94 ReplaySSM full-state 1.88 × 97.60 1,946 92.50 20,547 87.88 15,638 76.51 23,023 88.62 SketchSSM ¯G = 26 6.11 × 99.40 1,275 97.08 17,344 91.41 13,624 84.13 19,898 93.01 SketchSSM ¯G = 11 9.50 × 98.60 1,573 92.08 19,161 88.38 13,797 83.81 21,313 90.72 SketchSSM ¯G = 7 11 .14 × 98.60 1,663 94.58 20,541 87.88 16,681 77.14 24,571 89.55 SketchSSM ¯G = 4 12 .81 × 98.40 2,037 90.83 24,319 87.88 17,988 75.56 27,322 88.17 SketchSSM ¯G = 3 13 .48 × 98.00 2,244 89.58 25,945 84.85 17,752 68.89 28,704 85.33 DRRQR 37.5% 1.60 × 96.00 1,744 92.92 20,167 85.86 13,603 76.51 21,005 87.82 DRRQR 50% 2.00 × 95.00 2,008 89.58 20,705 79.29 11,735 66.98 24,840 82.72 DRRQR 62.5% 2.67 × 92.20 3,276 78.75 22,805 74.24 10,918 51.11 28,072 74.08 DRRQR 75% 4.00 × 9.40 1,548 0.42 5,926 2.53 1,879 0.00 1,969 3.09 DSQ 10 bit 3.12 × 98.40 1,477 92.92 21,182 85.86 16,598 76.83 22,605 88.50 DSQ 8 bit 3.88 × 98.20 1,900 71.25 29,344 75.25 21,650 68.25 26,888 78.24 DSQ 6 bit 5.12 × 94.80 2,952 38.33 24,680 48.99 17,251 37.78 19,475 54.98 DSQ 4 bit 7.53 × 57.40 2,162 0.42 4,872 9.09 3,928 13.97 3,756 20.22 
+
+Table 7: GLM 5.3 Flash: numerical results underlying Fig. 5. ReplaySSM is additionally reported. Accuracies are in percent; token counts are mean generated tokens. Traffic is state-read plus state-write traffic reduction relative to Standard. Average is the unweighted mean accuracy across the four benchmarks. 
+
+MATH-500 AIME25 GPQA-D LiveCodeBench Average Method Setting Traffic Acc. Tokens Acc. Tokens Acc. Tokens Acc. Tokens Acc. Standard full-state 1.00 × 97.80 1,087 84.58 21,248 88.38 11,582 74.60 24,657 86.34 ReplaySSM full-state 1.88 × 98.20 1,142 83.75 20,417 89.39 11,848 74.92 24,881 86.57 SketchSSM ¯G = 28 5.83 × 98.00 835 86.67 18,142 90.91 10,273 80.32 21,264 88.97 SketchSSM ¯G = 12 9.16 × 97.40 917 85.42 16,290 89.39 9,694 80.32 19,312 88.13 SketchSSM ¯G = 7 11 .14 × 97.60 1,271 85.83 18,126 87.88 10,925 79.05 19,701 87.59 SketchSSM ¯G = 4 12 .81 × 97.40 1,273 81.25 19,444 84.85 11,715 66.35 18,966 82.46 SketchSSM ¯G = 3 13 .48 × 97.00 1,466 78.75 19,604 76.26 15,471 60.00 19,344 78.00 GHOST 37.5% 1.60 × 83.00 8,623 15.83 53,798 46.97 25,635 16.83 54,240 40.66 GHOST 50% 2.00 × 66.60 16,894 4.58 58,929 25.25 40,181 9.52 59,656 26.49 GHOST 62.5% 2.67 × 37.20 35,219 0.83 63,749 7.07 54,124 2.54 62,403 11.91 GHOST 75% 4.00 × 3.20 62,161 0.00 64,948 3.03 61,297 0.00 64,747 1.56 DSQ 10 bit 3.12 × 97.40 921 81.25 19,951 87.88 10,294 73.65 24,183 85.04 DSQ 8 bit 3.88 × 96.20 998 82.50 20,791 88.38 10,625 70.79 24,455 84.47 DSQ 6 bit 5.12 × 93.60 2,744 37.50 29,547 55.05 21,322 36.51 30,678 55.66 DSQ 4 bit 7.53 × 57.80 15,839 0.00 36,383 7.07 45,971 0.32 48,541 16.30 
+
+25 F.3 RECALL EVALUATION 
+
+Evaluation setup. We evaluate long-context recall on four retrieval tasks from RULER (Hsieh et al., 2024): Single UUID ( niah_single_3 ), Multi-key ( niah_multikey_2 ), Multi-value (niah_multivalue ), and Multi-query ( niah_multiquery ). These tasks cover retrieving a UUID, identifying a value among distractor key–value pairs, retrieving four values for one key, and answering four queries, respectively. We use 500 examples per task at a 16K context budget, counted with each model’s tokenizer, and reuse identical inputs across methods within each model. Generation is greedy with a cap of 128 tokens. We follow RULER’s answer-coverage metric: the fraction of reference answers found in the generated text by case-insensitive substring matching, averaged over examples and reported as a percentage. Average is the unweighted mean of the four task scores. We wrap the task in each model’s chat template and configure direct-answer generation. We retain RULER’s default answer prefix, except for Qwen3.8 Flash-Next, for which we observed premature termination with this prefix. We therefore omit it consistently across all evaluated methods for this model, while retaining its native non-thinking template. For GLM 5.3 Flash, we use a custom direct-answer template that removes the reasoning-effort instruction and closes the initial thinking block. We compare Standard execution, ReplaySSM with W = 16 , SketchSSM with W = 16 and 
+
+P = 4 , and state pruning at 50%, 62.5%, and 75% sparsity. SketchSSM uses fixed offline-calibrated bases and rank allocations, without calibration on the recall examples; its full state is FP32 and its sketch and coefficient map are stored in BF16. 
+
+Results. On Nemotron Nano, SketchSSM achieves average recall scores of 97.11–97.63% across the reported ranks, compared with 98.29% for Standard execution and 98.25% for ReplaySSM. The largest task-level decrease occurs on Multi-value at ¯G = 6 , from 97.45% for Standard execution to 91.00%. On Nemotron Super, SketchSSM matches both full-state methods at 100% on all four tasks for each reported rank. Qwen3.8 Flash-Next also scores 100% on all four tasks for Standard execution, ReplaySSM, and SketchSSM at all three reported ranks. On GLM 5.3 Flash, SketchSSM achieves average scores of 99.49–99.71%, compared with 99.40% for Standard execution and 99.46% for ReplaySSM. State pruning causes larger losses: at 75% sparsity, average scores are 76.70% for Nemotron Nano, 53.03% for Nemotron Super, 43.05% for Qwen3.8 Flash-Next, and 46.78% for GLM 5.3 Flash. The task-level results below expose differences that an average alone would obscure. Table 8: Recall scores (%) on four RULER retrieval tasks at 16K context for Nemotron Nano. Traffic is the state-read plus state-write traffic reduction relative to Standard, using the same accounting as the accuracy tables. Average is the unweighted mean of the four task scores.                                                                   
+
+> Method Setting Traffic Single UUID Multi-key Multi-value Multi-query Average Standard full-state 1.00 ×100.00 99.80 97.45 95.90 98.29 ReplaySSM full-state 1.88 ×100.00 99.80 97.20 96.00 98.25 SketchSSM ¯G= 21 6.15 ×100.00 99.80 94.60 96.10 97.63 SketchSSM ¯G= 10 9.08 ×100.00 99.80 93.20 96.90 97.48 SketchSSM ¯G= 6 10 .98 ×100.00 99.80 91.00 97.65 97.11 GHOST 50% 2.00 ×100.00 85.60 93.45 95.55 93.65 GHOST 62.5% 2.67 ×99.80 39.40 96.10 94.30 82.40 GHOST 75% 4.00 ×99.40 22.60 89.95 94.85 76.70
+
+26 Table 9: Recall scores (%) on four RULER retrieval tasks at 16K context for Nemotron Super. Traffic is the state-read plus state-write traffic reduction relative to Standard, using the same accounting as the accuracy tables. Average is the unweighted mean of the four task scores. 
+
+Method Setting Traffic Single UUID Multi-key Multi-value Multi-query Average Standard full-state 1.00 × 100.00 100.00 100.00 100.00 100.00 ReplaySSM full-state 1.88 × 100.00 100.00 100.00 100.00 100.00 SketchSSM ¯G = 20 5.80 × 100.00 100.00 100.00 100.00 100.00 SketchSSM ¯G = 9 8.93 × 100.00 100.00 100.00 100.00 100.00 SketchSSM ¯G = 5 11 .12 × 100.00 100.00 100.00 100.00 100.00 GHOST 50% 2.00 × 100.00 90.20 99.60 99.65 97.36 GHOST 62.5% 2.67 × 99.40 44.80 93.65 95.20 83.26 GHOST 75% 4.00 × 96.60 1.20 57.90 56.40 53.03 
+
+Table 10: Recall scores (%) on four RULER retrieval tasks at 16K context for Qwen3.8 Flash-Next. Traffic is the state-read plus state-write traffic reduction relative to Standard, using the same accounting as the accuracy tables. Average is the unweighted mean of the four task scores. 
+
+Method Setting Traffic Single UUID Multi-key Multi-value Multi-query Average Standard full-state 1.00 × 100.00 100.00 100.00 100.00 100.00 ReplaySSM full-state 1.88 × 100.00 100.00 100.00 100.00 100.00 SketchSSM ¯G = 26 6.11 × 100.00 100.00 100.00 100.00 100.00 SketchSSM ¯G = 11 9.50 × 100.00 100.00 100.00 100.00 100.00 SketchSSM ¯G = 7 11 .14 × 100.00 100.00 100.00 100.00 100.00 DRRQR 50% 2.00 × 99.80 100.00 99.75 100.00 99.89 DRRQR 62.5% 2.67 × 99.40 98.60 97.10 99.25 98.59 DRRQR 75% 4.00 × 65.20 21.60 33.90 51.50 43.05 
+
+Table 11: Recall scores (%) on four RULER retrieval tasks at 16K context for GLM 5.3 Flash. Traffic is the state-read plus state-write traffic reduction relative to Standard, using the same accounting as the accuracy tables. Average is the unweighted mean of the four task scores. 
+
+Method Setting Traffic Single UUID Multi-key Multi-value Multi-query Average Standard full-state 1.00 × 99.80 100.00 97.80 100.00 99.40 ReplaySSM full-state 1.88 × 99.80 100.00 98.05 100.00 99.46 SketchSSM ¯G = 28 5.83 × 99.60 100.00 98.40 99.95 99.49 SketchSSM ¯G = 12 9.16 × 99.80 100.00 99.10 99.95 99.71 SketchSSM ¯G = 7 11 .14 × 100.00 100.00 98.85 100.00 99.71 GHOST 50% 2.00 × 100.00 98.80 82.10 100.00 95.23 GHOST 62.5% 2.67 × 99.80 95.00 73.20 96.55 91.14 GHOST 75% 4.00 × 61.20 47.20 47.30 31.40 46.78 
+
+27 G ABLATION OF PRESERVING FULL -S TATE UPDATES WITH APPROXIMATE 
+
+## READS 
+
+We evaluate the effect of preserving the full recurrent state for updates while using a compact representation only for reads. To this end, we construct ablation variants within our proposed design that differ in their read representation: a quantized state copy, a low-rank state approximation, or a sketch. The low-rank baseline builds on classical truncated SVD (Eckart & Young, 1936), using a fixed basis obtained offline from the leading eigenvectors of the average state Gram matrix, with direct query projection for coefficients. Unlike the sketch, this variant uses fixed rather than state-dependent coefficients. As discussed in Section 2, compressing the recurrent state itself introduces errors that propagate through subsequent state updates. Our design instead retains the full state for these updates and applies approximation only to the read path. Because updates occur only at flush steps, their full-state traffic is amortized over multiple decode steps. Each variant constructs its compact read representation from the updated state at a flush step and reads it between flushes. All variants retain the full state for subsequent updates; they are ablations of the read representation within our design. Table 12 reports results for quantized read-only copies, low-rank state representations, and sketches, with state quantization included as a reference. Retaining the full state for updates substantially improves accuracy over quantizing the recurrent state itself. Within this design, using a sketch further improves average accuracy over reading a quantized state copy at comparable state-access traffic reductions. Table 12: Accuracy ablation for maintaining full states and approximating reads on Nemotron Nano v2 9B ( W = 16 ). Ours decouples full-state updates from approximate reads and varies only the read representation. Traffic is the state-read plus state-write traffic reduction relative to Standard; sketch reads store the sketch rows and coefficient map in BF16. Low-rank traffic includes BF16 reads of both the compressed state and fixed projection map, using the same per-head ranks as the sketch.                                                                                         
+
+> Methods Update Read Traffic MATH-500 AIME25 GPQA-D LCB Average Baseline full state full state 1.00 ×97.40 69.60 58.60 67.90 73.38 Baseline 6-bit state 6-bit state 5.06 ×70.60 8.30 27.80 12.70 29.85 Ours full state 4-bit state copy 7.95 ×97.40 68.33 55.05 63.49 71.07 Ours full state low-rank state, ¯G= 10 9.08 ×94.40 54.58 54.04 42.54 61.39 Ours (SketchSSM) full state sketch, ¯G= 10 9.08 ×97.00 70.83 62.12 66.03 74.00 Baseline 4-bit state 4-bit state 7.40 ×9.40 0.00 0.00 5.40 3.70 Ours full state 2-bit state copy 10 .36 ×88.20 30.00 39.39 26.98 46.14 Ours full state low-rank state, ¯G= 6 10 .98 ×91.80 50.42 52.53 37.78 58.13 Ours (SketchSSM) full state sketch, ¯G= 6 10 .98 ×96.80 69.17 58.08 63.49 71.88
+
+28

@@ -1,0 +1,2490 @@
+Title: Length-Independent State Tracking Under a Parallel Scan
+
+URL Source: https://arxiv.org/pdf/2609.32447v1
+
+Published Time: Tue, 29 Sep 2026 00:53:25 GMT
+
+Number of Pages: 47
+
+Markdown Content:
+> Preprint. Under review. 1
+
+# LENGTH -I NDEPENDENT STATE TRACKING 
+
+# UNDER A PARALLEL SCAN 
+
+Julien Brandoit, Arthur Fyon, Thomas Braipson, Tom Clara, Florent De Geeter, Pierre Sacré, Damien Ernst & Guillaume Drion 
+
+Montefiore Institute, University of Liège Liège, Belgium 
+
+{jbrandoit,gdrion}@uliege.be 
+
+## ABSTRACT 
+
+Learning robust and scalable finite-state tracking is fundamental to sequence pro-cessing. While linear recurrent neural networks (RNNs), linear attention, and state space models enable scalable parallel training through affine recurrences, their theoretical expressivity guarantees assume idealized arithmetic and do not extend to finite precision, where the parallel scan that makes them fast is itself a source of perturbation. We formalize finite-state tracking at finite precision and characterize 
+
+length independence : tracking that stays correct at every sequence length, at a pre-cision cost that does not grow with the length. We show that length-independent state tracking requires two competing dynamics within a single map: contraction 
+
+to suppress numerical perturbations and separation to keep distinct states apart. We prove that affine recurrences, which offer a single rate at each step to serve both roles, realize at most definite automata at finite precision. Instead of treat-ing scan compatibility as a restriction on the update map, we reinterpret it as a computational budget and introduce the Neural Finite-State Machine (NFSM): a nonaffine, scan-compatible RNN built for length-independent finite-state tracking. On synthetic benchmarks spanning abelian and nonabelian groups, noninvertible monoids, and textual state-tracking tasks, affine baselines fail on every nondefi-nite task, most of them within a few hundred steps. A single NFSM layer instead learns the exact transition tables of every algebraic task, which certifies correct-ness beyond the tested lengths, and a stack of NFSMs keeps perfect accuracy on the textual tasks at every tested length. 
+
+## 1 INTRODUCTION 
+
+State tracking is the maintenance of an internal memory variable that is sequentially updated as inputs arrive, capturing the cumulative effect of the past inputs. It enables models to resolve pro-nouns across texts (Kim & Schuster, 2023), trace variable states during code execution (Zaremba & Sutskever, 2015), and maintain beliefs about partially observable environments (Kaelbling et al., 1998). Synthetic tasks such as flip-flop retrieval, permutation composition, and modular counting isolate this capability directly (Liu et al., 2023a;b; Delétang et al., 2023). Learning state tracking from data is a central challenge in sequence processing. Recurrent neural networks (RNNs) naturally possess the structure required for state tracking (Casey, 1996; Omlin & Giles, 1996a), but traditional training requires unrolling through time, leading to 
+
+O(L) sequential depth for sequence length L. To address this bottleneck, recent architectures lever-age affine recurrences, which can be parallelized via scan algorithms to achieve O(log L) depth (Blelloch, 1990; Martin & Cundy, 2018). This approach, which underlies modern State Space Mod-els (SSMs) (Smith et al., 2023; Gu & Dao, 2024), gated linear RNNs (Martin & Cundy, 2018; Qin et al., 2023; Feng et al., 2024), and linear attention (Katharopoulos et al., 2020; Yang et al., 2024b), introduces a fundamental tradeoff between computational efficiency and the expressivity of the state dynamics. An extensive body of work has analyzed this tradeoff in exact or log-precision arithmetic (Merrill et al., 2024; Sarrof et al., 2024; Grazzi et al., 2025; Siems et al., 2025), yielding architectures that theoretically attain full finite-state tracking capabilities (Terzi´ c et al., 2025). 1arXiv:2609.32447v1 [cs.LG] 26 Sep 2026 Preprint. Under review. 2
+
+However, these expressivity guarantees rely on idealized arithmetic and often do not hold for trained models. Practical models operate at finite precision, learn parameters that only approximate opti-mal target solutions, and are trained on finite context windows. In practice, state tracking succeeds up to the training horizon but collapses toward chance not far beyond it (Shakerinava et al., 2026; Karuvally et al., 2025; Grazzi et al., 2025; Terzi´ c et al., 2025). This collapse shows that theoretical expressivity is necessary but not sufficient: it does not survive the gap between idealized construc-tions and finite-precision, gradient-trained models. Most of this gap is a learning problem, but not all of it (Appendix E). We address the part that no amount of training removes, finite precision, and focus on finite-state tracking, where the state takes values in a finite set and evolves as in a finite automaton. We ask three questions: (i) What conditions must an RNN satisfy to achieve state tracking at finite precision over arbitrary sequence lengths? (ii) Can affine recurrences satisfy these conditions? (iii) If not, can we design a scan-compatible RNN that guarantees robust state tracking for arbitrarily long sequences at finite precision? We call a realization length-independent when it tracks the state correctly at every sequence length at a fixed precision. Unlike empirical extrapolation, length independence requires an RNN to execute exact target transitions at every step at a precision cost that does not grow with L. Correctness for any sequence length then follows by composition rather than empirical evaluation. We model finite-precision arithmetic as a perturbation of the hidden state bounded by η > 0 at every step. The bound η is set by the arithmetic resolution and the conditioning of the recurrence, and it includes the perturbation injected by the scan itself. Our analysis answers questions (i)–(iii) in turn. (i) Length-independent state tracking at finite precision reduces to three conditions on a single step, which together demand two competing dynamics within one map: contraction to sup-press numerical errors, and separation to maintain distinguishable states (Section 3). (ii) Affine recurrences offer a single rate, which over repeated steps cannot serve both roles; con-sequently, at any precision η > 0, they realize at most definite automata, whose state depends only on a bounded suffix of the input (Section 4). (iii) Scan compatibility is a budget on the representation of the recurrence update maps, not a restriction to affine maps (Section 5). Within this budget, the Neural Finite-State Machine 
+
+(NFSM), a nonaffine recurrence, realizes every finite automaton with length independence and runs under a parallel scan (Section 6). To validate our theoretical results, we evaluate NFSM (Section 7) on synthetic state-tracking tasks spanning abelian and nonabelian groups, noninvertible monoids, and textual Tracking Shuffled Ob-jects tasks (Srivastava et al., 2023). Affine baselines fail beyond a finite length on every nondefinite task, whereas a single NFSM layer keeps perfect sequence accuracy at every tested length on the algebraic tasks, and a stack of two layers keeps perfect question accuracy on the textual tasks. On the algebraic tasks, the transition tables extracted from the trained models match the target exactly, which certifies correctness beyond the tested lengths instead of extrapolating it. Section 8 draws out the implications. Proofs and additional mathematical derivations are available in Appendix F, and Appendix C discusses related work. All source code is available at https:// julienbrandoit.github.io/length-independent-state-tracking/ , and read-ers are invited to follow along with our interactive illustration as they progress through the paper. 
+
+## 2 FORMALIZATION 
+
+This section formalizes state tracking and connects finite-state automata to RNNs. We describe the transition structure of each system, show how an RNN can realize the dynamics of an automaton, and account for finite-precision perturbations. 
+
+State tracking and automata. We formalize state tracking using a semiautomaton (automaton for short), defined as a 3-tuple (Q, Σ, δ ), where Q is a set of states, Σ is an input alphabet, and 
+
+δ : Q × Σ → Q is the transition function specifying how inputs change the state. In this work, we focus on state tracking with finite Q of size n. A single input x ∈ Σ, called a symbol, acts on the state space through δx := δ(·, x ) : Q → Q. We call a finite sequence of symbols a word, and denote the set of all words by Σ∗. For a word w = x1 · · · x|w| ∈ Σ∗, single-symbol transitions chain to form the map δw : Q → Q, defined by δw := δx|w| ◦ · · · ◦ δx1 , with δε := id Q for 2Preprint. Under review. 3
+
+the empty word ε. Thus, δw(q) is the state reached from q after reading the word w. The set of all such maps, Mδ = {δw | w ∈ Σ∗}, is the transition monoid of the automaton, a submonoid of the full transformation monoid Tn := {f : Q → Q}, which contains all nn possible state mappings. Since every n-state task induces a submonoid of Tn, an architecture that can implement every element of Tn as a transition covers all n-state tasks; the NFSM of Section 6 is such an architecture (Proposition G.1). 
+
+Recurrent neural network. An RNN carries a hidden state ht in a space H := Rd, where d is the hidden state dimension, and updates it through an input-driven update function Φ : H × Σ → H :
+
+ht = Φ( ht−1, x t), t = 1 , . . . , L, (1) from an initial hidden state h0; the hidden state ht is the memory the RNN keeps of past inputs. Each input symbol x applies a transformation Φx := Φ( ·, x ) : H → H to the hidden state space, and, as for δw above, processing a word w = x1 · · · x|w| chains these into a composed map Φw := Φx|w| ◦ · · · ◦ Φx1 : H → H , with Φε := id H. These maps form the RNN transition monoid ,
+
+MΦ = {Φw | w ∈ Σ∗}. Throughout, state refers to the automaton and hidden state to the RNN. The RNN architectures that have survived the scalability demands of modern deployment, namely SSMs, gated linear RNNs, and linear attention, are affine recurrences 
+
+ht = Axt ht−1 + bxt , t = 1 , . . . , L, (2) where Ax ∈ Rd×d and bx ∈ Rd are input-driven, with arbitrary dependence on the symbol; we call such a recurrence affine in the hidden state . Their appeal is that affine maps compose in closed form, which lets a parallel scan evaluate them. 
+
+Automaton realization. The automaton evolves in a discrete state space and the RNN in a continu-ous one, so realizing an automaton by an RNN requires an encoding ι : Q → H of automaton states as representations and a partial readout π : H ⇀ Q decoding them back, such that encoding a state, running the word through the RNN and reading out gives the same state as running the word through the automaton: 
+
+π Φw(ι(q))  = δw(q) for every q ∈ Q, w ∈ Σ∗. (3) Equivalently, MΦ must contain, for every δw ∈ Mδ , a map Φw reproducing its action on Q through 
+
+(ι, π ), so the class of automata an RNN can express is fixed by the achievable algebraic structure of 
+
+MΦ. We say that an RNN realizes the automaton (Q, Σ, δ ) if such a triple (ι, Φ, π ) exists. In this paper, we further ask which state-tracking properties survive computation at finite precision. 
+
+Automaton realization at finite precision. At finite precision, each RNN step lands near its in-tended image rather than exactly on it: ht = ˜Φxt (ht−1), where ˜Φxt (ht−1) is the approximation of Φxt (ht−1) that accounts for numerical perturbations of xt and of Φ itself. We write this as 
+
+˜Φxt (ht−1) = Φ xt (ht−1) + et, where et is a per-step error (Appendix D, Lemma D.1). 
+
+Definition 2.1 (η-trajectory and η-reachable set) . Let η > 0 denote the maximum per-step per-turbation level, and let ¯Bη := {e | ∥e∥ ≤ η} be the corresponding perturbation ball for a fixed norm ∥ · ∥ on H. We call (ht)|w| 
+
+> t=0
+
+an η-trajectory of a word w = x1 · · · x|w| from 
+
+h0 if ht − Φxt (ht−1) ∈ ¯Bη for every t, and define the η-reachable set of the recurrence as 
+
+U ⋆ := {h|w| | q ∈ Q, w ∈ Σ∗, (ht)|w| 
+
+> t=0
+
+is an η-trajectory of w from ι(q)}.
+
+An η-trajectory formalizes a realistic, perturbed execution path of an RNN processing an input sequence, where no single update deviates by more than η from its exact representation. The η-reachable set U ⋆ is the set of all hidden states reachable from an encoded state, over words of any length, under bounded perturbations. For U ⋆ to admit a representation using a finite number of bits regardless of input length, it must be bounded (Proposition F.1). Automaton realization at finite precision thus requires correct decoding along every η-trajectory and a bounded η-reachable set. 
+
+Definition 2.2 (Length-independent realization at finite precision) . A triple (ι, Φ, π ) realizes the target automaton (Q, Σ, δ ) with length independence at finite precision, modeled by a per-step per-turbation level η > 0, if, for the η-reachable set U ⋆:
+
+(T1) Correct at every length. π(h|w|) = δw(q) for every q ∈ Q, w ∈ Σ∗, and every η-trajectory 
+
+(ht)|w| 
+
+> t=0
+
+of w from ι(q).
+
+(T2) Fixed precision at every length. U ⋆ is bounded. 
+
+3Preprint. Under review. 4                
+
+> run on wq1q2q1q2q3q4q5q5
+> bbaaaab· · ·
+> The dynamics execute the transition and absorb the perturbations
+> Uq1
+> Uq2
+> Uq3
+> Uq4
+> Uq5
+> H
+> U
+
+ht                                   
+
+> ¯Bη1transition 2restoration
+> π(ht)q1q2q1q2q3q4q5q5
+> The dynamics execute the transition but do not absorb the perturbations
+> Uq1
+> Uq2
+> Uq3
+> Uq4
+> Uq5
+> H
+> U
+> π(ht)q1q2q1q2q3q3q4q5q1q3q4q5q2q3q4q5
+> 01234567
+> step t
+
+Semiautomaton (Q, Σ, δ )
+
+> q1
+> q2
+> q3q4
+> q5
+> a, b baaaabbb
+
+Figure 1: Length independence requires executing the transition and restoring the state. The same automaton (left), realized twice and unrolled over time; the top strip is its run on w. The vertical axis sketches H, with the bounded region U split into the cells Uq = {u ∈ U : π(u) = q},drawn as bands, and the code points ι(q) as red dots. Top : 1⃝ the update moves the hidden state into the next cell, and computing it spreads the state over ¯Bη ; 2⃝ restoration pulls that ball back onto the code point, so π(ht) = qt at every length. Bottom : nothing pulls the hidden state back, so the ball grows by η per step and at t = 5 straddles Uq3 , Uq4 and Uq5 ; the single symbol a then drives three runs at once (dashed) and π(ht) is not unique anymore. 
+
+## 3 LENGTH INDEPENDENCE REQUIRES THREE CONDITIONS ON ONE STEP 
+
+In this section, we first translate the trajectory-level conditions of Definition 2.2 into equivalent step-level conditions on Φ. We then show what these step-level conditions impose on the geometry of the RNN dynamics. First, (T1) with the empty word requires π ◦ ι = id Q (Lemma F.2). Second, (T1) requires the perturbed RNN update ˜Φx to map hidden states representing q to hidden states representing the correct automaton successor δx(q) at every step on the η-reachable set U ⋆ (Lemma F.4). Finally, (T2), the boundedness of U ⋆, keeps the representation within a fixed region of the hidden state space, so that a fixed, finite number of bits suffices at every sequence length (Proposition F.1). We formalize these conditions in Theorem 3.1, where ⊕ denotes the Minkowski sum, A ⊕ B = {a + b |
+
+a ∈ A, b ∈ B}, and maps act setwise, i.e., Φx(S) = {Φx(s) | s ∈ S} .
+
+Theorem 3.1 (Conditions for length-independent realization at finite precision) . A triple (ι, Φ, π )
+
+realizes the target automaton (Q, Σ, δ ) with length independence at η > 0 iff there is a region 
+
+U ⊇ ι(Q) on which π is defined and that satisfies 
+
+(R1) Decodable code. π ◦ ι = id Q.
+
+(R2) Restoration. U is bounded and Φx(U ) ⊕ ¯Bη ⊆ U for every x ∈ Σ.
+
+(R3) Correct transition. π(Φ x(u) + e) = δx(π(u)) for every x ∈ Σ, u ∈ U and ∥e∥ ≤ η.Whenever such a region U exists, the η-reachable set U ⋆ itself satisfies (R1)–(R3), and U ⋆ ⊆ U .
+
+(R1) to (R3) reproduce, from a coding argument, von Neumann’s division of labor: a chain of unreliable stages is reliable at arbitrary depth only if each carries an executive organ performing the computation and a restoring organ that “erase[s] the degradation caused by the executive organs” (von Neumann, 1956). (R1) is the code, (R2) the restoring organ, and (R3) the executive organ (Appendix C.1). What is specific to recurrence is that one map must act as both the restoring and the executive organ (Figure 1). 4Preprint. Under review. 5
+
+We call the encoding ι(q) of the states code points , and their set ι(Q) the code . The readout partitions 
+
+U into disjoint cells Uq := {u ∈ U | π(u) = q}: (R1) places each code point in its own cell, (R2) keeps the partition U bounded, and (R3) demands that, under an input x, an entire cell Uq land inside Uδx(q) with a margin of at least η, so that one-step perturbations cannot push the state out of the target cell. 
+
+Theorem 3.2 (Cell partition) . A triple (ι, Φ, π ) realizes the target automaton (Q, Σ, δ ) with length independence at η > 0 iff there exists a bounded region U ⊇ ι(Q) partitioned into cells Uq := {u ∈
+
+U | π(u) = q} such that ι(q) ∈ Uq for all q ∈ Q, and 
+
+Φx(Uq ) ⊕ ¯Bη ⊆ Uδx(q) for every q ∈ Q and x ∈ Σ. (4) Theorems 3.1 and 3.2 constrain single steps. Iterated along a word w ∈ Σ+ (with Σ+ = Σ ∗ \ { ε}), equation 4 imposes two geometric requirements on every composite map Φw, uniformly in |w|:
+
+(1) Local contraction: The image Φw(Uq ) must be 2η narrower than the cell Uδw (q) it lands in, so that a perturbation cannot push it out. When w returns to its starting state, δw(q) = q, the cell shrinks strictly into itself: numerical errors are damped rather than compounded. 
+
+(2) Global separation: At the same time, the images of cells Uq and Uq′ with δw(q)̸ = δw(q′) must stay bounded away from one another, however long w is, preventing η-perturbations from causing cross-cell misclassifications. Length-independent state tracking therefore requires dual-rate dynamics : local contraction inside cells paired with global separation between them. 
+
+Theorem 3.3 (Two rates in one map) . Under equation 4, every composite map Φw is at once locally contracting and globally separating : for every q, q ′ ∈ Q and every w ∈ Σ+,
+
+(i) Local contraction. diam  Φw(Uq ) ≤ diam  Uδw (q)
+
+ − 2η; in particular, diam  Φw(Uq ) ≤
+
+diam( Uq ) − 2η whenever δw(q) = q.
+
+(ii) Global separation. dist  Φw(Uq ), Φw(Uq′ ) ≥ 2η whenever δw(q)̸ = δw(q′).
+
+Figure 1 shows both properties at work, and what fails without restoration (Corollary F.6). 
+
+## 4 LENGTH INDEPENDENCE REQUIRES A NONAFFINE RECURRENCE 
+
+Length-independent realization imposes a dual constraint on Φ along every word: the image of each cell must be 2η narrower than the cell it lands in (Theorem 3.3(i)), while the images of cells heading to different states must stay 2η apart (Theorem 3.3(ii)), with margins that do not shrink as the word grows. This section shows that affine recurrences cannot satisfy this dual constraint along the words of a nondefinite target, and identifies what a recurrence requires to satisfy it. 4.1 AFFINE RECURRENCES SUPPLY A SINGLE RATE 
+
+In affine recurrences, the displacement between two trajectories depends only on their initial dis-placement: 
+
+Φw(h) − Φw(h′) = Aw(h − h′), Aw := Ax|w| · · · Ax1 . (5) An affine recurrence supplies a single rate Aw over the whole hidden state space, hence the same operator determines the dynamics of both the signal and the perturbation at each time step (Def-inition F.7, Proposition F.8). Along repeated words wk (w written k times, so Awk = Akw), the operator Akw that must damp the perturbation also shrinks the gap between the codes of two states that the target keeps apart, until that gap falls below 2η, which Theorem 3.3(ii) forbids. Selective (input-dependent) matrices modulate that single rate through time , not across space, so they do not escape this. Specifically, an affine recurrence loses either (R2) or (R3) depending on the spectral radius ρ(Aw):either ρ(Aw) ≥ 1 for some word, so perturbations accumulate or amplify, or ρ(Aw) < 1 for every word, so older inputs are forgotten along with the perturbation. Forgetting old inputs is harmless only when the target never needs them, that is, when it is a definite automaton, whose state de-pends only on the last k inputs, for some fixed k (Perles et al., 1963). The first regime precludes length independence for every target, the second for every nondefinite one. Both still allow length generalization up to a horizon Lmax .5Preprint. Under review. 6
+
+Theorem 4.1 (Affine recurrences realize at most definite automata) . Let Φ be affine in the hidden state, Φx(h) = Axh + bx for x ∈ Σ.(i) If ρ(Aw) ≥ 1 for some word w ∈ Σ+, then (R2) fails : no nonempty bounded set U ⊂ H 
+
+satisfies Φw(U ) ⊕ ¯Bη ⊆ U for this w. Consequently, Φ realizes no automaton with length independence at any η > 0.(ii) If ρ(Aw) < 1 for all words w ∈ Σ+, then Φ realizes at most a definite automaton with length independence at η > 0. For any nondefinite target, no region satisfying (R1) and (R2) satisfies (R3). 
+
+Most scan-compatible architectures fall on one of the two branches of Theorem 4.1 (see Table 3 in Appendix C.2), and Section 7 shows both failure modes empirically. Concurrent work reaches the same limits of affine recurrences on error propagation by a different route (Chung et al., 2026). 4.2 TWO RATES REQUIRE MULTISTABILITY 
+
+Theorem 4.1 shifts the question from the spectrum of a transition matrix to the geometry of the update map. Specifically, realization demands a cell partition (Theorem 3.2) that absorbs local per-turbations while mapping each region cleanly into its prescribed successor, a dynamic reminiscent of the restoring organ of Section 3. The canonical neural system with this error-correcting behavior is the Hopfield network (Hopfield, 1982), but its restoration is static : iterating Φ to convergence returns a corrupted state to the same 
+
+pattern it started near. A state tracker must execute a dynamic restoration : a single step of Φx must simultaneously remove the perturbation and move the hidden state to the correct successor cell. Satisfying equation 4 thus requires a single update map to maintain multiple distinct cells, one per automaton state. When the target is not definite, some word w acts on Q as an idempotent δw that is not constant (Lemma F.11), so it fixes at least two states and, by Theorem 3.3, Φw shrinks each of their cells into itself while keeping them 2η apart. No affine map does this (Proposition F.22): the recurrence must be multistable , which requires a nonaffine operation on the previous hidden state 
+
+ht−1 (Lemma F.17). Its robust capacity , the number of bits one map can hold under perturbation (Definition F.20), is then log 2 n, n being the number of cells, with one attractor per cell and one cell per automaton state. A definite target needs neither multistability nor nonaffinity (Proposition F.13). This capacity is set by the number of cells rather than by the dimension: extra width allows for wider margins rather than more states, and extra depth leaves the temporal recurrence within each layer affine, so the robust capacity of an affine recurrence beyond a bounded suffix of the input is zero at any width (Proposition F.22) and any depth, whatever the nonlinear maps between layers (Theorem F.25). 
+
+## 5 LENGTH INDEPENDENCE IS COMPATIBLE WITH A PARALLEL SCAN 
+
+To meet modern standards of scalability, a recurrence has to be compatible with the parallel scan .The scan operates on state-update maps Φx and their compositions Φw. Because function composi-tion is associative, these maps form a monoid; the core requirement for a scan-compatible recurrence is therefore not associativity, but bounded representation . The parallel scan combines these bounded composites pairwise across sequence steps, with costs governed by storage per composite ( b bits) and computation per composition ( c operations). 
+
+Definition 5.1 (Scan-representable recurrence) . The recurrence ht = Φ( ht−1, x t) is scan-representable with budget (b, c ) if there exists an injective representation ζ : MΦ → { 0, 1}b of the maps of MΦ, the identity Φε included, and an algorithm computing ζ(Φ v ◦Φu) from (ζ(Φ v ), ζ (Φ u)) 
+
+in c operations, for all Φu, Φv ∈ MΦ.
+
+Given per-symbol representations ζ(Φ x1 ), . . . , ζ (Φ xL ), and assuming that building ζ(Φ x) from a symbol and evaluating a composite at a hidden state also cost O(c), a parallel scan computes 
+
+h1, . . . , h L in depth O(log L), work O(Lc ), and memory O(Lb ) (Blelloch, 1990). The depth, the number of successive rounds of compositions, sets the running time with enough processors, whereas a sequential recurrence needs L rounds. 
+
+Proposition 5.2 (The budget forces a finite reachable set) . If Φ is scan-representable with budget 
+
+(b, c ), then MΦ has at most 2b elements and, for every initial hidden state h0, so does the set 
+
+6Preprint. Under review. 7
+
+{Φw(h0) | w ∈ Σ∗} of reachable hidden states, h0 = Φ ε(h0) included. On these K ≤ 2b hidden states, MΦ acts as a submonoid of TK , the full transformation monoid on K elements. 
+
+The scan is itself a perturbation source. Affine maps form a monoid only in exact arithmetic: floating-point operations are not associative, so the composite a scan returns differs from the se-quential one, and an affine recurrence, lacking restoration, lets this error accumulate (Appendix D). The perturbation floor η is thus as much a product of parallelizing an affine recurrence as an assump-tion imposed on it. Multistable recurrences can resolve this mismatch by replacing continuous drift with discrete basins. Consider K attractors a1, . . . , a K ∈ V , each in its own basin ak ∈ Vk, whose basins V1, . . . , V K
+
+partition V . Under exact restoration , any hidden state in a basin contracts in one step onto an attractor: Φ is exactly restoring on V if every Φx maps each basin Vk to a single attractor aσx(k).The attractors and their basins are those of the restoring organ of Section 3, one and the same map for every symbol; the executive organ then carries ak into the basin of aσx(k) and the restoring organ finishes the step, so ak is a fixed point of Φx itself exactly when σx(k) = k (Remark F.26). Consequently, the hidden states reachable from an attractor are attractors, and each symbol acts as a transition table σx on the K attractor indices, which meets the budget of Definition 5.1: a table costs 
+
+b = K⌈log 2 K⌉ bits, and composing two of them is a lookup per index, c = O(K) operations. This table-composition view explains architectures that achieve scan-compatible multistable dy-namics. Memory Recurrent Units (De Geeter et al., 2026; Brandoit et al., 2026), which assume that the hidden state converges onto an attractor between two steps, implicitly build such tables (Appendix C.3). Scan compatibility and length independence can coexist. Mapping attractor indices onto automaton states, with K = n, aq = ι(q) and cells Uq := aq ⊕ ¯Bη that fit inside the basins Vq , turns exact restoration into the cell inclusions of equation 4 as soon as every table is the target transition, σx =
+
+δx: the recurrence then realizes the target with length independence (Theorem 3.2) and fits the budget at b = n⌈log 2 n⌉ and c = O(n). Since composites of index maps are index maps, the merge is exact whatever the shape of the tree and the scanned trajectory is bit-identical to the sequential one (Proposition G.1). Section 6 builds such a recurrence for every finite automaton. 
+
+## 6 THE NEURAL FINITE -STATE MACHINE 
+
+The Neural Finite-State Machine (NFSM) is a multistable recurrence that learns the transition tables of Section 5 directly. We first describe one head as an RNN, then show how it realizes a finite automaton, and finally assemble heads into a block. 
+
+One head. A head has a state ht ∈ Rd and, for each input x, a logit matrix θx ∈ Rd×d given by a learned map of the input. Writing rd( h) := 1arg max j 1T  
+
+> jh
+
+for the basis vector of the largest coordinate of h, where 1T 
+
+> j
+
+h selects the j-th coordinate of h, the head updates its state as 
+
+Φx(h) = rd  θx rd( h). (6) The outer rd is the restoring organ of Section 3: it maps the output of the product with θx back to the code, absorbing every perturbation that leaves its largest entry in place. The inner rd does the same for the stored state; on a trajectory it acts as the identity, since ht is already a basis vector. The product with θx is the executive organ: since θx1k is column k of θx, composing it with the outer 
+
+rd sends 1k to 1σx(k), with σx(k) the row of the largest entry of that column: 
+
+σx(k) := arg max  
+
+> j
+
+1T 
+
+> j
+
+θx1k, rd( θx1k) = 1σx(k).
+
+The head is thus multistable, with d attractors ak := 1k and basins Vk := {h ∈ Rd |
+
+arg max j 1T 
+
+> j
+
+h = k}, the cones of states whose largest coordinate is the k-th. It is exactly restoring in the sense of Section 5: in one step, each basin Vk collapses onto the single attractor aσx(k). The head outputs a learned vector attached to its current attractor. The map rd jumps wherever the largest coordinate changes, so the recurrence is not affine, as multistability requires (Lemma F.17). 
+
+Realization. As at the end of Section 5, we now map attractor indices onto automaton states. Assume d ≥ n, number the states Q = {1, . . . , n }, and take 
+
+ι(q) := 1q , π(h) := arg max  
+
+> q∈Q
+
+1T 
+
+> q
+
+h, 
+
+7Preprint. Under review. 8
+
+that is, π reads the index of the basin Vk that contains h. (R1) holds, since π(ι(q)) =arg max q′∈Q 1T 
+
+> q′
+
+1q = q, so π ◦ ι = id Q. For (R2), take as cells the η-balls around the code points, Uq := ι(q) ⊕ ¯Bη . The basins do not overlap around the attractors, so for η small enough, independently of the length of the word and of the target, each cell Uq lies inside its basin Vq , and the cells are pairwise disjoint. Their disjoint union U := F 
+
+> q∈Q
+
+Uq is bounded. One step collapses each cell onto an attractor, so Φx(U ) ⊕ ¯Bη ⊆ U as soon as σx maps Q into itself. One map thus carries the two rates of Theorem 3.3: every cell shrinks to a point, while distinct attractors stay more than 2η apart. (R3) holds if and only if σx = δx on Q, that is, if the largest entry of column q of 
+
+θx sits in row δx(q) for every q ∈ Q. One head realizes any automaton on at most d states with length independence (Propositions G.1 and G.2). Finite precision can only perturb the logits, and a perturbation below half the smallest column margin leaves every table unchanged at every length (Proposition G.3). 
+
+Scan compatibility. Each table σx depends on its symbol alone, through the logits θx, so a head builds the tables of a sequence in parallel and composes them by a parallel scan of depth O(log L)
+
+whose merges are gathers, (σy ◦σx)( k) = σy (σx(k)) . This is the table budget of Section 5, d⌈log 2 d⌉
+
+bits and O(d) operations, and every merge is exact (Proposition G.1). The NFSM is one block within a potentially larger model. Training through the arg max uses a straight-through Gumbel-softmax estimator (Jang et al., 2017) (Appendix G.6). Appendix H.7 reports wall-clock measurements of the scan implementation. 
+
+Heads as memory channels. A target often tracks several quantities at once, and giving each its own memory channel keeps them apart. The NFSM is therefore a block of r heads that read the same input and update independently: head i has di attractor indices and holds one component of the joint state ht =  h(1)  
+
+> t
+
+, . . . , h (r)
+
+> t
+
+ ∈ H = Rd1 × · · · × Rdr . The quantities need not be independent: a running product of permutations, for instance, can be carried point by point by several heads (Example G.7). Targets whose factors depend on one another are realized by stacking layers, each reading the attractor indices of the layer below (Proposition G.6). Heads also keep the cost low: 
+
+k independent quantities of v values cost k heads, kv 2 logits per step, rather than one head of vk
+
+attractor indices, v2k logits. The heads are scanned side by side, so their budgets add, and their outputs are concatenated and projected back to the model width. 
+
+## 7 EXPERIMENTS 
+
+We compare NFSM with three affine recurrences that cover both branches of Theorem 4.1: Mamba −, Mamba with negative eigenvalues (Grazzi et al., 2025), with ρ < 1; AUSSM (Karu-vally et al., 2025), with ρ = 1 ; and PD-SSM (Terzi´ c et al., 2025), with ρ < 1 and a hardmax that selects the transition matrix but does not act on the hidden state. The algebraic tasks present a sequence of generators of a target monoid, and the target at each posi-tion is the composite of the generators seen so far. They cover abelian groups ( Z2, Z16 ), nonabelian groups ( S3, S4, and the nonsolvable A5 and M11 , the first Mathieu group), and the noninvertible flip-flop monoid, drawn in two ways: DFF 5 never draws more than four consecutive identities, so that the state is a function of the last five inputs, whereas FF draws identity runs of unbounded length. The textual task TSO N (Srivastava et al., 2023) gives the same kind of algebra through text: swaps between N ∈ { 3, 4, 5} people holding N items are described in natural language, for example “ alice has the key. alice swaps with bob. . . . who has the key? ”, and the answer must be read off the tracked state. All models share one backbone (Appendix H.3): an encoder embeds the input tokens into a latent space, the recurrent layers act within this latent space, and a decoder maps it to the predicted states. Only the recurrent layers differ. The baselines use four layers of width 256 . The NFSM uses a single layer on the algebraic tasks, with one head on Z2, Z16 and the flip-flops, and several heads on the permutation groups, for instance 4 heads of 11 attractor indices on M11 , each tracking where one point is sent. On TSO N it stacks two multi-head layers. Models are trained on sequences of a fixed length, with the state supervised at every position, and tested on longer ones. The failing length Lmax is the smallest tested length at which accuracy falls below 90% for the baselines and below 100% for NFSM, where accuracy is the fraction of sequences whose predicted states are all 8Preprint. Under review. 9
+
+correct on the algebraic tasks, and of correctly answered questions on TSO N . Appendix H details the baselines, tasks, model sizes, and training. Table 1: Failing length on algebraic and textual state-tracking tasks. Each cell reports the median failing length Lmax over the seeds that learned the task, and below it how many of the five seeds did (Appendix H.4). ≥ L: no failure up to L, the longest sequence that fits on one GPU. †: the extracted tables match the target exactly, which certifies correctness at every length (Appendix H.6.2). ×: no seed learned the task. Brackets below the task names give the number of reachable states.            
+
+> Failing length Lmax (NFSM at 100% , baselines at 90% ; trained at L=64 )
+> Z2
+> [2]
+> Z16
+> [16]
+> S3
+> [6]
+> S4
+> [24]
+> A5
+> [60]
+> M11
+> [7920]
+> DFF 5
+> [3]
+> FF
+> [3]
+> NFSM
+> 1 layer, 2 on TSO
+> Mamba —
+> AUSSM PD-SSM
+> 4×256 4×256 4×256
+
+≥ 1M †
+
+> 5/5
+
+≥ 1M †
+
+> 5/5
+
+≥ 1M †
+
+> 5/5
+
+≥ 1M †
+
+> 5/5
+
+≥ 1M †
+
+> 5/5
+
+≥ 32k †
+
+> 5/5
+
+≥ 1M †
+
+> 5/5
+
+≥ 1M †
+
+> 5/5
+
+4352 
+
+> 5/5
+
+85 
+
+> 4/5
+
+186 
+
+> 5/5
+
+105 
+
+> 4/5
+
+×
+
+> 0/5
+
+×
+
+> 0/5
+
+≥ 1M 
+
+> 5/5
+
+178 
+
+> 5/5
+
+144 
+
+> 5/5
+
+135 
+
+> 5/5
+
+128 
+
+> 5/5
+
+89 
+
+> 5/5
+
+82 
+
+> 5/5
+
+×
+
+> 0/5
+
+96 
+
+> 5/5
+
+119 
+
+> 5/5
+
+110 
+
+> 5/5
+
+98 
+
+> 5/5
+
+133 
+
+> 5/5
+
+131 
+
+> 5/5
+
+187 
+
+> 5/5
+
+×
+
+> 0/5
+
+≥ 256k 
+
+> 5/5
+
+133     
+
+> 5/5
+> trained at L=256
+> TSO N=3
+> [44]
+> TSO N=4
+> [202]
+> TSO N=5
+> [1132]
+
+≥ 1M 
+
+> 5/5
+
+≥ 1M 
+
+> 5/5
+
+≥ 128k 
+
+> 5/5
+
+1501 
+
+> 2/5
+
+×
+
+> 0/5
+
+×
+
+> 0/5
+
+×
+
+> 0/5
+
+×
+
+> 0/5
+
+×
+
+> 0/5
+
+363 
+
+> 5/5
+
+1922 
+
+> 1/5
+
+321 
+
+> 1/5
+
+NFSM tracks every task; affine baselines do not. With a single layer, NFSM keeps perfect ac-curacy up to the longest tested length on every algebraic task and for all five seeds, including the nonsolvable groups and the noninvertible flip-flops, and a stack of two layers does the same on 
+
+TSO N (Table 1). The baselines, with four layers and larger states, fail within a few hundred steps on most tasks or do not learn them at all. 
+
+Affine recurrences fail as Theorem 4.1 predicts. The flip-flop pair isolates the definite boundary: 
+
+DFF 5 draws only definite words, which a contracting recurrence can hold, whereas FF does not. The two contracting baselines, Mamba − and PD-SSM, hold DFF 5 up to the longest tested length but fail on FF, while AUSSM, which does not contract, fails on both. The learned trajectories show the two branches (Appendix H.5). Where the baselines learn, the horizon they reach can vary widely across seeds (Appendix H.4). A horizon measured on one trained model therefore does not transfer to the next, which is why we ask for length independence rather than a long horizon. 
+
+Extracted tables certify length independence. Each NFSM step commits to a table entry, so the tables a trained model implements can be read off its logits (Appendix H.6). For every algebraic task and every seed, they match the target exactly. By Propositions G.2 and G.4, this implies correct tracking at every length, provided the logit margin of Proposition G.3 exceeds the error of the logit computation. On TSO N , Appendix H.6.3 shows how the heads of the two layers track the registers of the task. 
+
+## 8 DISCUSSION 
+
+Scan compatibility, expressivity, and robustness to finite precision are often viewed as competing demands; we have shown that a single mechanism meets all three. A bounded representation budget forces the recurrence onto a finite set of reachable hidden states, and a well-separated set of them lets one map both erase the step-wise error and execute the next transition. An affine recurrence has a single rate, so at any finite precision it either lets perturbations grow or realizes at most a definite automaton, at any width and depth. For models built on contracting recurrences, this is an 
+
+undeclared context window : older inputs reach the output only through a term that decays geomet-rically, so beyond a length set by learned gates and the arithmetic floor they are indistinguishable from noise, and that length is exceeded without any signal. The NFSM removes this barrier and leaves learning, the main practical obstacle, checkable rather than solved: the automaton a trained model implements can be read off its weights, so long-horizon correctness is verified rather than ex-trapolated (Appendix E). Behaviors that need a state set growing with the input, such as unbounded counting, remain open (Appendix B). 9Preprint. Under review. 10 
+
+AI USE STATEMENT 
+
+In this work, we used generative AI tools in a supporting role for for formulating mathematical claims, assisting in the writing of proofs, proposing or refining hypotheses, designing or provid-ing feedback on research methodology or experiments, implementing methods, and assisting with translation. We did not use generative AI tools for interpreting results or providing critical ingredients for prov-ing mathematical claims. Generating synthetic datasets, developing theoretical models or conceptual frameworks, cleaning or reformatting datasets, and supporting qualitative or thematic data analysis are not applicable to this work. Additionally, we partially used generative AI tools for identifying relevant literature, creating or editing software code, and editing the research paper to improve readability. We have reviewed all AI-assisted work. Specifically, all mathematical claims, proofs, and method-ological designs were manually checked for rigor and technical accuracy by the authors; AI-generated and edited code was verified and unit-tested; translated text was checked for semantic accuracy; and all referenced literature and information retrieved via AI were independently veri-fied against original source publications. We take responsibility for the final content of this work, including text, claims or artifacts produced with the aid of generative AI. ETHICS STATEMENT 
+
+The research presented in this work focuses on general and foundational aspects of artificial intelli-gence. It does not involve human subjects, sensitive personal data, or direct deployment in high-risk domains. Consequently, we do not believe that our work raises any direct or specific ethical con-cerns, privacy violations, or immediate risks of misuse. However, as a contribution to the broader field of artificial intelligence, we are fully conscious of the far-reaching impact that AI tools and methodologies exert on society. AI developments carry significant implications across social, economic, legal, and environmental dimensions, including algorithmic fairness, economic shifts, and the resource demands of computational infrastructure. We strongly believe that these broader socio-technical and environmental impacts must be taken into account in future technical developments, policy formulation, and governance decision-making. REPRODUCIBILITY STATEMENT 
+
+We are committed to ensuring the reproducibility of all theoretical claims and experimental find-ings presented in this paper. To facilitate full reproducibility, the entire source code of this project is open source. All empirical evaluation datasets used in this work are completely synthetic and can be directly generated, modified, and evaluated using the provided codebase. During the re-view period, an anonymized repository containing the full implementation, configuration files, and instructions for replicating all results and datasets is accessible at the following link: https: //julienbrandoit.github.io/length-independent-state-tracking/ . Fur-thermore, complete proofs of all theoretical claims and additional experimental details are given in the Appendix. 
+
+## REFERENCES 
+
+Maximilian Beck, Korbinian Pöppel, Markus Spanring, Andreas Auer, Oleksandra Prudnikova, Michael K. Kopp, Günter Klambauer, Johannes Brandstetter, and Sepp Hochreiter. xLSTM: Extended Long Short-Term Memory. In The Thirty-eighth Annual Conference on Neural Infor-mation Processing Systems , 2024. Y. Bengio and P. Frasconi. Input-output HMMs for sequence processing. IEEE Transactions on Neural Networks , 7(5):1231–1249, 1996. doi: 10.1109/72.536317. Guy E. Blelloch. Prefix Sums and Their Applications. Technical Report CMU-CS-90-190, School of Computer Science, Carnegie Mellon University, 1990. 10 Preprint. Under review. 11 
+
+Vincent D. Blondel and John N. Tsitsiklis. The boundedness of all products of a pair of matrices is undecidable. Systems & Control Letters , 41(2):135–140, 2000. doi: 10.1016/S0167-6911(00) 00049-9. James Bradbury, Stephen Merity, Caiming Xiong, and Richard Socher. Quasi-Recurrent Neural Networks. In International Conference on Learning Representations , 2017. Julien Brandoit, Arthur Fyon, Damien Ernst, and Guillaume Drion. Improving the Performance and Learning Stability of Parallelizable RNNs Designed for Ultra-Low Power Applications. In 
+
+Forty-Third International Conference on Machine Learning , 2026. Mike Casey. The Dynamics of Discrete-Time Computation, with Application to Recurrent Neural Networks and Finite State Machine Extraction. Neural Computation , 8(6):1135–1178, 1996. doi: 10.1162/neco.1996.8.6.1135. Mike Casey. Correction to Proof That Recurrent Neural Networks Can Robustly Recognize Only Regular Languages. Neural Computation , 10(5):1067–1069, 1998. doi: 10.1162/ 089976698300017340. Jiwan Chung, Heechan Choi, and Seon Joo Kim. Rethinking State Tracking in Recurrent Models Through Error Control Dynamics. arXiv preprint arXiv:2605.07755, 2026. Federico Danieli, Pau Rodriguez, Miguel Sarabia, Xavier Suau, and Luca Zappella. ParaRNN: Unlocking Parallel Training of Nonlinear RNNs for Large Language Models. In The Fourteenth International Conference on Learning Representations , 2026. Tri Dao and Albert Gu. Transformers are SSMs: Generalized Models and Efficient Algorithms Through Structured State Space Duality. In Forty-First International Conference on Machine Learning , 2024. Soham De, Samuel L. Smith, Anushan Fernando, Aleksandar Botev, George Cristian-Muraru, Al-bert Gu, Ruba Haroun, Leonard Berrada, Yutian Chen, Srivatsan Srinivasan, Guillaume Des-jardins, Arnaud Doucet, David Budden, Yee Whye Teh, Razvan Pascanu, Nando De Freitas, and Ça˘ glar Gülçehre. Griffin: Mixing Gated Linear Recurrences with Local Attention for Efficient Language Models. arXiv:2402.19427, 2024. Florent De Geeter, Gaspard Lambrechts, Damien Ernst, and Guillaume Drion. Parallelizable mem-ory recurrent units. arXiv preprint arXiv:2601.09495, 2026. Grégoire Delétang, Anian Ruoss, Jordi Grau-Moya, Tim Genewein, Li Kevin Wenliang, Elliot Catt, Chris Cundy, Marcus Hutter, Shane Legg, Joel Veness, and Pedro A. Ortega. Neural Networks and the Chomsky Hierarchy. In The Eleventh International Conference on Learning Representations ,2023. Samuel Eilenberg. Automata, Languages, and Machines, Volume A , volume 59 of Pure and Applied Mathematics . Academic Press, New York, 1974. Leo Feng, Frederick Tung, Mohamed Osama Ahmed, Yoshua Bengio, and Hossein Hajimirsadeghi. Were RNNs All We Needed? arXiv preprint arXiv:2410.01201, 2024. Riccardo Grazzi, Julien Siems, Arber Zela, Jörg Franke, Frank Hutter, and Massimiliano Pontil. Unlocking State-Tracking in Linear RNNs Through Negative Eigenvalues. In International Con-ference on Learning Representations , volume 2025, pp. 36565–36597, 2025. Albert Gu and Tri Dao. Mamba: Linear-Time Sequence Modeling with Selective State Spaces. In 
+
+First Conference on Language Modeling , 2024. Albert Gu, Karan Goel, Ankit Gupta, and Christopher Ré. On the Parameterization and Initializa-tion of Diagonal State Space Models. In Advances in Neural Information Processing Systems ,volume 35, pp. 35971–35983. Curran Associates, Inc., 2022a. doi: 10.52202/068431-2607. Albert Gu, Karan Goel, and Christopher Ré. Efficiently Modeling Long Sequences with Structured State Spaces. In International Conference on Learning Representations , 2022b. 11 Preprint. Under review. 12 
+
+Ankit Gupta, Albert Gu, and Jonathan Berant. Diagonal State Spaces are as Effective as Structured State Spaces. In Advances in Neural Information Processing Systems , volume 35, pp. 22982– 22994. Curran Associates, Inc., 2022. doi: 10.52202/068431-1670. J. J. Hopfield. Neural networks and physical systems with emergent collective computational abilities. Proceedings of the National Academy of Sciences , 79(8):2554–2558, 1982. doi: 10.1073/pnas.79.8.2554. Eric Jang, Shixiang Gu, and Ben Poole. Categorical Reparameterization with Gumbel-Softmax. In 
+
+International Conference on Learning Representations , 2017. Raphaël Jungers. The Joint Spectral Radius: Theory and Applications , volume 385 of Lecture Notes in Control and Information Sciences . Springer, Berlin, Heidelberg, 2009. doi: 10.1007/ 978-3-540-95980-9. Leslie Pack Kaelbling, Michael L. Littman, and Anthony R. Cassandra. Planning and acting in partially observable stochastic domains. Artificial Intelligence , 101(1):99–134, 1998. doi: 10. 1016/S0004-3702(98)00023-X. T. Kaneko. Limit-cycle oscillations in floating-point digital filters. IEEE Transactions on Audio and Electroacoustics , 21(2):100–106, 1973. doi: 10.1109/TAU.1973.1162445. Arjun Karuvally, Franz Nowak, Andy Keller, Carmen Amo Alonso, Terrence Sejnowski, and Hava Siegelmann. Bridging Expressivity and Scalability with Adaptive Unitary SSMs. In Advances in Neural Information Processing Systems , volume 38, pp. 22017–22057. Curran Associates, Inc., 2025. doi: 10.52202/085713-0743. Angelos Katharopoulos, Apoorv Vyas, Nikolaos Pappas, and François Fleuret. Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention. In Proceedings of the 37th International Conference on Machine Learning , pp. 5156–5165. PMLR, 2020. Najoung Kim and Sebastian Schuster. Entity Tracking in Language Models. In Anna Rogers, Jordan Boyd-Graber, and Naoaki Okazaki (eds.), Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pp. 3835–3855, Toronto, Canada, 2023. Association for Computational Linguistics. doi: 10.18653/v1/2023.acl-long.213. Kimi Team, Yu Zhang, Zongyu Lin, Xingcheng Yao, Jiaxi Hu, Fanqing Meng, Chengyin Liu, Xin Men, Songlin Yang, Zhiyuan Li, Wentao Li, Enzhe Lu, Weizhou Liu, Yanru Chen, Weixin Xu, Longhui Yu, Yejie Wang, Yu Fan, Longguang Zhong, Enming Yuan, Dehao Zhang, Yizhi Zhang, T. Y. Liu, Haiming Wang, Shengjun Fang, Weiran He, Shaowei Liu, Yiwei Li, Jianlin Su, Jiezhong Qiu, Bo Pang, Junjie Yan, Zhejun Jiang, Weixiao Huang, Bohong Yin, Jiacheng You, Chu Wei, Zhengtao Wang, Chao Hong, Yutian Chen, Guanduo Chen, Yucheng Wang, Huabin Zheng, Feng Wang, Yibo Liu, Mengnan Dong, Zheng Zhang, Siyuan Pan, Wenhao Wu, Yuhao Wu, Longyu Guan, Jiawen Tao, Guohong Fu, Xinran Xu, Yuzhi Wang, Guokun Lai, Yuxin Wu, Xinyu Zhou, Zhilin Yang, and Yulun Du. Kimi Linear: An Expressive, Efficient Attention Archi-tecture. arXiv:2510.26692, 2025. Kenneth Krohn and John Rhodes. Algebraic theory of machines. I. prime decomposition theorem for finite semigroups and machines. Transactions of the American Mathematical Society , 116: 450–464, 1965. doi: 10.1090/S0002-9947-1965-0188316-1. Aakash Lahoti, Kevin Li, Berlin Chen, Caitlin Wang, Aviv Bick, J. Zico Kolter, Tri Dao, and Albert Gu. Mamba-3: Improved Sequence Modeling using State Space Principles. In The Fourteenth International Conference on Learning Representations , 2026. Yi Heng Lim, Qi Zhu, Joshua Selfridge, and Muhammad Firmansyah Kasim. Parallelizing non-linear sequential models over the sequence length. In The Twelfth International Conference on Learning Representations , 2024. Bingbin Liu, Jordan T. Ash, Surbhi Goel, Akshay Krishnamurthy, and Cyril Zhang. Transformers Learn Shortcuts to Automata. In The Eleventh International Conference on Learning Represen-tations , 2023a. 12 Preprint. Under review. 13 
+
+Bingbin Liu, Jordan T. Ash, Surbhi Goel, Akshay Krishnamurthy, and Cyril Zhang. Exposing Attention Glitches with Flip-Flop Language Modeling. In Thirty-Seventh Conference on Neural Information Processing Systems , 2023b. Bo Liu, Rui Wang, Lemeng Wu, Yihao Feng, Peter Stone, and Qiang Liu. Longhorn: State Space Models are Amortized Online Learners. In The Thirteenth International Conference on Learning Representations , 2025. Ilya Loshchilov and Frank Hutter. Decoupled Weight Decay Regularization. In International Con-ference on Learning Representations , 2019. Wolfgang Maass and Pekka Orponen. On the Effect of Analog Noise in Discrete-Time Analog Com-putations. Neural Computation , 10(5):1071–1095, 1998. doi: 10.1162/089976698300017359. Wolfgang Maass and Eduardo D. Sontag. Analog Neural Nets with Gaussian or Other Common Noise Distributions Cannot Recognize Arbitrary Regular Languages. Neural Computation , 11 (3):771–782, 1999. doi: 10.1162/089976699300016656. Eric Martin and Chris Cundy. Parallelizing Linear Recurrent Neural Nets Over Sequence Length. In International Conference on Learning Representations , 2018. Robert McNaughton and Seymour Papert. Counter-Free Automata , volume 65 of Research Mono-graph . MIT Press, Cambridge, MA, 1971. William Merrill, Jackson Petty, and Ashish Sabharwal. The Illusion of State in State-Space Models. In Proceedings of the 41st International Conference on Machine Learning , pp. 35492–35506. PMLR, 2024. B.M. Oliver, J.R. Pierce, and C.E. Shannon. The Philosophy of PCM. Proceedings of the IRE , 36 (11):1324–1331, 1948. doi: 10.1109/JRPROC.1948.231941. Christian W. Omlin and C. Lee Giles. Constructing deterministic finite-state automata in recurrent neural networks. Journal of the ACM (JACM) , 43(6):937–972, 1996a. doi: 10.1145/235809. 235811. Christian W. Omlin and C. Lee Giles. Stable Encoding of Large Finite-State Automata in Recurrent Neural Networks with Sigmoid Discriminants. Neural Computation , 8(4):675–696, 1996b. doi: 10.1162/neco.1996.8.4.675. Antonio Orvieto, Samuel L. Smith, Albert Gu, Anushan Fernando, Ça˘ glar Gülçehre, Razvan Pas-canu, and Soham De. Resurrecting Recurrent Neural Networks for Long Sequences. In Pro-ceedings of the 40th International Conference on Machine Learning , pp. 26670–26698. PMLR, 2023. S. Parker and S. Hess. Limit-cycle oscillations in digital filters. IEEE Transactions on Circuit Theory , 18(6):687–697, 1971. doi: 10.1109/TCT.1971.1083367. Bo Peng, Eric Alcaide, Quentin Anthony, Alon Albalak, Samuel Arcadinho, Stella Biderman, Huanqi Cao, Xin Cheng, Michael Chung, Leon Derczynski, Xingjian Du, Matteo Grella, Kranthi Gv, Xuzheng He, Haowen Hou, Przemysław Kazienko, Jan Koco´ n, Jiaming Kong, Bartłomiej Koptyra, Hayden Lau, Jiaju Lin, Krishna Sri Ipsit Mantri, Ferdinand Mom, Atsushi Saito, Guangyu Song, Xiangru Tang, Johan Wind, Stanisław Wo´ zniak, Zhenyuan Zhang, Qinghua Zhou, Jian Zhu, and Rui-Jie Zhu. RWKV: Reinventing RNNs for the Transformer Era. In Houda Bouamor, Juan Pino, and Kalika Bali (eds.), Findings of the Association for Computational Lin-guistics: EMNLP 2023 , pp. 14048–14077, Singapore, 2023. Association for Computational Lin-guistics. doi: 10.18653/v1/2023.findings-emnlp.936. Bo Peng, Ruichong Zhang, Daniel Goldstein, Eric Alcaide, Xingjian Du, Haowen Hou, Jiaju Lin, Jiaxing Liu, Janna Lu, William Merrill, Guangyu Song, Kaifeng Tan, Saiteja Utpala, Nathan Wilce, Johan S. Wind, Tianyi Wu, Daniel Wuttke, and Christian Zhou-Zheng. RWKV-7 "Goose" with Expressive Dynamic State Evolution. In Second Conference on Language Modeling , 2025. M. Perles, M. O. Rabin, and E. Shamir. The Theory of Definite Automata. IEEE Transactions on Electronic Computers , EC-12(3):233–243, 1963. doi: 10.1109/PGEC.1963.263534. 13 Preprint. Under review. 14 
+
+Zhen Qin, Songlin Yang, and Yiran Zhong. Hierarchically Gated Recurrent Neural Network for Sequence Modeling. In Thirty-Seventh Conference on Neural Information Processing Systems ,2023. Zhen Qin, Songlin Yang, Weixuan Sun, Xuyang Shen, Dong Li, Weigao Sun, and Yiran Zhong. HGRN2: Gated Linear RNNs with State Expansion. In First Conference on Language Modeling ,2024. S.V. Rakovi´ c, E.C. Kerrigan, K.I. Kouramas, and D.Q. Mayne. Invariant approximations of the minimal robust positively Invariant set. IEEE Transactions on Automatic Control , 50(3):406– 410, 2005. doi: 10.1109/TAC.2005.843854. Hubert Ramsauer, Bernhard Schäfl, Johannes Lehner, Philipp Seidl, Michael Widrich, Thomas Adler, Lukas Gruber, Markus Holzleitner, Milena Pavlovi´ c, Geir Kjetil Sandve, Victor Greiff, David Kreil, Michael Kopp, Günter Klambauer, Johannes Brandstetter, and Sepp Hochreiter. Hopfield Networks is All You Need. arXiv preprint arXiv:2008.02217, 2021. T. Konstantin Rusch and Daniela Rus. Oscillatory State-Space Models. In The Thirteenth Interna-tional Conference on Learning Representations , 2025. Yash Sarrof, Yana Veitsman, and Michael Hahn. The Expressive Capacity of State Space Mod-els: A Formal Language Perspective. In Advances in Neural Information Processing Systems ,volume 37, pp. 41202–41241. Curran Associates, Inc., 2024. doi: 10.52202/079017-1304. M. P. Schützenberger. On finite monoids having only trivial subgroups. Information and Control , 8 (2):190–194, 1965. doi: 10.1016/S0019-9958(65)90108-7. Mehran Shakerinava, Behnoush Khavari, Siamak Ravanbakhsh, and Sarath Chandar. The Expressive Limits of Diagonal SSMs for State-Tracking. In The Fourteenth International Conference on Learning Representations , 2026. C. E. Shannon. A Mathematical Theory of Communication. The Bell System Technical Journal , 27 (3):379–423, 1948. doi: 10.1002/j.1538-7305.1948.tb01338.x. C.E. Shannon. Communication in the Presence of Noise. Proceedings of the IRE , 37(1):10–21, 1949. doi: 10.1109/JRPROC.1949.232969. Julien Siems, Timur Carstensen, Arber Zela, Frank Hutter, Massimiliano Pontil, and Riccardo Grazzi. DeltaProduct: Improving State-Tracking in Linear RNNs via Householder Products. In The Thirty-ninth Annual Conference on Neural Information Processing Systems , 2025. Jimmy T. H. Smith, Andrew Warrington, and Scott Linderman. Simplified State Space Layers for Sequence Modeling. In The Eleventh International Conference on Learning Representations ,2023. Aarohi Srivastava et al. Beyond the Imitation Game: Quantifying and extrapolating the capabilities of language models. Transactions on Machine Learning Research , 2023. Yutao Sun, Li Dong, Shaohan Huang, Shuming Ma, Yuqing Xia, Jilong Xue, Jianyong Wang, and Furu Wei. Retentive Network: A Successor to Transformer for Large Language Models. arXiv:2307.08621, 2023. Aleksandar Terzi´ c, Nicolas Menet, Michael Hersche, Thomas Hofmann, and Abbas Rahimi. Struc-tured Sparse Transition Matrices to Enable State Tracking in State-Space Models. In The Thirty-ninth Annual Conference on Neural Information Processing Systems , 2025. Lloyd N. Trefethen and Mark Embree. Spectra and Pseudospectra: The Behavior of Nonnormal Matrices and Operators . Princeton University Press, 2005. doi: 10.1515/9780691213101. John von Neumann. Probabilistic logics and the synthesis of reliable organisms from unreliable components. In Claude E. Shannon and John McCarthy (eds.), Automata Studies , number 34 in Annals of Mathematics Studies, pp. 43–98. Princeton University Press, Princeton, NJ, 1956. 14 Preprint. Under review. 15 
+
+S. Winograd and Jack Cowan. Reliable Computation in the Presence of Noise . MIT Press, Cam-bridge, MA, USA, 1963. Songlin Yang, Bailin Wang, Yikang Shen, Rameswar Panda, and Yoon Kim. Gated Linear Atten-tion Transformers with Hardware-Efficient Training. In Proceedings of the 41st International Conference on Machine Learning , pp. 56501–56523. PMLR, 2024a. Songlin Yang, Bailin Wang, Yu Zhang, Yikang Shen, and Yoon Kim. Parallelizing Linear Trans-formers with the Delta Rule over Sequence Length. In The Thirty-eighth Annual Conference on Neural Information Processing Systems , 2024b. Songlin Yang, Jan Kautz, and Ali Hatamizadeh. Gated Delta Networks: Improving Mamba2 with Delta Rule. In The Thirteenth International Conference on Learning Representations , 2025a. Songlin Yang, Yikang Shen, Kaiyue Wen, Shawn Tan, Mayank Mishra, Liliang Ren, Rameswar Panda, and Yoon Kim. PaTH Attention: Position Encoding via Accumulating Householder Trans-formations. In The Thirty-ninth Annual Conference on Neural Information Processing Systems ,2025b. Wojciech Zaremba and Ilya Sutskever. Learning to Execute. arXiv preprint arXiv:1410.4615, 2015. Rui-Jie Zhu, Yu Zhang, Steven Abreu, Ethan Sifferman, Tyler Sheaves, Yiqiao Wang, Dustin Rich-mond, Sumit Bam Shrestha, Peng Zhou, and Jason K. Eshraghian. Scalable MatMul-free Lan-guage Modeling. arXiv:2406.02528, 2025. 15 Preprint. Under review. 16 
+
+## CONTENTS OF THIS APPENDIX 
+
+• Appendix A: Notation • Appendix B: Extended discussion • Appendix C: Related work • Appendix D: From finite precision to the perturbation model • Appendix E: Learning versus finite precision • Appendix F: Proofs of theorems and lemmas • Appendix G: The NFSM construction in detail • Appendix H: Experiments 
+
+## A NOTATION 
+
+Table 2: Notation. 
+
+Target Model 
+
+Σ, Σ∗ alphabet; free monoid of words, with 
+
+Σ+ = Σ ∗ \ { ε}.
+
+H = Rd hidden state space 
+
+Q, n automaton state set; n := |Q| ≥ 2 Φx, Φw per-symbol map; composite 
+
+Φwx := Φ x ◦ Φw
+
+δx, δ w symbol action δx := δ(·, x ) : Q → Q;extension to words, 
+
+δw := δx|w| ◦ · · · ◦ δx1
+
+Ax, b x affine data, Φx(h) = Axh + bx
+
+Mδ transition monoid, 
+
+Mδ = {δw | w ∈ Σ∗} ≤ QQ, under composition 
+
+Aw Ax|w| · · · Ax1 for w = x1 · · · x|w|
+
+QQ all maps Q → Q under composition; 
+
+QQ ∼= Tn, Mδ ≤ QQ
+
+ρ, κ spectral radius; κ := max x ∥Ax∥op ,with ∥A∥op := sup v̸ =0 ∥Av ∥/∥v∥
+
+Tn, S n full transformation monoid; symmetric group 
+
+MΦ RNN transition monoid, 
+
+MΦ := {Φw | w ∈ Σ∗}
+
+Arithmetic and error Code 
+
+[ · ]Q representable object standing for a given one (Appendix D) 
+
+ι, U, π encoding; decodable region; readout 
+
+Q representable points [H]Q Uq the cell U ∩ π−1(q)
+
+η, ¯Bη per-step perturbation bound; ball 
+
+{e | ∥ e∥ ≤ η}
+
+U ⋆ η-reachable set of Definition 2.1 
+
+⊕ Minkowski sum diam ,
+
+dist 
+
+diameter of a set; distance between two 
+
+η-traj. any (ht) with ∥ht − Φxt (ht−1)∥ ≤ η ak , Vk ,
+
+σx
+
+attractors; their basins; table on attractor indices (Sections 5 and 6) 
+
+Px, rd column one-hot matrix of σx
+
+(Appendix G.3); restoring map to the basis vector of the largest coordinate 
+
+ca, S constant map of value a; transition semigroup {δw | w ∈ Σ+}
+
+1j , θx basis vector j, attractor of index j;logit matrix of equation 6 
+
+ζ, b, c scan representation and its budget (Definition 5.1) 
+
+r, di, γ number of heads and their numbers of attractor indices (Section 6); logit margin (Appendix G.4) 
+
+˜Φx, et executed step; per-step error 
+
+˜Φxt (ht−1) − Φxt (ht−1)
+
+K number of reachable states (Proposition 5.2) 
+
+Lmax failing length (Section 7) 
+
+χ injective map of Q into the joint attractor indices of the heads (Appendix G.5) 
+
+16 Preprint. Under review. 17 
+
+## B EXTENDED DISCUSSION 
+
+Robust state tracking asks one map to both erase the perturbation the previous step left behind, and move the state to its successor. An affine recurrence has a single rate, so it buys one at the expense of the other and its horizon is finite at any precision. NFSM does both, because a step is a rounding followed by a table lookup. 
+
+The horizon is not an artifact of precision. Our argument turns on the existence of a perturbation, not its amplitude. For any η > 0 a contracting affine recurrence has a finite horizon, and η only sets where that horizon falls; more precise formats moves it, but does not remove it. Nor is it an artifact of the hardware: the scan that makes an affine recurrence fast reassociates its products and so supplies η by itself, whatever the format. NFSM escapes the horizon not by being more precise but by returning the state to a code point at every step, so that perturbations are annihilated instead of accumulated and, under a scan, are not created at all. 
+
+An undeclared context window. For language models built on contracting recurrences the conse-quence is practical. The realized automaton is definite up to precision, so inputs older than k steps reach the output only through a term of size O(κk): the model has a context window, but an unde-clared one. Its length is set by learned gates and the arithmetic floor rather than by specification, it varies with the input as selectivity varies the decay rate, and, unlike overflow in attention, it is exceeded without any signal. 
+
+Forgetting as computation, not decay. Krohn–Rhodes decomposes every finite-state behavior into simple groups, which remember reversibly, and flip-flops, which remember until reset (Krohn & Rhodes, 1965). Realizing both makes forgetting a chosen property of the transitions rather than an unwanted residual of the dynamics: what is discarded is chosen by the arriving symbol, a reset erases exactly what it collapses, and what no reset targets survives indefinitely. A contracting recurrence offers erasure through contraction, which is graded and unconditional. Persistence is therefore not the price of forgetting; it is what remains once forgetting is expressed as computation. 
+
+Beyond gradient descent. Because the executive organ followed by the restoring organ is a table read off the logits by an arg max , the automaton a trained NFSM implements can be extracted, in-spected, and compared to a target. The same object can in principle be inferred in context rather than learned by gradient descent: a table is small enough to be written from a handful of demonstra-tions, which makes automaton induction at inference time, rather than in the weights, a natural next question. 
+
+Limitations and outlook. Our guarantees cover finite-state tracking. Behaviors requiring un-bounded memory, such as counting without a modulus or stack-like nesting, fall outside the transformation-monoid setting and need a state set that grows with the input; how to keep restoration meaningful in that regime is open. The number of states is also a design choice, and while heads and their sizes can be over-provisioned, the trade-off between capacity and optimization is not yet characterized. Finally, durable state is exactly what partially observable control requires, so NFSM is a natural candidate for reinforcement learning agents whose belief must survive long episodes, which we leave to future work. 
+
+## C RELATED WORK 
+
+This appendix situates our results among five lines of work: parallel scans and the affine recurrences built on them, the expressivity of these recurrences, their length generalization and finite-precision limits, scan-compatible recurrences that are not affine, and recurrent networks as automata. Three subsections then go further: the classical roots of the restoration requirement (Appendix C.1), a survey placing scan-compatible affine architectures on the branches of Theorem 4.1 (Appendix C.2), and Memory Recurrent Units read as transition tables (Appendix C.3). 
+
+Parallel scans and affine recurrences. A parallel scan computes all prefixes of a sequence under an associative operation in logarithmic depth (Blelloch, 1990). Martin & Cundy (2018) used it to train linear recurrences over the sequence length. Linearity in the hidden state has since become the design principle of scalable recurrent models: structured and diagonal state space models (Gu et al., 2022b;a; Gupta et al., 2022; Smith et al., 2023), selective ones (Gu & Dao, 2024; Dao & Gu, 2024; Lahoti et al., 2026), gated linear RNNs (Orvieto et al., 2023; Qin et al., 2023; 2024; De et al., 17 Preprint. Under review. 18 
+
+2024; Feng et al., 2024), and linear attention with its gated and delta-rule variants (Katharopoulos et al., 2020; Yang et al., 2024a;b; 2025a). They parallelize over the sequence in different ways, through a parallel scan (Smith et al., 2023; Gu & Dao, 2024; Orvieto et al., 2023; Feng et al., 2024), a convolution for the time-invariant ones (Gu et al., 2022b;a; Gupta et al., 2022), or a chunkwise algorithm (Yang et al., 2024a;b; Dao & Gu, 2024), but all of them rely on the update being affine in the hidden state, so that the composite of two steps has a closed form. Appendix C.2 surveys them from this angle. We take the opposite reading of the same constraint: what a scan requires is a bounded representation of the composites (Definition 5.1), not an affine update, and Proposition 5.2 shows what this budget implies. 
+
+Expressivity of affine recurrences. A large body of work asks which automata these recurrences can express. At logarithmic precision and under standard complexity assumptions, state space mod-els such as S4 and Mamba cannot track nonsolvable groups such as S5 (Merrill et al., 2024). At finite precision, state space models with nonnegative gates model exactly the star-free regular lan-guages (Sarrof et al., 2024), and a single layer of input-dependent complex diagonal transitions tracks no nonabelian group, while k such layers track exactly the groups with a subnormal series of length k with abelian factors (Shakerinava et al., 2026). A line of architectures then enlarges the reachable transition monoids: negative eigenvalues bring parity, and products of generalized Householder matrices bring every regular language (Grazzi et al., 2025), with the number of factors trading expressivity for cost (Siems et al., 2025), and an NC 1-complete problem within attention (Yang et al., 2025b); adaptive unitary transitions (Karuvally et al., 2025) and generalized delta rules (Peng et al., 2025) target state tracking directly, and the column one-hot transitions of PD-SSM reach every finite automaton with as many hidden dimensions as states (Terzi´ c et al., 2025). These results hold at logarithmic precision (Merrill et al., 2024), at a precision that grows logarithmically with the length (Karuvally et al., 2025), or at finite precision (Sarrof et al., 2024; Grazzi et al., 2025; Siems et al., 2025; Shakerinava et al., 2026), but in none of them is the computation perturbed. In the finite-precision model of Sarrof et al. (2024), numbers carry a fixed number of fractional bits and an unbounded number of integer bits, and arithmetic on them is exact: a gate equal to one then holds an exactly representable state forever, which is how a state space model with nonnegative gates models the flip-flop and, through the Krohn–Rhodes decomposition, every star-free language. Our model instead adds a perturbation of size up to η at every step and asks for correctness under every such perturbation (Definition 2.1). A gate equal to one then accumulates the perturbations, which is branch (i) of Theorem 4.1, and a nondefinite target such as the flip-flop FF is out of reach of every affine recurrence. The two results are consistent: theirs describe what an affine recurrence expresses when its arithmetic does not drift, ours what it retains when it does, as under a floating-point scan (Section 5 and Appendix D). A second difference is the target: they ask for the recognition of a language, we ask for the realization of the automaton at every step. Expressivity and robustness to finite precision are separate axes. 
+
+Length generalization and finite precision. Empirically, state tracking learned by affine recur-rences holds up to around the training length and collapses not far beyond it (Shakerinava et al., 2026; Karuvally et al., 2025; Grazzi et al., 2025; Terzi´ c et al., 2025), and synthetic benchmarks isolate the failure: automata and group word problems (Liu et al., 2023a; Delétang et al., 2023), flip-flops with long gaps (Liu et al., 2023b), and tracking shuffled objects (Srivastava et al., 2023). The η-trajectory of Definition 2.1 is the pseudo-orbit used by Casey (1996) to analyze recurrent networks under bounded noise, while Maass & Orponen (1998) show that arbitrarily small stochas-tic analog noise reduces discrete-time analog computation to the power of finite automata; and that rounding changes the dynamics of a recursion, rather than only blurring them, has long been known from the limit cycles of recursive digital filters (Parker & Hess, 1971; Kaneko, 1973); under a scan, the nonassociativity of floating-point arithmetic makes the scan itself a perturbation source (Sec-tion 5). Concurrent work reaches the same limits of affine recurrences through the dynamics of error propagation (Chung et al., 2026). Our contributions are the step-level characterization of The-orem 3.1, the two-branch classification of Theorem 4.1, its extension to any depth (Theorem F.25), and a scan-compatible recurrence that escapes it. 
+
+Scan-compatible recurrences that are not affine. Two routes lead beyond affine updates without giving up parallel training. The first keeps an arbitrary nonlinear recurrence and solves for its whole trajectory at once: DEER (Lim et al., 2024) and ParaRNN (Danieli et al., 2026) cast the sequence of updates as a system of equations and solve it by Newton iterations, each of which scans the affine lin-earization of the recurrence. They make nonlinear recurrences such as GRUs and LSTMs trainable 18 Preprint. Under review. 19 
+
+at scale, but they return the sequential trajectory only up to the tolerance of the solver, which adds to η instead of removing it, and they place no constraint on the dynamics of the recurrence itself. The second route, which we take, chooses a nonlinear recurrence whose composites have a bounded exact representation. Memory Recurrent Units (De Geeter et al., 2026; Brandoit et al., 2026) are the closest prior instance: they assume that the hidden state converges onto an attractor between two steps, and on the attractors each symbol acts as a transition table (Appendix C.3). The NFSM makes this table explicit and learns it for every element of Td (Proposition G.1). PD-SSM (Terzi´ c et al., 2025) shares its column one-hot structure but applies its hardmax to the input, not to the hidden state: its step stays affine in ht−1, and its diagonal factor makes it contract (Appendix H.2). Restoration requires the nonlinearity to act on the hidden state (Lemma F.17). 
+
+Recurrent networks as automata. That recurrent networks can implement finite automata, and must organize their hidden states into attractors to do so robustly, is classical (Omlin & Giles, 1996a;b; Casey, 1996); Appendix C.1 discusses this lineage and what changes here. The extraction of finite-state machines from trained networks (Casey, 1996) infers the automaton after training, from the organization of the hidden state space. In the NFSM the automaton is the parameterization itself: each step commits to a table entry, so the extracted tables are exactly the ones the model executes (Appendix H.6). Finally, the algebraic view of targets as transition monoids, with groups and flip-flops as the building blocks of the Krohn–Rhodes decomposition (Krohn & Rhodes, 1965), motivates both our benchmarks and the stacking of layers (Remark G.5). C.1 PROVENANCE OF THE RESTORATION REQUIREMENT AND THE TARGET 
+
+This subsection places (R1) to (R3) and the target of Definition 2.2 in the lineage of classical work, and states what changes here. 
+
+Roots. The restoration requirements have a strong connection to classical work. Separation is linked to Shannon (1948; 1949): signals must be distinguishable to be told apart at all and repeated restoration relates to Oliver et al. (1948) and von Neumann (1956): error must be erased at every stage, not once at the end. (R1) to (R3) inherit both. Likewise, the η-trajectory of Definition 2.1 is the η-pseudo-orbit of dynamical systems, used in this form for recurrent networks by Casey (1996); and that a bounded set closed under one perturbed step forces a strictly stable map is standard in set-invariance control (Rakovi´ c et al., 2005). 
+
+Reliable computation from unreliable parts. von Neumann (1956) shows that reliable compu-tation from unreliable components requires executive and restoring organs in series at every stage, described in 1952 for a setting containing no recurrent networks. Winograd & Cowan (1963) shows that replication without restoration admits no computation capacity: for a redundant automaton the probability of malfunction falls as P ≈ d exp( −c/R ) and so vanishes only as the redundancy grows without bound, where for a coded channel P ≈ 2−n(C−R) vanishes with block length at any fixed rate R < C . Their conclusion is that such automata “do not exhibit noise-free behavior of the type that would permit computation capacities to be defined,” and that what buys capacity is complexity rather than copies. 
+
+Recurrent networks as automata. Hopfield (1982) gives the canonical multistable recurrent sys-tem: an energy descent whose minima are the stored patterns, with basins that absorb perturbation, a restoring organ with the identity as index map. Omlin & Giles (1996a) exhibit the state-tracking version, attractor-based encodings of arbitrary deterministic finite automata, stable at arbitrary word length with finite weights, with the sigmoid-discriminant analysis in Omlin & Giles (1996b). Casey (1996) supplies the converse, that a recurrent network performing a finite-state computation must organize its state space into attractors mirroring the states of the minimal automaton. 1 Studying finite-state machine extraction from trained networks, with no architecture class in view, their The-orem 3.1 shows that a network robustly performing an automaton computation carries mutually disjoint closed sets with nonempty interior, one per state of the minimal DFA, on which its behav-ior agrees with the automaton; their Corollary 3.1 then recovers finiteness from compactness of the phase space. Maass & Orponen (1998) show that arbitrarily small analog noise reduces discrete-time analog computation to finite automata, and to the definite languages in particular together with Maass & Sontag (1999). The modern Hopfield line (Ramsauer et al., 2021) replaces the discrete 
+
+> 1The noise corollary of Casey was subsequently found technically incorrect (Casey, 1998); the attractor-structure theorem is unaffected, and Maass & Orponen (1998) give the sharper and correct statement.
+
+19 Preprint. Under review. 20 
+
+update with a softmax and recovers attention, which moves the construction out of the recurrent setting and so does not bear on (R2). 
+
+What is new here. In Theorem 3.2, the partition is characterized rather than shown necessary, so the conditions can be checked of a candidate architecture and not only extracted from a working one. The target is realization of the automaton rather than recognition of a language, which is worst-case over every word and compositional. And the cells carry a margin η that does not shrink with t, rather than being merely disjoint. The third change is central: disjointness is topological, preserved by every injective map, and therefore cannot distinguish one architecture from another, where a margin is metric: Theorem 3.3(i) and (ii) convert it into two demands along every word, which a single rate cannot meet along repeated words (Theorem 4.1). (R2) also states restoration 
+
+deterministically , as a set inclusion with a worst-case guarantee, where every source above states it probabilistically or asymptotically, and that is what makes it composable with a budget in Section 5. C.2 A REVIEW OF SCAN -COMPATIBLE AFFINE RECURRENCES 
+
+Most recurrent architectures proposed for scalable sequence modeling since S4 are affine in the state, so that a parallel scan composes them with the closed-form merge (A2, b 2) ◦ (A1, b 1) = (A2A1, A 2b1 + b2), up to rounding (Section 5). Existing comparisons organize them by family, by transition structure or by exact-arithmetic expressivity (Merrill et al., 2024; Sarrof et al., 2024; Grazzi et al., 2025); Table 3 places them instead on the branches of Theorem 4.1. 
+
+Method and reading. For every architecture, we read off the transition matrix At of equation 5 from the parameterization stated in its paper and compute its spectrum. A gate or eigenvalue modulus that 
+
+attains 1 places the architecture on the ρ = 1 branch, where (R2) fails; one that only approaches 1
+
+places it on ρ < 1, where (R3) fails and the definite automata remain. The survey records what each paper specifies, not what a trained model does, and is not exhaustive. 
+
+Caveats. A spectral radius is asymptotic: a nonnormal A with ρ(A) ≤ 1 can amplify by a poly-nomial factor before it decays (Trefethen & Embree, 2005). And when the matrix is chosen by the input, long products are governed by the joint spectral radius of the family (Jungers, 2009), whose boundedness is undecidable in general (Blondel & Tsitsiklis, 2000); this is why Theorem 4.1 quan-tifies over words. Both caveats are vacuous for normal transitions (diagonal, scalar, generalized Householder, and factor by factor for DeltaProduct), for which ∥Aw∥ ≤ Q 
+
+> i
+
+ρ(Axi ).Table 3: Surveyed scan-compatible affine architectures, grouped by the branch of Theorem 4.1. For each, the recurrence as its paper writes it, the transition matrix At = Axt of equation 5, and its spectrum; keys kt and wt have unit norm.                                                                                                                                                        
+
+> Architecture Recurrence Transition AtSpectrum
+> ρ > 1: loses contraction, fails (R2); realizes nothing. Not targeted in our survey a
+> ρ= 1 : loses contraction, fails (R2); realizes nothing, Lmax =O(1 /η )for isometries b
+> linear attention (Katharopoulos et al., 2020)
+> St=St−1+ϕ(kt)vT
+> tI{1}, multiplicity d
+> DeltaNet (Yang et al., 2024b)
+> St=St−1(I−βtktkT
+> t) + βtvtkT
+> tI−βtktkT
+> t,
+> βt=σ(·)∈(0 ,1)
+> {1(d−1) ,1−βt},
+> 1−βt∈(0 ,1)
+> + negative eigenvalues (Grazzi et al., 2025)
+> Ht= ( I−2βtktkT
+> t)Ht−1+βtktvT
+> tI−2βtktkT
+> t,βt∈(0 ,1) {1(d−1) ,1−2βt},
+> 1−2βt∈(−1,1)
+> DeltaProduct (Siems et al., 2025)
+> Ht=AtHt−1+Bt
+> Qnhj=1 (I−βt,j kt,j kT
+> t,j ),
+> βt,j ∈(0 ,1) or (0 ,2) 1with multiplicity
+> ≥d−nh
+> PaTH (Yang et al., 2025b)
+> St=St−1Ht+vtkT
+> tHt=I−βtwtwT
+> t,
+> βt∈(0 ,2)
+> {1(d−1) ,1−βt},
+> 1−βt∈(−1,1)
+> AUSSM (Karuvally et al., 2025)
+> xt=e∆tAtxt−1+ ∆ tBu te∆tAt,Atskew-symmetric, input-dependent
+> |λ|= 1
+> LinOSS-IMEX (Rusch & Rus, 2025)
+> xn=M x n−1+FnM= I−∆tA
+> ∆tI I −∆t2A
+> ,A≥0
+> diagonal
+> |λ|= 1 if
+> ∆t2Akk ≤4
+> LinOSS-IM g
+> (Rusch & Rus, 2025)
+> xn=M−1xn−1+M−1FnM−1= S−∆tAS
+> ∆tS S
+> ,
+> S= ( I+ ∆ t2A)−1,
+> A= ReLU( ˆA)diagonal
+> |λ|2=Skk ∈(0 ,1]
+
+20 Preprint. Under review. 21 
+
+Table 3, continued 
+
+Architecture Recurrence Transition At Spectrum S4 f
+
+(Gu et al., 2022b) 
+
+xk = ¯Ax k−1 + ¯Bu k ¯A = ( I − ∆2 A)−1(I + ∆2 A),HiPPO-initialized A
+
+|¯λ| < 1 iff Re λ < 0
+
+S5 f
+
+(Smith et al., 2023) 
+
+xk = ¯Λxk−1 + ¯Bu k ¯Λ = eΛ∆ , Λ complex diagonal |¯λ| = e∆ Re λ < 1 iff 
+
+Re λ < 0
+
+Longhorn h
+
+(Liu et al., 2025) 
+
+St = At ⊙ St−1 + Bt At = 1 − εt ⊗ k⊙2 
+
+> t
+
+,
+
+εt = βt/(1 + βtkT 
+
+> t
+
+kt),
+
+kt = Wk xt not normalized 
+
+λ ∈ (0 , 1] 
+
+Kimi Delta Attention (Kimi Team et al., 2025) 
+
+St =(I − βtktkT 
+
+> t
+
+)Diag( αt)St−1 + βtktvT
+
+> t
+
+(I − βtktkT 
+
+> t
+
+)Diag( αt),
+
+αt,j , β t ∈ [0 , 1] 
+
+ρ ≤ max j αt,j 
+
+RWKV-4 (Peng et al., 2023) 
+
+at = e−w ⊙ at−1 + ekt ⊙ vt diag( e−w ), w ∈ Rd 
+
+> ≥0
+
+λ ∈ (0 , 1] 
+
+mLSTM, exp. gate i
+
+(Beck et al., 2024) 
+
+Ct = ftCt−1 + itvtkT 
+
+> t
+
+ftI, ft = exp( ˜ft) λ = ft ∈ (0 , ∞)
+
+ρ < 1: loses separation, fails (R3); realizes the definite automata, Lmax = O(log 1 
+
+> η
+
+)j
+
+S4D (Gu et al., 2022a) 
+
+xk = ¯Ax k−1 + ¯Bu k exp(∆ A),
+
+A = − exp( ARe ) + i AIm 
+
+|¯λ| = e−∆eARe < 1
+
+DSS (DSS-exp) (Gupta et al., 2022) 
+
+xk = ¯Ax k−1 + ¯Bu k exp(∆Λ) ,
+
+Λ = − exp(Λ re ) + iΛ im 
+
+|¯λ| = e−∆eΛre < 1
+
+Mamba (Gu & Dao, 2024) 
+
+ht = ¯Atht−1 + ¯Btxt exp(∆ tA), A real diagonal, negative 
+
+λ ∈ (0 , 1) 
+
+Mamba −
+
+(Grazzi et al., 2025) 
+
+ht = Diag(2 st − 1) ht−1 + ¯Btxt Diag(2 st − 1) ,
+
+st = exp( −∆t ⊙ ew )
+
+λ ∈ (−1, 1) 
+
+Mamba-2 / SSD (Dao & Gu, 2024) 
+
+ht = atht−1 + bt atI, at scalar per head λ = at ∈ (0 , 1) 
+
+Mamba-3 (Lahoti et al., 2026) 
+
+ht = e∆tAt Rtht−1 + ∆ tBtxt e∆tAt Rt, At < 0 scalar, Rt
+
+block-diagonal 2 × 2 rotations 
+
+|λ| = e∆tAt ∈ (0 , 1) 
+
+LRU (Orvieto et al., 2023) 
+
+xk = Λ xk−1 + γ ⊙ Bu k Λ = diag( λj ),
+
+λj = e−eνj +i eθj
+
+|λj | = e−eνj < 1
+
+gated linear attention (Yang et al., 2024a) 
+
+St = Gt ⊙ St−1 + kT 
+
+> t
+
+vt diag( αt), αt = σ(·)1/τ λ ∈ (0 , 1) 
+
+gated DeltaNet c
+
+(Yang et al., 2025a) 
+
+St = St−1αt(I − βtktkT 
+
+> t
+
+) + βtvtkT 
+
+> t
+
+αt(I − βtktkT 
+
+> t
+
+),
+
+αt, β t ∈ (0 , 1) 
+
+αt{1(d−1) , 1 − βt},
+
+ρ = αt
+
+RetNet (Sun et al., 2023) 
+
+sn = As n−1 + KT
+
+> n
+
+vn A = Λ( γe iθ )Λ −1,
+
+γ = 1 − 2−5−arange(0 ,h )
+
+|λ| = γ < 1
+
+RWKV-7 (Peng et al., 2025) 
+
+St = St−1Gt + vT 
+
+> t
+
+kt Gt =diag( wt) − ˆκT 
+
+> t
+
+(at ⊙ ˆκt),
+
+wt ∈ (e−e−1/2
+
+, 1) ,
+
+at ∈ (0 , 1) 
+
+λ ∈ (−1, 1) (their Theorem 1) HGRN / HGRN2 (Qin et al., 2023; 2024) 
+
+ht = λt ⊙ eiθ ⊙ ht−1 + (1 − λt) ⊙ ct diag( λteiθ ),
+
+λt = γk + (1 − γk )μt
+
+|λ| ∈ (γk , 1) 
+
+Hawk / Griffin RG-LRU (De et al., 2024) 
+
+ht = at ⊙ ht−1 +
+
+q
+
+1 − a2 
+
+> t
+
+⊙ (it ⊙ xt) diag( at), at = acr t ,
+
+a = σ(Λ) 
+
+λ ∈ (0 , 1) 
+
+QRNN (Bradbury et al., 2017) 
+
+ht = ft ⊙ ht−1 + (1 − ft) ⊙ zt diag( ft), ft = σ(·) λ ∈ (0 , 1) 
+
+GILR d
+
+(Martin & Cundy, 2018) 
+
+ht = gt ⊙ ht−1 + (1 − gt) ⊙ it diag( gt), gt = σ(U x t + bg ) λ ∈ (0 , 1) 
+
+minGRU / minLSTM d
+
+(Feng et al., 2024) 
+
+ht = (1 − zt) ⊙ ht−1 + zt ⊙ ˜ht diag(1 − zt) resp. diag( f ′ 
+
+> t
+
+),gates read xt only 
+
+λ ∈ (0 , 1) 
+
+MLGRU d
+
+(Zhu et al., 2025) 
+
+ht = ft ⊙ ht−1 + (1 − ft) ⊙ ct diag( ft), ft = σ(·), ternary weights 
+
+λ ∈ (0 , 1) 
+
+PD-SSM e
+
+(Terzi´ c et al., 2025) 
+
+xt = P (ut)D(ut)xt−1 + Bu t P column one-hot, D complex diagonal, |D| = σ(·)
+
+ρ ≤ max j |dj | < 1 
+
+> a
+
+No surveyed architecture targets this branch; unconstrained ones (notes f and i) can enter it. b Upper bound of Proposition F.15, proven for transitions that are isometries (unitary, orthogonal, identity). For the other rows of the block, only the failure of (R2) is proven; a nonnormal transition with ρ = 1 can amplify perturbations polynomially and shorten the horizon further, e.g. to O(η−1/2) for a 2 × 2
+
+Jordan block. {ρ = 1 } has empty interior. c Moves to the ρ = 1 branch if αt attains 1. d Gates read the input only, which makes them scannable. e P alone has ρ = 1 ; the factor D makes the product contract. f The paper does not constrain Re λ: the initialization is stable, but training can reach ρ ≥ 1. g |λ| = 1 where Akk = 0 , which ReLU allows. h λ = 1 where kt,j = 0 ; the exact update 
+
+I − εtktkT 
+
+> t
+
+it approximates is on the ρ = 1 branch. i The exponential forget gate is unconstrained, like S4 and S5 (note f): it attains 1
+
+and can exceed it, which enters the ρ > 1 branch. With the sigmoid forget gate, ft ∈ (0 , 1) and mLSTM belongs to the ρ < 1 branch. j
+
+Upper bound of Corollary F.14, under the stronger hypothesis max x ∥Ax∥op < 1; the definite automata are attained by Proposition F.13. 
+
+21 Preprint. Under review. 22 
+
+C.3 MEMORY RECURRENT UNITS AS TRANSITION TABLES 
+
+Memory Recurrent Units (De Geeter et al., 2026) start from a multistable recurrence and assume that it converges between two time steps, so that the state only ever sits on an attractor. Read on those attractors, each input symbol acts as a transition table, and the parallel scan composes tables exactly. 
+
+The BMRU. With state dimension d and all operations coordinatewise, the Bistable Memory Re-current Unit (BMRU) of De Geeter et al. (2026) computes from the input 
+
+ˆht = Wxxt + bx, βt = |Wβ xt + bβ |, zt = H  |ˆht| − βt
+
+, (7) with H the Heaviside step, and updates 
+
+ht = zt ⊙ sign( ˆht) ⊙ α + (1 − zt) ⊙ ht−1, (8) with a learnable α ∈ Rd>0.
+
+As a transition table. On the attractors {− αi, +αi} of coordinate i, a symbol acts in one of three ways: it sets the coordinate to +αi or to −αi when zi = 1 , and keeps it when zi = 0 . These are the three elements of the flip-flop monoid FF of Section 7, so the transition monoid of a BMRU layer on its attractors is a submonoid of FF d, one flip-flop per coordinate. Each table costs 2 bits per coordinate, and composition is exact: a later set overrides, a later keep returns the earlier element. The BMRU is therefore scan-representable in the sense of Definition 5.1 with b = 2 d and c = O(d),and the scanned trajectory is the sequential one. The update equation is affine in the state, with Ax = diag(1 − z), and a keep symbol gives Ax = I:read as an update on Rd, it lies on the ρ = 1 branch of Theorem 4.1 and does not restore. Its length independence comes from the state being held on the attractors, that is, stored as an index, which is the restoration the approximation assumed and which the implementation must then enforce. The tables act coordinate by coordinate and never read the state: no symbol exchanges +αi and −αi, so a single layer realizes no nontrivial group, not even Z2.
+
+The CMRU. Brandoit et al. (2026) add a term ω h t−1, with ω ∈ [0 , 1] , to the set branch of equa-tion 8. For 0 < ω < 1 the reachable states form an infinite set, and at ω = 1 coordinate i moves on the unbounded lattice αiZ, so (T2) fails; confining each coordinate to {− kα i, . . . , +kα i} with a barrier at each end makes every symbol a table on these n = 2 k + 1 states again, scan-representable with b = d n ⌈log 2 n⌉ and c = O(dn ).
+
+## D FROM FINITE PRECISION TO THE PERTURBATION MODEL 
+
+Definition 2.1 replaces finite-precision arithmetic by an arbitrary perturbation of size at most η at every step. This appendix explains why this is a correct model: η is set by the number format, every run of a real machine is an η-trajectory, and asking for correctness under every such perturbation is what makes a guarantee robust to the hardware and to the implementation. 
+
+Where η comes from. A machine stores states, parameters, and intermediate results on a fixed number of bits. It can therefore represent only a finite set Q ⊂ H of points; write [ · ]Q for the rounding that replaces an object by a representable one, e.g. the nearest point of Q under round-to-nearest. Since a finite set cannot contain every exact result, rounding moves points in general. It need not move the points that a particular model visits: an affine recurrence whose coefficients and codes are 0 and 1, such as a permutation matrix acting on one-hot vectors, computes every product and sum exactly, in any order, and its rounding error is zero. Such exact structures are the exception for learned models. Gates produced by sigmoids and exponentials of trained weights are generically not exactly representable, the moduli of PD-SSM lie in (0 , 1) and those of Mamba − in (−1, 1) , and the rotation of Appendix E is not representable in any format. We model this generic case by a per-step bound η > 0.
+
+What a step injects. The machine does not run equation 1 but its rounded version 
+
+ht = ˜Φxt (ht−1) := 
+
+h
+
+[Φ] Q
+
+ ht−1, [xt]Q
+
+i
+
+> Q
+
+, (9) 22 Preprint. Under review. 23 
+
+where [xt]Q is the rounded input embedding of the symbol xt, [Φ] Q is the update with rounded parameters, evaluated in finite precision, and the outer bracket rounds the result. The per-step per-turbation 
+
+et := ˜Φxt (ht−1) − Φxt (ht−1)
+
+is the error made by this step alone. It has three sources: the rounding of the parameters and of the input, the rounding of the intermediate operations, and the rounding of the output. It does not include the error already carried by ht−1, since both maps are evaluated at the same ht−1. Each step therefore adds a fresh, bounded error. Whatever the order of the operations, the machine stores 
+
+ht ∈ Q , and we write et := ht − Φxt (ht−1) for the error of step t.
+
+Lemma D.1 (Every machine run is an η-trajectory) . Assume that Σ is finite, that ι(Q) ⊆ Q , and that no overflow occurs. Then ηQ := max ∥et∥, over all steps, words, and initial states, exists and does not depend on t, on |w|, or on the input, and every run of the machine is an η-trajectory for every η ≥ ηQ. Hence, for every η > 0 with η ≥ ηQ, a guarantee over all η-trajectories, (T1) in particular, holds for every run. Proof. Since ht−1, h t ∈ Q and xt ∈ Σ, the error et lies in the finite set {q − Φx(q′) | q, q ′ ∈ Q , x ∈
+
+Σ}, so the maximum exists. A sequence whose steps deviate by at most ηQ deviates by at most any 
+
+η ≥ ηQ.The bound ηQ can be zero, as in the exact example above; the results of this paper then apply at every η > 0, and in particular a guarantee still holds for the actual runs. In floating point, rounding errors are relative, so ηQ scales with the size of the states visited. How small η is depends on the format and on the evaluation: for the sequential evaluation equation 9, 
+
+et is the rounding error of a single step, and a different order of the operations, such as a parallel scan, changes et but not the conclusion. 
+
+Why every perturbation, and not the actual rounding. The rounding errors of a run are not a property of the model. They depend on the hardware, through the number format, and on the implementation, through the order of the operations: floating-point addition and multiplication are not associative, so two runs of the same model on the same input, one sequential and one with a parallel scan, are not bit-identical. A particular rounding pattern can even help: rounding turns the recurrence into a map on the finite set Q, which can hold a few states at the scale of the rounding error, as the dead bands and limit cycles of recursive digital filters do, in fixed point and in floating point (Parker & Hess, 1971; Kaneko, 1973). Such behavior is not robust, since it can disappear when the number format or the order of the operations changes. We therefore ask for correctness under every perturbation of size at most η, which is what quantifying over all η-trajectories does (Definition 2.2). This makes the guarantee a worst-case one, and the impossibility results should be read accordingly: Theorem 4.1 states that no affine recurrence is guaranteed correct at every length under perturbations of size η, not that every run of every affine model fails. A model whose rounding happens to be harmless, or zero, can still be correct on its actual runs, but that correctness is not robust: it can be lost when the number format, the order of the operations or the parameters change (Appendix E). 
+
+Sequential versus parallel evaluation. The order of the operations alone is enough to change the trajectory. We evaluate each affine baseline of Section 4 twice on the same word: once with the sequential recurrence ht = Axt ht−1 + bxt , which rounds the products and sums from left to right, and once with the parallel scan used for training, which combines the pairs (Axt , b xt ) along a tree of depth log 2 |w| and therefore rounds the same operations in a different order. The two runs share the parameters, the input and the coefficients mapping (Axt , b xt ), so they differ only in this order. By Lemma D.1, both are η-trajectories of the same word from the same h0, and the gap ∥hpar  
+
+> t
+
+− hseq  
+
+> t
+
+∥∞
+
+shows what the recurrence does with the errors injected along the way (Figure 2). Three observations follow. First, the gap is nonzero from the first steps, in every model and format. Second, its evolution follows the spectral radius, as Theorem 4.1 predicts. With ρ < 1 (Mamba −,PD-SSM), earlier errors are forgotten as fast as new ones arrive, and the gap saturates. With ρ = 1 
+
+(AUSSM), every error is carried forward, and the gap grows until, in fp16, it reaches the size of the state itself. Third, the number format sets the level of the curves and the recurrence sets their shape: a coarser format shifts every curve up. A guarantee that relied on the rounding pattern of one evaluation would not transfer to the other; a guarantee over all η-trajectories covers both. 23 Preprint. Under review. 24 5000 10000 15000 20000 25000 30000          
+
+> step t
+> 10 −8
+> 10 −6
+> 10 −4
+> 10 −2
+> 10 0
+> 10 2
+> 10 4
+> ‖hpar
+> t − hseq
+> t ‖∞
+> Mamba —(ρ < 1) AUSSM ( ρ= 1) PD-SSM ( ρ < 1) fp32 fp16
+> Mamba —
+> AUSSM PD-SSM
+
+Figure 2: Sequential and parallel evaluations of the same model may follow different trajecto-ries. Gap ∥hpar  
+
+> t
+
+− hseq  
+
+> t
+
+∥∞ between the parallel scan and the sequential recurrence, with the same coefficients (Axt , b xt ), computed in fp32 and rounded to the format (light: fp32; dark: fp16; com-plex states stored as two real arrays). Untrained models of width 32 , 64 words of length 215 over five letters, 5 seeds. Left: gap at each step (mean over words and seeds; band: range of the per-seed means). Right: distribution over all steps and seeds (whiskers: minimum and maximum). Absolute values are not comparable across models; the trend in t is. 
+
+## E LEARNING VERSUS FINITE PRECISION 
+
+In practice, the main obstacle to length generalization is learning: a model must find, by gradient descent on short sequences, parameters that implement the target transitions. Our results do not address this obstacle directly. They address a different one, which remains even when learning succeeds. 
+
+Three requirements. Tracking at every length needs a target that is expressible in exact arithmetic (Appendix C), a realization that is robust to a perturbation at every step (Theorems 3.1 to 4.1), and parameters that are found by training. 
+
+A perfectly trained model still drifts. Figure 3 isolates the robustness failure by removing learning altogether. The target is Z7 under the constant word, and the recurrence is the ρ = 1 affine realization that a perfectly trained model would hold: the rotation of R2 by 2π/ 7, whose seven code points are the vertices of a regular heptagon. We round each entry of this rotation once to each number format, and then run the recurrence in fp64, so that no rounding occurs after the weights are set. Rounding the cosine and the sine separately leaves a rotation by a slightly wrong angle, scaled by a radius slightly different from one. The phase error therefore grows linearly with t, and the model decodes the wrong state as soon as it exceeds π/ 7, half the angle between two code points. The radius grows or decays geometrically, so the code points themselves leave the bounded region that restoration would require. First, the drift involves no training error: the weights are the exact solution, up to the resolution of the format. Second, it involves no rounding of the hidden state: the run itself is in fp64, and rounding at every step, or reassociating the products under a scan, only adds to it (Figure 2). Third, a finer format moves the failure but does not remove it. A better choice of representable weights can move the failing length, but no representable rotation by 2π/ 7 exists in any format. 
+
+## F PROOFS OF THEOREMS AND LEMMAS 
+
+This appendix collects the proofs deferred from the main text, together with the additional defini-tions, lemmas, and propositions. 24 Preprint. Under review. 25 10 0 10 2 10 4 10 6 10 8          
+
+> step t
+> −0.4
+> −0.20.00.20.4
+> phase error ∆ θt [rad]
+> Phase drift
+> 10 010 210 410 610 8
+> step t
+> −0.50
+> −0.25 0.00 0.25 0.50
+> log  ‖ht‖2
+> Radial drift
+> fp32 bf16 fp16 fp8 E4M3 fp8 E5M2
+
+Figure 3: A perfectly trained ρ = 1 recurrence still drifts at finite precision. The exact rotation by 2π/ 7, which realizes Z7 under the constant word, is rounded once to each format and then iterated in fp64 from h0 = (1 , 0) . Left: phase error ∆θt with respect to the exact run; dashed lines: ±π/ 7,beyond which the readout returns a neighbouring state. Right: log-norm of the hidden state. Crosses mark the first step at which the readout is wrong; every format fails at a finite length, fp32 included. F.1 LENGTH -INDEPENDENT REALIZATION 
+
+Condition (T2) links boundedness to a length-independent precision cost, because a machine stores its state on a fixed finite set of points (Appendix D). 
+
+Proposition F.1 (Boundedness is length-independent precision) . A single finite set of points rep-resents every state of U ⋆ to within η if and only if U ⋆ is bounded. In that case, ⌈d log 2(1 + 2diam( U ⋆)/η )⌉ bits suffice, at every step and every length. Proof. If a finite set P represents U ⋆ to within η, then U ⋆ ⊆ P ⊕ ¯Bη , which is bounded. Conversely, let U ⋆ be bounded, and let P ⊆ U ⋆ be a maximal set of points pairwise more than η apart. By maximality, every point of U ⋆ lies within η of P . The balls of radius η/ 2 centered at the points of P are disjoint and lie in a ball of radius diam( U ⋆) + η/ 2, so comparing volumes gives |P | ≤ 
+
+(1 + 2diam( U ⋆)/η )d in any norm, and indexing P takes ⌈log 2 |P |⌉ bits. Neither U ⋆ nor η depends on t or on |w|, so the same set serves at every step and every length. For Theorem 3.1, necessity is proved with U = U ⋆, by applying (T1) and (T2) to a word and to its extension by one symbol (Lemmas F.2 to F.4); sufficiency is an induction on the length of the word. 
+
+Lemma F.2 (The encoding must be a code) . Under (T1), ι(Q) ⊆ U ⋆ and π ◦ ι = id Q; in particular 
+
+ι is injective. Proof. Take w = ε. The one-point sequence h0 = ι(q) is an η-trajectory of ε from ι(q), so ι(q) ∈
+
+U ⋆ and (T1) gives π(ι(q)) = δε(q) = q.
+
+Lemma F.3 (Restoration on the reachable set) . (i) For every Φ and every encoding, Φx(U ⋆)⊕ ¯Bη ⊆
+
+U ⋆ for every x ∈ Σ. (ii) Hence, under (T2), U ⋆ satisfies (R2). Proof. (i) Let u ∈ U ⋆, x ∈ Σ and ∥e∥ ≤ η. Choose q, w and an η-trajectory (ht)|w| 
+
+> t=0
+
+of w from 
+
+ι(q) with h|w| = u, and append h|w|+1 := Φ x(u) + e. Since ∥h|w|+1 − Φx(h|w|)∥ = ∥e∥ ≤ η, the extended sequence is an η-trajectory of wx from ι(q), so its endpoint lies in U ⋆. As u, x and e were arbitrary, Φx(U ⋆) ⊕ ¯Bη ⊆ U ⋆ for every x. The inclusion holds for any recurrence. (ii) (R2) asks for a bounded region that absorbs one perturbation step: (i) gives the inclusion, and (T2) gives the boundedness. 
+
+Lemma F.4 (The step must implement the transition) . Under (T1), π(Φ x(u) + e) = δx(π(u)) for every x ∈ Σ, every u ∈ U ⋆ and every ∥e∥ ≤ η.
+
+25 Preprint. Under review. 26 
+
+Proof. Let u ∈ U ⋆, x ∈ Σ, ∥e∥ ≤ η, and take q, w and an η-trajectory of w from ι(q) with endpoint 
+
+u, as in Lemma F.3. (T1) applied to w gives π(u) = δw(q); the extended trajectory of wx has endpoint Φx(u) + e, so (T1) applied to wx gives π(Φ x(u) + e) = δwx (q) = δx(δw(q)) = δx(π(u)) ,using δwx (p) = δx(δw(p)) for every p, which is immediate from the definition of δw.
+
+Theorem 3.1 (Conditions for length-independent realization at finite precision) . A triple (ι, Φ, π )
+
+realizes the target automaton (Q, Σ, δ ) with length independence at η > 0 iff there is a region 
+
+U ⊇ ι(Q) on which π is defined and that satisfies 
+
+(R1) Decodable code. π ◦ ι = id Q.
+
+(R2) Restoration. U is bounded and Φx(U ) ⊕ ¯Bη ⊆ U for every x ∈ Σ.
+
+(R3) Correct transition. π(Φ x(u) + e) = δx(π(u)) for every x ∈ Σ, u ∈ U and ∥e∥ ≤ η.Whenever such a region U exists, the η-reachable set U ⋆ itself satisfies (R1)–(R3), and U ⋆ ⊆ U .Proof of Theorem 3.1. Sufficiency. We prove the stronger statement that correctness holds from 
+
+every u ∈ U and not only from code points; (T1) is the case u = ι(q). Induction on k := |w|.For k = 0 the trajectory is the single point h0 = u ∈ U and π(u) = δε(π(u)) . For the step, let 
+
+w ∈ Σk and x ∈ Σ. Any η-trajectory (ht)k+1  
+
+> t=0
+
+of wx from u truncates to an η-trajectory of w from u,so the hypothesis gives hk ∈ U and π(hk) = δw(π(u)) . Write hk+1 = Φ x(hk) + e with ∥e∥ ≤ η.Then hk+1 ∈ Φx(U ) ⊕ ¯Bη ⊆ U by (R2), so π(hk+1 ) is defined, and π(hk+1 ) = δx(π(hk)) 
+
+by (R3) applied at hk ∈ U . Since π(hk) = δw(π(u)) and δwx (p) = δx(δw(p)) for every p,
+
+π(hk+1 ) = δwx (π(u)) . Taking u = ι(q) and using (R1) gives (T1); and the same induction keeps every η-trajectory from ι(Q) inside U , so U ⋆ ⊆ U , which is bounded by (R2) and gives (T2). 
+
+Necessity, and minimality. Lemmas F.2, F.3 and F.4 give (R1), (R2) and (R3) on U ⋆, which is bounded by (T2), so U = U ⋆ carries the triple. Minimality is the containment just established: any 
+
+U carrying a triple satisfies U ⋆ ⊆ U , since every η-trajectory from ι(Q) stays in U .
+
+Theorem 3.2 (Cell partition) . A triple (ι, Φ, π ) realizes the target automaton (Q, Σ, δ ) with length independence at η > 0 iff there exists a bounded region U ⊇ ι(Q) partitioned into cells Uq := {u ∈
+
+U | π(u) = q} such that ι(q) ∈ Uq for all q ∈ Q, and 
+
+Φx(Uq ) ⊕ ¯Bη ⊆ Uδx(q) for every q ∈ Q and x ∈ Σ. (4) 
+
+Proof of Theorem 3.2. (⇒) Suppose (ι, Φ, π ) realizes Mδ with length independence at η, and take the region U of Theorem 3.1, bounded by (R2). Put Uq := U ∩ π−1(q); since π is a function, every u ∈ U lies in exactly one Uq , namely q = π(u), so {Uq }q∈Q partitions U , and ι(q) ∈ Uq
+
+by (R1) together with U ⊇ ι(Q). Let u ∈ Uq , x ∈ Σ and ∥e∥ ≤ η. Since u ∈ U , (R2) gives 
+
+Φx(u) + e ∈ Φx(U ) ⊕ ¯Bη ⊆ U ; and π(u) = q, so (R3) gives π(Φ x(u) + e) = δx(q), i.e., 
+
+Φx(u) + e ∈ U ∩ π−1(δx(q)) = Uδx(q). As u and e were arbitrary, this is equation 4. ( ⇐) Given such a U and partition, (R1) is immediate: ι(q) ∈ Uq = U ∩ π−1(q) says exactly π(ι(q)) = q. (R2) follows by taking the union over q of Φx(Uq ) ⊕ ¯Bη ⊆ Uδx(q) ⊆ U , with U bounded by hypothesis. For (R3), let u ∈ U , x ∈ Σ, ∥e∥ ≤ η, and put q := π(u), so u ∈ Uq ; the same inclusion gives 
+
+Φx(u) + e ∈ Uδx(q) = U ∩ π−1(δx(q)) , so π(Φ x(u) + e) = δx(q) = δx(π(u)) . Theorem 3.1 then gives realization with length independence. 
+
+Theorem 3.3 (Two rates in one map) . Under equation 4, every composite map Φw is at once locally contracting and globally separating : for every q, q ′ ∈ Q and every w ∈ Σ+,
+
+(i) Local contraction. diam  Φw(Uq ) ≤ diam  Uδw (q)
+
+ − 2η; in particular, diam  Φw(Uq ) ≤
+
+diam( Uq ) − 2η whenever δw(q) = q.
+
+(ii) Global separation. dist  Φw(Uq ), Φw(Uq′ ) ≥ 2η whenever δw(q)̸ = δw(q′).Proof of Theorem 3.3(i). We first lift equation 4 from letters to words: for w = w′x, induction on 
+
+|w| gives Φw(Uq ) ⊕ ¯Bη = Φ x
+
+ Φw′ (Uq ) ⊕ ¯Bη ⊆ Φx
+
+ Uδw′ (q)
+
+ ⊕ ¯Bη ⊆ Uδw (q), since Φw′ (Uq ) ⊆
+
+Φw′ (Uq ) ⊕ ¯Bη . Any nonempty S has diam( S ⊕ ¯Bη ) = diam( S) + 2 η, since ∥(s + e) − (s′ + e′)∥ ≤ ∥s − s′∥ + 2 η with equality approached by taking s, s ′ nearly realizing diam( S) and e, −e′ along 
+
+s − s′ of norm η. Applying this to the lifted inclusion and using monotonicity of diam under inclusion gives diam(Φ w(Uq )) + 2 η ≤ diam( Uδw (q)), and taking δw(q) = q gives the loop case. No quantity here depends on |w|, so the margin is the same along every word. 26 Preprint. Under review. 27 
+
+Proof of Theorem 3.3(ii). Let δw(q)̸ = δw(q′), and suppose a ∈ Φw(Uq ) and b ∈ Φw(Uq′ ) satisfied 
+
+∥a − b∥ ≤ 2η. Their midpoint z := 12 (a + b) has ∥z − a∥ = ∥z − b∥ = 12 ∥a − b∥ ≤ η, so 
+
+z ∈ Φw(Uq )⊕ ¯Bη and z ∈ Φw(Uq′ )⊕ ¯Bη . By equation 4 these lie in Uδw (q) and Uδw (q′) respectively, which are distinct cells of a partition and therefore disjoint, so no such z exists. Hence ∥a − b∥ > 2η
+
+for every a ∈ Φw(Uq ) and every b ∈ Φw(Uq′ ), which is the pointwise form used below. Passing to the infimum gives the statement, with a strict inequality whenever the two images are compact. Lemma F.5 draws the same conclusion at code points under a weaker hypothesis: correct decoding along the given word only, without a cell partition. Every impossibility result below contradicts the following separation. 
+
+Lemma F.5 (Separation at code points) . Let w ∈ Σ+, and suppose that (T1) holds for w: π(h|w|) = 
+
+δw(p) for every p ∈ Q and every η-trajectory (ht)|w| 
+
+> t=0
+
+of w from ι(p). If δw(q)̸ = δw(q′), then 
+
+∥Φw(ι(q)) − Φw(ι(q′)) ∥ > 2η. In particular this holds for every w ∈ Σ+ under (R1) to (R3), by Theorem 3.1. Proof. Write w = w′x and set u := Φ w′ (ι(q)) , u′ := Φ w′ (ι(q′)) . Suppose ∥Φx(u) − Φx(u′)∥ ≤ 2η
+
+and let z := 12
+
+ Φx(u) + Φ x(u′) be the midpoint of the two images, at distance at most η from each. The run that follows w′ exactly from ι(q) and then steps to z is an η-trajectory of w from ι(q), since only its last step is perturbed, by z − Φx(u); likewise from ι(q′), with last perturbation z − Φx(u′).(T1) for w then gives π(z) = δw(q) and π(z) = δw(q′), contradicting the hypothesis. The next corollary names the shortest failing length L⋆ of a triple (ι, Φ, π ), over all words and all perturbations. The failing length Lmax of Section 7 is measured instead on sampled words, with the perturbations that the machine happens to produce; neither is the worst case, so Lmax ≥ L⋆ for the trained model, read with its own readout and with the η its machine produces (Lemma D.1). 
+
+Corollary F.6 (Failure modes) . If Φ does not realize Mδ with length independence at η, then at least one of the following holds. (T1) fails: there is a finite L⋆ such that every word of length below L⋆ decodes correctly while some word of length L⋆ carries a mis-decoding η-trajectory, so that correctness on Σ≤L certifies nothing about longer words for any L < L ⋆. (T2) fails: U ⋆ is unbounded, and no fixed number of bits represents every reachable state to within η at every length. Proof. Definition 2.2 is the conjunction of (T1) and (T2), so its failure is the failure of at least one of them. We treat the two cases in turn; they are not exclusive. 
+
+(T1) fails. Then some word w carries an η-trajectory from some ι(q) with π(h|w|)̸ = δw(q), and L⋆
+
+is the least length of such a word. 
+
+(T2) fails. Then U ⋆ is unbounded, and we show that no fixed number of bits serves every length. Suppose m bits sufficed at every length, that is, 2m representable points, each state being stored as a point within η of it. Since U ⋆ is unbounded, choose reachable states u1, . . . , u 2m+1 pairwise more than 2η apart, and let L be the greatest length of a word reaching one of them, so that all of them are reachable at length at most L. Each ui lies within η of one of the 2m points, and there are more states than points, so two of them are stored as the same point and are therefore at most 2η apart, contradicting their choice. Hence, for every m there is a length at which m bits no longer suffice: the precision needed grows without bound as L grows. This is the contrapositive of Proposition F.1. F.2 AFFINE RECURRENCE 
+
+One affine step does not expose the conflict of Theorem 3.3: a rate below one shrinks the cells and, if the codes start far enough apart, leaves a gap above 2η between them. What an affine map cannot do is meet both demands along a repeated word, because its rate does not depend on where the trajectories sit (Definition F.7, Proposition F.8): along wk, the rate that damps the perturbation also shrinks the gap between two codes. Input-dependent gates modulate that rate through time and leave it uniform in space. 
+
+Definition F.7 (Single-rate recurrence) . Φ is single-rate if the displacement between two trajectories depends only on their initial displacement: for every w ∈ Σ∗ there is a map Tw with Φw(u) −
+
+27 Preprint. Under review. 28 
+
+Φw(v) = Tw(u − v) for all u, v ∈ H , so that one and the same map governs every pair of points, wherever they sit. 
+
+Proposition F.8 (Single-rate recurrences are exactly the affine ones) . A continuous recurrence is single-rate if and only if it is affine , and then Tw = Aw is linear. Its local Lipschitz constant is then the operator norm ∥Ax∥op at every point of H, independently of where the pair of points is taken. Proof. If Φ is affine then equation 5 gives Φw(u) − Φw(v) = Aw(u − v), so Tw = Aw meets Definition F.7. Conversely, suppose the definition holds and take w = x a single symbol. Setting 
+
+v = 0 gives Φx(u) = Tx(u) + Φ x(0) , and substituting this back gives Tx(u) − Tx(v) = Tx(u − v)
+
+for all u, v , so Tx is additive with Tx(0) = 0 . An additive map that is continuous is linear, and Tx is continuous because Φx is; hence each Φx is affine with linear part Ax := Tx, and every composite is affine with Aw = Axk · · · Ax1 . Finally, ∥Φx(u) − Φx(v)∥ = ∥Ax(u − v)∥ for all u, v , so the ratio is bounded by ∥Ax∥op uniformly and attained on the corresponding singular direction, independently of where the pair is taken: the same constant governs pairs inside a cell and pairs in different cells, and along a word w the same operator Aw acts on a perturbation and on the difference between two code points. 
+
+Lemma F.9 (Contraction requires a stable matrix) . If Φ is affine and satisfies (R2) on a nonempty 
+
+U at some η > 0, then for every w ∈ Σ+ and unit v, P 
+
+> j≥0
+
+∥(AT
+
+> w
+
+)j v∥ ≤ diam( U )/2η < ∞, and consequently ρ(Aw) < 1; in particular ρ(Ax) < 1 for every x.Proof. We take ∥ · ∥ Euclidean here, so that an inner product is available; all norms on Rd are equivalent, and only the constant in the bound depends on that choice, not the conclusion ρ(Aw) <
+
+1. Write A := Aw and Ψ := Φ w, so Ψ( u) = Au + b for some b. Iterating (R2) along w gives 
+
+Ψ( U ) ⊕ ¯Bη ⊆ U, (10) since Φx2 (Φ x1 (U ) ⊕ ¯Bη ) ⊕ ¯Bη ⊆ Φx2 (U ) ⊕ ¯Bη ⊆ U , and so on along w.Fix u0 ∈ U , fix k ≥ 1, and let e0, . . . , e k−1 satisfy ∥et∥ ≤ η. Define h0 := u0 and ht+1 := Ψ( ht) + et. By equation 10 and induction, ht ∈ U for all t ≤ k, and since Ψ is affine, 
+
+hk = Ψ k(u0) + 
+
+> k−1
+
+X
+
+> j=0
+
+A j ek−1−j . (11) Let v be a unit vector. Choose ek−1−j := η (AT)j v/ ∥(AT)j v∥ when (AT)j v̸ = 0 and ek−1−j := 0 
+
+otherwise, and let h+ 
+
+> k
+
+and h− 
+
+> k
+
+be the endpoints equation 11 obtained from (et) and from (−et). Both lie in U , and using ⟨A j z, v ⟩ = ⟨z, (AT)j v⟩,
+
+diam( U ) ≥ ⟨ h+ 
+
+> k
+
+− h− 
+
+> k
+
+, v ⟩ = 2 
+
+> k−1
+
+X
+
+> j=0
+
+ek−1−j , (AT)j v = 2 η
+
+> k−1
+
+X
+
+> j=0
+
+(AT)j v ,
+
+the terms with (AT)j v = 0 contributing 0 to both sides. Letting k → ∞ gives P 
+
+> j≥0
+
+∥(AT)j v∥ ≤ 
+
+diam( U )/2η < ∞.A convergent series has vanishing terms, so ∥(AT)j v∥ → 0 for every v, hence ∥(AT)j ∥ → 0 in finite dimension and ρ(A) = ρ(AT) < 1. Taking w = x gives ρ(Ax) < 1 for every letter. 
+
+Definition F.10 (Definite automaton) . A semiautomaton (Q, Σ, δ ) (Perles et al., 1963) is k-definite 
+
+if δw is a constant map of Q for every word w with |w| ≥ k, and definite if it is k-definite for some k; we write ca ∈ QQ for the constant map with value a. Equivalently, the state reached after reading a word of length at least k depends on the last k symbols alone: splitting w = uv with 
+
+|v| = k gives δw(q) = δv (δu(q)) , the constant value of δv , for every q and every prefix u. Definite automata are aperiodic, hence recognize star-free behaviors (Schützenberger, 1965; McNaughton & Papert, 1971; Eilenberg, 1974); the converse fails, so “definite” is strictly the stronger of the two conclusions. 
+
+The next lemma turns a statement made one word at a time, that every repeated word ends up acting as a constant map, into a property of the automaton. 28 Preprint. Under review. 29 
+
+Lemma F.11 (Constant powers force definiteness) . Let |Q| = n and let S := {δw | w ∈ Σ+} be the transition semigroup of (Q, Σ, δ ), carrying the product inherited from concatenation, δu · δv := 
+
+δuv = δv ◦ δu. Suppose that for every w ∈ Σ+ the map δwk is constant for all sufficiently large k.Then (i) every idempotent of S is a constant map. (ii) Whenever every idempotent of S is constant, in particular under this hypothesis, δw is constant for every word with |w| > |S|, so the automaton is k-definite with k = |S| + 1 ≤ nn + 1 . Contrapositively, if the automaton is not definite, some word acts as an idempotent of S that is not constant. Proof. S is a subsemigroup of QQ and hence finite, with |S| ≤ nn.
+
+(i) Let e ∈ S be idempotent and choose w ∈ Σ+ with e = δw. Then δwk = ek = e for every k ≥ 1,and δwk is constant for k large by hypothesis; so e is constant. 
+
+(ii) Let w = x1 · · · x|w| with |w| > |S| and write pi := δx1··· xi ∈ S, 1 ≤ i ≤ | w|, for its prefixes. Since |w| > |S| two of them coincide, say pi = pj with i < j . Put t := δxi+1 ··· xj ∈ S, so that 
+
+pi = pj = pi · t and, by induction, pi = pi · tr for every r ≥ 1. Every element of a finite semigroup has an idempotent power, so tr is idempotent for some r ≥ 1, hence tr = ca for some a ∈ Q, since every idempotent of S is constant. Then 
+
+pi = pi · tr = tr ◦ pi = ca ◦ pi = ca,
+
+so pi is itself constant with value a, and δw = δxi+1 ··· x|w| ◦ pi is the constant map with value 
+
+δxi+1 ··· x|w| (a). As w was an arbitrary word of length greater than |S|, the automaton is (|S| + 1) -definite. 
+
+Theorem 4.1 (Affine recurrences realize at most definite automata) . Let Φ be affine in the hidden state, Φx(h) = Axh + bx for x ∈ Σ.(i) If ρ(Aw) ≥ 1 for some word w ∈ Σ+, then (R2) fails : no nonempty bounded set U ⊂ H 
+
+satisfies Φw(U ) ⊕ ¯Bη ⊆ U for this w. Consequently, Φ realizes no automaton with length independence at any η > 0.(ii) If ρ(Aw) < 1 for all words w ∈ Σ+, then Φ realizes at most a definite automaton with length independence at η > 0. For any nondefinite target, no region satisfying (R1) and (R2) satisfies (R3). Proof of Theorem 4.1. Let Φ be affine in the hidden state, Φx(h) = Axh+bx and Aw = Axk · · · Ax1
+
+as in equation 5, and let η > 0.
+
+(i) ρ(Aw) ≥ 1 for some w ∈ Σ+. Suppose some bounded U satisfied Φw(U ) ⊕ ¯Bη ⊆ U . The proof of Lemma F.9 uses no more than that single inclusion: run it with Ψ := Φ w and A := Aw to get P 
+
+> j≥0
+
+∥(AT
+
+> w
+
+)j v∥ ≤ diam( U )/2η < ∞ for every unit v, whence ∥(AT
+
+> w
+
+)j ∥ → 0 and ρ(Aw) <
+
+1, contradicting the hypothesis. So no bounded U satisfies the inclusion for Φw, and a fortiori none satisfies (R2) for every symbol, since iterating (R2) along w gives Φw(U ) ⊕ ¯Bη ⊆ U . By Theorem 3.1 no triple (ι, Φ, π ) realizes any target with length independence at η, whatever the state dimension, the encoding and the readout. 
+
+(ii) ρ(Aw) < 1 for every w ∈ Σ+. Suppose a bounded U carries (R1) to (R3) at η, and fix w ∈ Σ+
+
+and q, q ′ ∈ Q. Affineness gives 
+
+Φwk (ι(q)) − Φwk (ι(q′)) = Akw
+
+ ι(q) − ι(q′) −−−−→ 
+
+> k→∞
+
+0,
+
+since ρ(Aw) < 1 forces Akw → 0. Lemma F.5 requires that quantity to exceed 2η whenever 
+
+δwk (q)̸ = δwk (q′), so there is a threshold Kq,q ′,w with δwk (q) = δwk (q′) for every k ≥ Kq,q ′,w .Taking the maximum over the finitely many pairs (q, q ′) makes δwk a constant map for all k large, and w ∈ Σ+ was arbitrary. Lemma F.11 then makes the target k-definite with k = |S| + 1 ≤ nn + 1 ,where S is its transition semigroup: the state after a word of length at least k is fixed by the last k
+
+symbols of that word (Definition F.10). Contrapositively, if the target is not definite then no bounded U carries (R1) to (R3) at any η > 0:some pair q̸ = q′ is kept distinguished by δwk for infinitely many k, while the images of their code points merge, and (R3) fails at every k beyond the point where the separation of Lemma F.5 is lost. The same operator Aw moves the signal and the perturbation (Proposition F.8), so no choice of d, of 
+
+ι, of π or of U separates the two rates. 29 Preprint. Under review. 30 
+
+Corollary F.12 (No affine recurrence realizes a nontrivial group with length independence) . Let Mδ
+
+contain a nontrivial group and let Φ be affine in the hidden state. Then, for any state dimension d,any η > 0, any affine parameters Ax, b x, and any encoding ι and readout π, no region U satisfies (R1) to (R3). Proof. This is a special case of Theorem 4.1: branch (i) excludes every target, and branch (ii) excludes this one because a monoid containing a nontrivial group is not definite. Indeed, let G ≤ Mδ
+
+be a nontrivial group with identity e, and pick g ∈ G with g̸ = e. The identity map id Q, if it lies in G, is an idempotent of G and therefore equals e; hence g̸ = id Q, and g = δw for some w ∈ Σ+.If the automaton were k-definite, then, since g|G| = e, the element g = gm|G|+1 = δwm|G|+1 
+
+would be a constant map ca as soon as (m|G| + 1) |w| ≥ k. A constant map is idempotent, so 
+
+e = g|G| = c|G| 
+
+> a
+
+= ca = g, contradicting g̸ = e.The next proposition shows that every definite automaton (a shift register that remembers the last 
+
+k symbols) is realized by a contracting affine recurrence, with a precision depending on the order k
+
+of the target rather than the word length. 
+
+Proposition F.13 (Every definite automaton has a contracting affine realization) . Let (Q, Σ, δ ) be 
+
+k-definite with k ≥ 1, and let m := |Σ| + |Q|. There are an affine recurrence Φx(h) = Ah + bx on 
+
+Rkm with Ak = 0 , hence ρ(Aw) = 0 for every w ∈ Σ+, an encoding ι and a readout π that realize the target with length independence at every η < 1/(2 k) in the norm ∥ · ∥ ∞. In any other norm, the same holds for η < 1/(2 kμ ), where ∥ · ∥ ∞ ≤ μ∥ · ∥ .Proof. Index the basis of Rm by Σ ⊔ Q, write 1y for the basis vector of y ∈ Σ ⊔ Q, and split 
+
+h ∈ Rkm into k slots h = ( h(1) , . . . , h (k)) of Rm, slot 1 being the most recent. Let A shift every slot one position down and drop the last one, (Ah )(1) = 0 and (Ah )(j+1) = h(j), and let bx hold 
+
+1x in slot 1 and 0 elsewhere. Then Ak = 0 , so Aw = A|w| is nilpotent and ρ(Aw) = 0 for every 
+
+w ∈ Σ+: the recurrence is on branch (ii) of Theorem 4.1. Encode ι(q) := ( 1q , 0, . . . , 0) .
+
+Exact runs. From ι(q), after a word w with |w| < k , slots 1 to |w| hold 1x|w| , . . . , 1x1 , slot |w| + 1 
+
+holds the marker 1q , and the other slots are 0; after a word with |w| ≥ k, the slots hold the last k
+
+symbols of w, most recent first. Call these configurations clean , and let C be the finite set of clean configurations reached from ι(Q). A clean configuration c determines a state D(c): if c carries the marker 1q and the symbols of w, then D(c) := δw(q); if c carries only the last k symbols v, then 
+
+D(c) is the constant value of δv . Then D(Φ x(c)) = δx(D(c)) for every c ∈ C and x ∈ Σ. If c
+
+carries 1q and w with |wx | < k , this is δwx (q) = δx(δw(q)) . If |wx | = k, then Φx(c) carries only 
+
+wx , and the constant value of δwx is δwx (q) = δx(δw(q)) . If c carries only v, write vx = yv ′ with 
+
+y ∈ Σ; then Φx(c) carries v′, and δvx = δv′ ◦δy is constant with the value of δv′ , while δvx = δx ◦δv
+
+is constant with value δx(D(c)) .
+
+Region and margin. Let U := {c + e | c ∈ C, ∥e(j)∥∞ ≤ jη for j = 1 , . . . , k }, which is bounded since C is finite and contains ι(Q). For c+e ∈ U and ∥e′∥∞ ≤ η, Φx(c+e)+ e′ = Φ x(c)+( Ae +e′)
+
+with Φx(c) ∈ C; slot 1 of Ae + e′ is e′(1) , of norm at most η, and slot j + 1 is e(j) + e′(j+1) , of norm at most (j + 1) η. Hence Φx(U ) ⊕ ¯Bη ⊆ U , which is (R2). For η < 1/(2 k), every coordinate of e
+
+is below 12 in absolute value, while two distinct clean configurations differ by 1 in some coordinate, so every point of U has a unique clean configuration c, and π(c + e) := D(c) is well defined. (R1) is π(ι(q)) = D(ι(q)) = δε(q) = q, and (R3) is π(Φ x(c + e) + e′) = D(Φ x(c)) = δx(D(c)) = 
+
+δx(π(c + e)) . Theorem 3.1 gives realization with length independence. For another norm, ∥e∥ ≤ η
+
+implies ∥e∥∞ ≤ μη , and the same argument applies with μη in place of η.For k = 1 the shift drops everything, A = 0 , and each symbol writes its own code: the realization uses no nonlinearity at all. 
+
+Corollary F.14 (Contracting models need exponentially fine precision) . Let κ := max x ∥Ax∥op <
+
+1, which is stronger than the hypothesis ρ(Aw) < 1 of branch (ii), let the target be nondefinite, and let C := max q,q ′∈Q ∥ι(q) − ι(q′)∥ be the diameter of the code. At perturbation level η > 0
+
+the model is guaranteed correct on every w with |w| ≤ L only if L ≤ Lmax , where Lmax =
+
+⌈ln( C/ 2η)/ ln(1 /κ )⌉ − 1. Equivalently, staying correct on every word of length at most L requires 
+
+η < Cκ L/2: the perturbation level the model tolerates shrinks exponentially with L.
+
+30 Preprint. Under review. 31 
+
+Proof. The operator norm is submultiplicative, so Aw = Ax|w| · · · Ax1 of equation 5 obeys 
+
+∥Aw∥op ≤ Q 
+
+> i
+
+∥Axi ∥op ≤ κ|w|, and Φw is κ|w|-Lipschitz by Proposition F.8. Hence for |w| = L
+
+and any q, q ′ with δw(q)̸ = δw(q′), the two code points, at distance at most C apart, induce states separated by at most Cκ L. Lemma F.5 forces that separation to exceed 2η, so the bound must itself exceed 2η: correctness at length L requires Cκ L > 2η, which is the stated Lmax . Non-definiteness is what makes the requirement bite, since it supplies, at every length, a word w and a pair q, q ′ that the target still keeps apart (a word v with |v| ≥ L and δv not constant has a suffix of length L whose action is not constant either, since δv factors through it); for a definite target every pair is allowed to merge after a bounded number of steps and there is no horizon to speak of. For an isometry 2, the gap between two trajectories stays at C while the perturbations pile up, and the horizon is the length at which the pile reaches the gap. 
+
+Proposition F.15 (Isometric models need precision of order 1/L ). Let every Ax be a linear isometry of Rd, let w be a word of length L, and let q̸ = q′ be states with δw(q)̸ = δw(q′), encoded C := 
+
+∥ι(q)−ι(q′)∥ apart. Guaranteed correctness on every word of length at most L requires η < C/ 2L:the perturbation level the model tolerates shrinks like 1/L , so no fixed precision serves all lengths, in agreement with Lemma F.9. Proof. An η-trajectory deviates from the unperturbed one by ¯eL = PLt=1 Btet, where Bt := 
+
+AxL · · · Axt+1 and BL := I are products of isometries, hence isometries, hence orthogonal and invertible. The same hypothesis keeps the two unperturbed trajectories from ι(q) and ι(q′) exactly 
+
+C apart, so correctness fails as soon as the deviations can close that gap: the trajectories then reach a common point and decode alike, contradicting δw(q)̸ = δw(q′).Take v :=  Φw(ι(q′)) − Φw(ι(q)) /C and et := ηB −1 
+
+> t
+
+v, of norm η; then ¯eL = ηLv . Running this along the trajectory from ι(q) and its negative along the one from ι(q′) moves the two endpoints 
+
+2ηL towards each other, and scaling the perturbations down if 2ηL > C makes them coincide, so 
+
+2ηL < C is necessary. 
+
+Corollary F.16 (The horizon bound is not a design parameter) . Write Λ := ln( C/ 2η), so that the bound of Corollary F.14 reads Lmax = Λ / ln(1 /κ ) up to rounding. Then 
+
+dL max 
+
+Lmax 
+
+= Lmax 
+
+Λ
+
+dκ κ −−−−−→ 
+
+> κ→1−
+
+∞.
+
+Pinning Lmax to a relative tolerance ε therefore requires pinning κ to a relative tolerance εΛ/L max ,which tightens as the horizon lengthens: at C/ 2η = 10 6 and Lmax = 10 4, a horizon specified to within a factor of two requires κ specified to within 7 × 10 −4. Neither κ nor C is set by the designer: the first is set by learned, input-dependent gates, the second is the spread of the code the encoder learns, and the same holds on the other branch, where Proposition F.15 bounds the horizon by C/ 2η
+
+with C again learned. The horizon that a trained affine cell can at best reach is therefore a property of that particular trained model, measurable after the fact and not specifiable in advance. Proof. Differentiate Lmax = −Λ/ ln κ: dL max /dκ = Λ /(κ ln 2 κ), and divide by Lmax . The limit follows from ln(1 /κ ) → 0.F.3 MULTISTABILITY 
+
+The next lemma reads Theorem 4.1 as a requirement on the architecture. It places the nonlinearity on the previous state, since a gate computed by an arbitrarily nonlinear function of xt still leaves Φx
+
+affine in h.
+
+Lemma F.17 (Two rates require the nonlinearity to act on the state) . Let the target automaton be nondefinite, for instance because Mδ contains a nontrivial group (Corollary F.12), and let Φ satisfy equation 4 on a bounded region U as in Theorem 3.2 at some η > 0. Then some Φx is not affine.                    
+
+> 2A linear map Ais an isometry when ∥Av ∥=∥v∥for every v, equivalently ATA=Iin the Euclidean norm: it neither shrinks nor stretches any distance, so all its eigenvalues have modulus one. It is the distance-preserving representative of the ρ= 1 branch of Theorem 4.1, and covers unitary and orthogonal recurrences as well as Ax=I.
+
+31 Preprint. Under review. 32 
+
+Proof. Suppose every Φx is affine. Theorem 3.2 turns equation 4 on a bounded U into realization of the target with length independence at η, so, by Theorem 3.1, some region satisfies (R1) to (R3). Theorem 4.1 forbids this for a nondefinite target: branch (i) excludes every target, and branch (ii) every nondefinite one. Hence some Φx is not affine. A restoring step can remove a perturbation outright, as the construction of Section 6 does, or merely shrink it, as a real-analytic recurrence must (Remark F.19). The next definition names the two grades. 
+
+Definition F.18 (Grades of restoration) . Let F be one of the maps Φx, acting on the region 
+
+U = F 
+
+> q∈Q
+
+Uq of Theorem 3.2. F is exactly restoring on U if it sends each cell Uq to a single point, the perturbation being annihilated rather than reduced; for F = Φ x we require that point to be ι(δx(q)) , as in Section 5 once attractor indices are mapped onto automaton states. F is asymp-totically restoring on a cell Uq if there is λ < 1 with ∥F (u)−F (u′)∥ ≤ λ∥u−u′∥ for all u, u ′ ∈ Uq ,perturbations being strictly reduced at every step. Exact restoration is the case λ = 0 .
+
+Remark F.19 (Exact restoration needs gaps or jumps) . Let Φx be exactly restoring on U in the sense of Section 5, with the attractors mapped onto the code points, sending each cell Uq to the single point ι(δx(q)) . If Φx is continuous on U , it is constant on each connected component of 
+
+U , since a continuous map from a connected set to a finite set is constant. Two cells whose states 
+
+δx sends to different states therefore lie in different components: exact restoration by a continuous map requires gaps between the cells, which the NFSM provides by taking U = ι(Q) ⊕ ¯Bη , a union of disjoint balls. On the whole of H, which is connected, a map with finitely many values cannot be continuous unless it is constant, so the jumps of the arg max in equation 6 are unavoidable. A real-analytic recurrence, such as a tanh or sigmoid network, cannot be exactly restoring unless δx
+
+is constant: by equation 4, a cell reached by some symbol contains an η-ball, Φx is constant on that cell, and a real-analytic map that is constant on a ball is constant on H.
+
+To compare the two grades, and later affine maps and stacks, we count what a single map can keep apart under perturbation: the sets it maps into themselves with a margin of η.
+
+Definition F.20 (Held sets and robust capacity) . Let F : H → H and η > 0. F holds a set V ⊆ H 
+
+if V is nonempty and bounded and F (V ) ⊕ ¯Bη ⊆ V . The robust capacity of F in a region U is 
+
+log 2 N bits, where N is the largest number of pairwise disjoint subsets of U that F holds. 
+
+Under equation 4, a word w with δw(q) = q makes Φw hold the cell Uq , by the lifting in the proof of Theorem 3.3. A word whose action fixes m states therefore forces a robust capacity of at least 
+
+log 2 m bits on Φw; for a nonconstant idempotent δw (Lemma F.11), m ≥ 2.
+
+Proposition F.21 (The two grades have the same capacity) . Let U = F 
+
+> q∈Q′
+
+Uq be a union of n
+
+pairwise disjoint closed cells, and let F hold every cell and be asymptotically restoring on it, with constant λ ∈ [0 , 1) . Then (i) each Uq contains a unique fixed point αq of F , which attracts every trajectory of F started in Uq , and the open η-ball around αq lies in Uq ; (ii) every subset of U that F
+
+holds contains one of these balls, so the robust capacity of F in U is exactly log 2 n bits. The count is the same for exact restoration ( λ = 0 ) as for asymptotic restoration ( 0 < λ < 1), and it does not mention d.Proof. (i) Each cell is closed and bounded, hence complete, and F (Uq ) ⊆ F (Uq ) ⊕ ¯Bη ⊆ Uq . F
+
+restricted to Uq is a λ-contraction of Uq into itself, so the Banach fixed point theorem gives a unique 
+
+αq ∈ Uq with F k(u) → αq for every u ∈ Uq . For k ≥ 1, F k(u) ∈ F (Uq ), so ¯Bη (F k(u)) ⊆ Uq ;any z with ∥z − αq ∥ < η satisfies ∥z − F k(u)∥ < η for k large, hence z ∈ Uq . (ii) Let V ⊆ U be held by F , pick q with V ∩ Uq̸ = ∅ and v in this intersection. Then F k(v) stays in Uq , since F holds 
+
+Uq , and converges to αq . It also stays in V , and for k ≥ 1 it lies in F (V ), so ¯Bη (F k(v)) ⊆ V ; as in (i), the open η-ball around αq lies in V . Two disjoint held subsets of U therefore contain the balls of two distinct fixed points, so there are at most n of them, and the n cells are n such subsets. 
+
+Proposition F.22 (An affine recurrence has zero capacity at any width) . Let Φx be affine and satisfy (R2) on a nonempty bounded U at some η > 0. Then (i) Φx has a unique fixed point h∗
+
+> x
+
+, the open 
+
+η-ball around it lies in U , and every trajectory of Φx in U converges to it; more generally, every set that Φx holds contains this ball, so the robust capacity of Φx (Definition F.20) is log 2 1 = 0 bits in every region; (ii) at most one cell is held, i.e., Φx(Uq ) ⊕ ¯Bη ⊆ Uq for at most one q ∈ Q. Neither conclusion mentions the state dimension d.
+
+32 Preprint. Under review. 33 
+
+Proof. Lemma F.9 gives ρ(Ax) < 1, so I − Ax is invertible, Φx has a unique fixed point h∗
+
+> x
+
+, and 
+
+Φkx(u) − h∗ 
+
+> x
+
+= Akx(u − h∗
+
+> x
+
+) → 0 for every u. Fix u ∈ U : (R2) places ¯Bη (Φ kx(u)) in U for every 
+
+k ≥ 1, and any z with ∥z −h∗
+
+> x
+
+∥ < η satisfies ∥z −Φkx(u)∥ < η for k large, so z ∈ U ; the open η-ball at h∗ 
+
+> x
+
+therefore lies in U and its basin is all of U , however U is divided into cells. The argument uses only that Φx holds U , so it applies to every set that Φx holds, and any two such sets meet. That is (i). For (ii), if two cells were held then the same argument places that ball in each of them, and cells of a partition are disjoint. 
+
+Remark F.23. Proposition F.22 does not say that an affine recurrence carries no information: on the contracting branch it stays correct up to a horizon (Corollary F.14). The capacity that is zero is the length-independent one. 
+
+A stack of affine recurrences, with arbitrary nonlinear maps between its layers, is not affine as a whole, so Theorem 4.1 does not apply to it directly. Each layer, however, stays affine in its own hidden state. 
+
+Definition F.24 (Stack of affine recurrences) . Split the hidden state into layers, H = Rd1 ×· · ·× Rds ,each carrying the norm induced by ∥·∥ . A map of H is layerwise affine if the new value of each layer is an affine function of the old value of that same layer, whose coefficients may depend, arbitrarily, on the old values of the layers below it and on nothing else; the coefficients of the bottom layer are constant. A stack of affine recurrences is a recurrence whose every Φx is layerwise affine. 
+
+Every stack of affine layers is of this form, whatever the maps between them (MLPs, normalizations, residual connections, input-dependent gates), because what a layer receives at a step is computed from the input symbol and from the layers below it. A causal convolution between layers fits as well, once its buffer is counted as a layer of its own. No continuity is assumed. The composite of two layerwise affine maps is layerwise affine, so every composite Φw of a stack is. 
+
+Theorem F.25 (Depth does not create capacity) . Let Ψ be layerwise affine, of any depth and any widths, and let η > 0. Then Ψ holds (Definition F.20) at most one set in any family of pairwise disjoint sets, so its robust capacity is zero in every region. Consequently, a stack of affine recurrences realizes with length independence at most a definite automaton, at any depth and any width. Proof. The proof is by induction on the number of layers. With one layer, Ψ is affine, and the proof of Proposition F.22(i) uses nothing but the fact that Ψ holds the set: Ψ has a unique fixed point, and every set that Ψ holds contains the open η-ball around it. Two held sets therefore meet. With more layers, suppose that Ψ held two disjoint sets. The bottom layer reads nothing above it, so it evolves on its own as a single affine map. A perturbation confined to the bottom layer is a perturbation of the whole hidden state of the same size, so this map holds the bottom-layer projection of each of the two sets, and by the one-layer case its fixed point lies in both projections. Now cut both sets at this fixed point: keep, from each set, the hidden states whose bottom layer sits exactly at the fixed point, and drop the bottom layer. The two slices are nonempty, since the fixed point lies in both projections; bounded, since the sets are; and disjoint, since a point common to both slices would, with the bottom layer added back, be common to the two sets. A hidden state whose bottom layer sits at the fixed point keeps it there, because the bottom layer does not read the layers above, so on such hidden states Ψ acts on the upper layers only. This action holds each slice: a perturbation of size at most η on the upper layers, with none on the bottom one, keeps the hidden state inside its held set, and leaves the bottom layer at the fixed point. With the bottom layer frozen, finally, the coefficients of the second layer are constant, so the action on the upper layers is layerwise affine with one layer fewer. It holds two disjoint slices, which the induction hypothesis excludes. Nonlinear maps between layers thus change which point each layer settles on, but give no layer a second one. For the consequence, suppose that a stack realizes a nondefinite target with length independence at η, with the cells of Theorem 3.2. By Lemma F.11, some word w acts on Q as an idempotent that is not constant, so it fixes two distinct states. Lifting equation 4 to words, as in the proof of Theorem 3.3, shows that Φw holds the cells of both states, which are disjoint. Since Φw is layerwise affine, this contradicts the first part. 33 Preprint. Under review. 34 
+
+F.4 THE SCAN BUDGET 
+
+Proposition 5.2 (The budget forces a finite reachable set) . If Φ is scan-representable with budget 
+
+(b, c ), then MΦ has at most 2b elements and, for every initial hidden state h0, so does the set 
+
+{Φw(h0) | w ∈ Σ∗} of reachable hidden states, h0 = Φ ε(h0) included. On these K ≤ 2b hidden states, MΦ acts as a submonoid of TK , the full transformation monoid on K elements. Proof of Proposition 5.2. The representation ζ is injective into {0, 1}b, so |MΦ| ≤ 2b. The map 
+
+Φw 7 → Φw(h0) sends MΦ onto the set of reachable states, h0 = Φ ε(h0) included, which therefore has K ≤ | MΦ| ≤ 2b elements. For the action, MΦ is closed under composition, since Φv ◦
+
+Φu = Φ uv , and contains the identity. The set of reachable states is invariant under every Φv , since 
+
+Φv (Φ w(h0)) = Φ wv (h0), so each element of MΦ restricts to a map of this K-element set into itself. Restriction preserves composition and the identity, so it is a monoid homomorphism from MΦ to 
+
+TK , and MΦ acts through its image, a submonoid of TK . This homomorphism need not be injective, since two maps of MΦ may agree on every reachable state. The argument uses only that MΦ is closed under composition and admits an injective b-bit repre-sentation, so it applies verbatim to the executed recurrence of Appendix D, with ˜Φx in place of Φx,as long as the merge is exact; a floating-point scan does not compose the executed maps, since its rounding depends on the shape of the tree. 
+
+Remark F.26 (Which map the attractors belong to) . Exact restoration splits each step in two. Define 
+
+R on V by R(h) := ak for h ∈ Vk, and let Ex be any map of the attractors into V with Ex(ak) ∈
+
+Vσx(k). Then Φx = R ◦ Ex ◦ R for every x and every such Ex. The map R does not depend on the symbol, so it is the restoring organ of Section 3, and Ex is the executive organ: it only needs to land in the right basin, and R does the rest. The inner R is what lets an executive defined on the attractors act on a whole basin, which is what (R3) asks for. For R, each ak is an attractor and Vk
+
+is its basin: R is idempotent, its fixed points are a1, . . . , a K , and every point of Vk reaches ak in one step and stays there. The map Φx itself fixes ak exactly when σx(k) = k; if σx is a cycle, the attractors form one attracting cycle of Φx. The case σx(k) = k is the multistable one of Section 4.2 and the hypothesis of Proposition F.21. In Section 6, R = rd and Ex(h) = θxh, which sends 1k
+
+to column k of θx, a point of Vσx(k); the outer rd restores this output and the inner one the stored state. 
+
+## G THE NFSM CONSTRUCTION IN DETAIL 
+
+A head as it runs holds its state as an attractor index and moves it by table lookups (Appendix G.1); the one-hot model of Section 6 carries each index k by the attractor ak = 1k, so that the theory, stated on a continuous state space, applies, and the two agree on every run (Appendix G.3). Until Appendix G.5, we describe a single head, drop its index i, and write d for its number of attractor indices, or indices for short. For a matrix θ, we write θjk := 1T 
+
+> j
+
+θ 1k for the entry in row j and column k.G.1 A HEAD AS IT RUNS 
+
+At step t, a learned affine map of the input xt, reshaped into a d × d matrix, gives the logits θxt , with 
+
+(θxt )jk scoring the move from index k to index j. The head reads off the table σxt of Section 6 and applies it to its current index: 
+
+σxt (k) := arg max 
+
+> j∈{ 1,...,d }
+
+(θxt )jk , kt = σxt (kt−1), (12) from a fixed initial index k0. Ties in an arg max are broken by a fixed arbitrary ordering of the indices, so every column has one largest entry, and the basins Vk of Section 6 partition Rd; exact ties between two logits are in any case very unlikely, and Proposition G.3 measures how far a column sits from one. The output of the head at step t is a learned value vector attached to the index kt.The state is an index of ⌈log 2 d⌉ bits, and the only real numbers in a step are the logits and the value vectors. 34 Preprint. Under review. 35 
+
+G.2 THE TABLES , AND THEIR BUDGET 
+
+Proposition G.1 (Every table, at a linear merge) . (i) For every τ ∈ Td there are logits with σx = τ ,so the tables of a head range over the full transformation monoid Td, the largest transition monoid on d indices. (ii) A head is scan-representable with b = d⌈log 2 d⌉ and c = O(d). This is at most a factor ⌈log 2 d⌉/ log 2 d = 1 + o(1) above ⌈log 2 |Td|⌉ = ⌈d log 2 d⌉, the fewest bits that can name every element of Td, against Θ( d2) numbers and Θ( d3) operations for a dense real transition matrix. Composites of tables are tables, so the scan returns exactly the sequential trajectory, whatever the shape of its tree. Proof. (i) Take (θx)jk := 1 if j = τ (k) and 0 otherwise. 
+
+(ii) An element of Td is the list (τ (1) , . . . , τ (d)) of d indices of ⌈log 2 d⌉ bits each, which gives b.The composite τ ′ ◦ τ is obtained by the d lookups k 7 → τ ′(τ (k)) , which gives c; composition is associative with the identity table as unit, so Definition 5.1 is met. Since |Td| = dd, naming every element needs ⌈d log 2 d⌉ ≥ d log 2 d bits, whence the factor. Every merge is an exact operation on integers, so the composite returned by the scan equals the sequential one, and so does every index. G.3 THE ONE -HOT MODEL 
+
+The one-hot model sets Φx(h) := rd( θxrd( h)) on Rd (Section 6). Write Px for the column one-hot matrix of σx, whose column k is 1σx(k); then Φx = Px ◦ rd , and, since rd( h) = 1k on the basin Vk,
+
+Φx(h) = 1σx(k) for every h ∈ Vk. (13) By induction, the trajectory of the model from 1k0 is the run equation 12 carried by its attractors, step for step. Every statement about such trajectories, including correctness at every length, is therefore a statement about the running head. The perturbations of Definition 2.1 act on the model only, and the next proposition shows that a head tolerates them in any norm. 
+
+Proposition G.2 (One head realizes any automaton on at most d states) . (i) For every choice of the logits, every x ∈ Σ and every index k, Φx(Vk) = {aσx(k)}: the head is exactly restoring on Rd in the sense of Section 5, with attractors ak, basins Vk and tables σx. (ii) There is η0 > 0, depending only on d and on the norm, such that for every 0 < η < η 0 and every k, the ball ak ⊕ ¯Bη lies in the set Dk of points whose largest coordinate is unique and equal to the k-th. In particular, these balls lie in their basins and are pairwise disjoint. (iii) Let n ≤ d, number the states Q = {1, . . . , n }, and take ι(q) := 1q and π(h) := arg max q∈Q 1T 
+
+> q
+
+h, as in Section 6. For 0 < η < η 0, let Uq := ι(q) ⊕ ¯Bη
+
+and U := F 
+
+> q∈Q
+
+Uq . Then (R1) holds, (R2) holds whenever σx(Q) ⊆ Q for every x ∈ Σ, and (R3) holds if and only if σx(q) = δx(q) for every x ∈ Σ and q ∈ Q, that is, if and only if the largest entry of column q of θx sits in row δx(q), for every q and x. In that case the head realizes the target with length independence at η. Such logits exist for every automaton on n ≤ d states. Proof. (i) This is equation 13. 
+
+(ii) The set Dk := {u | 1T 
+
+> k
+
+u > 1T 
+
+> j
+
+u for every j̸ = k} is open, contains 1k, and lies in Vk, and 
+
+Dk ∩ Dk′ = ∅ for k̸ = k′. Since there are finitely many indices, there is η0 > 0 such that 
+
+1k ⊕ ¯Bη ⊆ Dk for every k and every η < η 0, and the balls are disjoint because the sets Dk are. 
+
+(iii) (R1) is π(ι(q)) = arg max q′∈Q 1T 
+
+> q′
+
+1q = q. Let u ∈ Uq and ∥e∥ ≤ η. By (ii), u ∈ Vq , so 
+
+Φx(u) = 1σx(q) by (i). If σx(q) ∈ Q, then Φx(u) + e ∈ Uσx(q) ⊆ U ; hence Φx(U ) ⊕ ¯Bη ⊆ U
+
+whenever σx(Q) ⊆ Q, and U is bounded: this is (R2). In that case, Φx(u) + e also lies in Dσx(q)
+
+by (ii), so π(Φ x(u) + e) = σx(q), and (R3) at (x, q ) holds if and only if σx(q) = δx(q). If instead 
+
+σx(q) = k / ∈ Q, every coordinate of 1k indexed by Q vanishes, so for any q′ ∈ Q the perturbation 
+
+e := t 1q′ , with t > 0 small enough that ∥e∥ ≤ η, gives π(Φ x(u) + e) = q′; since n ≥ 2,some q′̸ = δx(q) violates (R3). Hence (R3) holds if and only if σx = δx on Q, which also gives 
+
+σx(Q) ⊆ Q, hence (R2). If σx = δx on Q for every x, Theorem 3.1 turns (R1) to (R3) into realization with length inde-pendence. The logits of Proposition G.1(i), with τ any table of Td that agrees with δx on Q, give 
+
+σx = δx on Q, and neither η0 nor this choice depends on the length of the word, on Σ, or on the target. 35 Preprint. Under review. 36 
+
+G.4 THE PERTURBATIONS CAN AFFECT THE LOGITS 
+
+For a running head, the per-step error et = ht − Φxt (ht−1) of Appendix D, read through the one-hot model, takes only two kinds of values. If the table of step t is computed correctly, et = 0 
+
+exactly, since the state is an index and a step is a gather. Otherwise et is the difference of two distinct attractors, a wrong table entry rather than a small deviation. What finite precision, quantized weights, or an imperfectly learned map can perturb is the logit matrix θxt , which is computed from the input alone, and that perturbation changes the table only if it reorders a column. 
+
+Proposition G.3 (Logit margin) . Let θ ∈ Rd×d have a unique largest entry in every column, with table σ, and write 
+
+γ(θ) := min 
+
+> k
+
+
+
+θσ(k)k − max   
+
+> j̸=σ(k)
+
+θjk 
+
+
+
+> 0
+
+for its smallest column margin. If max j,k |∆jk | < γ (θ)/2, then θ + ∆ has the same table σ.Consequently, if at every step every entry of θxt is perturbed by less than γ(θxt )/2, the executed tables and indices equal the exact ones at every step, for every word. Proof. Fix a column k and j̸ = σ(k), and write γ := γ(θ). Then 
+
+(θ + ∆) σ(k)k > θ σ(k)k − γ 
+
+> 2
+
+≥ θjk + γ 
+
+> 2
+
+> (θ + ∆) jk ,
+
+so the largest entry of column k is still in row σ(k). For the second claim, argue by induction on t:both runs start from k0, and if they share kt−1 they share the table at step t, hence kt by equation 12. Nothing is carried from one step to the next, because the logits read xt and not the state. G.5 MANY HEADS 
+
+The block holds r heads: head i has its own attractor indices {1, . . . , d i}, its own logits θ(i) 
+
+> xt
+
+∈ Rdi×di
+
+computed from the same input, and its own arg max . The heads update independently, so the joint index, the tuple of the indices of the heads, lies in Q
+
+> i
+
+{1, . . . , d i}, and the budgets add: 
+
+b =
+
+> r
+
+X
+
+> i=1
+
+di⌈log 2 di⌉, c = O
+
+ rX
+
+> i=1
+
+di
+
+
+
+, state =
+
+> r
+
+X
+
+> i=1
+
+⌈log 2 di⌉ bits , logits =
+
+> r
+
+X
+
+> i=1
+
+d2 
+
+> i
+
+.
+
+(14) Each index of head i owns a value vector, head i emits the vector of the index it occupies, the r
+
+vectors are concatenated, and one shared projection maps them back to the model width. The block step applies the heads side by side, Φx(h) =  Φ(1)  
+
+> x
+
+(h(1) ), . . . , Φ(r) 
+
+> x
+
+(h(r)) on H =
+
+Q 
+
+> i
+
+Rdi . By Proposition G.2(i) applied to each head, it is exactly restoring in the sense of Section 5 for every value of the logits: its attractors are the tuples of attractors of the heads, indexed by the joint indices (k(1) , . . . , k (r)), and the tables of the heads act on the joint indices component by component. Realization maps the automaton states injectively into the joint indices by χ = ( χ1, . . . , χ r ), with 
+
+ι(q) =  1χ1(q), . . . , 1χr (q)
+
+, and π reads in every head the index of the basin that contains h(i), and inverts χ. Heads that update independently can only carry a target whose transitions act on each head separately. 
+
+Proposition G.4 (Heads combine as a direct product) . (i) The joint tables of r heads form a sub-monoid of the direct product Q 
+
+> i
+
+Tdi , within the budget equation 14. (ii) Let χ = ( χ1, . . . , χ r ) : 
+
+Q ,→ Q
+
+> i
+
+{1, . . . , d i} be injective, with ι and π as above. If σ(i) 
+
+> x
+
+◦ χi = χi ◦ δx for every 
+
+x ∈ Σ and every i, the block realizes the target with length independence at every η below some 
+
+η0 > 0. Such tables exist if and only if every symbol acts head by head: χi(q) = χi(q′) implies 
+
+χi(δx(q)) = χi(δx(q′)) , for every x, i, q and q′.Proof. (i) The table of each head depends on the input alone, so the joint step, and every composite of joint steps, acts head by head; the budget is Proposition G.1(ii) summed over heads. 
+
+(ii) The set of points whose arg max in each head is unique and spells χ(q) is open, contains ι(q),and does not meet the corresponding set of any q′̸ = q, because χ is injective. As in the proof of Proposition G.2, some η0 > 0 keeps every ball of radius η < η 0 around a code point inside its set, and head i maps that ball onto 1σ(i)  
+
+> x(χi(q))
+
+= 1χi(δx(q)) , so a step maps the cell of q onto 36 Preprint. Under review. 37 
+
+the code point of δx(q). Hence (R1) to (R3) hold on the union of these balls, which is bounded, and Theorem 3.1 gives realization with length independence. For the last claim, the condition is necessary, since χi(δx(q)) = σ(i) 
+
+> x
+
+(χi(q)) depends on q through χi(q) only. It is sufficient, since it defines σ(i) 
+
+> x
+
+on χi(Q) by σ(i) 
+
+> x
+
+(χi(q)) := χi(δx(q)) ; any extension to the other indices is a table, attainable by Proposition G.1(i). 
+
+Remark G.5 (Direct products within a block, cascades across layers) . Proposition G.4 covers heads that run side by side, none reading the index of another. In a cascade, as in the wreath products of the Krohn–Rhodes decomposition (Krohn & Rhodes, 1965), the table of one component depends on the current index of another. Inside a single block, a cascade is still a table on the joint indices, and hence still scannable, but only at the budget of that joint space of Q 
+
+> i
+
+di indices, not at equation 14. Stacking layers builds a cascade without that cost. The logits of a layer are computed from the output of the layer below, which is the readout of its current index, so the tables of the upper layer depend on the index of the lower one, while each layer is still scanned at its own budget, one layer after the other. One difference with the cascades of Krohn–Rhodes matters. There, a component is updated from the previous state of the components below it and the symbol; here, a layer reads the 
+
+updated index of the layer below at the same step. The two coincide when the lower transition is injective, as for groups, since the previous lower index is then determined by the updated one and the symbol. They differ when it is not: after a reset, the updated index no longer tells which index the lower layer came from. A causal convolution of width 2 before each layer restores this information, since it lets a layer read the output of the layer below at the previous step as well. This is how the stack of NFSM layers operates on TSO (Section 7). 
+
+Proposition G.6 (Stacked layers realize cascades) . Consider a stack of s NFSM layers, layer ℓ
+
+having joint indices Sℓ = Q
+
+> i
+
+{1, . . . , d (ℓ) 
+
+> i
+
+} over its heads, and suppose that the logits of layer ℓ
+
+at step t are computed from the symbol xt and from the indices of the layers below it at the same step. (i) The joint index (k(1)  
+
+> t
+
+, . . . , k (s) 
+
+> t
+
+) follows a table on Q 
+
+> ℓ
+
+Sℓ that depends on the symbol alone, so the stack runs on indices, and every composite of its steps is again such a table. (ii) Suppose that the logits of each layer can be chosen as any function of the symbol and of the indices of the layers below. Let χ = ( χ1, . . . , χ s) : Q , → Q 
+
+> ℓ
+
+Sℓ be injective, write χℓ = ( χℓ, 1, . . . , χ ℓ,r ℓ ) for its components over the rℓ heads of layer ℓ, and χ<ℓ := ( χ1, . . . , χ ℓ−1). Suppose that every symbol acts on each head from that head and the updated layers below it: for every x, ℓ and i there is τ (ℓ,i )
+
+> x
+
+with 
+
+χℓ,i (δx(q)) = τ (ℓ,i )
+
+> x
+
+ χ<ℓ (δx(q)) , χ ℓ,i (q) for every q ∈ Q. 
+
+Then there are logits for which the stack realizes the target with length independence at every η
+
+below some η0 > 0. (iii) Layer ℓ is scanned once the indices of the layers below are known, so the layers are scanned one after the other, each at its own budget equation 14, for a total depth 
+
+O(s log L).Proof. (i) Fix x. The table of layer 1 depends on x alone, so k(1)  
+
+> t
+
+is a function of (x, k (1) 
+
+> t−1
+
+); induc-tively, the logits of layer ℓ are a function of x and of k(1)  
+
+> t
+
+, . . . , k (ℓ−1)  
+
+> t
+
+, themselves functions of x and of the previous joint index, so k(ℓ) 
+
+> t
+
+is a function of x and of the previous joint index. The joint step is therefore an element of T| Q  
+
+> ℓSℓ|
+
+indexed by x, and composites of tables are tables (Proposition G.1). 
+
+(ii) For every symbol x, layer ℓ, head i and tuple κ of indices of the layers below, choose logits whose table σ(ℓ,i ) 
+
+> x,κ
+
+agrees with τ (ℓ,i ) 
+
+> x
+
+(κ, ·) wherever the latter is defined and is arbitrary elsewhere; such log-its exist by Proposition G.1(i), and the choice is allowed because the logits may depend arbitrarily on (x, κ ). In the one-hot model on Q
+
+> ℓ
+
+Q 
+
+> i
+
+Rd(ℓ) 
+
+> i
+
+, encode q by the tuple of attractors of χ(q) and decode a point whose arg max in each head spells χ(q) as q. As in the proof of Proposition G.4, these sets are open, pairwise disjoint because χ is injective, and some η0 > 0 keeps every ball of radius η < η 0 around a code point inside its set. Let u lie in the ball around ι(q). Every head of layer 1 reads its index χ1,i (q) and moves it to τ (1 ,i ) 
+
+> x
+
+(χ1,i (q)) = χ1,i (δx(q)) . Inductively, once the layers below ℓ have moved to χ<ℓ (δx(q)) , the heads of layer ℓ read this tuple, hence apply the tables 
+
+τ (ℓ,i ) 
+
+> x
+
+(χ<ℓ (δx(q)) , ·), and move from χℓ,i (q) to χℓ,i (δx(q)) . The joint step therefore maps the cell of q onto the code point of δx(q). Hence (R1) to (R3) hold on the union of these balls, which is bounded, and Theorem 3.1 gives realization with length independence. (iii) The tables of layer ℓ are determined once its inputs are, which are the symbols and the indices of the layers below; scanning 37 Preprint. Under review. 38 
+
+the layers in order therefore costs s scans, each of depth O(log L) and at the budget equation 14 of its layer. 
+
+Example G.7 (A running product in Sn). Let the state be the running product g1 · · · gt of permu-tations of {1, . . . , n }, so |Q| = n!, and one head on Q costs b = n!⌈log 2 n!⌉ bits and (n!) 2 logits. Encode the product instead by the images of the points 1, . . . , n − 1, χi(g) := i · g, with one head of 
+
+n indices per point: each head is a channel that carries where its point has been sent, and the n − 1
+
+channels together carry the product. A permutation is fixed by its values on n − 1 points, so χ is injective, and reading gt sends every head from index j to j·gt, the same table for every head. Propo-sition G.4(ii) applies with r = n − 1 heads that may share one logit matrix: b = ( n − 1) n⌈log 2 n⌉
+
+bits and n2 logits. For n = 5 this is 60 bits and 25 logits, against 840 bits and 14400 logits for one head of 120 indices. 
+
+G.6 THE GRADIENT ESTIMATOR 
+
+The arg max in equation 12 has zero derivative wherever it is defined, so the logits receive no gradient as written. We train with the straight-through Gumbel-softmax estimator (Jang et al., 2017), and the forward pass stays on indices throughout. We describe one head. 
+
+Forward pass. During training, the logits are scaled by a sampling temperature ν, uxt := θxt /ν ,one independent standard Gumbel variable (Gt)jk is drawn per entry, and the table is σt(k) := arg max j (uxt + Gt)jk . At test time the Gumbel variables are removed and the table is σxt of equation 12. A sampled table is still an element of Td, so parts (i) and (ii) of Proposition G.2 hold at every training step. 
+
+Backward pass. Let ¯gt(k) be the first-order effect on the loss of reading out index k at step t,obtained from the value vectors. The effect of being at index k at step t, counting all later steps, is the adjoint 
+
+λt(k) = ¯ gt(k) + λt+1 
+
+ σt+1 (k),
+
+which is backpropagation through ht = Ptht−1, the one-hot model on its attractors, with Pt the column one-hot matrix of σt; it is computed with gathers, itself by a reverse parallel scan. At step t,only the column k = kt−1 that the run actually used receives a gradient: with λt read as the vector 
+
+(λt(1) , . . . , λ t(d)) and p := softmax  (uxt + Gt)1k
+
+, the surrogate gradient with respect to that column of uxt is p ⊙ (λt − ⟨ p, λ t⟩), the softmax Jacobian applied to λt, and dividing by ν gives the gradient with respect to θxt . The one-hot model is thus what the backward pass differentiates, although no one-hot vector is ever formed. We think that a custom kernel that implements the forward and backward passes of this estimator, with the parallel scan for the adjoint, could drastically reduce the memory and time cost of training. One observation is that the block itself is not compute-bound but rather bandwidth-bound. We left such optimization for future work. Another direction could draw on the dictionary of PD-SSM (Appendix H.2) to reduce the memory footprint. Instead of computing all d2 logits of θx
+
+from the input, a head would learn nΘ logit matrices Θ1, . . . , ΘnΘ and compute only the mixture weights ωx ∈ RnΘ , with θx = P
+
+> ℓ
+
+(ωx)ℓ Θℓ. The projection would then have O(mn Θ + nΘd2)
+
+parameters instead of O(md 2), and the backward pass would store nΘ weights per step rather than 
+
+d2 logits, recomputing only the column it uses. The table remains the column-wise arg max of θx,so Proposition G.2 still applies. The current implementation is available following the interactive notebook whose URL is in the introduction. 
+
+## H EXPERIMENTS 
+
+H.1 TASKS 
+
+Every task is a semiautomaton (Q, Σ, δ ) with a start state q0. A sequence is a random word x1 · · · xL,and the target at every position t is the state δx1··· xt (q0). Targets are computed exactly, by a scan over the tables of δ.
+
+Algebraic tasks. Each algebraic task is the word problem of a finite monoid M with generators Σ.The states are the elements of M , q0 is the identity, and a letter x maps q to x ◦ q, so the target is the 38 Preprint. Under review. 39 
+
+running composite of the letters. Letters are drawn uniformly unless stated otherwise. Table 4 lists the tasks. Table 4: Algebraic tasks. |Q| is the number of reachable states, the order of the monoid.                                             
+
+> Task Monoid Letters |Σ||Q|
+> Z2cyclic group residues 0,122
+> Z16 cyclic group residues 0, . . . , 15 16 16
+> S3symmetric group adjacent transpositions (i i +1) 26
+> S4symmetric group adjacent transpositions (i i +1) 324
+> A5alternating group adjacent 3-cycles (i i +1 i+2) 360
+> M11 Mathieu group a, b, a −1, b −147920 DFF 5flip-flop monoid identity, reset, set 33
+> FF flip-flop monoid identity, reset, set 33
+
+The Mathieu group. M11 is generated by two permutations of {0, . . . , 10 },
+
+a = (0 1 2 3 4 5 6 7 8 9 10) , b = (2 6 10 7)(3 9 4 5) ,
+
+and has order 7920 . Like A5, it is simple and nonsolvable. 
+
+The flip-flops. The flip-flop monoid acts on {0, 1} through three maps: the identity, reset (constant 
+
+0) and set (constant 1). The target is the identity until the first reset or set, and then the last of them. The two tasks differ only in how letters are drawn. In DFF 5, letters are uniform, except that four identities in a row are always followed by a reset or a set; the target is then a function of the last five letters, and the drawn words are definite. In FF, a letter is a reset or a set with probability 0.1, and the identity otherwise. Runs of identities have unbounded length, with mean 9, so the target depends on arbitrarily old letters and the drawn words are not. The length sweep draws FF with an identity probability of 0.99 instead, so that runs of identities have mean length 99 . The test sequences are then long and their information sparse: the target must be held across long runs of identities, which strengthens the dependence on old letters. 
+
+Tracking Shuffled Objects. TSO N is adapted from the task of Srivastava et al. (2023). It involves 
+
+N ∈ { 3, 4, 5} people (alice, bob, charlie, dana, eve) and as many items (ring, key, coin, stamp, card). Every word and punctuation mark is one token, for a vocabulary of 2N + 7 tokens. A sequence is made of sentences of five tokens, in three parts: 1. a preamble of N sentences, one per person in order, that assigns the items at random: alice has the key . ;2. swap sentences, each between a uniformly drawn pair of distinct people: bob swaps with alice . ;3. a question about a uniformly drawn item, who has the key ? , whose answer, the current holder of that item, is predicted at the last token. When the length is not a multiple of 5, extra “.” tokens are inserted after randomly chosen sentences, at most one per sentence, so that every length is built from the same local patterns. The underlying automaton reads one token at a time. Its state is a pair (p, g ): p is either idle or the first name of the sentence in progress, and g maps every item to its holder, or to “unset” before the preamble names it. A name read in the idle state is stored in p. A second name swaps the items of the two people and makes p idle again. An item closes a sentence p has the item , assigning it to 
+
+p. Every other token leaves the state unchanged, so the question does not modify it. From the start state, with p idle and every item unset, the grammar reaches 44 , 202 and 1132 states for N = 3 , 4, 5.The target at every token is this state, and the answer at the last token is a function of the state and of the asked item. Answering the question is not state tracking in itself: the answer depends on the asked item, which is not part of the state. The last token is “?” and the item is the token before it, so the causal convolution before a higher layer lets its update at “?” depend on the item, and the final MLP reads the answer off the states of all layers. The question thus tests whether the tracked state can be used, not only whether it is kept. 39 Preprint. Under review. 40 
+
+H.2 BASELINES 
+
+All three baselines are affine in the state: ht = Atht−1 + bt, where At and bt depend only on the input ut of the layer. A parallel scan evaluates them with the merge (A2, b 2) ◦ (A1, b 1) = (A2A1, A 2b1 + b2), and each baseline keeps At in a class closed under products, so that a merge stays cheap. Each takes the place of the NFSM in the same backbone (Appendix H.3). The class of 
+
+At is what sets them apart, and it places them on different branches of Theorem 4.1. 
+
+Mamba −. This is the Mamba block (Gu & Dao, 2024), with the eigenvalues extended to negative values (Grazzi et al., 2025). The inputs ut ∈ Rd and zt ∈ Rd are two linear projections of the layer input, ut followed by a SiLU. The state has d channels of dstate entries, and each entry evolves on its own: 
+
+ht[i, j ] = at[i, j ] ht−1[i, j ] + ∆ t[i] Bt[j] ut[i], at[i, j ] = 2 exp  −∆t[i] eα[i,j ] − 1,
+
+with step sizes ∆t = softplus( W∆ut + b∆), vectors Bt, C t ∈ Rdstate linear in ut, and learned 
+
+α ∈ Rd×dstate . The output is yt[i] =  P  
+
+> j
+
+Ct[j] ht[i, j ] + D[i] ut[i] SiLU( zt[i]) , followed by a linear projection. Since ∆t > 0, every at[i, j ] lies in (−1, 1) , so Mamba − is on the contracting branch, ρ < 1. We remove the causal convolution of the original block, so that all models receive the same input. 
+
+AUSSM. The adaptive unitary SSM (Karuvally et al., 2025) uses the same block with a complex state and eigenvalues of unit modulus: 
+
+ht[i, j ] = ei ϕt[i,j ] ht−1[i, j ] + ∆ t[i] B[j] ut[i],
+
+where the phases ϕt ∈ Rd×dstate are linear in ut, and B, C ∈ Cdstate are learned but do not depend on the input. The readout takes the real part, Re P 
+
+> j
+
+C[j] ht[i, j ], and the rest of the block is as for Mamba −. Every eigenvalue has modulus 1, so AUSSM is on the isometric branch, ρ = 1 .
+
+PD-SSM. PD-SSM (Terzi´ c et al., 2025) has a complex state ht ∈ CN and the transition 
+
+ht = PtDt ht−1 + bt, Mt =
+
+> nM
+
+X
+
+> k=1
+
+softmax( Wπ ut)[ k] Mk.
+
+Here Pt is the column-wise hardmax of Mt, a mixture of nM learned matrices Mk ∈ RN ×N , so each column of Pt is one-hot. Dt is diagonal with entries rt[j] ei ψt[j], whose moduli rt ∈ (0 , 1) N
+
+and phases ψt ∈ (0 , 2π)N are the sigmoid outputs of two small MLPs of ut, the second scaled by 2π.The drive bt is linear in ut, and the output is linear in (Re ht, Im ht) with a skip connection from ut.A product of two such matrices P D is again of this form, and a merge costs O(N ) operations. The hardmax is nonlinear, but it acts on the input and not on the state: it selects the matrix At = PtDt,and the step remains affine in ht−1. It does not restore the state. Each column of PtDt has a single nonzero entry, of modulus less than 1, so ρ(PtDt) < 1 and PD-SSM is on the contracting branch. The dictionary is trained through the softmax surrogate gradient of Terzi´ c et al. (2025). H.3 BACKBONE , TRAINING AND EVALUATION 
+
+Backbone. All models share one backbone of width m = 128 and differ only in the recurrent block. Tokens are embedded, passed through an MLP and a layer norm. Each layer then applies 
+
+h ← h + block(conv(LN( h))) followed by h ← h + MLP(LN( h)) , and a final layer norm, MLP and linear map give the logits. Every MLP is a gated linear unit with SiLU gate, hidden width 2m
+
+and dropout 0.1. On TSO, conv is a causal depthwise convolution of width 2 followed by a SiLU. On the algebraic tasks there is no convolution, so each block reads the current token alone. The baselines have four layers with a recurrent width of 256 : d = 256 channels with dstate = 16 for Mamba − and AUSSM, and N = 256 with nM = 16 dictionary matrices for PD-SSM. The NFSM has one layer on the algebraic tasks and two layers on TSO. On the algebraic tasks, the NFSM has a single head with one attractor index per element of the target for Z2, Z16 , DFF 5 and FF, and otherwise several heads that each track a quotient of the target and together separate its elements, that is, a map χ as in Appendix G.5: (3 , 2) attractor indices for S3, (4 , 3, 2) for S4, (5 , 12) for A5,and 4 heads of 11 attractor indices for M11 , which track the images of four points. On TSO N , the first layer has N + 1 heads and the second layer N heads, each of N + 1 attractor indices. 40 Preprint. Under review. 41 
+
+Loss. The loss is a cross-entropy on the state at every position, and on the answer at the last position for TSO. Two weights rescale the per-position terms. The first weight is a mask after the first error. For each training sequence, let t⋆ be the first position where the predicted state is wrong. Positions up to t⋆ have weight 1, and later positions have weight e−λ(t−t⋆) with λ = 3 . Once the state is wrong, the later predictions start from a wrong state, and their errors are consequences of the error at t⋆ rather than errors of their own. Supervising them at full weight would ask the model to reach correct states from a wrong one, which pulls the transitions away from the target. The mask concentrates the gradient on the first error, where a transition is actually wrong, and it moves along the sequence as training fixes earlier errors. The second weight is class balancing (especially for the DFF/FF and TSO). Each sequence contributes the weighted mean of its terms, and the loss is the mean over the batch. For the NFSM, a third term keeps the sampling exploratory at the first error. The Gumbel noise of Appendix G.6 tries other entries of a column only while the logits of that column are not much more spread than the noise. Once they are, the sampled entry is always the 
+
+arg max , and a wrong entry is no longer revisited. At the first error of each sequence, we therefore penalize the spread of the columns used there, beyond the standard deviation σG = π/ √6 of the Gumbel noise: 
+
+E(b) = 1
+
+r
+
+> r
+
+X
+
+> i=1
+
+relu 
+
+ s u(i) 
+
+> xt⋆
+
+1k(i)
+
+> t⋆−1
+
+
+
+σG
+
+− 1
+
+2
+
+,
+
+where s is the standard deviation over the entries of a column, u(i) = θ(i)/ν are the sampling logits of head i, and k(i) 
+
+> t⋆−1
+
+is its attractor index before the step, treated as a constant. E(b) = 0 for a sequence without error, and with several layers the term is averaged over layers. The full loss is 
+
+L = 1
+
+B
+
+> B
+
+X
+
+> b=1
+
+" P  
+
+> t
+
+w(b) 
+
+> t
+
+CE  q(b)
+
+> t
+
+P 
+
+> t
+
+w(b)
+
+> t
+
++ CE  a(b) + βs E(b)
+
+#
+
+, w(b) 
+
+> t
+
+= e−λ(t−t⋆)+ κq(b)
+
+> t
+
+,
+
+where CE( qt) is the cross-entropy of the state logits at position t, CE( a) that of the answer logits at the last position, on TSO only, and κq the class-balancing weight of state q. The coefficient 
+
+βs = 0 .03 decays by a cosine to 0.003 over the training steps s. The baselines use the same loss without E.Exploring the most effective learning strategy for the NFSM is beyond the scope of this work. Especially, we think that one could explore specific methods based on the finite-state nature of the model, for example by taking inspiratio from Bengio & Frasconi (1996). 
+
+Optimization. We use AdamW (Loshchilov & Hutter, 2019) with learning rate 10 −3, cosine-decayed to 10 −4, weight decay 10 −4 and gradient clipping at norm 1. The NFSM is trained with the estimator of Appendix G.6 at temperature ν = 0 .5. Batches contain 256 sequences of length 
+
+64 on the algebraic tasks, and 64 sequences of length 256 on TSO. Every 50 steps we measure the sequence accuracy on 512 fresh sequences ( 128 for M11 ). Training stops after 40 consecutive checks at accuracy 1 for the NFSM and 0.99 for the baselines, or after 10 5 steps, and we keep the checkpoint with the best validation accuracy. 
+
+Evaluation. Models are evaluated without dropout and, for the NFSM, without Gumbel noise. The predicted state at a position is the arg max of the state logits. The sequence accuracy is the fraction of sequences whose predicted states are correct at every position: 
+
+acc seq = 1
+
+B
+
+> B
+
+X
+
+> b=1
+> L
+
+Y
+
+> t=1
+
+Iˆq(b) 
+
+> t
+
+= q(b)
+
+> t
+
+,
+
+where q(b) 
+
+> t
+
+is the target state of sequence b at position t, and ˆq(b) 
+
+> t
+
+the prediction. A single wrong position makes the whole sequence count as wrong, so the measure does not dilute a late error over many correct positions. On TSO, the model also predicts, at the last token, which person holds the asked item. The question accuracy is the fraction of sequences whose predicted holder is correct: 
+
+acc qst = 1
+
+B
+
+> B
+
+X
+
+> b=1
+
+Iˆa(b) = a(b),
+
+with a(b) the true holder and ˆa(b) the arg max of the answer logits. It scores the task as a reader would: one answer per sequence, after a stream of arbitrary length. We report the sequence accuracy 41 Preprint. Under review. 42 
+
+on the algebraic tasks and the question accuracy on TSO. The failing length Lmax is the smallest swept length at which this accuracy falls below 1 for the NFSM and below 0.9 for the baselines. H.4 SEED -TO -SEED VARIABILITY 
+
+Table 5 complements Table 1 with the failing length of each of the five seeds. Where the baselines learn, their failing length varies across seeds. H.5 GEOMETRY OF THE RNN STATES OF THE AFFINE BASELINES 
+
+Theorem 4.1 is a statement about the state of a trained model, so we look at it. Figure 4 follows the recurrent state on Z5, a task we train separately for this figure, driven by the constant word (+1) T ,on which the five target states must stay apart forever. For each model, the state of the last recurrent layer is projected on its first two principal components, computed on that run alone, one point per step and colored by the target state at that step; the shaded regions are the decision regions of the classifier at the end of the backbone, read in the same plane, so a point is decoded correctly when its color matches its region. The three columns are three windows of the same run, at increasing time. The NFSM keeps five points, one per state, and the picture does not change from one window to the next: the run visits attractors, and restoration puts the state back on one of them at every step (Proposition G.2). The three affine baselines all lose this. Mamba − contracts: the five clusters collapse onto a single point, which lands on a cell boundary, so after roughly one hundred steps the readout no longer separates the states. This is the ρ < 1 branch, where forgetting the input also forgets the state. AUSSM shows the ρ = 1 branch: the clusters do not collapse onto one point, but they stop being separated, and the states that started apart end up interleaved within the same few cells. H.6 EXTRACTION OF THE TRANSITION TABLES 
+
+Because every NFSM step commits to a table entry, the tables a trained model executes can be read off its logits, and compared with the target entry by entry. This is a strength of the architecture: it turns the evaluation of length independence into a verification. Testing up to a length L only shows that the model is correct up to L, whereas tables that match the target show, by Proposition G.2, that it is correct on every word of every length. An affine recurrence offers nothing comparable, since it has no finite table to read. H.6.1 METHOD 
+
+The procedure applies when the input alphabet Σ is finite, and uses the model at test time, without Gumbel noise. 
+
+One layer, algebraic tasks. For each symbol x ∈ Σ, we pass x alone through the backbone up to the NFSM layer and read the logits θ(i) 
+
+> x
+
+of every head i. The column-wise arg max gives the table 
+
+σ(i) 
+
+> x
+
+∈ Tdi , that is, the state that head i moves to from each of its di states when it reads x. Repeating this for all |Σ| symbols gives every transition of the layer. 
+
+Convolutions and stacks. With a causal convolution of width k before each layer and several layers, as on TSO, the logits of a layer at step t depend on a window rather than on the current symbol: the last k tokens for the first layer, and for a higher layer the last k positions of the residual stream, which are functions of the tokens and of the states of the layers below (Remark G.5). Every window takes values in a finite set, so the method extends in principle: the tables of each layer can be extracted for every window that can occur, from the bottom layer upwards. A causal convolution only remembers its last k − 1 inputs, a finite amount of memory, so the stack remains a finite-state machine and its tables still describe it completely. The windows that can occur grow quickly with the number of layers and of objects, however, and we do not carry out this enumeration on TSO. Appendix H.6.3 instead inspects what the trained stack computes. 
+
+Matching with the target. The tables are indexed by the attractor indices of the heads, not by the states of the task. To relate the two, we explore the joint indices that the tables reach from the initial joint index s0 of the model, and assign a task state to each of them: q0 to s0, and, whenever σx
+
+42 Preprint. Under review. 43 
+
+sends a joint index assigned q to s′, δx(q) to s′. If no joint index is assigned two task states, this defines a map c from the reached joint indices to the task states, which satisfies c ◦ σx = δx ◦ c
+
+by construction; when c is a bijection, its inverse is the map χ of Appendix G.5. We check that no joint index is assigned two task states, and that for every reached joint index s and every symbol x,the readout of σx(s), after reading x, predicts δx(c(s)) . The model is then correct at every length: by induction on the length of the word, the joint index after reading w is σw(s0), its task state is 
+
+δw(q0), and its readout predicts this state. The exploration covers every reachable joint index and every symbol, so the check is exhaustive rather than sampled. 
+
+Beyond finite alphabets. When the inputs do not come from a finite alphabet, as with continuous features, the enumeration above is no longer possible. The state space is still finite, however, so a head can execute at most ddi 
+
+> i
+
+distinct tables, and the input space splits into finitely many regions on each of which the table is constant. Extracting the model then amounts to describing these regions, for example as conditions on the input such as membership in an extracted interval. We leave this to future work. H.6.2 ALGEBRAIC TASKS 
+
+We apply the method to the models of Table 1, for every algebraic task and all five seeds (Table 6). Every model passes the check: no joint index is assigned two task states, and the readout predicts the assigned state on every reached transition. By Proposition G.2, every model is therefore correct at every length, and the failing lengths ≥ L of Table 1 are certified beyond the tested lengths. The exploration reaches exactly one joint index per task state, so c is a bijection between the reached joint indices and the reachable states of the task, and its inverse is the map χ of Appendix G.5: the heads store the task state without redundancy. Every attractor index of every head is reached, and the joint indices that are never reached are exactly the combinations that the task cannot produce. On 
+
+M11 , for instance, the 4 heads of 11 attractor indices reach 7920 of the 11 4 = 14641 joint indices, one for each element of the group. Single-head models of S3, S4 and A5, with one head of 6, 24 
+
+and 60 attractor indices, pass the same check on all five seeds. 
+
+An example on S3. The extracted machines are small enough to read. Take the model of S3 with seed 42 , whose alphabet has the two transpositions x1 = (1 2) and x2 = (2 3) of {1, 2, 3}. Its first head has 3 states and its second head 2:
+
+σ(1)  
+
+> x1
+
+= (2 , 1, 3) , σ(1)  
+
+> x2
+
+= (1 , 3, 2) , σ(2)  
+
+> x1
+
+= σ(2)  
+
+> x2
+
+= (2 , 1) ,
+
+where each table lists the images of the attractor indices 1, 2, . . . in order. The first head applies each transposition to its index, and the second head flips at every symbol. The map c sends the joint index 
+
+(j, k ) to the permutation g with g(1) = j and sign (−1) k−1, which is unique in S3. The first head therefore tracks the image of the point 1 and the second head the sign of the permutation, and the two together determine it. This is the factorization announced in Appendix H.3: each head tracks a quotient of the target, and together the heads separate its elements. H.6.3 TRACKING SHUFFLED OBJECTS 
+
+On TSO, we do not certify the model by extraction (Appendix H.6.1). We instead show what a trained stack of two layers computes on TSO 4. Figure 5 follows the attractor index of every head, in both layers, as the model reads one stream. To interpret the heads, we map each attractor index of a head, over many streams, to the value it determines of a register of the task: the first name of the sentence in progress, or the holder of an item. The resulting interpretation is clear for the second layer. Each of its heads tracks the holder of one item exactly. It is unset until the preamble names its item, takes the holder at the item token, and then changes only at the second name of a swap that involves this holder. The question leaves it unchanged, so at the last token the head of the asked item holds the answer. The heads of the first layer have no clear interpretation when taken separately: none of them matches a single register. Together, however, they must build a parser. No head of the second layer tracks the first name of the sentence in progress, yet the second layer updates the holders at the right tokens, and the readout predicts the first name at every position. The first layer must therefore pass this information to the second layer, along with the current token. 43 Preprint. Under review. 44 
+
+H.7 WALL -CLOCK MEASUREMENTS 
+
+Sections 5 and 6 claim that the NFSM runs under a parallel scan whose merge is a gather (Proposi-tion G.1). We measure the cost of one layer of the NFSM and of the baselines of Section 7, Mamba −,AUSSM and PD-SSM, against the sequence length L and the state size d (Figure 6). 
+
+Setup. Each layer is timed alone: the embedding, the causal convolution of the backbone and the MLP are the same for all models and are left out. The NFSM has one head of d attractor indices, Mamba − and AUSSM have d channels with dstate = 16 , and PD-SSM has N = d. We vary L from 
+
+26 to 217 at d = 16 , and d from 2 to 256 at L = 2 12 . The inputs are batches of 16 sequences of Gaussian vectors of width 256 , in float32 (with complex64 states for AUSSM and PD-SSM). For each model, we compare the parallel scan with a sequential loop over time steps that computes the same layer. We time a training step, that is, the forward pass and the gradient of the mean squared output with respect to the parameters, including the Gumbel noise and surrogate gradient of the NFSM and the surrogate of PD-SSM. Every configuration runs on one NVIDIA A100 (80 GB). The step is compiled once, called 5 times to warm up, and timed over 10 synchronized calls. We report the median; compilation time is not included. 
+
+Chunked runs. By default, a layer processes the whole sequence at once. When a configuration does not fit in memory this way, we run it chunked : the sequence is split into consecutive blocks of C steps, the layer processes one block at a time and passes its last state on to the next block, and the backward pass recomputes the intermediate quantities of each block instead of storing them for the whole sequence. The result is unchanged up to round-off (which is, once again, another source of perturbation introduced by an implementation choice), and memory is bounded by the size of a block instead of by L, but the blocks are processed one after the other, which costs time. They are circled in red in Figure 6. We emphasize that the chunked approach can be used to fit any configuration in memory, at the cost of time, and that the parallel scan is still used within each block. It was in practice used interchangeably with the unchunked approach during the training of the models depending on the available memory. 
+
+Memory. The peak memory in Figure 6 (bottom) is approximate and should be read with care. The panel shows orders of magnitude and trends, not exact footprints. 
+
+Results. Against the length. The parallel scan is faster than the sequential loop at every measured length, and the gap widens with L. At d = 16 , the NFSM is also the fastest of the four at every length. Against the state size. At L = 2 12 , the NFSM is the fastest model from d = 4 to d = 64 .It grows faster with d than the two diagonal models, since it computes d2 logits at every step. It remains faster than PD-SSM, which also computes a d × d matrix at every step, at every state size we measure. In practice, some architecture have already been optimized for speed and memory by the field, and custom kernels exist for them. We did not used them in our measurements, and we agree on the fact that this is not a fair comparison on deployment. The message of this experiment is not that some models are faster than others, but that the NFSM is compatible with a parallel scan and that it is fast and memory-efficient enough to be trained on long sequences; with scalings that are comparable to those of the baselines, it is a practical architecture. 
+
+44 Preprint. Under review. 45 
+
+Table 5: Seed-to-seed variability of the failing length. For each task and model, the failing length 
+
+Lmax of each of the five seeds, and the median and range [min; max] over the seeds that learned the task; the median is the value reported in Table 1. × marks a seed that did not learn the task; other notation as in Table 1. 
+
+Failing length Lmax per seed Task Model 42 43 44 45 46 Median Range 
+
+Z2 NFSM ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M [≥ 1M ; ≥ 1M ]Mamba — 4352 5176 326 655 ≥ 512 k 4352 [326 ; ≥ 512 k]AUSSM 274 115 144 101 151 144 [101 ; 274 ]PD-SSM 102 117 105 119 110 110 [102 ; 119 ]
+
+Z16 NFSM ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M [≥ 1M ; ≥ 1M ]Mamba — 78 91 83 87 × 85 [78 ; 91 ]AUSSM 110 108 145 135 142 135 [108 ; 145 ]PD-SSM 98 117 94 98 97 98 [94 ; 117 ]
+
+S3 NFSM ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M [≥ 1M ; ≥ 1M ]Mamba — 155 163 186 197 200 186 [155 ; 200 ]AUSSM 102 168 128 216 100 128 [100 ; 216 ]PD-SSM 130 89 133 139 149 133 [89 ; 149 ]
+
+S4 NFSM ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M [≥ 1M ; ≥ 1M ]Mamba — 103 × 113 92 107 105 [92 ; 113 ]AUSSM 103 83 83 89 98 89 [83 ; 103 ]PD-SSM 113 144 101 131 171 131 [101 ; 171 ]
+
+A5 NFSM ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M [≥ 1M ; ≥ 1M ]Mamba — × × × × × ×
+
+AUSSM 81 82 81 82 86 82 [81 ; 86 ]PD-SSM 187 179 288 189 141 187 [141 ; 288 ]
+
+M11 NFSM ≥ 32 k ≥ 32 k ≥ 32 k ≥ 32 k ≥ 32 k ≥ 32 k [≥ 32 k; ≥ 32 k]Mamba — × × × × × ×
+
+AUSSM × × × × × ×
+
+PD-SSM × × × × × ×
+
+DFF 5 NFSM ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M [≥ 1M ; ≥ 1M ]Mamba — ≥ 1M ≥ 1M ≥ 1M ≥ 512 k ≥ 512 k ≥ 1M [≥ 512 k; ≥ 1M ]AUSSM 102 120 93 96 87 96 [87 ; 120 ]PD-SSM ≥ 256 k ≥ 256 k ≥ 256 k ≥ 256 k ≥ 256 k ≥ 256 k [≥ 256 k; ≥ 256 k]FF NFSM ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M [≥ 1M ; ≥ 1M ]Mamba — 178 173 143 181 1738 178 [143 ; 1738 ]AUSSM 70 119 148 116 146 119 [70 ; 148 ]PD-SSM 192 105 133 115 169 133 [105 ; 192 ]
+
+TSO 3 NFSM ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M [≥ 1M ; ≥ 1M ]Mamba — 1583 × × 1420 × 1501 [1420 ; 1583 ]AUSSM × × × × × ×
+
+PD-SSM 358 575 363 286 503 363 [286 ; 575 ]
+
+TSO 4 NFSM ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M ≥ 1M [≥ 1M ; ≥ 1M ]Mamba — × × × × × ×
+
+AUSSM × × × × × ×
+
+PD-SSM × 1922 × × × 1922 [1922 ; 1922 ]
+
+TSO 5 NFSM ≥ 128 k ≥ 128 k ≥ 128 k ≥ 128 k ≥ 128 k ≥ 128 k [≥ 128 k; ≥ 128 k]Mamba — × × × × × ×
+
+AUSSM × × × × × ×
+
+PD-SSM × × × 321 × 321 [321 ; 321 ]
+
+45 Preprint. Under review. 46 NFSM ( B = 1)                        
+
+> t= 1 64 t= 65 128 t= 129 192
+> Mamba ( B = 2) AUSSM ( B = 2) PD-SSM ( B = 2)
+> 5under the constant word (+1) T, seed 46
+> ground truth s0output 0 ground truth s1output 1 ground truth s2output 2 ground truth s3output 3 ground truth s4output 4
+
+Figure 4: The state of a trained model on Z5 under the constant word (+1) T , seed 46 . Each row is a model, each column a window of the same run. Points are the recurrent state projected on its first two principal components, one per step, colored by the target state; the shaded regions are the decision regions of the classifier at the end of the backbone. B is the number of layers of the model. Table 6: Extraction on the algebraic tasks. For each task, the head sizes (di), the number of symbols |Σ|, the number Q
+
+i di of joint indices, the number of joint indices reached from the initial joint index, and the number of reachable task states. 
+
+Task Heads (di) |Σ| Joint indices Reached Task states 
+
+Z2 (2) 2 2 2 2
+
+Z16 (16) 16 16 16 16 
+
+S3 (3 , 2) 2 6 6 6
+
+S4 (4 , 3, 2) 3 24 24 24 
+
+A5 (5 , 12) 3 60 60 60 
+
+M11 (11 , 11 , 11 , 11) 4 14641 7920 7920 DFF 5 (3) 3 3 3 3
+
+FF (3) 3 3 3 3
+
+46 Preprint. Under review. 47 alice has the key .bob has the coin .charlie has the stamp .dana has the ring .alice swaps with charlie .bob swaps with dana .alice swaps with dana .charlie swaps with bob .charlie swaps with alice .who has the coin ?1 3 2 0 4 0 3 2 3 0 2 4 1 0 3 1 2 0 1 3 0 3 4 2 4 0 3 4 2 4 0 2 3 0 2 0 3 2 3head 1 4 2 0 2 3 4 2 1 2 3 4 0 3 2 1 2 1 3 2 1 3 2 3 4 1 2 3 4 1 4 2 3 4 2 head 2 4 3 2 0 1 2 0 3 2 0 3 2 4 3 0 2 3 2 4 1 2 0 1 3 2 3 2 4 2 0 1 3 2 0 1 4 3 2 0 3 1 3 head 3 4 2 1 2 1 2 0 3 2 3 2 1 2 4 0 4 1 3 2 0 3 2 1 0 3 2 0 3 2 0 3 2 0 head 4 0 1 0 4 3 2 1 3 2 3 2 3 2 1 0 3 2 3 2 4 3 2 4 3 2 3 2 3 2 3 2 1 3 2 3 1 3 head 5 layer 1 D B C Ahead 1: holder of ring A C Bhead 2: holder of key B D A Chead 3: holder of coin C A Dhead 4: holder of stamp layer 2 alice bob charlie dana idle / unset untracked: raw state 
+
+Figure 5: Attractor indices of the heads of a two-layer NFSM reading a TSO 4 stream. Each row is a head, each column a token of the stream. A head whose attractor indices determine a register of the task is colored by its value, a person or unset; the other heads show their raw index in gray. The box marks the question token, where the answer is read. 27 29 211 213 215 217 
+
+sequence length L
+
+10 0
+
+10 1
+
+10 2
+
+10 3
+
+> time per call (ms)
+
+21 22 23 24 25 26 27 28
+
+state size d
+
+27 29 211 213 215 217 
+
+sequence length L
+
+10 0
+
+10 1
+
+> peak memory (GB)
+
+NFSM Mamba — AUSSM PD-SSM parallel sequential chunked 
+
+Figure 6: Cost of one layer in a training step (forward and backward passes, batch of 16 , one A100). Top left: time per call against the sequence length L, at d = 16 ; solid lines are the parallel scan, dotted lines the sequential loop. Top right: time per call of the parallel scan against the state size d, at L = 2 12 . Bottom: peak memory of the parallel scan against L, at d = 16 ; this is an approximate measurement (see text). Points circled in red are chunked : the sequence is processed in consecutive blocks, which bounds memory at the cost of time. 47

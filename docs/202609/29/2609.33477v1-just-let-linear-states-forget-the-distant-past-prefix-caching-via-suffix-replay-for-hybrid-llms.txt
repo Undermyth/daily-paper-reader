@@ -1,0 +1,707 @@
+Title: Just Let Linear States Forget the Distant Past: Prefix Caching via Suffix Replay for Hybrid LLMs
+
+URL Source: https://arxiv.org/pdf/2609.33477v1
+
+Published Time: Tue, 29 Sep 2026 02:04:49 GMT
+
+Number of Pages: 15
+
+Markdown Content:
+# Just Let Linear States Forget the Distant Past: Prefix Caching via SuffixReplay for Hybrid LLMs 
+
+Yirui Liu ∗† 
+
+yiruiliu926@gmail.com 
+
+Institute of Artificial Intelligence, China Telecom (TeleAI) China 
+
+Ruoling Qi ∗
+
+qiruoling760@sjtu.edu.cn 
+
+Shanghai Jiao Tong University Institute of Artificial Intelligence, China Telecom (TeleAI) China 
+
+Xuaner Wu ∗
+
+xuanerwuu@gmail.com 
+
+Institute of Artificial Intelligence, China Telecom (TeleAI) China 
+
+Yuxin Jin 
+
+yuxinkim1007@gmail.com 
+
+Institute of Artificial Intelligence, China Telecom (TeleAI) China 
+
+Jian Chen 
+
+cjcobalt@icloud.com 
+
+Individual Researcher United States 
+
+Penghang Liu 
+
+penghangliu5365@gmail.com 
+
+Individual Researcher United States 
+
+Yafei Huang 
+
+huangyf24@mails.tsinghua.edu.cn 
+
+Tsinghua University Institute of Artificial Intelligence, China Telecom (TeleAI) China 
+
+Jiawei Shao 
+
+shaojw2@chinatelecom.cn 
+
+Institute of Artificial Intelligence, China Telecom (TeleAI) China 
+
+Xuelong Li †
+
+xuelong_li@ieee.org 
+
+Institute of Artificial Intelligence, China Telecom (TeleAI) China 
+
+Abstract 
+
+Hybrid LLMs interleave full-attention layers with linear-attention layers to reduce long-context inference cost, but this structure complicates prefix caching. Full-attention KV caches are token-addressable, whereas linear-attention lay-ers maintain recurrent states that cannot be rolled back to arbitrary prefix boundaries. Existing systems material-ize recurrent-state checkpoints, restricting prefix reuse to checkpoint-aligned positions. We present SuffixReplay, to our knowledge the first pre-fix caching system that enables hybrid LLMs to reuse cached prefixes at every cache-supported page boundary without materializing recurrent-state checkpoints. Our key insight, reflected in the title, is to just let linear states forget the dis-tant past . Modern linear-attention mechanisms use recurrent decay and gating to attenuate the influence of sufficiently old inputs. Therefore, instead of storing a recurrent-state checkpoint at every possible prefix boundary, SuffixReplay approximates the state at a matched boundary by replaying only a recent suffix of the layer’s input hidden states, which we retain as anchors. At the algorithmic level, SuffixRe-play combines layer-wise and token-wise anchor sparsity with a bounded replay budget to jointly control storage, computation, and quality. At the system level, it uses an 
+
+> ∗Equal contribution.
+> †Corresponding authors.
+
+independently managed anchor sidecar and a pipelined re-play path to overlap anchor movement and state reconstruc-tion with the native serving pipeline. We evaluate SuffixRe-play on three hybrid LLMs: OLMo-Hybrid-7B, Qwen3.5-4B, and Qwen3.6-27B-FP8. Across these models, SuffixReplay retains 91.4–100% of full-prefill quality on average across LongBench and RULER, while using only 0.36–0.51 × the amortized per-token storage of SGLang’s default 8192-token checkpoint cache. Integrated into SGLang, SuffixReplay reduces median TTFT by 15–70% on branching workloads, sustains 2.3–4.3 × SGLang’s throughput when the working set exceeds HBM, and matches SGLang on high-hit continu-ation traffic. 
+
+1 Introduction 
+
+LLM applications have evolved from single-turn instruction-following assistants [19] to richer workloads such as multi-turn dialogue [41], retrieval-augmented generation [10], tool-using agents [39], and multi-agent workflows [5, 35]. These workloads bring longer contexts, repeated invocations, and higher concurrency, making serving efficiency an increas-ingly important practical concern. To address these pressures, model designers and system designers have pursued com-plementary solutions in their respective domains. At the model level, hybrid architectures [12, 15, 16, 18, 22–24, 40] combine full-attention (FA) layers with linear-attention lay-ers, reducing the amount of quadratic FA computation re-quired for long-context inference. At the serving level, prefix caching [3, 4, 37, 42] reuses shared prefixes across requests to avoid redundant prefill.                                            
+
+> 1arXiv:2609.33477v1 [cs.AI] 27 Sep 2026 Liu, Qi, Wu, et al. cached tokens 12…j…n
+> FA layer 1 per-token KV
+> FA layer 2 per-token KV token pre fi x hit at j
+> (a) Full-attention model: per-token KV, pre fi x hits
+> cached tokens 12…j…n
+> FA layer per-token KV
+> Linear layer Snsingle state token pre fi x hit at j
+> Sj✗
+> (b) Hybrid model: linear layer keeps only S n, pre fi x misses
+> cached tokens 12…j…n
+> FA layer per-token KV
+> Linear layer SSSstate checkpoints token pre fi x hit at j
+> Sj✗
+> (c) Checkpointing: hits only at stored checkpoints
+> cached tokens 12…j…n
+> FA layer per-token KV
+> Linear layer S′ jk cached hidden →replay →S′ j
+> token pre fi x hit at j
+> (d) Suf fi xReplay (ours): replay cached hidden, hits at any j
+
+Figure 1. Prefix caching for FA-only and hybrid models. Hybrid models and prefix caching are two complemen-tary techniques. A natural question is whether they can be co-deployed to achieve greater overall serving efficiency. However, the standard prefix-caching abstraction is designed primarily for FA-only models and does not directly extend to hybrid architectures. In an FA model, the reusable state consists of token-indexed key-value (KV) caches, so the KV cache of a processed prefix can be retrieved and reused at the corresponding prefix boundary (Figure 1. a). In contrast, linear-attention layers summarize the processed prefix into recurrent states through in-place updates. Once such a state has advanced to a later position, it cannot be directly rolled back to represent an arbitrary earlier prefix (Figure 1. b). Existing approaches, including Marconi [20], Sparse Prefix Caching [26], and SGLang [42], reconcile this mismatch by materializing linear-attention state checkpoints at selected positions (Figure 1c). These approaches make hybrid pre-fix reuse possible, but fundamentally discretize prefix reuse: a shared token prefix is reusable only when its endpoint aligns with a materialized checkpoint. Increasing checkpoint density can mitigate this limitation. If a checkpoint were stored at every token, hybrid prefix caching would recover the token-level reuse granularity of FA-only models. How-ever, this approach is prohibitively expensive. For example, in Qwen3.5-4B, one linear-attention state checkpoint is ap-proximately 49 MiB, whereas the KV cache for one token is only about 32 KiB, making the checkpoint roughly 1,500 ×
+
+larger than a single-token KV entry. Dense checkpoints also increase the amount of state that must be written, trans-ferred, indexed, and managed. The resulting challenge is how to make hybrid prefix caching finer-grained without incurring the substantial storage and management cost of dense recurrent-state checkpoints. 
+
+Key Insight. Our goal is to make prefix reuse in hybrid LLMs as fine-grained as prefix caching in FA-only models: a matched prefix should be reusable at any cache-hit posi-tion supported by the cache. Rather than densifying linear-attention state checkpoints, we avoid storing these check-points altogether. Instead, we retain the inputs to the recur-rent updates and reconstruct the corresponding states on demand at the matched prefix boundary (Figure 1d). Our key insight is twofold, summarized by the paper’s title: just let linear states forget the distant past .First, given a sequence of input hidden states ℎ1, . . . , ℎ 𝑛 
+
+to a linear-attention layer, the state corresponding to any prefix position 𝑗 ∈ [ 1, 𝑛 ] is a deterministic function of the inputs consumed by that prefix: 
+
+𝑆 𝑗 = 𝑓 (ℎ1, . . . , ℎ 𝑗 ). (1) Thus, although 𝑆 𝑛 cannot be rolled back to 𝑆 𝑗 algebraically, the state at any prefix position can be reconstructed by re-playing the corresponding inputs. However, directly replay-ing the entire prefix requires O( 𝑗 ) computation, which grows with the cache-hit position and becomes prohibitive for long contexts. Second, modern linear-attention mechanisms progressively attenuate the contribution of distant inputs through recur-rent decay and erase gates. Thus, the contribution of earlier hidden states to 𝑆 𝑗 diminishes with their distance from posi-tion 𝑗 , allowing us to let the reconstructed state forget the distant past and approximate 𝑆 𝑗 by replaying only a recent suffix: 
+
+𝑆 𝑗 ≈ 𝑆 ′ 
+
+> 𝑗
+
+= 𝑓 (ℎ𝑗 −𝑘 +1, . . . , ℎ 𝑗 ). (2) If a relatively short suffix is sufficient to make 𝑆 ′ 
+
+> 𝑗
+
+a valid proxy for 𝑆 𝑗 , replay cost depends on the suffix length 𝑘 rather than on the full prefix length. This observation opens a new design space for fine-grained prefix reuse in hybrid LLMs while leaving the model itself unchanged. 
+
+Design Requirements. Suffix replay opens a new design space with three coupled costs. Storing the hidden states needed for replay incurs additional storage, replaying the suffix incurs computation, and approximating 𝑆 𝑗 with 𝑆 ′ 
+
+> 𝑗
+
+may affect end-to-end generation quality. We therefore design our system to satisfy the following three requirements: 
+
+R1: Preserving quality. The reconstructed state 𝑆 ′ 
+
+> 𝑗
+
+should serve as a sufficiently accurate proxy for the full state 𝑆 𝑗 to preserve end-to-end generation quality. Across LongBench and RULER, we target at least 90% of the quality achieved by full prefill on average. 
+
+> 2Just Let Linear States Forget the Distant Past
+
+R2: Bounding additional storage. Caching the inputs needed for replay should not simply replace the storage cost of linear-state checkpoints with an equivalent hidden-state cache. SGLang’s default hybrid-cache configuration stores one linear-state checkpoint every 8192 tokens. Thus, if 𝐵 ckpt 
+
+denotes the size of one checkpoint, its amortized additional storage is 𝐵 ckpt /8192 per token. We set this value as the upper bound for the additional storage of replay inputs: 
+
+𝐵 anchor ≤ 𝐵 ckpt 
+
+8192 . (3) This is a challenging target because it uses a sparse default checkpoint interval. In practice, supporting finer-grained reuse may require a smaller interval, such as 4096 tokens, which increases the native per-token checkpoint overhead and makes this storage target easier to satisfy. 
+
+R3: Maintaining serving performance. Replay should not offset the benefit of prefix caching. The resulting system should match or outperform SGLang’s native prefix-caching path in TTFT, throughput, and capacity under concurrent requests. 
+
+Our approach. We present SuffixReplay, to the best of our knowledge, the first prefix-caching system that gives hybrid LLMs the same prefix-reuse granularity as FA-only models. Through the co-design of the suffix-replay algorithm and its serving system, SuffixReplay reconstructs linear-attention states at every cache-supported page boundary without materializing recurrent-state checkpoints. At the algorithmic level, SuffixReplay combines suffix replay with layer-wise and token-wise sparse anchors to bound replay computation and additional storage. At the system level, SuffixReplay introduces an independently managed anchor sidecar and a replay-aware serving path that coordinates anchor writes, anchor fetching, replay, KV movement, and forward execution. We evaluate SuffixReplay on three hybrid LLMs: OLMo-Hybrid-7B, Qwen3.5-4B, and Qwen3.6-27B-FP8. With cal-ibrated replay budgets, OLMo-Hybrid-7B retains 95.9% of full-prefill quality on LongBench QA and 91.4% on RULER, while Qwen3.5-4B and Qwen3.6-27B-FP8 each exceed 99% on average on both benchmarks. Across the three models, Suf-fixReplay reduces the additional storage to 0.36–0.51 × that of SGLang’s native cache at its default 8192-token checkpoint interval. Integrated into SGLang and evaluated on Qwen3.5-4B and Qwen3.6-27B-FP8, SuffixReplay reduces median TTFT by 15–70% on workloads where requests branch from shared prefixes compared with SGLang’s native hybrid prefix cache, matches SGLang’s native cache on high-hit continua-tion traffic, and sustains 2.3–4.3 × its throughput when the working set exceeds HBM. These results demonstrate that SuffixReplay meets the three requirements above. 
+
+2 Background and Motivation 
+
+2.1 Hybrid LLMs and Linear Attention 
+
+Hybrid LLMs combine full-attention (FA) layers with linear-attention layers to reduce the cost of processing long con-texts. An FA layer represents a processed prefix with token-indexed key–value (KV) entries, while a linear-attention layer summarizes the prefix in a fixed-size recurrent state. Let ℎ𝑡 denote the hidden vector entering a linear-attention layer at token 𝑡 . The layer maintains a state 𝑆 𝑡 and updates it once per token: 
+
+𝑆 𝑡 = A𝑡 (𝑆 𝑡 −1) + 𝐵 𝑡 , 𝑆 0 = 0, (4) where A𝑡 is a linear transformation of the previous state and 𝐵 𝑡 is the write contributed by token 𝑡 . Both terms are computed from ℎ𝑡 : the keys, values, and gates used by the update are projections of the layer input. Different linear-attention mechanisms use different forms of A𝑡 . For example, Mamba2 uses a per-head decay, while Gated DeltaNet (GDN) combines decay with a rank-one erase operation [2, 36]. Unrolling Eq. (4) gives the state as a function of the layer inputs: 
+
+𝑆 𝑛 = 𝑓 (ℎ1, . . . , ℎ 𝑛 ) =
+
+> 𝑛
+
+∑︁ 
+
+> 𝑖 =1
+
+Φ𝑛,𝑖 (𝐵 𝑖 ) , Φ𝑛,𝑖 = A𝑛 ◦· · ·◦A 𝑖 +1.
+
+(5) The state is therefore a summary of the prefix, updated in place as new tokens arrive. Unlike the KV entries of an FA layer, it does not preserve a separately addressable value for every earlier position. 
+
+2.2 Prefix Caching and Reuse Boundaries 
+
+Long-context serving workloads repeatedly process shared prefixes in multi-turn conversations, retrieval-augmented generation, and tool-using agents. Prefix caching avoids this redundant prefill work by retaining the representation of a processed prefix and reusing it when a later request shares the same prefix [3, 4, 37, 42]. The reuse boundary is deter-mined by program execution: an agent may branch after a tool call, a program may create several continuations from an intermediate response, and a chat system may regenerate, edit, or retry from an earlier point [17, 33, 35, 38, 39, 41, 42]. The cache must therefore support whichever boundary a fu-ture prefix match reaches, rather than only positions selected when the original prefix was processed. For an FA-only model, this requirement follows naturally from its representation. If two requests share the first 𝑗 to-kens, the corresponding 𝑗 KV entries can be reused directly at that boundary. We call this property continuous prefix caching : reuse is available at every matched boundary sup-ported by the cache. In a paged prefix cache, these supported positions are the page boundaries. Hybrid models do not inherit this property directly. A token-level match identifies reusable KV entries, but the 
+
+> 3Liu, Qi, Wu, et al.
+
+corresponding linear-attention state may be unavailable be-cause the recurrence does not retain a separately addressable state at every earlier position. Existing systems address this mismatch by storing recurrent-state checkpoints, making a matched prefix reusable only when its boundary coincides with a stored checkpoint. Hybrid prefix caching is there-fore continuous for the FA layers but discrete for the linear-attention layers. 
+
+3 Challenges 
+
+Our goal is to provide fine-grained prefix reuse for hybrid LLMs without sacrificing significantly the quality, storage ef-ficiency, or serving performance of the native prefix-caching system. Achieving this goal requires an algorithm–system co-design. The algorithm must balance the additional state and computation introduced by suffix replay, while the serving system must integrate these costs with the existing KV-cache and inference pipeline. 
+
+3.1 Algorithm level challenge: Balancing Anchor Storage, Replay Cost, and Quality 
+
+Fine-grained prefix reuse requires reconstructing the linear-attention state at many possible cache-hit boundaries. A naive suffix replay algorithm would retain the hidden states needed to reconstruct the linear state at every token po-sition. This provides the desired reuse granularity, but its storage overhead is far beyond the budget of our design re-quirement R2 . As shown in Table 1, storing the inputs to all linear-attention layers for every token requires 20–28 ×
+
+more additional storage than SGLang’s native hybrid cache at its default 8192-token checkpoint interval. Reducing this storage is not an isolated compression prob-lem. Any reduction in the retained information changes the cost and fidelity of reconstruction. More aggressive com-pression reduces storage, but may require replaying a longer history to recover a sufficiently accurate linear-attention state. Longer replay increases computation and can add la-tency on every branching cache hit. The algorithmic challenge is therefore to jointly balance three coupled quantities—the storage required by the re-tained replay information, the computation required to re-construct a state at a cache hit, and the quality of the resulting generation. Otherwise, the system is forced to compensate for an overly expensive representation by adding more data movement or replay work to the serving critical path, violat-ing design requirements R1 –R3 .
+
+3.2 System level challenge: Integrating Replay with the Serving Pipeline 
+
+Even with an algorithmic tradeoff that meets the storage and quality targets, suffix replay introduces state and com-putation that are absent from a conventional prefix-cache hit. A hit now requires the system to obtain the retained hid-den states for replay, reconstruct the linear-attention state, 
+
+Table 1. Additional storage per token (KiB) on top of the KV cache. Appendix A derives both columns.             
+
+> Model SGlang@8192 Naive Ratio OLMo-7B 6.5 180 27.6 ×
+> Qwen3.5-4B 6.1 120 19.5 ×
+> Qwen3.6-27B-FP8 18.4 480 26.2 ×
+
+and coordinate that reconstruction with the KV cache and the forward pass that continues the request. These opera-tions interact with the serving system’s existing mechanisms for KV-page placement, transfer, eviction, scheduling, and batched inference. The system challenge is therefore to incor-porate replay into the native serving path without allowing its additional storage, data movement, and computation to dominate the benefits of prefix reuse. 
+
+4 SuffixReplay: Algorithm Design 
+
+The algorithmic challenge is to balance three coupled costs: the storage required for anchors, the computation required to reconstruct a linear-attention state, and the quality of the resulting generation. We address this challenge by designing replay as a bounded, serving-aware approximation rather than storing a complete state checkpoint for every possible cache-hit position. Our design exploits two forms of structure. First, hybrid models typically organize linear-attention layers into groups separated by full-attention layers. We exploit this struc-ture to store one layer-entry anchor per group rather than per linear-attention layer. Replay then executes only the linear-attention computation within each group and never replays full-attention layers, so its cost depends on the replay length rather than on the matched context length. Finally, restarting replay from a fresh group-entry anchor bounds approximation-error propagation to within each group, help-ing preserve reconstruction quality. Second, prefix-caching systems expose cache hits at page boundaries rather than at arbitrary token positions. Aligning anchors with this granu-larity avoids storing replay inputs for unsupported hit posi-tions while ensuring that every supported hit boundary has a valid reconstruction starting point. 
+
+4.1 Layer-wise Sparse Anchors 
+
+A naive representation stores the input hidden state of every linear-attention layer at every token position. This provides accurate reconstruction at each layer, but its storage grows with both model depth and sequence length. As shown in Table 1, this requires 20–28 × more additional storage than SGLang’s native hybrid cache across our three models. We reduce this cost by grouping consecutive linear-attention layers into independent replay blocks, as illustrated in Fig-ure 2. Grouping provides three benefits. First, storing one group-entry anchor instead of one anchor per linear-attention 
+
+> 4
+
+Just Let Linear States Forget the Distant Past Group 1 Group 2                                 
+
+> anchor A1 Linear 1 S′ j−k+1 …S′ j
+> Linear 2 S′ j−k+1 …S′ j
+> Linear 3 S′ j−k+1 …S′ j
+> Full attn 1 KV KV KV KV KV KV KV
+> anchor A2 Linear 4 S′ j−k+1 …S′ j
+> Linear 5 S′ j−k+1 …S′ j
+> Linear 6 S′ j−k+1 …S′ j
+> Full attn 2 KV KV KV KV KV KV KV
+
+××          
+
+> 12…j−k j−k+1 …jpre fi x, not replayed replayed suf fi x (k tokens)
+> cache hit at j
+> layers
+> anchor: cached hidden state linear layer, anchor replayed linear layer, anchor skipped 0000000 zero initial state
+
+Figure 2. Layer-wise sparse anchors. SuffixReplay stores the input hidden state at the entry of each group of con-secutive linear-attention layers. During replay, each group reconstructs its states independently from its group-entry anchor, without crossing the intervening full-attention lay-ers. layer reduces the layer-wise storage overhead from O( 𝐿 )
+
+to O( 𝐺 ). Second, replay executes only the linear-attention computation within each group and skips the full-attention layers, so its computation is determined by the replay length rather than by the length of the matched context. Third, each group restarts from its own stored entry state. Al-though reconstruction errors may propagate through the linear-attention layers within a group, they do not propa-gate across group boundaries or accumulate through the full model depth. 
+
+4.2 Token-wise Sparse Anchors 
+
+Storing a group-entry anchor at every token can still exceed the storage budget. We therefore retain anchors at only a subset of token positions, aligned with the page boundaries exposed by the prefix-cache engine. This reduces the average storage per token while preserving the reuse granularity supported by the serving system. With anchor density 𝜌 =
+
+1/16, the resulting storage is 0.50 ×, 0.36 ×, and 0.51 × that of SGLang’s cache at its 8192-token checkpoint interval for OLMo-7B, Qwen3.5-4B, and Qwen3.6-27B-FP8, respectively (Table 2). The anchor layout within each page is another design choice. We compare uniform sampling, which places anchors at regular intervals, with dense sampling, which concentrates the retained anchors near the page boundary. Both layouts use the same anchor density. As shown in Figure 3, our cali-bration experiments find that dense sampling provides more stable reconstruction quality under the same replay budget and performs better on several workloads. We therefore use 128 256 512       
+
+> Replay budget cap (anchors)
+> 020 40 60 80 100
+> quality (% of full prefill)
+> 90%
+> RULER-vt, 8K context
+> 81.4 82.2 82.9 83.0 90.1 91.4
+> 128 256 512
+> Replay budget cap (anchors)
+> 90%
+> RULER-vt, 16K context
+> 61.1 68.5 75.7 71.8 82.5 91.8
+> Uniform sampling (frequency 1/16) Dense sampling (frequency 1/16)
+
+Figure 3. Uniform (every 16th token) against dense (last four rows of every 64-token page) anchor sampling at the same 𝜌 = 1/16 frequency cached hidden state (anchor) not cached replayed at the hit (k = 4 rows) cached replayed 
+
+(a) no sparsity 
+
+every token cached; storage 1× cached replayed page 1 2 3 4 5 6 7 8
+
+(b) uniform 
+
+1 anchor per 4-token page; storage 1/4× cached replayed page 1 2
+
+(c) dense 
+
+4 consecutive anchors per 16-token page; storage 1/4× token position → cache hit at j
+
+Figure 4. Token-wise sparse anchors. No sparsity, uniform sparsity and dense sparsity the dense layout for the experiments in the remainder of the paper. Because sparse anchors cover different token spans de-pending on their layout, we measure replay length in re-tained anchors rather than raw tokens. This lets the algo-rithm bound replay computation independently of the full prefix length. Every supported page boundary can obtain a valid starting point for reconstruction, as illustrated in Figure 4. 
+
+4.3 Replay Length and Algorithm–System Interface 
+
+The remaining tradeoff is controlled by the replay budget. A longer suffix generally improves the approximation to the full-prefix state but increases cache-hit computation and latency. A shorter suffix reduces replay work but may de-grade generation quality. We calibrate the budget using the 
+
+5Liu, Qi, Wu, et al. 
+
+Table 2. Additional storage per token (KiB) with anchors at the entry of each group ( 𝐴 layers) and anchor density 
+
+𝜌 = 1/16 (Ours), against SGLang’s cache at its 8192-token interval and naive replay (Table 1). SuffixReplay stores 
+
+𝐴 · 𝑑 · 2𝜌 bytes per token; Appendix A gives the derivation. 
+
+Model 𝐴 SGlang Naive Ours Ours/Native OLMo-7B 7 6.5 180 3.3 0.50 ×
+
+Qwen3.5-4B 7 6.1 120 2.2 0.36 ×
+
+Qwen3.6-27B-FP8 15 18.4 480 9.4 0.51 ×
+
+quality sweep( see Table 3 in section 7 for detail). The ta-ble shows that both Qwen models meet the quality target at 𝑘 = 128, whereas OLMo-Hybrid-7B requires the larger budget 𝑘 = 512 on average. For a cache hit at prefix length 𝑛 ,the replay length is measured in anchors rather than tokens and follows 𝑘 = min (0.05 𝑛, 𝑘 max ). The main serving experi-ments use conservative caps of 𝑘 max = 512 for Qwen3.5-4B and 𝑘 max = 256 for Qwen3.6-27B-FP8 to provide additional quality headroom while bounding replay cost. The algorithm exports a simple contract to the serving sys-tem. For each cached page, it specifies the associated anchors; for each cache hit, it identifies the recent anchors required for reconstruction and the corresponding replay-length bucket. The algorithm therefore determines how much state must be retained and how much replay is sufficient, while the system design in the next section determines how to store, fetch, schedule, and execute this bounded replay alongside the native KV-cache path. 
+
+5 SuffixReplay: System Design 
+
+The algorithmic design in §4 bounds the anchor storage and replay computation required by each cache hit. It does not, however, determine how anchors should coexist with KV-cache management or when their transfers and reconstruc-tion should execute relative to the serving pipeline. These are the system-level challenges introduced by suffix replay. Our system addresses them by decoupling logical associa-tion from physical management. Each anchor block is asso-ciated with the KV page whose prefix it helps reconstruct and follows the same admission and eviction decisions. Its placement, transfer, and execution path remain independent because anchors are read only during replay, whereas KV pages remain active throughout the continuation. The rest of this section describes the anchor sidecar, the pipelined replay path, and the live-state fast path for multi-turn con-tinuations. 
+
+5.1 Anchor Storage and Management 
+
+A cache hit needs both the KV pages of the matched prefix and the anchors required to reconstruct its linear-attention state, but the two objects have different access patterns. KV radix tree KV pages anchor sidecar     
+
+> root node 1 node 2 node 3 …
+> page 1 block 1 page 2 block 2 page 3 block 3 one 64-token page
+> token 1
+> ⋮
+> token 61 token 62 token 63 token 64 row 1 row 2 row 3 row 4
+> anchor block (p·ρ = 4 rows)
+
+Figure 5. The anchor sidecar: each anchor block is attached to the same radix-tree node as the KV page and shares its lifecycle, but lives in its own pool with its own placement policy. host   
+
+> 1. build the destination table
+> t61 row 1 t62 row 2 t63 row 3 t64 row 4 t65 scr t66 scr a lookup on position only
+> 3. host sidecar: blocks land per page
+> publish to radix tree
+> device: captured CUDA graph
+> 2. write inside the graph
+> anchored FA layer hidden states
+> indexed copy
+> per anchored layer
+> sidecar pool
+> blocks scratch table (H2D, async) block complete →
+> D2H per page, async
+
+Figure 6. Writing anchors: host builds a destination table, CUDA graph writes the hidden states. pages are reused throughout the continuation, whereas an-chors are read only once during replay. A hit may also fetch a long KV prefix but only a short suffix of anchors. Sharing a physical page would therefore couple the KV path to data that is accessed briefly and sparsely. We introduce an anchor sidecar to separate these con-cerns. As shown in Figure 5, each anchor block is attached to the same radix-tree node as its corresponding KV page and shares its admission and eviction decisions. The two objects, however, use independent pools and placement policies. An anchor may reside in host DRAM while its corresponding KV page remains in GPU HBM, without breaking prefix-cache consistency. In an HBM-only configuration, published anchor blocks remain resident with their corresponding KV pages. With anchor density 𝜌 = 1/16 and a page size of 
+
+𝑝 = 64, each page contains 𝑝𝜌 = 4 anchors, so the KV page and its anchor block are completed at the same page bound-ary and require no additional alignment metadata. Because anchors are read only during state reconstruction, a cache hit fetches only the recent 𝑘 anchors specified by the algorithm, independent of the matched prefix length. The device-side sidecar also serves as a staging area for anchors produced by in-flight requests; sizing it proportionally to the KV pool accounts for these unpublished blocks before they enter the shared cache lifecycle. Anchor writes occur during every prefill and decode step, including requests that may never become cache hits. A naive implementation copies selected hidden states from device to host after each step and synchronizes once per request–layer 
+
+6Just Let Linear States Forget the Distant Past 
+
+pair. With many concurrent requests, this introduces a large number of host calls on the common serving path. In our initial implementation, this reduced decode throughput by 3.3% at 𝜌 = 1/8 and 12.1% at 𝜌 = 1/2. The bottleneck was the number of host interactions rather than the transferred bytes. SuffixReplay moves destination selection out of the for-ward pass and moves the actual writes into the captured CUDA graph, as illustrated in Figure 6. Because the sam-pling layout is static, the host can precompute a destination table for each step. A sampled token whose page is avail-able receives its final sidecar address; unsampled positions receive a scratch address and are ignored by the sidecar. The table is uploaded asynchronously with the other inputs, and indexed copies in the CUDA graph write the selected hidden states directly into their device-side sidecar locations. During prefill, SuffixReplay compacts the sampled to-kens before the indexed copy and flushes an anchor block only after all of its anchors have been produced. During de-code, the host updates the destination table incrementally per request slot, while the captured graph merges writes from all anchored layers on a side stream. Completed blocks are transferred and published asynchronously at page granu-larity. On Qwen3.5-4B, a completed 64-token page transfers approximately 140 KB. Publication is ordered after the trans-fer, so readers wait for a complete block while the publisher never blocks the serving step. 
+
+5.2 Pipelined Anchor Fetching and Replay 
+
+A cache hit introduces two data dependencies and one ex-ecution dependency before the request can continue. The matched KV pages may need to be transferred to the de-vice, the anchors needed for state reconstruction must be fetched, and replay must finish before the corresponding linear-attention group executes. These dependencies have different readiness times, so serializing them would unnec-essarily increase hit latency. SuffixReplay separates anchor fetching from replay, as shown in Figure 7. As soon as the radix-tree match identifies the cached prefix, the system walks the matched path and locates the anchor blocks covering the replay suffix. Dense sampling places the selected anchors contiguously near the end of each page, so the required anchors are usually cov-ered by a small number of ranges in the host pinned pool. SuffixReplay launches their transfers asynchronously on a dedicated copy stream before KV backfill begins. Anchor fetching therefore overlaps with request scheduling and KV movement, and replay does not wait for the corresponding KV pages because it depends only on the fetched anchors. When the request enters an extend batch, SuffixReplay replays the linear-attention groups from the fetched anchors. Replay executes the computation needed to reconstruct each group and writes the resulting recurrent and convolution FA 15 FA 11 FA 7                     
+
+> G1 G2 G3
+> Copy stream Replay stream Forward stream
+> KV back fi ll (engine)
+> pre fi x match extend batch admitted
+> A1 A2 A3 anchor rows, one transfer per anchored layer
+> G0 pre-captured graphs
+> embwait e0 G0 FA G1 FA G2 FA G3 FA extend (breakable graph)
+> FA 3 KV of the matched pre fi x, one FA layer at a time time
+> anchor H2D replay of one group forward: linear group / FA KV back fi ll CUDA event; dashed arrow = cross-stream wait
+
+Figure 7. Pipelined anchor fetching and replay on cache hit. states into the request’s preallocated state slots. The for-ward stream waits only when it reaches the first layer that consumes a group’s reconstructed state; it does not wait at request entry or between unrelated layers. 
+
+Layer-wise handoff. Replay and extend execution are synchronized at group boundaries. Groups are replayed in order on the replay stream, so replay for later groups can remain in flight while the forward stream executes earlier groups. Since replay length is bounded by the algorithmic policy in §4.3, SuffixReplay pre-captures a finite set of re-play graphs indexed by replay-length buckets and groups. Runtime execution selects a graph and fills its static input buffers, avoiding graph capture or graph eviction on the hit path. 
+
+Batched replay. Multiple hits may enter the same ex-tend batch with different replay lengths. Running one replay sequence per request would serialize fixed launch and syn-chronization costs. SuffixReplay therefore packs the replay suffixes of a batch into one variable-length execution and uses device-side boundaries to identify each request’s seg-ment and destination state slot. Padding segments use a sentinel slot identifier, so replay kernels neither read nor write state for those segments. Graphs are bucketed by total packed length, allowing one graph to serve different parti-tions of the same batch. This removes repeated fixed launch costs while keeping the per-hit replay work linear in the bounded replay length. The pipeline is fail-closed. A non-page-aligned hit, missing or unpublished anchors, a full pending queue, or an unavail-able replay hook is treated as a cache miss and follows the full-prefill path. A replay length outside the captured buckets falls back to eager replay. In the steady-state hit path, host synchronization matches the native KV-cache path, while continuation hits with a live state bypass replay entirely. 
+
+5.3 Multi-turn State at Request Boundaries 
+
+A multi-turn continuation provides a special fast path. If the live linear-attention state from the previous turn is still resident, the request can continue without reconstructing it 
+
+> 7Liu, Qi, Wu, et al.
+
+from anchors. This live state is only a best-effort optimiza-tion: eviction or capacity pressure must not affect correct-ness because the same state remains reconstructible from the cached KV pages and anchors. Requests therefore do not retain persistent checkpoint states at internal chunk boundaries, which keeps a state pool from constraining concurrency or cache capacity. The replay path remains the correctness path, while a live state at a request boundary is used only when it is already available. 
+
+6 Implementation 
+
+We implement SuffixReplay on SGLang v0.5.18. The im-plementation has two parts: a small set of changes inside the engine and a separate package that provides the anchor store, replay path, and request-boundary logic. The package is attached through the engine’s cache-component interface, so stock SGLang runs unchanged when the component is disabled. 
+
+Engine-side changes. The engine-side implementation adds about 1.2K lines across 17 existing files and two new files. The changes cover four parts of the serving path. First, the unified radix cache gains an anchor component, allow-ing each anchor block to attach to the same tree node as its KV page and follow the node’s admission and eviction. The same component implements the no-buffer strategy for linear states, eliminating the checkpoint pool and the ex-tra per-request buffer slots that SGLang keeps for tracked checkpoints. Second, the pool configurator and assembler allocate the anchor sidecar, including one device block per KV page and a host-pinned pool indexed by the correspond-ing KV page, and account for both pools in the per-token memory budget. Third, the forward batch carries a per-token anchor-destination table, registered as a CUDA-graph input for both prefill and decode, so the in-graph writes described in §5.1 use the correct destinations on every graph replay. Fourth, the linear-attention operator gains a per-layer wait hook, which reduces to a single pointer comparison when replay is inactive, and the scheduler gains an asynchronous publication point for finished requests. We do not modify any attention or recurrent-state kernel. 
+
+Replay graphs. SuffixReplay captures replay graphs once during initialization, before the engine captures its own prefill and decode graphs. For each model, the replay budget is rounded up to a power of two and capped at 𝐾 CAP = 512 anchors for Qwen3.5-4B and 256 anchors for Qwen3.6-27B-FP8. Production uses batched replay: graphs are bucketed by the total packed replay length, with 𝑇 max = 4096 anchors. On Qwen3.5-4B, this produces 48 graphs and approximately 1.1 GB of device memory. All replay graphs share a memory pool because the replay stream executes them in order. Cap-ture proceeds from smaller to larger buckets, and a memory predictor stops capture when the remaining device memory would fall below the 2.5 GB margin; buckets that are not captured fall back to eager replay. Each graph records the base addresses of the state and anchor pools, so a pool real-location invalidates the graph rather than allowing replay to write through stale pointers. 
+
+7 Evaluation 
+
+Our evaluation proceeds from replay quality to serving im-pact. First, does suffix replay preserve end-to-end generation quality across hybrid models? Table 3 answers this question and establishes the replay budgets used below. We then ask whether fine-grained reuse improves serving latency under realistic branching workloads, whether the benefit remains when the cached working set exceeds GPU memory, and whether the high-hit continuation path avoids regressions (Sections 7.3–7.5). Finally, we quantify the remaining replay and checkpoint-placement trade-offs. 
+
+7.1 Setup 
+
+Models and hardware. We evaluate replay quality on three hybrid models, OLMo-Hybrid-7B, Qwen3.5-4B in BF16, and Qwen3.6-27B-FP8, using a PyTorch reference implemen-tation based on Hugging Face Transformers [34], which sup-ports all three models. We evaluate serving performance on the two Qwen models because the SGLang version used in our experiments does not support OLMo-Hybrid-7B. We abbreviate Qwen3.5-4B and Qwen3.6-27B-FP8 as 4B and 27B, respectively, when the model identity is unambiguous. All experiments use a single NVIDIA H800 GPU with 80 GB of HBM. For each serving-performance cell, SGLang and SuffixReplay run sequentially on the same GPU, with the execution order alternated across repeated runs. 
+
+Engine and baseline. Both systems use the same SGLang checkout and the same scheduler, KV-cache implementation, 8192-token chunked prefill, and CUDA-graph configuration. The baseline is SGLang’s native hybrid prefix cache without modification. Under its default configuration, SGLang stores linear-attention state checkpoints at prefill-chunk bound-aries, at the end of a request (aligned down to 256 tokens), and when a cached prefix first serves a branching continua-tion. These checkpoints are kept in a fixed HBM slot pool and are required to resume a hybrid request at the corresponding boundary. SuffixReplay replaces this checkpoint store with the sparse-anchor sidecar and suffix-replay path described in Sections 4 and 5; all other serving components remain unchanged. 
+
+Configuration. Unless a caption says otherwise, Suf-fixReplay uses dense anchors with 𝜌 = 1/16 on 64-token pages, retaining the last four anchor rows of each page. For a cache hit at prefix length 𝑛 , the replay budget is 𝑘 =
+
+min (0.05 𝑛, 𝑘 max ) anchor rows. The quality experiments sweep 
+
+𝑘 over multiple budgets; Section 7.2 reports the resulting quality curves. The main serving experiments use the con-servative caps 𝑘 max = 512 for Qwen3.5-4B and 𝑘 max = 256 for 
+
+> 8Just Let Linear States Forget the Distant Past
+
+Qwen3.6-27B-FP8, providing quality headroom while bound-ing replay cost on the larger model. These caps were fixed before the quality sweep completed; Section 7.6 evaluates the lower-cost alternatives. 
+
+Memory configuration. Unless stated otherwise, experi-ments use an HBM-only configuration: both systems keep their KV cache and linear states on the GPU, and SuffixRe-play retains anchors only for KV pages that remain resident. The capacity experiments enable SGLang’s host KV cache for both systems under a fixed 128 GB host-memory bud-get. SGLang uses approximately 128 GB for host KV pages, whereas SuffixReplay reserves up to 8 GB of pinned host memory for the anchor sidecar: 4.7 GB in the capacity exper-iment and 8 GB when the anchor pool is sized to the host KV cache in LooGLE. The remaining host memory is used for KV pages. Thus, the two systems have comparable total host-memory budgets, but only SuffixReplay can move replay metadata together with a KV page; SGLang’s linear-state checkpoints remain in its fixed HBM slot pool. 
+
+Workloads. We use branch point to denote the first po-sition at which a new request diverges from a previously cached prefix; the tokens before this position form the matched prefix. We evaluate four workload groups. For branching reuse, we use ShareGPT multi-turn chat sessions [41], whose turns extend the same context; SWE-rebench , OpenHands agent trajectories with long tool-call sessions and short model outputs; and ToolMind , tool-use trajectories that branch from a point inside a previous response. The median Tool-Mind continuation point is approximately 5K tokens; we also report a long-context variant restricted to continuations be-yond 16K tokens. For document question answering, we use 
+
+LooGLE [11], whose documents contain approximately 40K tokens, and NarrativeQA [8], whose documents are shorter and whose questions in our trace branch at the document boundary. We use Agent continuation , a set of 240 multi-turn agent traces with short outputs and a 98% prefix-hit rate, to evaluate the high-hit regime. Finally, two synthetic workloads stress capacity and checkpoint placement: 𝑁 ses-sions repeatedly query independent 64K-token documents, and a shared document prefix is re-queried at shrinking and growing prefix lengths to probe both sides of the native checkpoint grid. 
+
+Protocol and metrics. Serving workloads use either open-loop or closed-loop evaluation. In open-loop runs, requests arrive according to a Poisson process at rate 𝜆 , measured per session for session traces and per request otherwise. In closed-loop runs, we keep a fixed number 𝑁 of sessions in flight. Unless a caption states otherwise, output lengths are fixed by the workload and range from 64 to 512 tokens. We report client-observed time to first token (TTFT), time per output token (TPOT), request throughput, and prefix-cache hit rate. We count a request as a hit when the cache returns the prefix through its intended continuation point. 
+
+7.2 Quality 
+
+We first verify that suffix replay is a valid proxy for full prefill. For each sample, we split the input into a context prompt and a query. We prefill the context once, retain its FA KV cache and sparse anchor inputs, and then emulate a cache hit at the query boundary: suffix replay reconstructs the linear-attention states, the retained FA KV cache is reused, and the query is run through the remaining forward pass. We compare this output with a paired reference that full-prefills the context and query together. Table 3 reports the resulting replay quality for all three hybrid models across LongBench and RULER as the replay budget varies. The models exhibit markedly different sensitivity to replay truncation. OLMo-Hybrid-7B requires a larger budget: at 𝑘 = 512, its family averages reach 95.9% of full-prefill quality on LongBench QA and 91.4% on RULER. In contrast, the two Qwen mod-els are nearly insensitive to replay truncation. At 𝑘 = 128, Qwen3.5-4B reaches 100% and 99.7% on QA and RULER, re-spectively, while Qwen3.6-27B-FP8 reaches 99.1% and 100%. Even at 𝑘 = 16, the two models remain at 95.6/94.2% and 99.0/99.4%, respectively. Thus, 𝑘 = 128 provides substantial quality headroom for both Qwen models, whereas OLMo requires the larger replay budget. We use each benchmark’s standard scorer: token-level F1 for LongBench QA, ROUGE-L for LongBench summarization, and RULER’s exact string-match metrics (all-reference or any-reference matching according to the task). We report %full = 100 × 𝑠 replay /𝑠 full , where both scores are computed on the same samples and 𝑠 full is obtained by the paired full-prefill reference. Thus, the reported ratio isolates the quality effect of reconstructing the linear-attention states. 
+
+7.3 Branching prefix reuse 
+
+Branching workloads across arrival rates. Figure 8 shows TTFT and TPOT as the offered load increases. On ev-ery branching workload, SuffixReplay lowers median TTFT: by 15–20 % on ShareGPT, 20–40 % on ToolMind at approxi-mately 5K context, and 55–70 % on ToolMind beyond 16K. The gain is largest when the branch point falls far beyond SGLang’s latest checkpoint. At high load, SGLang saturates earlier because its tracked linear-state slot pool limits ad-mission: ShareGPT saturates at 4 sessions/s on 4B and 0.5 sessions/s on 27B, while SuffixReplay remains stable at 8 and 1 sessions/s, respectively. TPOT changes little: although every decode step produces anchor states, the CUDA-graph write path places them into the sidecar without host syn-chronization (§5.1), so anchor writes add negligible decode overhead. 
+
+Distance from the checkpoint grid. The benefit grows with the distance between the branch point and SGLang’s latest checkpoint. Figure 9 varies the continuation context on ToolMind. On 4B, SuffixReplay reduces median TTFT by 41–42 % at 4K–8K context and by 66 % at 16K, where the 
+
+> 9Liu, Qi, Wu, et al.
+
+Table 3. Anchor replay quality relative to full prefill (%full) for different replay budgets 𝑘 . Each entry is a paired sample average; entries below 90% are bold. @ denotes context length. OLMo-Hybrid-7B Qwen3.5-4B Qwen3.6-27B-FP8 Cell 𝑘 =16 32 64 128 256 512 𝑘 =16 32 64 128 𝑘 =16 32 64 128 
+
+LongBench QA 
+
+NarrativeQA@16K 85.8 88.1 91.1 92.5 93.6 97.2 97.5 98.5 100 100 98.3 97.2 100 99.3 NarrativeQA@32K 84.2 91.0 93.3 94.8 95.3 95.4 91.6 91.8 97.4 97.9 100 95.8 99.2 100 NarrativeQA@64K 85.6 82.9 86.8 92.8 93.3 96.8 94.1 96.5 100 99.2 95.7 100 97.2 99.7 HotpotQA@16K 86.8 89.9 90.9 95.5 92.5 94.1 99.2 99.5 99.6 100 99.2 98.1 97.5 97.4 GovReport@32K 96.7 97.0 97.1 97.0 96.8 97.6 95.0 95.3 96.0 94.8 97.3 96.5 97.4 96.7 
+
+RULER 
+
+NIAH@8K 88.7 90.1 92.3 92.6 91.8 90.9 99.1 99.1 99.4 100 100 100 100 100 NIAH@16K 92.0 92.1 89.9 90.0 89.1 91.5 97.6 97.6 97.9 100 100 100 100 100 CWE@8K 85.0 85.9 87.0 88.2 91.1 90.1 99.5 99.6 99.7 100 100 100 100 100 CWE@16K 88.1 87.5 89.4 88.8 90.0 95.2 98.5 100 100 100 100 100 100 100 QA-1@8K 80.0 85.4 87.5 93.8 93.1 91.7 95.3 94.2 96.5 99.4 98.3 98.9 99.4 100 QA-1@16K 68.6 68.6 74.3 81.4 84.9 89.3 75.5 78.4 88.0 98.2 98.3 99.4 100 100 VT@8K 68.9 74.4 80.0 84.2 90.1 92.2 100 100 100 100 99.9 99.9 99.9 99.9 VT@16K 38.5 48.7 60.6 71.9 82.5 91.8 100 100 100 100 100 100 100 100 VT@32K 75.8 80.5 80.9 86.4 89.0 91.5 98.3 98.7 99.0 98.7 100 100 100 100 VT@64K 67.2 66.8 76.3 87.5 89.9 96.6 99.0 99.0 99.3 99.3 100 100 100 100 VT@128K 41.1 49.8 58.9 71.1 78.2 81.7 90.3 88.3 89.9 93.3 100 100 100 100 
+
+Avg LongBench QA 85.6 88.0 90.5 93.9 93.7 95.9 95.6 96.6 100 100 99.0 98.1 99.1 99.1 
+
+Avg RULER 83.7 84.9 86.7 89.2 90.0 91.4 94.2 94.8 96.9 99.7 99.4 99.7 99.9 100 continuation falls 3–4K tokens beyond a checkpoint. On 27B, the reductions are 69 % at 4K and 31 % at 8K. Shrinking SGLang’s prefill chunk size directly shortens its checkpoint interval and improves reuse granularity. However, more fre-quent checkpoints increase cold-prefill latency and amor-tized checkpoint storage. Table 5 quantifies this tradeoff. 
+
+Branches between checkpoints. Figure 10 constructs the case that is unfavorable to SGLang: requests branch from the same long prefix at cut positions between its checkpoints. SGLang then recomputes 0.6–7.7K tokens, producing a saw-tooth TTFT from 30 to 175 ms, whereas SuffixReplay serves every cut in about 33 ms from the corresponding page an-chors. With eight sessions in flight, SuffixReplay reduces median TTFT from 369 ms to 72–94 ms (3 .9–5 .1×); even after SGLang’s prefill chunk is reduced to 2048 tokens, thereby shortening its checkpoint interval, SGLang remains 1 .5–2 ×
+
+slower. Figure 11 provides the opposite, SGLang-favorable case: every branch point coincides with the previous request’s end checkpoint, so SGLang resumes without recomputation while SuffixReplay still replays its suffix. With one ses-sion in flight, the 35K-token runs differ by at most 2 ms. Fixed-length outputs make multiple sessions finish and re-branch in lock-step, exposing the synchronized cache-hit and request-boundary work: at 35K tokens and eight ses-sions, the medians are 121 ms for SGLang and 174/152/143 ms for SuffixReplay with 𝑘 max = 512 /256 /128; at 17K tokens and 32 sessions, they are 377 ms and 494/413/389 ms, respec-tively. Assigning varied output lengths from 16–112 tokens breaks this synchrony and removes the gap: the correspond-ing medians are 45 ms versus 45/43/43 ms at 35K and 65 ms versus 62/54/59 ms at 17K, with a lower p95 for SuffixRe-play. We analyze this synchronized case and its overhead in Section 7.7; the paired workloads here show that SuffixRe-play removes SGLang’s checkpoint-alignment penalty while remaining close to SGLang’s best case. 
+
+7.4 High-hit continuation 
+
+Does the anchor path cost anything when SGLang already hits? Agent traces are the adversarial case: 98 % of requests continue the previous turn of their session, exactly where SGLang keeps an end-of-request checkpoint, so the SGLang cache copies a slot and SuffixReplay must not be slower. Table 4 shows it is not: a continuation hit hands the previous turn’s live state over without replay (Section 5), and Suf-fixReplay matches or slightly exceeds the SGLang through-put at every concurrency, +2.7 to +6.5 % at 8 and 16 sessions and a tie ( −1.4 %, within round-to-round noise) at 32 on 4B, with TTFT equal or lower. The small gains come from the 
+
+> 10
+
+Just Let Linear States Forget the Distant Past 0.5 1 2 4 80.00 0.04 0.08 0.12 
+
+> TTFT p50 (s)
+
+ShareGPT     
+
+> 0.1 0.2 0.5 120.00 0.15 0.30 0.45
+
+SWE-rebench (OpenHands)     
+
+> 0.5 12480.00 0.03 0.06 0.09
+
+ToolMind, ~5K context     
+
+> 0.5 12480.00 0.15 0.30 0.45
+
+ToolMind, 16K+ context     
+
+> 0.25 0.5 1240.00 0.03 0.06 0.09
+
+LooGLE, 40K docs     
+
+> 0.25 0.5 1240.00 0.05 0.10 0.15
+
+ShareGPT     
+
+> 0.25 0.5 1240.00 0.25 0.50 0.75
+
+ToolMind, ~5K context                                                         
+
+> 0.5 12480.00 0.06 0.12 0.18
+> TTFT p95 (s)
+> 0.1 0.2 0.5 120612 18
+> 0.5 12480.0 0.1 0.2 0.3
+> 0.5 12480.0 1.5 3.0
+> 0.25 0.5 1240123
+> 0.25 0.5 1240.00 0.08 0.16 0.24
+> 0.25 0.5 1240.0 1.5 3.0
+> 0.5 1248session arrival rate (sessions/s) 015 30 45
+> TPOT mean (ms)
+> 0.1 0.2 0.5 12session arrival rate (sessions/s) 0250 500 750
+> 0.5 1248arrival rate (req/s) 0510 15
+> 0.5 1248arrival rate (req/s) 020 40 60
+> 0.25 0.5 124arrival rate (req/s) 020 40 60
+> 0.25 0.5 124session arrival rate (sessions/s) 015 30 45
+> 0.25 0.5 124arrival rate (req/s) 030 60 90
+
+Qwen3.5-4B Qwen3.6-27B-FP8 
+
+SGLang ours 
+
+Figure 8. TTFT p50/p95 and mean TPOT versus offered load on the evaluated workloads. All runs use HBM-only serving; session workloads use session arrival rate and other workloads use request arrival rate. 4K 8K 16K 
+
+context length at the continuation point (tokens) 
+
+020 40 60 80 100 120 TTFT p50 (ms) 
+
+41% 42% 
+
+66% 
+
+Qwen3.5-4B ( = 2 req/s) 
+
+4K 8K 
+
+context length at the continuation point (tokens) 
+
+0100 200 300 400 
+
+69% 
+
+31% 
+
+Qwen3.6-27B-FP8 ( = 1 req/s) 
+
+SGLang ours 
+
+Figure 9. Median TTFT of ToolMind continuations versus branch context length. Results use open-loop, HBM-only serving. 26 28 30 32 34 
+
+prefix length of the query (K tokens) 
+
+050 100 150 TTFT p50 (ms) 
+
+> 8192 boundary
+
+(a) one session in flight  
+
+> SGLang, chunk 8192 SGLang, chunk 4096 SGLang, chunk 2048 ours, kmax =512
+
+8192 4096 2048 512 256 128 
+
+0100 200 300 400 500 TTFT (ms), p50 bar / p95 whisker 
+
+SGLang (chunk size) ours ( kmax )
+
+(b) eight sessions in flight 
+
+Figure 10. TTFT for branches from a shared 35K-token prefix at different cut positions. Panel (a) shows p50 TTFT with one session in flight; panel (b) shows p50 with p95 whiskers under eight concurrent sessions. SGLang uses 8192-, 4096-, or 2048-token chunks, while SuffixReplay uses the corresponding replay caps. 35K, C=1 fixed-length 35K, C=8 fixed-length 35K, C=8 varied-length 17K, C=32 fixed-length 17K, C=32 varied-length 
+
+0200 400 600    
+
+> TTFT (ms) p50 bar / p95 whisker
+> SGLang ours, kmax =512 ours, kmax =256 ours, kmax =128
+
+Figure 11. TTFT when querying the same prefix at growing lengths. Bars show p50 and whiskers show p95 for Qwen3.5-4B in HBM-only serving; results compare fixed-length and varied-length outputs. 
+
+Table 4. High-hit agent continuation with 240 multi-turn traces and a 98% hit rate. Results use closed-loop HBM-only serving; 𝑁 is the number of concurrent sessions. 
+
+throughput (req/s) TTFT p50 (ms) model 𝑁 SGLang ours SGLang → ours Qwen3.5-4B 8 21.9 23.1 (+5.4 %) 54 → 47 16 26.9 27.6 (+2.7 %) 62 → 57 32 32.7 32.2 ( −1.4 %) 68 → 65 Qwen3.6-27B-FP8 8 8.8 9.3 (+5.6 %) 97 → 86 16 11.4 12.1 (+6.5 %) 119 → 107 
+
+pages SGLang’s grid misses: an anchor hit also covers turns that resume off the 256-token alignment of the SGLang end checkpoint. 
+
+11 Liu, Qi, Wu, et al. 24 32 40 48           
+
+> concurrent sessions N
+> 0.0 0.2 0.4 0.6 0.8 1.0 hit rate
+> (a) prefix-cache hit rate
+> 24 32 40 48
+> concurrent sessions N
+> 0.0 0.5 1.0 1.5 2.0 2.5 req/s
+> (b) throughput
+> 24 32 40 48
+> concurrent sessions N
+> 020 40 60 TTFT p50 (s)
+> (c) TTFT p50
+> SGLang ours
+
+Figure 12. Capacity under 𝑁 sessions querying independent 64K-token documents with host KV caching. Panels show prefix-cache hit rate, throughput, and median TTFT. 
+
+7.5 Capacity 
+
+What happens when the cached working set outgrows HBM? SGLang keeps its linear states in a fixed slot pool on the GPU; SuffixReplay’s anchors are ordinary pages that move with the KV cache. Figure 12 drives 𝑁 sessions that each keep querying their own 64K-token document with the host KV cache enabled. Below the cliff ( 𝑁 = 24, 1.5M tokens) the two are on par, SuffixReplay 5 % lower in throughput. From 
+
+𝑁 = 32 the documents no longer fit the 983K-token device pool. SGLang still holds every document in its radix tree – on every miss the tree matches the full 64K prefix – but under this pressure it brings a document back from the host for only a small fraction of the requests (87 load-backs against 668 cold prefills in an instrumented run) and recomputes the rest, so its hit rate falls from 0.86 to 0.05 and throughput from 2.6 to 0.6 req/s; SuffixReplay stays at 0.85 and 2.5–2.6 req/s, 2.3–4 .3× SGLang’s throughput, with a median TTFT under one second against 16–59 s. SGLang’s slot pool is not the limit (peak occupancy 11 %); the limit is that its states do not page. A natural document-QA load, LooGLE, has 4.6M tokens of context and exceeds the device pool several times over. At 0.5–2 req/s SuffixReplay answers a follow-up question in 53–159 ms at the median against 426–1,307 ms, with a hit rate of 0.62 against 0.35; at 4 req/s SGLang saturates and its queue grows for the whole run, while SuffixReplay still serves the offered load. The anchor host pool that makes this possible is one block per host KV page, 8 GB of pinned memory or 7 % of the host KV cache. 
+
+7.6 Replay-length sensitivity 
+
+How much to replay. The replay budget controls the cost–quality trade-off. Table 3 shows that both Qwen models reach the quality target at 𝑘 = 128, while OLMo requires a larger budget on average. The main serving experiments nevertheless use the conservative 𝑘 max = 512 (4B) and 256 (27B) caps, which were fixed before the quality sweep com-pleted; 𝑘 max = 128 is the recommended lower-cost setting when additional quality headroom is not required. 
+
+Table 5. Effect of smaller SGLang prefill chunks on cold-prefill TTFT, throughput, and checkpoint storage. Results use Qwen3.5-4B in HBM-only serving.             
+
+> SGLang prefill chunk 8192 (stock) 2048 1024 cold prefill TTFT p50 (ms) 677 823 (+22 %) 1,268 (+87 %) throughput (req/s) 13.8 14.1 11.5 ( −16 %) state bytes per cached token 6,286 25,144 50,288
+
+7.7 Replay overhead and checkpoint trade-offs 
+
+What SGLang’s grid would cost. SGLang can only place checkpoints more often by shrinking its prefill chunk. Table 5 prices that knob: chunks of 2048 tokens raise the cold prefill TTFT by 22 % and quadruple the state bytes per cached token, chunks of 1024 raise it by 87 % and cost 16 % of closed-loop throughput, and even the 2048-token grid is still 1 .5–2 ×
+
+slower than SuffixReplay on the shrinking-prefix workload (Figure 10). 
+
+8 Related Work 
+
+Prefix caching for Transformers. Because a Transformer’s KV cache is indexed by token, any prefix of a cached se-quence is reusable, and prefix-caching systems concentrate on where to keep the pages and how to schedule around them: paged allocation and radix-tree matching [9, 42], session-level reuse across turns [3], disaggregated and tiered KV stores [21], and cache-aware request routing [27]. All of them assume that a cached prefix can be cut at any position. Hybrid models break that assumption for their linear layers, which is the gap this paper fills. 
+
+Position-independent KV reuse. To reuse cached KV beyond exact prefixes, PromptCache, CacheBlend, EPIC and ProphetKV [4, 6, 32, 37] accept KV computed in a different context and recompute a small, selected set of tokens to repair the rest; they target Transformers and say so. HyPIC and LinearKV [13, 14] extend position-independent caching to hybrid models. 
+
+Prefix caching for hybrid and recurrent models. Serv-ing engines cache linear-layer states at checkpoints: SGLang keeps one per prefill chunk and per request end [42], and vLLM’s automatic prefix caching for hybrid models is under active discussion [28–31]. Marconi [20] decides which check-points to admit and evict, and SparsePrefix [26] thins the set of states kept. All of these store states and therefore inherit the question of where to place them; SuffixReplay stores in-puts and reconstructs the state where the hit happens, so the placement question does not arise, and admission policies such as Marconi’s remain useful for deciding which anchor pages to retain. 
+
+> 12
+
+Just Let Linear States Forget the Distant Past 
+
+Linear attention and forgetting. Mamba-2, Gated DeltaNet and the hybrid models built on them [2, 7, 12, 15, 16, 18, 22– 24, 36] share the decay and erase gates that make a state a contracting function of its distant inputs. That property is what suffix replay relies on (Section 4); recurrences without decay are outside its scope. 
+
+AI serving across heterogeneous resources. Recent work on AI Flow studies how to coordinate heterogeneous com-puting and communication resources across devices, edge servers, and cloud infrastructure to reduce inference latency and communication overhead [1, 25]. Our work focuses on a complementary intra-engine problem: enabling fine-grained prefix reuse for hybrid LLMs by reconstructing linear-attention states while coordinating anchors, KV caches, and replay within a serving system. 
+
+9 Limitations 
+
+SuffixReplay relies on linear-attention states progressively forgetting earlier inputs and therefore does not directly ap-ply to recurrences that preserve all past contributions. The required replay budget is also model dependent: the Qwen models meet the quality target with 𝑘 = 128, whereas OLMo requires a larger budget. Our current implementation cali-brates this budget offline for each model. Replay can increase TTFT when many cache hits arrive in the same scheduler step, particularly when SGLang already has checkpoints at the matched boundaries. Figure 11 shows this overhead under synchronized, fixed-length requests; varying the output lengths removes the gap. 
+
+10 Conclusion 
+
+Prefix caching for hybrid LLMs has been discrete because the linear layers’ state is stored at checkpoints and a cached prefix can only be resumed where a checkpoint exists. Suf-fixReplay removes the checkpoints: it stores a sparse set of the linear layers’ inputs as anchors and rebuilds the state at any 64-token page boundary by replaying a short suffix, re-lying on the recurrence’s own forgetting to make the distant past irrelevant. Integrated into SGLang, it cuts the median TTFT of continuations branching from shared prefixes by 41– 69 % and sustains twice the arrival rate of SGLang’s cache, keeps its hit rate and 2 .3–4 .3× the throughput when the working set outgrows HBM, ties SGLang’s cache on high-hit continuation traffic, retains at least 94 % of full-recompute quality, and stores 0 .36–0 .51 × the state bytes – all while making every page boundary reusable. 
+
+References 
+
+[1] Hongjun An, Wenhan Hu, Sida Huang, Siqi Huang, Ruanjun Li, Yuanzhi Liang, Jiawei Shao, Yiliang Song, Zihan Wang, Cheng Yuan, Chi Zhang, Hongyuan Zhang, Wenhao Zhuang, and Xuelong Li. 2026. AI Flow: Perspectives, Scenarios, and Approaches. Vicinagearth 3, 1 (2026), 1. doi: 10.1007/s44336-025-00031-y 
+
+[2] Tri Dao and Albert Gu. 2024. Transformers are SSMs: Generalized Models and Efficient Algorithms Through Structured State Space Duality. In International Conference on Machine Learning (ICML) .
+
+https://arxiv.org/abs/2405.21060 
+
+[3] Bin Gao, Zhuomin He, Puru Sharma, Qingxuan Kang, Djordje Jevdjic, Junbo Deng, Xingkun Yang, Zhou Yu, and Pengfei Zuo. 2024. Cost-Efficient Large Language Model Serving for Multi-turn Conversations with CachedAttention. In USENIX Annual Technical Conference (ATC) .
+
+https://arxiv.org/abs/2403.19708 
+
+[4] In Gim, Guojun Chen, Seung-seob Lee, Nikhil Sarda, Anurag Khandel-wal, and Lin Zhong. 2024. Prompt Cache: Modular Attention Reuse for Low-Latency Inference. In Proceedings of Machine Learning and Systems (MLSys) . https://arxiv.org/abs/2311.04934 
+
+[5] Sirui Hong, Mingchen Zhuge, Jonathan Chen, Xiawu Zheng, Yuheng Cheng, Jinlin Wang, Ceyao Zhang, Zili Wang, Steven Ka Shing Yau, Zijuan Lin, Liyang Zhou, Chenyu Ran, Lingfeng Xiao, Chenglin Wu, and Jürgen Schmidhuber. 2024. MetaGPT: Meta Programming for a Multi-Agent Collaborative Framework. In International Conference on Learning Representations (ICLR) . https://arxiv.org/abs/2308.00352 
+
+[6] Junhao Hu, Wenrui Huang, Weidong Wang, Haoyi Wang, Tiancheng Hu, Qin Zhang, Hao Feng, Xusheng Chen, Yizhou Shan, and Tao Xie. 2025. EPIC: Efficient Position-Independent Caching for Serving Large Language Models. In International Conference on Machine Learning (ICML) . https://arxiv.org/abs/2410.15332 
+
+[7] Kimi Team. 2025. Kimi Linear: An Expressive, Efficient Attention Ar-chitecture. arXiv preprint arXiv:2510.26692. arXiv:2510.26692 [cs.CL] 
+
+https://arxiv.org/abs/2510.26692 
+
+[8] Tomáš Kočiský, Jonathan Schwarz, Phil Blunsom, Chris Dyer, Karl Moritz Hermann, Gábor Melis, and Edward Grefenstette. 2018. The NarrativeQA Reading Comprehension Challenge. Transactions of the Association for Computational Linguistics 6 (2018), 317–328. doi: 10.1162/tacl_a_00023 
+
+[9] Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, Lianmin Zheng, Cody Hao Yu, Joseph E. Gonzalez, Hao Zhang, and Ion Stoica. 2023. Efficient Memory Management for Large Language Model Serv-ing with PagedAttention. In ACM Symposium on Operating Systems Principles (SOSP) . https://arxiv.org/abs/2309.06180 
+
+[10] Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih, Tim Rocktäschel, Sebastian Riedel, and Douwe Kiela. 2020. Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. In Ad-vances in Neural Information Processing Systems (NeurIPS) . https: //arxiv.org/abs/2005.11401 
+
+[11] Jiaqi Li, Mengmeng Wang, Zilong Zheng, and Muhan Zhang. 2024. LooGLE: Can Long-Context Language Models Understand Long Con-texts?. In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) . Association for Computational Linguistics, 16304–16333. doi: 10.18653/v1/2024.acl-long.859 
+
+[12] Opher Lieber, Barak Lenz, Hofit Bata, Gal Cohen, Jhonathan Osin, Itay Dalmedigos, Erez Safahi, Shaked Meirom, Yonatan Belinkov, Shai Shalev-Shwartz, Omri Abend, Raz Alon, Tomer Asida, Amir Bergman, Roman Glozman, Michael Gokhman, Avashalom Manevich, Nir Ratner, Noam Rozen, Erez Shwartz, Mor Zusman, and Yoav Shoham. 2025. Jamba: Hybrid Transformer-Mamba Language Models. In International Conference on Learning Representations (ICLR) . https://arxiv.org/abs/ 2403.19887 
+
+[13] Yirui Liu, Ruoling Qi, Longwen Wang, Xuaner Wu, Jian Chen, Yuxin Jin, Jiawei Shao, and Xuelong Li. 2026. LinearKV: One Cached State Suffices for Position-Independent Caching in Hybrid LLMs. arXiv preprint arXiv:2608.11231. arXiv:2608.11231 [cs.AI] https://arxiv.org/ abs/2608.11231 
+
+[14] Yifei Liu, Juntong Wu, Yang Liu, Junhao Hu, Minghao Li, Xiaoxu Chen, and Weihang Chen. 2026. HYPIC: Accelerating Hybrid-Attention 13 Liu, Qi, Wu, et al. 
+
+LLM Serving with Position-Independent Caching. arXiv preprint arXiv:2607.01299. arXiv:2607.01299 [cs.DC] https://arxiv.org/abs/ 2607.01299 
+
+[15] William Merrill, Yanhong Li, Tyler Romero, Anej Svete, Caia Costello, Pradeep Dasigi, Dirk Groeneveld, David Heineman, Bailey Kuehl, Nathan Lambert, Chuan Li, Kyle Lo, Saumya Malik, DJ Matusz, Ben-jamin Minixhofer, Jacob Morrison, Luca Soldaini, Finbarr Timbers, Pete Walsh, Noah A. Smith, Hannaneh Hajishirzi, and Ashish Sab-harwal. 2026. Olmo Hybrid: From Theory to Practice and Back. arXiv preprint arXiv:2604.03444. arXiv:2604.03444 [cs.CL] https: //arxiv.org/abs/2604.03444 
+
+[16] MiniMax. 2025. MiniMax-01: Scaling Foundation Models with Lightning Attention. arXiv preprint arXiv:2501.08313. arXiv:2501.08313 [cs.CL] https://arxiv.org/abs/2501.08313 
+
+[17] Xuefei Ning, Zinan Lin, Zixuan Zhou, Zifu Wang, Huazhong Yang, and Yu Wang. 2024. Skeleton-of-Thought: Prompting LLMs for Ef-ficient Parallel Generation. In International Conference on Learning Representations (ICLR) . https://arxiv.org/abs/2307.15337 
+
+[18] NVIDIA. 2025. Nemotron-H: A Family of Accurate and Efficient Hybrid Mamba-Transformer Models. arXiv preprint arXiv:2504.03624. arXiv:2504.03624 [cs.CL] https://arxiv.org/abs/2504.03624 
+
+[19] Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo Almeida, Carroll Wain-wright, Pamela Mishkin, Chong Zhang, Sandhini Agarwal, Katarina Slama, Alex Ray, et al. 2022. Training Language Models to Follow Instructions with Human Feedback. In Advances in Neural Information Processing Systems (NeurIPS) . https://arxiv.org/abs/2203.02155 
+
+[20] Rui Pan, Zhuang Wang, Zhen Jia, Can Karakus, Luca Zancato, Tri Dao, Yida Wang, and Ravi Netravali. 2025. Marconi: Prefix Caching for the Era of Hybrid LLMs. In Proceedings of Machine Learning and Systems (MLSys) . https://arxiv.org/abs/2411.19379 
+
+[21] Ruoyu Qin, Zheming Li, Weiran He, Mingxing Zhang, Yongwei Wu, Weimin Zheng, and Xinran Xu. 2025. Mooncake: Trading More Stor-age for Less Computation—A KVCache-centric Architecture for Serv-ing LLM Chatbot. In USENIX Conference on File and Storage Tech-nologies (FAST) . 155–170. https://www.usenix.org/conference/fast25/ presentation/qin arXiv:2407.00079. [22] Qwen Team. 2026. Qwen3.5-397B-A17B. Model card, https:// huggingface.co/Qwen/Qwen3.5-397B-A17B .[23] Qwen Team. 2026. Qwen3.6-27B. Model card, https://huggingface.co/ Qwen/Qwen3.6-27B .[24] Liliang Ren, Yang Liu, Yadong Lu, Yelong Shen, Chen Liang, and Weizhu Chen. 2025. Samba: Simple Hybrid State Space Models for Efficient Unlimited Context Language Modeling. In International Con-ference on Learning Representations (ICLR) . https://arxiv.org/abs/2406. 07522 
+
+[25] Jiawei Shao and Xuelong Li. 2025. AI Flow at the Network Edge. IEEE Network (2025). doi: 10.1109/MNET.2025.3541208 
+
+[26] Mikhail Shirokikh and Sergey Nikolenko. 2026. Sparse Prefix Caching for Hybrid and Recurrent LLM Serving. arXiv preprint arXiv:2605.05219. arXiv:2605.05219 [cs.LG] https://arxiv.org/abs/2605. 05219 
+
+[27] Vikranth Srivatsa, Zijian He, Reyna Abhyankar, Dongming Li, and Yiying Zhang. 2025. Preble: Efficient Distributed Prompt Schedul-ing for LLM Serving. In International Conference on Learning Repre-sentations (ICLR) . https://openreview.net/forum?id=meKEKDhdnx 
+
+arXiv:2407.00023. [28] vLLM GitHub issue #40696. 2026. Prefix caching completely ineffective for Mamba-hybrid models (Qwen3.5) when prompt < block_size (528 tokens). https://github.com/vllm-project/vllm/issues/40696 . Opened 2026-04-23; accessed 2026-09-20. [29] vLLM GitHub issue #45238. 2026. Hybrid-model prefix caching silently drops to 0% when the align-mode Mamba checkpoint lands in request-unique tokens. https://github.com/vllm-project/vllm/issues/45238 .Opened 2026-06-11; accessed 2026-09-20. [30] vLLM GitHub pull request #46384. 2026. [2/N][Core] Support partial prefix cache hit for hybrid model. https://github.com/vllm-project/ vllm/pull/46384 . Merged 2026-07-12; accessed 2026-09-20. [31] vLLM Team. 2026. Automatic Prefix Caching: Hybrid Mamba Mod-els. https://docs.vllm.ai/en/latest/features/automatic_prefix_caching/ .Accessed 2026-09-20. [32] Shihao Wang, Jiahao Chen, Yanqi Pan, Hao Huang, Yichen Hao, Xi-angyu Zou, Wen Xia, Wentao Zhang, Chongyang Qiu, and Pengfei Wang. 2026. ProphetKV: User-Query-Driven Selective Recomputa-tion for Efficient KV Cache Reuse in Retrieval-Augmented Gener-ation. arXiv preprint arXiv:2602.02579. arXiv:2602.02579 [cs.OS] 
+
+https://arxiv.org/abs/2602.02579 
+
+[33] Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc Le, Ed Chi, Sha-ran Narang, Aakanksha Chowdhery, and Denny Zhou. 2023. Self-Consistency Improves Chain of Thought Reasoning in Language Mod-els. In International Conference on Learning Representations (ICLR) .
+
+https://arxiv.org/abs/2203.11171 
+
+[34] Thomas Wolf, Lysandre Debut, Victor Sanh, Julien Chaumond, Clement Delangue, Anthony Moi, Pierric Cistac, Tim Rault, Remi Louf, Morgan Funtowicz, and Jamie Brew. 2020. Transformers: State-of-the-Art Natural Language Processing. In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing: System Demon-strations . Association for Computational Linguistics, 38–45. [35] Qingyun Wu, Gagan Bansal, Jieyu Zhang, Yiran Wu, Beibin Li, Erkang Zhu, Li Jiang, Xiaoyun Zhang, Shaokun Zhang, Jiale Liu, Ahmed Has-san Awadallah, Ryen W. White, Doug Burger, and Chi Wang. 2024. AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Con-versations. In Conference on Language Modeling (COLM) . https: //arxiv.org/abs/2308.08155 
+
+[36] Songlin Yang, Jan Kautz, and Ali Hatamizadeh. 2025. Gated Delta Net-works: Improving Mamba2 with Delta Rule. In International Conference on Learning Representations (ICLR) . https://arxiv.org/abs/2412.06464 
+
+[37] Jiayi Yao, Hanchen Li, Yuhan Liu, Siddhant Ray, Yihua Cheng, Qizheng Zhang, Kuntai Du, Shan Lu, and Junchen Jiang. 2025. CacheBlend: Fast Large Language Model Serving for RAG with Cached Knowledge Fusion. In European Conference on Computer Systems (EuroSys) . https: //arxiv.org/abs/2405.16444 
+
+[38] Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran, Thomas L. Griffiths, Yuan Cao, and Karthik Narasimhan. 2023. Tree of Thoughts: Deliberate Problem Solving with Large Language Models. In Advances in Neural Information Processing Systems (NeurIPS) . https://arxiv.org/abs/2305. 10601 
+
+[39] Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik Narasimhan, and Yuan Cao. 2023. ReAct: Synergizing Reasoning and Acting in Language Models. In International Conference on Learning Representations (ICLR) . https://arxiv.org/abs/2210.03629 
+
+[40] Z.ai. 2026. GLM-5.3-Flash. Model card, https://huggingface.co/zai-org/GLM-5.3-Flash .[41] Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Tianle Li, Siyuan Zhuang, Zhanghao Wu, Yonghao Zhuang, Zhuohan Li, Zi Lin, Eric P. Xing, Joseph E. Gonzalez, Ion Stoica, and Hao Zhang. 2024. LMSYS-Chat-1M: A Large-Scale Real-World LLM Conversation Dataset. In 
+
+International Conference on Learning Representations (ICLR) . https: //arxiv.org/abs/2309.11998 
+
+[42] Lianmin Zheng, Liangsheng Yin, Zhiqiang Xie, Chuyue Sun, Jeff Huang, Cody Hao Yu, Shiyi Cao, Christos Kozyrakis, Ion Stoica, Joseph E. Gonzalez, Clark Barrett, and Ying Sheng. 2024. SGLang: Efficient Execution of Structured Language Model Programs. In Ad-vances in Neural Information Processing Systems (NeurIPS) . https: //arxiv.org/abs/2312.07104 
+
+14 Just Let Linear States Forget the Distant Past 
+
+A Per-token storage accounting 
+
+This appendix derives the storage numbers reported in Ta-bles 1 and 2. Both columns count storage in addition to the KV cache of the full-attention layers, which the two designs store identically. All sizes are in bytes; 1 KiB = 1024 bytes. 
+
+Native cache. A checkpoint of SGLang’s cache holds, for each of the 𝐿 lin linear-attention layers, the two pieces of state that the layer carries across tokens. The first is the recurrent state, one 𝑑 𝑘 × 𝑑 𝑣 matrix per value head, kept in FP32: 
+
+𝐵 rec = 𝐻 𝑣 · 𝑑 𝑘 · 𝑑 𝑣 · 4. (6) The second is the state of the short causal convolution ap-plied to the query, key and value projections. With kernel width 𝑤 , the layer keeps the last 𝑤 − 1 inputs of each of its 
+
+𝐶 = 2𝐻 𝑘 𝑑 𝑘 + 𝐻 𝑣 𝑑 𝑣 channels, in BF16: 
+
+𝐵 conv = 𝐶 · ( 𝑤 − 1) · 2. (7) One checkpoint therefore occupies 𝐵 ckpt = 𝐿 lin (𝐵 rec + 𝐵 conv )
+
+bytes. The native cache takes a checkpoint every 𝑇 tokens, so its amortized cost is 
+
+𝐵 native (𝑇 ) = 𝐵 ckpt /𝑇 (8) bytes per token, with 𝑇 = 8192 by default. The cost is in-versely proportional to 𝑇 : halving the checkpoint interval doubles it. 
+
+Naive replay. Storing the input of every linear-attention layer at every token keeps one hidden-state vector of width 
+
+𝑑 per layer per token, in BF16: 
+
+𝐵 naive = 𝐿 lin · 𝑑 · 2. (9) This cost does not depend on any interval. Hidden states stay in BF16 even when the weights are quantized, as in Qwen3.6-27B-FP8. 
+
+SuffixReplay. SuffixReplay stores the input hidden state only at the entry of each group of linear-attention layers, 𝐴 layers in total, and retains a fraction 𝜌 of token positions: 
+
+𝐵 ours = 𝐴 · 𝑑 · 2𝜌. (10) A model with 𝐺 full-attention layers has 𝐺 groups and 𝐴 =
+
+𝐺 − 1: the input of the first group is the token embedding, which needs no storage, and no linear-attention layer follows the last full-attention layer. This gives 𝐴 = 7 for OLMo-7B and Qwen3.5-4B and 𝐴 = 15 for Qwen3.6-27B. With 
+
+𝜌 = 1/16, 𝐵 ours is 3,360, 2,240 and 9,600 bytes per token respectively, a reduction of (𝐿 lin /𝐴 )/ 𝜌 ≈ 51–55 × over naive replay. Table 6 lists the parameters and the intermediate sizes. For the two Qwen models, 𝐵 ckpt equals the per-slot size of the state pool that SGLang allocates at start-up, which we read from its logs. OLMo is not supported by SGLang; we apply the same layout to the state shapes of its reference implementation. 
+
+Table 6. Model parameters and the resulting sizes. All three models use convolution kernel width 𝑤 = 4.
