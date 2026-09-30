@@ -6,78 +6,59 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-29
-- 运行时间：2026-09-29 23:23:42 UTC
+- 最新运行日期：2026-09-30
+- 运行时间：2026-09-30 23:38:49 UTC
 - 运行状态：成功
-- 本次总论文数：19
-- 精读区：7
-- 速读区：12
+- 本次总论文数：12
+- 精读区：1
+- 速读区：11
 
 ### 今日简报（AI）
-2026-09-29日报：19篇中精读7、速读12，主线直指线性注意力的“记忆、线性化与缓存”。  
-最值得看10分《How Linear Attention Remembers
-- 详情：[/202609/29/README](/202609/29/README)
+- 今日共生成 12 篇推荐（精读 1 篇，速读 11 篇）
+- 精读：《DRAM: Delta-rule Recurrent Associative Memory for Robot Manipulation Policies》（9.0/10）
+- 速读：《MoSAR: Mixture of Semantic Attention Regimes for Learning Adaptive and Approximable Attention Geometries》（7.0/10）, 《GSM: Efficient Language Modeling with Shared Global State》（7.0/10）, 《RelaxKV: Recomputation Guided by the Query with Sparse Context Attention for Efficient KV Cache Reuse》（7.0/10）
+- 这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。
+- 详情：[/202609/30/README](/202609/30/README)
 
 ### 精读区论文标签
-1. [How Linear Attention Remembers](/202609/29/2609.33093v1-how-linear-attention-remembers)  
-   标签：评分：10.0/10、query:la
-   evidence：线性注意力循环状态的记忆机制
-2. [On-Policy Attention Linearization](/202609/29/2609.31947v1-on-policy-attention-linearization)  
+1. [DRAM: Delta-rule Recurrent Associative Memory for Robot Manipulation Policies](/202609/30/2609.32453v1-dram-delta-rule-recurrent-associative-memory-for-robot-manipulation-policies)  
    标签：评分：9.0/10、query:la
-   evidence：在策略线性注意力蒸馏
-3. [MS-GLA: Multi-Scale Gated Linear Attention for Addressing Representational Bottlenecks via Multi-Temporal Resolution](/202609/29/2609.35664v1-ms-gla-multi-scale-gated-linear-attention-for-addressing-representational-bottlenecks-via-multi-temporal-resolution)  
-   标签：评分：9.0/10、query:la
-   evidence：面向递归模型的多尺度门控线性注意力
-4. [Graph Memory: Spectral Associative Memory via Dirichlet Energy](/202609/29/2609.32365v1-graph-memory-spectral-associative-memory-via-dirichlet-energy)  
-   标签：评分：8.0/10、query:la
-   evidence：面向图模式的谱稠密联想记忆
-5. [Length-Independent State Tracking Under a Parallel Scan](/202609/29/2609.32447v1-length-independent-state-tracking-under-a-parallel-scan)  
-   标签：评分：8.0/10、query:la
-   evidence：分析有限精度下线性注意力与线性RNN的状态跟踪
-6. [SketchSSM: Write to the Full State, Read from a Compact Sketch](/202609/29/2609.33051v1-sketchssm-write-to-the-full-state-read-from-a-compact-sketch)  
-   标签：评分：8.0/10、query:la
-   evidence：在线性注意力混合模型中近似递归状态读取
-7. [LSTMem: Hierarchical Long Short-Term Online Memory for Large Language Models](/202609/29/2609.33268v1-lstmem-hierarchical-long-short-term-online-memory-for-large-language-models)  
-   标签：评分：8.0/10、query:la
-   evidence：面向LLM长程智能体的LSTM式门控在线记忆
+   evidence：基于Delta规则的循环联想记忆模块
 
 ### 速读区论文标签
-1. [Just Let Linear States Forget the Distant Past: Prefix Caching via Suffix Replay for Hybrid LLMs](/202609/29/2609.33477v1-just-let-linear-states-forget-the-distant-past-prefix-caching-via-suffix-replay-for-hybrid-llms)  
-   标签：评分：8.0/10、query:la
-   evidence：面向线性注意力递归状态的混合LLM前缀缓存
-2. [Quasi Linear Kernel Attention with Infinite Capacity](/202609/29/2609.35349v1-quasi-linear-kernel-attention-with-infinite-capacity)  
-   标签：评分：8.0/10、query:la
-   evidence：保持表达力的拟线性核注意力
-3. [Copy the Same, Distill the Difference: Initializing Linear Vision Transformers](/202609/29/2609.35745v1-copy-the-same-distill-the-difference-initializing-linear-vision-transformers)  
-   标签：评分：8.0/10、query:la
-   evidence：线性注意力视觉Transformer的初始化
-4. [Block Sparse Attention with Log-Linear Complexity](/202609/29/2609.31093v1-block-sparse-attention-with-log-linear-complexity)  
+1. [MoSAR: Mixture of Semantic Attention Regimes for Learning Adaptive and Approximable Attention Geometries](/202609/30/2609.31261v1-mosar-mixture-of-semantic-attention-regimes-for-learning-adaptive-and-approximable-attention-geometries)  
    标签：评分：7.0/10、query:la
-   evidence：对数线性复杂度的块稀疏注意力选择
-5. [MoSAR: Mixture of Semantic Attention Regimes for Learning Adaptive and Approximable Attention Geometries](/202609/29/2609.31261v1-mosar-mixture-of-semantic-attention-regimes-for-learning-adaptive-and-approximable-attention-geometries)  
+   evidence：学习自适应注意力几何以高效处理长上下文
+2. [GSM: Efficient Language Modeling with Shared Global State](/202609/30/2609.33465v1-gsm-efficient-language-modeling-with-shared-global-state)  
    标签：评分：7.0/10、query:la
-   evidence：学习自适应衰减几何实现高效长上下文注意力
-6. [Empowering Hybrid Attention Models on NPUs](/202609/29/2609.32114v1-empowering-hybrid-attention-models-on-npus)  
+   evidence：共享全局状态实现高效长程检索
+3. [RelaxKV: Recomputation Guided by the Query with Sparse Context Attention for Efficient KV Cache Reuse](/202609/30/2609.33503v1-relaxkv-recomputation-guided-by-the-query-with-sparse-context-attention-for-efficient-kv-cache-reuse)  
    标签：评分：7.0/10、query:la
-   evidence：NPU上含线性注意力层的高效混合注意力
-7. [A Comparative Analysis of Attention versus State-Space Models for In-Context Learning](/202609/29/2609.32341v1-a-comparative-analysis-of-attention-versus-state-space-models-for-in-context-learning)  
+   evidence：查询引导的选择性KV缓存修复与稀疏上下文注意力
+4. [Remember by Asking: Retrieval-Induced Memory Evolution for LLM Agents](/202609/30/2609.34438v1-remember-by-asking-retrieval-induced-memory-evolution-for-llm-agents)  
    标签：评分：7.0/10、query:la
-   evidence：统一分析注意力与状态空间序列模型
-8. [SchemaMem: Schema-Indexed Recurrent Memory for Delayed State Retrieval](/202609/29/2609.33436v1-schemamem-schema-indexed-recurrent-memory-for-delayed-state-retrieval)  
+   evidence：面向LLM智能体的检索诱导记忆形成
+5. [Learning What to Recall: Adaptive Multi-Cue Episodic Memory for World Models](/202609/30/2609.34677v1-learning-what-to-recall-adaptive-multi-cue-episodic-memory-for-world-models)  
    标签：评分：7.0/10、query:la
-   evidence：面向延迟状态检索的注意力循环记忆
-9. [Beyond Mean Attention: Diversity-Aware, Layer-Wise Scoring for KV Cache Eviction](/202609/29/2609.30738v1-beyond-mean-attention-diversity-aware-layer-wise-scoring-for-kv-cache-eviction)  
+   evidence：面向记忆检索的自适应多线索情景记忆
+6. [SANTA++: Sampling Attention through Representative Keys](/202609/30/2609.35629v1-santa-sampling-attention-through-representative-keys)  
+   标签：评分：7.0/10、query:la
+   evidence：面向KV缓存检索的内存高效随机注意力
+7. [EMIR$^2$: Evolution-Aware Memory with Intent-Guided Multi-Round Retrieval](/202609/30/2609.32584v1-emir2-evolution-aware-memory-with-intent-guided-multi-round-retrieval)  
    标签：评分：6.0/10、query:la
-   evidence：融合注意力离散度与多样性的KV缓存驱逐打分
-10. [ROTE: Benchmarking Neural Memorization on Complexity-Controlled Symbolic Sequences](/202609/29/2609.31918v1-rote-benchmarking-neural-memorization-on-complexity-controlled-symbolic-sequences)  
+   evidence：面向LLM智能体的意图引导多轮记忆检索
+8. [CoWindow Attention: Full Causal Coverage Is a Collective Property](/202609/30/2609.32704v1-cowindow-attention-full-causal-coverage-is-a-collective-property)  
    标签：评分：6.0/10、query:la
-   evidence：评估递归、注意力与混合序列模型的记忆基准
-11. [Does Transolver really need a Transformer?](/202609/29/2609.32525v1-does-transolver-really-need-a-transformer)  
+   evidence：减少因果注意力冗余计算的结构化稀疏注意力
+9. [Thinking Outside the Box: Retention and Transmission of Information in Sliding-Window KV Inference](/202609/30/2609.34049v1-thinking-outside-the-box-retention-and-transmission-of-information-in-sliding-window-kv-inference)  
    标签：评分：6.0/10、query:la
-   evidence：用常数线性映射替换token注意力
-12. [Distance-KV: Exploiting Relative Distance for Efficient Long-Context Inference](/202609/29/2609.32663v1-distance-kv-exploiting-relative-distance-for-efficient-long-context-inference)  
+   evidence：固定大小滑动窗口KV缓存与信息保留
+10. [When Can Attention Heads Be Statically Defined?](/202609/30/2609.34650v1-when-can-attention-heads-be-statically-defined)  
    标签：评分：6.0/10、query:la
-   evidence：基于相对距离的KV缓存剪枝
+   evidence：将存储从二次降为线性的静态注意力头
+11. [WaveAlign: Cache-Aware Query-Row Scheduling for Sparse Attention in Long-Video Generation](/202609/30/2609.34814v1-wavealign-cache-aware-query-row-scheduling-for-sparse-attention-in-long-video-generation)  
+   标签：评分：6.0/10、query:la
+   evidence：面向动态稀疏注意力的缓存感知查询行调度
 
 
 <div class="dpr-home-promo-card">

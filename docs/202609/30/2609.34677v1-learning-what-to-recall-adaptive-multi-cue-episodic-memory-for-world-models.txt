@@ -1,0 +1,986 @@
+Title: Learning What to Recall: Adaptive Multi-Cue Episodic Memory for World Models
+
+URL Source: https://arxiv.org/pdf/2609.34677v1
+
+Published Time: Tue, 29 Sep 2026 03:17:24 GMT
+
+Number of Pages: 23
+
+Markdown Content:
+# LEARNING WHAT TO RECALL : A DAPTIVE MULTI -CUE EPISODIC MEMORY FOR WORLD MODELS 
+
+Beomsu Kim 1 Chieh-Hsin Lai 2 Bac Nguyen 2
+
+Amir Bar 3 Jong Chul Ye 1,† Yuki Mitsufuji 2,†
+
+> 1
+
+KAIST 2Sony Group Corporation 3Imperial College London WorldMem 
+
+1.  FAR  Beats Hand  -Designed Memory Recall with Same Cues 
+
+> FAR
+
+2.  FAR  Adaptively Learns Which Cues to Trust Among Multiple Available Cues  
+
+> Single -Cue FAR
+> Rotate
+> Forward
+
+3.  FAR  Recalls the Right State as the World Changes          
+
+> Memory recalled by... Prediction with recall by… Query GT Future
+> FAR WorldMem
+> Multi -Cue FAR
+> FAR WorldMem
+> WorldMem FAR
+> Single -Cue FAR Multi -Cue FAR
+> Memory recalled by... Prediction with recall by… Query GT Future
+> Memory recalled by... Prediction with recall by…
+> Open
+> Query GT Future
+
+Figure 1: The three advantages of Future-Aware Recall (FAR). Top: FAR retrieves context based on its usefulness for predicting the future, beating hand-designed memory recall rules. In the figure, FAR is compared against WorldMem (Xiao et al., 2025). Middle: FAR adaptively learns query-dependent weights over multiple available retrieval cues. Here, FAR learns to rely more on audio cue to distinguish memories with occluded and clear line of sight. Bottom: FAR recalls memory to support state-correct future predictions. Here, FAR distinguishes between closed and open fridges, in contrast to WorldMem. 
+
+## ABSTRACT 
+
+World models predict future observations from current experience and actions, yet prediction can depend on observations seen far in the past. Episodic memory pre-serves past observations for later recall; however, as memory accumulates, it raises a fundamental question: which memories are useful for the current prediction, and which available retrieval cues should be trusted to find them? This is challeng-ing because fixed criteria based on recency, pose overlap, or visual similarity can be unreliable across environments and queries. We propose Future-Aware Recall 
+
+(FAR ), a framework that learns episodic recall from future-aware predictive super-vision and adaptive multi-cue scoring. During training, FAR measures predictive utility by the conditional log-likelihood of the realized future given recalled con-
+
+> †
+
+Corresponding Authors. Work done while Beomsu Kim was an intern at Sony. Contacts: beomsu.kim@kaist.ac.kr , chieh-hsin.lai@sony.com 
+
+1arXiv:2609.34677v1 [cs.LG] 28 Sep 2026 text, approximated by negative diffusion prediction loss, and uses it to train a re-triever that remains future-blind at inference. The retriever learns cue-specific rel-evance and automatically determines which available retrieval cues, such as time, pose, vision, and audio, to trust for each query when selecting memories. Across three complementary settings, FAR outperforms hand-designed recall even with the same retrieval cues, automatically adapts which available cues to trust, and re-calls the right history as the world changes. Together, these results establish FAR as a flexible, principled approach to episodic memory access in world models. Project page at: https://1202kbs.github.io/FAR-Project-Page/ 
+
+## 1 INTRODUCTION 
+
+In world modeling, the current observation provides only a partial view of the underlying environ-ment state. Scenes and objects persist, and may continue to evolve, after leaving the field of view. To predict what will be observed upon revisit, world models must preserve information across ex-tended interactions (Ha & Schmidhuber, 2018; Hafner et al., 2019). Memory is therefore central to long-horizon, persistent world modeling. Recent world models explore different mechanisms for maintaining such information. Persistent-state memory integrates observations into an evolving rep-resentation of the current world, such as a recurrent latent state (Hafner et al., 2020; 2021; 2025) or persistent 3D representation (Wu et al., 2025; Garcin et al., 2026). Episodic memory instead preserves individual past observations as separately accessible memories that can later be recalled (Xiao et al., 2025; Hu et al., 2026). These memory functions are complementary: persistent-state memory provides compact access to an evolving world state, while episodic memory preserves di-rectly recoverable evidence from past experience. Episodic memory, however, introduces a fundamental recall problem. As interaction continues, the number of stored memories grows, while only a small fraction may be useful for a particular prediction. Existing world models commonly define relevance using fixed criteria such as temporal recency (Bar et al., 2025), pose-based field-of-view overlap (Xiao et al., 2025), or visual embedding similarity (Hu et al., 2026). However, similarity under a particular cue need not reflect predictive usefulness, and the reliability of that cue can vary across situations. For example, in an elbow-shaped corridor (see Fig. 6), pose-based retrieval may favor a nearby memory across a wall, while visual appearance may be ambiguous across similar corridor segments. Spatial audio may instead better identify relevant past experience in this case, while pose or vision may be more informative elsewhere. This raises our central question: 
+
+How can a world model learn which past observations are useful for future prediction, and which available retrieval cues can identify them before the future is known? 
+
+We address this with Future-Aware Recall (FAR ). During training, the future is observed, allowing FAR to evaluate each candidate memory by how well it helps the world model predict what actually happens. We call this predictive utility , and use it to supervise a retriever that must operate without access to the future at inference. To predict this relevance at recall time, FAR learns a relevance function for each available cue, such as time, pose, vision, or audio, together with query-dependent weights that determine which cues to trust. These cues are used to select memories; they need not be provided to the world model as additional generation conditions. FAR’s latent-variable formulation connects naturally to retrieval-augmented language models (Lewis et al., 2020; Sachan et al., 2021), allowing us to adapt discrete retriever optimization to episodic recall for world models. We instantiate FAR with video diffusion world models and an external episodic memory. Historical observations remain individually addressable, while the retriever selects a compact Top-K context for each prediction. Predictive utility is defined through the conditional likelihood of the realized future; for our video diffusion instantiation, we use negative diffusion prediction loss as a tractable surrogate. The recalled context then conditions the world model for future prediction. Across three complementary environments, FAR consistently improves episodic recall and down-stream prediction over fixed retrieval strategies. In LoopNav (Lian et al., 2025), FAR outperforms hand-designed relevance rules even when given the same retrieval cues, while adaptively using time, pose, and vision further improves long-horizon prediction. In SoundSpaces (Chen et al., 2020), FAR learns to rely on audio when spatial cues become ambiguous, particularly for longer trajecto-ries and sparser memories. In changing-state AI2-THOR environments (Kolve et al., 2017), FAR 2recalls history consistent with the current world state and reduces errors caused by stale memories. Fig. 1 summarizes these complementary capabilities. Together, these results demonstrate FAR as a flexible, prediction-driven mechanism for episodic memory access in persistent world models. 
+
+## 2 BACKGROUND AND RELATED WORK 
+
+World models and episodic memory. World models predict future observations from interaction history and actions using recurrent dynamics, diffusion, or masked generative modeling (Hafner et al., 2020; 2021; 2025; Alonso et al., 2024; Bruce et al., 2024; Kim et al., 2026). Over long interactions, relevant information may lie far in the past, making repeated processing of the full history costly. External episodic memory instead preserves past observations for selective recall using cues such as time, pose, vision, or audio. We focus on learning which memories to recall and which available cues to trust, rather than relying on fixed relevance rules for individual cues. 
+
+Internal and external recall. Generator-internal methods maintain long-range information through attention, routing, context compression, or recurrent memory (Cai et al., 2026; Yu et al., 2026; Peng et al., 2026), with recent world models also using linear attention for efficient long-horizon memory (Wang et al., 2026a; Zhu et al., 2026). Generator-external methods instead search an explicit memory and pass only a compact subset to the world model (Xiao et al., 2025; Yu et al., 2025; Chen et al., 2025; Li et al., 2026). These approaches are complementary: internal memory compactly summarizes history, while external episodic memory preserves individually addressable observations for selective recall. We focus on external recall, which can be combined with internal long-context memory mechanisms. 
+
+Learning predictive external recall. External world-model recall commonly uses fixed temporal, geometric, or embedding-based relevance, while discrete Top-K selection prevents direct gradient flow from the world-model objective. Related retrieval-augmented generation methods learn dis-crete retrieval from downstream likelihood; for example, EMDR 2 (Sachan et al., 2021) uses reader likelihood to supervise a document retriever. FAR applies this latent-variable principle to episodic recall from an evolving interaction history, defining relevance through future predictive utility. Its retriever learns both cue-specific relevance and query-dependent cue reliability from available cues whose usefulness can vary across queries. Table 2 in Section A provides a detailed comparison. 
+
+## 3 OUR METHOD : F UTURE -A WARE EPISODIC MEMORY 
+
+We propose Future-Aware Recall (FAR ), a framework for learning predictive memory relevance in external episodic recall. At inference, FAR must select useful memories using only the episodic memory and current prediction query, since the future to be predicted is unavailable. During training, however, that future is observed. FAR exploits this additional information to identify which mem-ories would have best supported prediction and uses these signals to train a retriever that remains future-blind at inference. FAR thereby learns both which memories to recall and which retrieval cues to trust . A high-level overview is provided in Fig. 2. We first formalize the recall problem 
+
+underlying FAR, and then introduce its key mechanisms. 
+
+The memory recall problem. Let ot denote the observation at step t and at the subsequent action, with prediction query Qt := ( ot, at). The episodic memory contains the past observations Mt−1 := (o1, . . . , ot−1). FAR recalls a compact context Ct ⊆ M t−1 with |C t| = K, which the world model uses to predict the next observation: pθ (ot+1 | C t, Qt).To locate useful memories, each historical observation oi is associated with retrieval cues zi, such as time, pose, a visual representation, or an audio representation. We collect the historical cues as 
+
+Zt−1 := ( z1, . . . , zt−1) and define the current retrieval query as Rt := ( zt, at). These cues are used by the external retriever to determine where to recall from in episodic memory. Specifically, given 
+
+Zt−1 and Rt, the retriever assigns each candidate context Ct a relevance score sϕ(Ct | Z t−1, Rt),inducing the recall distribution 
+
+rϕ(Ct | Z t−1, Rt) ∝ exp sϕ(Ct | Z t−1, Rt). (1) Exact evaluation of Eq. (1) is generally intractable because it requires considering a combinato-rial number of possible recalled context sets as the episodic memory Mt−1 grows. For discrete Top-K recall, we therefore use the candidate-level latent-variable approximation adapted from EMDR 2 (Sachan et al., 2021), described in Section B.3. 3Interaction History   
+
+> Memory ℳ𝑡−1
+> ⋯
+> Cues 𝒵 𝒕−𝟏
+
+Cue  -Specific Scores   
+
+> History Current
+> Time
+> Scorer
+> Pose
+> Scorer
+> Vision
+> Scorer
+> Audio
+> Scorer
+> Cue
+> Scorer
+> Scores 𝐬 𝐜𝐮𝐞
+
+Cue Fusion    
+
+> 𝒘 𝒕𝒊𝒎𝒆 , 𝒘 𝒑𝒐𝒔𝒆 , … , 𝒘 𝒄𝒖𝒆
+> Query -Dependent
+> Cue Weights
+> (from cue -specific
+> score distributions)
+> Weighted
+> Fusion
+> ෍ 𝒘 𝒄𝒖𝒆 𝒔 𝒄𝒖𝒆
+
+Top  -K Recall      
+
+> Fused Relevance
+> Scores
+> Top -K
+> Selection
+> Context 𝓒 𝒕
+> ⋯
+> Query 𝓠 𝒕
+> Obs. and Action
+> World Model
+> Predicted
+> Future
+> ⋯
+> +
+> +
+> +
+> +
+> +⋯
+> Observed
+> Future 𝒐 𝒕+𝟏
+
+Predictive Utility 
+
+𝒖 𝜽 (𝓒 𝒕 |𝒐 𝒕+𝟏 , 𝓠 𝒕 )
+
+Training Only       
+
+> Use the observed future
+> to supervise the scorers
+> via predictive utility .
+> Time Pose Vision
+> Audio Other Cues Action
+
+Prediction 
+
+> Standardize
+> Scores
+> = log p 𝜃 (𝐨 𝒕+𝟏 |𝓒 𝒕 , 𝓠 𝒕 )
+
+Figure 2: Overview of Future-Aware Recall (FAR). FAR scores memories using general retrieval cues Zt−1, adaptively fuses cue-specific relevance, and recalls a compact Top-K context Ct from episodic memory Mt−1 for world-model prediction. During training, the observed future ot+1 
+
+provides predictive utility to supervise the retriever, while recall remains future-blind at inference. Together, the retriever and world model define the latent-context predictive model 
+
+pθ,ϕ (ot+1 | M t−1, Zt−1, Rt, Qt) = P 
+
+> Ct
+
+pθ (ot+1 | C t, Qt) rϕ(Ct | Z t−1, Rt). (2) Here, rϕ determines which past observation is recalled, while pθ determines how recalled context supports prediction. Importantly, retrieval cues guide the selection of Ct; they need not be provided to the world model as generation conditions. Learning effective episodic recall thus reduces to learning the relevance function sϕ, and hence the recall distribution rϕ. We now derive predictive supervision for relevance and show how FAR adaptively uses multiple retrieval cues to estimate it. 3.1 LEARNING WHICH MEMORIES TO RECALL 
+
+The recall model above is governed by the future-blind relevance score sϕ(Ct | Z t−1, Rt). The key question is how this score should be learned so that highly ranked contexts are actually useful for prediction. Our principle is predictive: a recalled context is useful when it provides information about the future beyond what is already available in the current prediction query. 
+
+Predictive utility. Let pdata denote the environment data-generating distribution over interaction histories, retrieval cues, and future observations. For a recalled context Ct ∼ rϕ(· | Z t−1, Rt), its predictive information about the next observation is naturally measured by Iϕ(ot+1 ; Ct | Q t), where the subscript emphasizes that Ct is selected by the retriever rϕ. Iϕ measures how much the recalled context reduces uncertainty about the future beyond what is already known from Qt. The following proposition connects this information-theoretic notion of relevance to the world model pθ .
+
+Proposition 1 (Predictive relevance bound) . For any predictive distribution pθ (ot+1 | C t, Qt),
+
+Iϕ(ot+1 ; Ct | Q t) ≥ E[log pθ (ot+1 | C t, Qt) − log pdata (ot+1 | Q t)] , (3) 
+
+where the expectation is over training interactions from pdata and Ct ∼ rϕ(· | Z t−1, Rt).
+
+See the derivation in Section B.1. For a fixed training pair (ot+1 , Qt), the second term in Eq. (3) depends only on pdata , and is therefore identical across recalled contexts and independent of the trainable parameters. The remaining context-dependent term hence motivates the predictive utility :
+
+uθ (Ct | ot+1 , Qt) := log pθ (ot+1 | C t, Qt). (4) 
+
+A context has high predictive utility when conditioning on it makes the realized future more likely under the world model. Thus, memory relevance depends on the prediction being made: the same past experience may be highly useful for one query and largely irrelevant for another. 4Future-aware predictive supervision. Predictive utility depends on the realized future ot+1 , which is not available when memories must be recalled at inference time. During training, however, ot+1 
+
+is observed and reveals which recalled contexts would have best supported the prediction. FAR uses this additional information to construct a future-aware posterior over contexts. Combining the recall distribution in Eq. (1) with the predictive utility in Eq. (4), Bayes’ rule gives                  
+
+> qθ,ϕ (Ct|ot+1 ,Mt−1,Zt−1,Rt,Qt)∝exp[ sϕ(Ct| Z t−1,Rt) + uθ(Ct|ot+1 ,Qt)] .(5)
+
+This posterior combines two signals: sϕ captures how relevant a context appears from information available before the future is observed, while uθ provides predictive credit from the realized future. Accordingly, qθ,ϕ serves as a future-aware teacher for the future-blind recall distribution. As shown in Section B.2, this posterior provides the maximum-likelihood training target for recall: it favors contexts that better explain the observed future while retaining the relevance already inferred by the future-blind retriever. We therefore train rϕ to match this fixed target: 
+
+LRet (ϕ) := E[DKL (sg[ qθ,ϕ ] ∥ rϕ)] , (6) where sg[ ·] is the stop-gradient, treating qθ,ϕ as fixed during the retriever update. This transfers pre-dictive credit from the observed future into a retriever that operates without the future at inference. 3.2 ADAPTIVELY LEARNING WHICH CUES TO TRUST 
+
+The previous subsection specifies what the context relevance score sϕ should learn through future-aware predictive credit. At inference, however, this credit is unavailable, so sϕ must estimate rel-evance from the retrieval cues contained in Zt−1 and Rt. FAR is agnostic to the choice of cues: any signal associated with a historical observation that helps locate useful memories can be used for recall. In our experiments, we consider time, pose, visual representations, and audio representations, with the available subset depending on the environment. Because the reliability of these cues can vary across queries, FAR learns both cue-specific relevance and how strongly each available cue should contribute to the final context score. 
+
+Cue-specific relevance. Let zmi denote the component of zi corresponding to retrieval cue m. We define the corresponding cue history and retrieval query as Zmt−1 := ( zm 
+
+> 1
+
+, . . . , zmt−1) and Rmt := (zmt , at). For each historical observation oi, cue m produces an observation-level relevance score 
+
+smϕ,i := smϕ
+
+ zmi ; Zmt−1, Rmt
+
+ . (7) This score estimates how relevant the corresponding memory appears when viewed through cue m
+
+alone. Because different cues may produce scores on different numerical scales, we standardize each cue’s scores across the episodic memory and denote the resulting scores by esmϕ,i .
+
+Adaptive cue fusion. FAR combines the cue-specific scores using query-dependent weights, 
+
+sϕ,i = P 
+
+> m
+
+λmϕ,t esmϕ,i , P 
+
+> m
+
+λmϕ,t = 1 , (8) where λmϕ,t is produced by a learned gate from the cue-specific retrieval signals available for the current query. The fused observation-level scores define the context relevance score in Eq. (1) as 
+
+sϕ(Ct | Z t−1, Rt) := P 
+
+> oi∈C t
+
+sϕ,i . (9) Together, Eqs. (8) and (9) parameterize the recall distribution rϕ(Ct | Z t−1, Rt) used by the future-aware posterior in Eq. (5). For fixed-size recall with |C t| = K, the maximum-score context is obtained by selecting the K observations with the largest fused relevance scores, 
+
+Ct, TopK = arg max Ct⊆M t−1 sϕ(Ct | Z t−1, Rt) so that |C t| = K. (10) 3.3 VIDEO DIFFUSION WORLD MODEL INSTANTIATION 
+
+We now instantiate FAR with a video diffusion world model, and we describe the central details here. A precise description of implementation is provided in Section C.1. 
+
+Cacheable retrieval encoders. For high-dimensional cues such as vision and audio, cue-specific encoders map historical cues to compact keys and the current cue and action to a query embedding. 50.0 0.2 0.4 0.6 0.8 1.0          
+
+> Normalized Trajectory Time
+> 14 16 18 20
+> PSNR  ↑
+> Temporal WorldMem LongLive-RAG FAR – Meta FAR – Visual FAR – Multi-Cue
+> 0.00.20.40.60.81.0
+> Normalized Trajectory Time
+> 0.20.30.40.50.6
+> LPIPS  ↓
+> 0.00.20.40.60.81.0
+> Normalized Trajectory Time
+> 0.05 0.10 0.15 0.20
+> DreamSim  ↓
+
+Figure 3: LoopNav rollout quality. We report frame-wise PSNR ↑, LPIPS ↓, and DreamSim ↓ be-tween generated and ground-truth return trajectories as a function of normalized trajectory time. Curves show the mean across trajectories, with shaded regions indicating 95% bootstrap confidence intervals. Errors are highest near the middle of the return phase, where relevant observations are typically farthest in time and memory is most sparse. We contrastively pretrain and freeze the memory-side encoders so that historical keys can be com-puted once and cached, while lightweight query-side adapters and cue-fusion components remain trainable through FAR. 
+
+Diffusion-based predictive utility. Because the exact likelihood in Eq. (4) is expensive for diffusion models, we approximate predictive utility by the negative diffusion prediction loss (Ho et al., 2020; Kingma et al., 2021; Song et al., 2021b; Lai et al., 2025) of the realized future conditioned on each candidate memory, averaged over four diffusion timesteps. Memories that yield lower prediction loss receive greater future-aware credit. 
+
+Temporally structured recall. To avoid spending multiple Top-K slots on redundant nearby frames, we partition memory into temporal chunks, retain the highest-scoring observation from each chunk, and recall the K highest-scoring representatives. 
+
+## 4 EXPERIMENTS Exploration Return 
+
+Figure 4: Illustration of a data trajectory. 
+
+We present experiments across three complementary world-modeling settings: LoopNav (Lian et al., 2025), SoundSpaces (Chen et al., 2020), and AI2-THOR (Kolve et al., 2017). LoopNav evaluates consistency in a static Minecraft environment using metadata and visual retrieval cues, while SoundSpaces evaluates realistic indoor navigation where meta-data and spatial audio provide complementary signals under partial ob-servability. AI2-THOR evaluates interactive household environments with manipulable objects, where interactions change the world state and memories may become stale. Each trajectory consists of an exploration phase and a return phase . The world model generates the return-phase video using exploration-phase observations as its memory pool for con-text retrieval. Fig. 4 shows exploration and return paths on SoundSpaces. 4.1 LOOP NAV – FAR O UTPERFORMS HAND -D ESIGNED RECALL 
+
+We compare against three retrieval baselines: the temporal baseline (Bar et al., 2025), which uses the most recent observations; WorldMem (Xiao et al., 2025), which retrieves frames with high field-of-view (FOV) overlap with the goal; and LongLive-RAG (Hu et al., 2026), which retrieves by reconstructive embedding similarity. We evaluate three variants of our method using metadata cues (time and pose), visual cues, or their adaptive fusion. As shown in Fig. 3, the temporal baseline performs worst, while WorldMem and LongLive-RAG benefit from geometry- and appearance-based retrieval. At loop closure, our learned visual retriever outperforms LongLive-RAG ( 17% lower DreamSim), and our learned metadata retriever outper-forms WorldMem ( 19% lower DreamSim), despite using the same respective cue types. Fig. 1 illustrates why: WorldMem retrieves a frame with high FOV overlap but a heavily occluded view of the goal, whereas our learned metadata retriever selects a frame with a clearer predictive view. This highlights a key limitation of hand-crafted relevance rules: cue similarity does not necessarily imply predictive utility. Finally, the Multi-Cue variant in Fig. 3, which fuses metadata and visual cues, shows that FAR can exploit complementary retrieval signals. Its rollout error closely follows 610 12 14 16 18 20 22 
+
+> PSNR  ↑
+> Temporal WorldMem FAR – Meta FAR – Multi-Cue
+> 0.10.20.30.40.50.60.70.8
+> LPIPS  ↓
+
+Exploration with Periodic Scans    
+
+> 0.00.10.20.30.40.50.6
+> DreamSim  ↓
+> 510 20 40
+
+Return Phase Length (m)    
+
+> 10 12 14 16 18 20 22
+> PSNR  ↑
+> 510 20 40
+
+Return Phase Length (m) 
+
+> 0.10.20.30.40.50.60.70.8
+> LPIPS  ↓
+
+Exploration with Endpoint Scans Only    
+
+> 510 20 40
+
+Return Phase Length (m) 
+
+> 0.00.10.20.30.40.50.6
+> DreamSim  ↓
+
+Figure 5: SoundSpaces rollout quality. We report PSNR, LPIPS, and DreamSim, where the error is averaged over predicted frames along return trajectory. Thus, the x-axis denotes the length of the trajectory over which the rollout is evaluated, not the rollout horizon . Top: results on the corpus where the agent performs periodic 360 ◦ scans during exploration. Bottom: results on the corpus where the agent scans at the endpoints, i.e., at the beginning and end of exploration. Current  otFuture  ot+1     
+
+> Top-1 Recall  Temporal
+> Predicted
+> WorldMem FAR (Meta) FAR (Multi-Cue) Top-Down Map
+> Current ot
+> Future ot+1
+> Top-1 Context Pose Temporal WorldMem FAR (Meta) FAR (Multi-Cue)
+
+Figure 6: Retrieval comparison on SoundSpaces. Given the observation and goal view, we visu-alize the top-1 context retrieved by each method and the generated goal frame, with regions of large error overlaid in red . The spectrograms show the audio cue associated with each state. The map shows the exploration and return trajectories with the memories selected by each method. the better of the metadata-only and visual-only variants across the horizon, suggesting that adaptive fusion emphasizes whichever cue is more informative for the current prediction. 4.2 SOUND SPACES – FAR A DAPTIVELY LEARNS WHICH CUES TO TRUST 
+
+We next evaluate FAR on SoundSpaces, where we construct an indoor navigation dataset augmented with spatial audio. We generate two corpora that differ in the density of available episodic memories: one performs periodic 360 ◦ scans during exploration, while the other scans only at the exploration endpoints. The former thus provides substantially denser historical coverage from which the world model can retrieve. We stratify evaluation by return-phase length, i.e., the physical distance traversed during the trajectory over which rollout quality is measured. Longer return trajectories are generally more challenging, as they require prediction through more rooms, corridors, and viewpoint changes. Fig. 5 shows that FAR consistently outperforms the temporal baseline and WorldMem across both corpora. With periodic scans, metadata alone provides a strong retrieval signal, and Multi-Cue fusion of metadata and audio yields modest gains. Under the sparser endpoint-scan setting, however, the advantage of Multi-Cue grows with return-phase length, particularly in LPIPS and DreamSim. This suggests that metadata often suffices when relevant visual memories are densely available, whereas audio provides a valuable complementary cue for long trajectories or sparse histories. Fig. 6 illustrates how audio can complement metadata when geometric relevance alone is insuffi-cient. The agent is traversing a corridor and must predict a view farther down. Temporal retrieval 7Interaction History     
+
+> Evaluation Rollout (revisiting the scene)
+> Temporal WorldMem FAR
+> Hallucinates Tomato
+> with obs. w/0 obs.
+> Post-Interaction Observation Removed
+> Pick up tomato Move to fridge Place tomato in fridge
+
+Figure 7: History-dependent counterfactual prediction in AI2-THOR. We compare two trajecto-ries with the same current closed-fridge observation and opening action but different histories: one history contains the event of placing a tomato inside the fridge, while the other does not. selects the most recent observation, which looks in the correct direction but provides limited in-formation about the distant portion of the corridor. WorldMem selects the same context because it has high FOV overlap with the goal pose, and consequently suffers from the limitation. FAR with metadata retrieves an observation taken farther along the trajectory and oriented toward the goal, but the view is obstructed by the corridor geometry. Incorporating audio cue instead retrieves a context with a clearer view of the region around the goal, leading to a more faithful prediction. The inset spectrograms show the audio associated with each retrieved state, highlighting how spatial audio can provide a complementary retrieval cue when pose and visual geometry alone are ambiguous. 4.3 AI2-THOR – FAR R ECALLS THE RIGHT STATE AS THE WORLD CHANGES 0.00.20.40.60.81.0
+
+> State Accuracy  ↑
+
+Surface Changes  
+
+> 0.10.2
+
+Size of the Change 
+
+> 0.00.20.40.60.81.0
+> State Accuracy  ↑
+
+Container Reveals 
+
+> Temporal WorldMem FAR – Multi-Cue
+
+Figure 8: State accuracy under object manipulation. 
+
+We next evaluate FAR in AI2-THOR environments where in-teractions change the state of the world. During exploration, the agent randomly moves objects between surfaces and con-tainers, producing multiple observations of the same location that may correspond to conflicting world states. During the return phase, the agent revisits these locations and must gen-erate observations consistent with the state established by the preceding interactions. This setting is challenging for retrieval based primarily on recency or geometry, since a spatially well-matched memory may depict a stale state. 
+
+State rendering accuracy. We evaluate whether the gen-erated rollout reflects the current world state rather than a stale state from earlier in the trajectory. Specifically, we re-port the fraction of changed states satisfying d(oGT , oPred ) <d(oGT , oStale ), where oGT is the ground-truth frame, oPred is the predicted rollout frame, oStale is a pose-matched observa-tion depicting the pre-interaction state, and d denotes LPIPS on a crop around the changed region. Fig. 8 stratifies accuracy by state-change magnitude, d(oGT , oStale ). We consider two cases: surface changes , where the updated state is directly visible upon revisit, and container reveals , where it becomes observable only after opening a container. Multi-Cue FAR, fusing metadata and vision, 80.0 0.2 0.4 0.6 0.8 1.0
+
+Both-Ends Reveal Accuracy ↑  
+
+> 41.8 Temporal 32.5 WorldMem 66.7 FAR – Meta 94.5 FAR – Multi-Cue
+> Constant Guess Rotate FAR
+> Recalled Memory Query GT Future
+> WorldMem
+> Predicted Future
+> FAR WorldMem
+
+Figure 9: Off-scene dynamics prediction. Left: trajectory-level accuracy for predicting the future location of the independently moving agent A2. Right: qualitative example showing that FAR recalls a motion-informative episode containing A2, and predicts the correct future state with A2.WorldMem retrieves a spatially relevant but dynamically uninformative memory, failing to render 
+
+A2. All A2 appearances are outlined in green for visual aid. substantially outperforms temporal and geometry-based recall across change magnitudes in both settings. The advantage is especially pronounced for container reveals, where the current observation contains little information about hidden contents and accurate prediction therefore depends strongly on recalling the relevant interaction history. Performance decreases for all methods when current and stale states differ only locally, consistent with the limited sensitivity of the diffusion prediction objective to small visual changes. 
+
+History-dependent counterfactual prediction. Fig. 7 shows a paired counterfactual example in which the current observation and action are held fixed, while the preceding interaction history differs. In one history, the agent places a tomato inside the refrigerator; in the other, it does not. When the agent later observes the same closed refrigerator and executes the same opening action, FAR generates different futures consistent with the corresponding histories, rendering the tomato inside the refrigerator only when it was previously placed there. This shows that the predicted future is not determined by the current observation alone, but depends on recalling the relevant past interaction. In contrast, Temporal and WorldMem fail to preserve the interaction-dependent state, with WorldMem additionally hallucinating the tomato at its stale table location as a result of prioritizing stale contexts with high FOV overlap over up-to-date contexts. 
+
+Off-scene dynamics prediction. We test whether FAR can predict off-scene dynamics in a two-agent corridor setting. A1 is the observer, while A2 patrols back and forth and is only intermittently visible through a doorway. The task is to predict A2’s location when A1 exits the room and looks down the corridor. To capture motion, each recalled context consists of two observations separated by 1.5 seconds. We compare FAR using only time and pose metadata with a Multi-Cue variant that fuses metadata with an A2 observation cue. As shown in Fig. 9, Temporal and WorldMem achieve 
+
+41 .9% and 32 .4% accuracy, while FAR with metadata alone reaches 67 .1% , indicating that future-aware training can learn when informative crossings are likely to occur. Multi-Cue further improves accuracy to 94 .6% by more precisely identifying motion-informative episodes. Qualitatively, World-Mem retrieves a geometrically relevant but dynamically uninformative memory, whereas Multi-Cue FAR recalls an episode containing A2 and predicts its future off-scene location correctly. 4.4 ABLATION STUDY                             
+
+> Retrieval PSNR ↑LPIPS ↓DreamSim ↓
+> Temporal (NWM) 13 .229 ±0.114 0.582 ±0.007 0.200 ±0.004
+> LongLive-RAG 14 .847 ±0.121 0.463 ±0.006 0.133 ±0.003
+> WorldMem 15 .372 ±0.112 0.448 ±0.006 0.130 ±0.003
+> FAR with Vision Cue
+> Enc. Pretrained 16 .248 ±0.112 0.390 ±0.006 0.100 ±0.003
+> + MLP Adapter 16 .480 ±0.108 0.374 ±0.006 0.091 ±0.002
+> + Meta, λ= 0 .516 .912 ±0.117 0.353 ±0.005 0.088 ±0.002
+> + Meta, λlearned 17 .267 ±0.116 0.337 ±0.005 0.082 ±0.002
+
+Table 1: Ablation on LoopNav. We report average loop closure errors for various configurations. Table 1 analyzes each component of FAR. A frozen pretrained vision en-coder provides a strong retrieval signal, substantially outperforming baselines across three rollout metrics. Adapting the query representation with MLP fur-ther improves performance from 16 .25 
+
+to 16 .48 PSNR, with gains in LPIPS and DreamSim, indicating that visual similarity benefits from task-specific adaptation toward predictive relevance. Incorporating metadata cues yields a larger improvement: fixed fusion with λ = 0 .5 increases PSNR to 16 .91 . Finally, learning the 9fusion weights achieves the best performance across all metrics, showing that metadata and visual cues are complementary and adaptively weighting their reliability is preferable to uniform fusion. 
+
+## 5 CONCLUSION AND LIMITATIONS 
+
+We introduced FAR, which learns which episodic memories support prediction and which retrieval cues to trust. FAR uses the observed future for predictive credit during training, while remaining future-blind at inference. By learning cue-specific relevance and query-dependent cue weights, FAR improves long-horizon prediction across navigation, multi-cue, and changing-state settings, supporting predictive utility as a principled basis for episodic memory recall in world models. Our work focuses on recall from an external episodic memory, leaving memory writing, compres-sion, forgetting, and higher-order interactions among recalled memories to future work. FAR also requires informative retrieval cues and additional training-time computation for predictive-utility evaluation. Our diffusion-loss utility may underweight semantically important local changes; alter-native task-aware utility functions are a promising direction. Finally, our experiments use controlled simulations, motivating evaluation in richer real-world settings and integration with learned memory formation and persistent-state representations. 
+
+## ACKNOWLEDGMENTS 
+
+We sincerely thank Koichi Saito for his thoughtful insights and engaging discussions throughout this project. 
+
+## REFERENCES 
+
+Eloi Alonso, Adam Jelley, Vincent Micheli, Anssi Kanervisto, Amos Storkey, Tim Pearce, and Franc ¸ois Fleuret. Diffusion for World Modeling: Visual Details Matter in Atari. In NeurIPS ,2024. Amir Bar, Gaoyue Zhou, Danny Tran, Trevor Darrell, and Yann LeCun. Navigation World Models. In CVPR , 2025. Jake Bruce et al. Genie: Generative Interactive Environments. In ICML , 2024. Shengqu Cai, Ceyuan Yang, Lvmin Zhang, Yuwei Guo, Junfei Xiao, Ziyan Yang, Yinghao Xu, Zhenheng Yang, Alan Yuille, Leonidas Guibas, Maneesh Agrawala, Lu Jiang, and Gordon Wet-zstein. Mixture of Contexts for Long Video Generation. In ICLR , 2026. Ishaan Preetam Chandratreya, David Charatan, Basile Van Hoorick, Sergey Zakharov, Vitor Guizilini, Phillip Isola, and Vincent Sitzmann. MilliVid: Hierarchical Latents for Long-Range Consistency in Video Generation. arXiv preprint arXiv:2606.09056 , 2026. Changan Chen, Unnat Jain, Carl Schissler, Sebastia Vicenc Amengual Gari, Ziad Al-Halah, Vamsi Krishna Ithapu, Philip Robinson, and Kristen Grauman. SoundSpaces: Audio-Visual Nav-igation in 3D Environments. In ECCV , 2020. Taiye Chen, Xun Hu, Zihan Ding, and Chi Jin. VRAG: Learning World Models for Interactive Video Generation. In NeurIPS , 2025. Decart, Julian Quevedo, Quinn McIntyre, Spruce Campbell, Xinlei Chen, and Robert Wachen. Oa-sis: A Universe in a Transformer, 2024. URL https://oasis-model.github.io/ .Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, Jakob Uszko-reit, and Neil Houlsby. An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale. In ICLR , 2021. Samuel Garcin, Thomas Walker, Steven McDonagh, Tim Pearce, Hakan Bilen, Tianyu He, Kaixin Wang, and Jiang Bian. Beyond Pixel Histories: World Models with Persistent 3D State. In ICML ,2026. 10 David Ha and J¨ urgen Schmidhuber. Recurrent World Models Facilitate Policy Evolution. In 
+
+NeurIPS , 2018. Danijar Hafner, Timothy Lillicrap, Ian Fischer, Ruben Villegas, David Ha, Honglak Lee, and James Davidson. Learning Latent Dynamics for Planning from Pixels. In ICML , 2019. Danijar Hafner, Timothy Lillicrap, Jimmy Ba, and Mohammad Norouzi. Dream to Control: Learn-ing Behaviors by Latent Imagination. In ICLR , 2020. Danijar Hafner, Timothy Lillicrap, Mohammad Norouzi, and Jimmy Ba. Mastering Atari with Discrete World Models. In ICLR , 2021. Danijar Hafner, Jurgis Pasukonis, Jimmy Ba, and Timothy Lillicrap. Mastering diverse control tasks through world models. Nature , 640:647–653, 2025. Jinkun Hao, Mingda Jia, Ruiyan Wang, Xihui Liu, Ran Yi, Lizhuang Ma, Jiangmiao Pang, and Xudong Xu. EgoSim: Egocentric World Simulator for Embodied Interaction Generation. In 
+
+ECCV , 2026. Jonathan Ho, Ajay Jain, and Pieter Abbeel. Denoising Diffusion Probabilistic Models. NeurIPS ,2020. Qixin Hu, Shuai Yang, Wei Huang, Song Han, and Yukang Chen. LongLive-RAG: A General Retrieval-Augmented Framework for Long Video Generation. arXiv preprint arXiv:2606.02553 ,2026. Dongwon Kim, Gawon Seo, Jinsung Lee, Minsu Cho, and Suha Kwak. Planning in 8 Tokens: A Compact Discrete Tokenizer for Latent World Model. In CVPR , 2026. Diederik Kingma, Tim Salimans, Ben Poole, and Jonathan Ho. Variational Diffusion Models. 
+
+NeurIPS , 2021. Eric Kolve, Roozbeh Mottaghi, Winson Han, Eli VanderBilt, Luca Weihs, Alvaro Herrasti, Matt Deitke, Kiana Ehsani, Daniel Gordon, Yuke Zhu, Aniruddha Kembhavi, Abhinav Gupta, and Ali Farhadi. AI2-THOR: An Interactive 3D Environment for Visual AI. arXiv preprint arXiv:1712.05474 , 2017. Chieh-Hsin Lai, Yang Song, Dongjun Kim, Yuki Mitsufuji, and Stefano Ermon. The Principles of Diffusion Models. arXiv preprint arXiv:2510.21890 , 2025. Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich K¨ uttler, Mike Lewis, Wen-tau Yih, Tim Rockt¨ aschel, Sebastian Riedel, and Douwe Kiela. Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. In NeurIPS , 2020. Jia Li, Han Yan, Yihang Chen, Siqi Li, Xibin Song, Yifu Wang, Jianfei Cai, Tien-Tsin Wong, and Pan Ji. I3DM: Implicit 3D-aware Memory Retrieval and Injection for Consistent Video Scene Generation. arXiv preprint arXiv:2603.23413 , 2026. Kewei Lian, Shaofei Cai, Yitao Liang, and Anji Liu. LoopNav: Benchmarking Spatial Consistency in World Models. arXiv preprint arXiv:2505.22976 , 2025. William Peebles and Saining Xie. Scalable Diffusion Models with Transformers. In ICCV , 2023. Zhan Peng, Jie Ma, Huiqiang Sun, Chong Gao, Zhijie Xue, Zhiyu Pan, Zhiguo Cao, Jun Liang, and Jing Li. Compression and Retrieval: Implicit Memory Retrieval for Video World Models. arXiv preprint arXiv:2606.23105 , 2026. Dustin Podell, Zion English, Kyle Lacey, Andreas Blattmann, Tim Dockhorn, Jonas M¨ uller, Joe Penna, and Robin Rombach. SDXL: Improving Latent Diffusion Models for High-Resolution Image Synthesis. In ICLR , 2024. Devendra Singh Sachan, Siva Reddy, William Hamilton, Chris Dyer, and Dani Yogatama. End-to-End Training of Multi-Document Reader and Retriever for Open-Domain Question Answering. In NeurIPS , 2021. 11 Junyoung Seo, Hyunwook Choi, Minkyung Kwon, Jinhyeok Choi, Siyoon Jin, Gayoung Lee, Junho Kim, JoungBin Lee, Geonmo Gu, Dongyoon Han, Sangdoo Yun, Seungryong Kim, and Jin-Hwa Kim. Grounding World Simulation Models in a Real-World Metropolis. In ECCV , 2026. Jiaming Song, Chenlin Meng, and Stefano Ermon. Denoising Diffusion Implicit Models. In ICLR ,2021a. Yang Song, Conor Durkan, Iain Murray, and Stefano Ermon. Maximum Likelihood Training of Score-based Diffusion Models. In NeurIPS , 2021b. Fan Wang, Zhiyuan Chen, Yuxuan Zhong, Sunjian Zheng, Pengtao Shao, Bo Yu, Shaoshan Liu, Jianan Wang, Ning Ding, Yang Cao, and Yu Kang. Context and Diversity Matter: The Emergence of In-Context Learning in World Models. In ICLR , 2026a. Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny. VGGT: Visual Geometry Grounded Transformer. In CVPR , 2025. Zile Wang et al. Matrix-Game 3.0: Real-Time and Streaming Interactive World Model with Long-Horizon Memory. arXiv preprint arXiv:2604.08995 , 2026b. Tong Wu, Shuai Yang, Ryan Po, Yinghao Xu, Ziwei Liu, Dahua Lin, and Gordon Wetzstein. Video World Models with Long-term Spatial Memory. In NeurIPS , 2025. Zeqi Xiao, Yushi Lan, Yifan Zhou, Wenqi Ouyang, Shuai Yang, Yanhong Zeng, and Xingang Pan. WorldMem: Long-term Consistent World Simulation with Memory. In NeurIPS , 2025. Jiwen Yu, Jianhong Bai, Yiran Qin, Quande Liu, Xintao Wang, Pengfei Wan, Di Zhang, and Xihui Liu. Context as Memory: Scene-Consistent Interactive Long Video Generation with Memory Retrieval. In SIGGRAPH Asia , 2025. Jiwen Yu, Jianxiong Gao, Jianhong Bai, Yiran Qin, Kaiyi Huang, Quande Liu, Xintao Wang, Pengfei Wan, Kun Gai, and Xihui Liu. MemLearner: Learning to Query Context Memory for Video World Models. In ECCV , 2026. Lvmin Zhang, Shengqu Cai, Muyang Li, Gordon Wetzstein, and Maneesh Agrawala. Frame Context Packing and Drift Prevention in Next-Frame-Prediction Video Diffusion Models. In NeurIPS ,2025. Jinjing Zhao, Fangyun Wei, Zhening Liu, Hongyang Zhang, Chang Xu, and Yan Lu. Spatia: Video Generation with Updatable Spatial Memory. In CVPR , 2026. Haoyi Zhu, Haozhe Liu, Yuyang Zhao, Tian Ye, Junsong Chen, Jincheng Yu, Tong He, Song Han, and Enze Xie. SANA-WM: Efficient minute-scale world modeling with hybrid linear diffusion transformer. arXiv preprint arXiv:2605.15178 , 2026. 12 Supplementary Material 
+
+## A ADDITIONAL DISCUSSION OF RELATED WORK                                                               
+
+> Method World Model External Retriever Prediction Supervised Adaptive Cue Fusion Cue Options
+> FramePack (Zhang et al., 2025) ✗✓✗✗Time, Vision LongLive-RAG (Hu et al., 2026) ✗✓✗✗Vision WorldMem (Xiao et al., 2025) ✓✓✗✗Time, Pose Context-as-Memory (Yu et al., 2025) ✓✓✗✗Pose VRAG (Chen et al., 2025) ✓✓✗✗Pose SPMem (Wu et al., 2025) ✓✓✗✗Pose I3DM (Li et al., 2026) ✓✓✗✗Pose, Vision Matrix-Game 3.0 (Wang et al., 2026b) ✓✓✗✗Pose Mixture-of-Contexts (Cai et al., 2026) ✗✗✓✗Vision, Text MemLearner (Yu et al., 2026) ✓✗✓✗Pose, Vision Compression-and-Retrieval (Peng et al., 2026) ✓✗✓✗Pose, Vision
+> Ours ✓✓✓✓Time, Pose, Vision, Audio
+
+Table 2: Conceptual comparison of episodic memory recall for video and world models. World Model indicates whether the method is designed for action-conditioned future prediction; External Retriever whether memory selection is performed outside the generator; Prediction Supervised 
+
+whether retrieval is optimized using the downstream prediction objective; Adaptive Cue Fusion 
+
+whether the retriever dynamically weights multiple retrieval cues for each query rather than using a fixed cue or predefined combination; and Cue Options lists the information sources used to deter-mine memory relevance in the respective papers. 
+
+Episodic memory retrieval for world models. Recent video and world models augment limited context windows with external memories that preserve historical frames or latent representations for later retrieval (Xiao et al., 2025; Yu et al., 2025; Wu et al., 2025; Li et al., 2026; Hu et al., 2026). As summarized in Table 2, existing external retrievers typically rely on fixed notions of relevance, including temporal proximity, pose or field-of-view overlap, geometry-aware similarity, or learned visual embeddings. These approaches demonstrate that selectively revisiting non-local observations can improve long-horizon consistency, but the retrieval rule itself is generally not optimized using the downstream world-model prediction objective. FAR instead learns memory relevance directly from predictive utility and further learns query-dependent fusion over heterogeneous temporal, spatial, visual, and auditory cues. Thus, FAR learns both which memories are predictively useful and which cues should be trusted to find them .
+
+Internal long-context memory. A complementary line retains long-range history within the gen-erator and learns how to route or compress it during prediction. Mixture of Contexts sparsely routes queries to informative history chunks, MemLearner queries context using the video generator itself, and CaR combines attention-based memory retrieval with context compression (Cai et al., 2026; Yu et al., 2026; Peng et al., 2026). Recent world models also use recurrent or hybrid linear attention to propagate information over long sequences, including L2World and SANA-WM (Wang et al., 2026a; Zhu et al., 2026). These internal mechanisms and external episodic recall are complemen-tary: the former efficiently summarize or route long histories within the model, while the latter preserves individually addressable observations that can be selectively revisited. 
+
+Persistent-state representations. Rather than retrieving individual observations, another fam-ily of approaches maintains an explicit or latent state that is updated as the environment evolves. PERSIST evolves a latent 3D scene representation, Spatia maintains an updatable 3D point-cloud memory, and EgoSim continuously updates a 3D scene state across embodied interactions (Garcin et al., 2026; Zhao et al., 2026; Hao et al., 2026). Persistent state provides a compact, viewpoint-independent representation of geometry and world changes, whereas episodic memory preserves past observations as individually recoverable evidence. The two are complementary: persistent state summarizes the model’s current belief about the world, while episodic recall can recover specific past evidence when that state is incomplete or uncertain. 13 Learned retrieval and retrieval-augmented generation. Retrieval-augmented generation (RAG) treats retrieved documents as latent context and learns retrieval jointly with downstream genera-tion (Lewis et al., 2020; Sachan et al., 2021). In particular, EMDR 2 uses the reader likelihood of the observed target to provide posterior supervision for discrete document retrieval (Sachan et al., 2021). FAR draws on this principle but applies it to an agent’s own episodic history: the realized future provides predictive credit for candidate memories, and this supervision trains a retriever that operates without access to the future at inference. Unlike document RAG, FAR additionally learns to combine heterogeneous temporal, spatial, visual, and auditory cues to locate useful memories. 
+
+Long-horizon world models. A broader line of work targets long-horizon consistency by chang-ing how context or state is represented rather than explicitly learning episodic recall. FramePack compresses frame histories according to importance and introduces anti-drifting mechanisms, while MilliVid uses hierarchical latents and coarse-to-fine rollout to preserve long-range structure effi-ciently (Zhang et al., 2025; Chandratreya et al., 2026). Seoul World Model instead repeatedly re-grounds generation using nearby real-world observations to stabilize long trajectories (Seo et al., 2026). These approaches address complementary challenges of context scaling, drift, and external grounding; FAR focuses specifically on learning which observations from the agent’s own history are useful for the current prediction. 
+
+## B ADDITIONAL THEORETICAL DETAILS 
+
+In this section, we provide more theoretical and practical details about FAR. First, we provide the proof of Proposition 1 in Section B.1. We summarize the overall pseudo code as Algorithm 1. B.1 DERIVATION OF PREDICTIVE RELEVANCE BOUND 
+
+Proof. Consider the joint distribution induced by the environment data distribution and the retriever, 
+
+pϕ(ot+1 , Mt−1, Zt−1, Rt, Qt, Ct) := pdata (ot+1 , Mt−1, Zt−1, Rt, Qt) rϕ(Ct | Z t−1, Rt).
+
+The subscript ϕ reflects that the recalled context Ct is selected by the retriever rϕ.Introducing the retriever does not change the marginal distribution of the future and prediction query. Because rϕ(· | Z t−1, Rt) is normalized, 
+
+pϕ(ot+1 , Qt) = 
+
+Z
+
+pdata (ot+1 , Mt−1, Zt−1, Rt, Qt) X
+
+> Ct
+
+rϕ(Ct | Z t−1, Rt) d Mt−1 dZt−1 dRt
+
+= pdata (ot+1 , Qt).
+
+Hence, 
+
+pϕ(ot+1 | Q t) = pdata (ot+1 | Q t).
+
+By the definition of conditional mutual information, 
+
+Iϕ(ot+1 ; Ct | Q t) = Epϕ
+
+
+
+log pϕ(ot+1 | C t, Qt)
+
+pϕ(ot+1 | Q t)
+
+
+
+= Epϕ [log pϕ(ot+1 | C t, Qt) − log pdata (ot+1 | Q t)] .
+
+Introducing any predictive distribution pθ (ot+1 | C t, Qt) and adding and subtracting its log-density gives 
+
+Iϕ(ot+1 ; Ct | Q t) = Epϕ [log pθ (ot+1 | C t, Qt) − log pdata (ot+1 | Q t)] + Epϕ(Ct,Qt) [DKL (pϕ(ot+1 | C t, Qt) ∥ pθ (ot+1 | C t, Qt))] .
+
+The second term is nonnegative by the nonnegativity of KL divergence. Therefore, 
+
+Iϕ(ot+1 ; Ct | Q t) ≥ E(ot+1 ,Mt−1,Zt−1,Rt,Qt)∼pdata 
+
+> Ct∼rϕ(·|Z t−1,Rt)
+
+[log pθ (ot+1 | C t, Qt) − log pdata (ot+1 | Q t)] ,
+
+which is exactly Eq. (3). Moreover, the decomposition above shows that the gap in the bound is 
+
+Epϕ(Ct,Qt) [DKL (pϕ(ot+1 | C t, Qt) ∥ pθ (ot+1 | C t, Qt))] .
+
+Thus, the bound is tight when the predictive world model matches the conditional distribution of the future induced by the data distribution and retriever, almost surely over (Ct, Qt).14 B.2 LATENT -C ONTEXT MAXIMUM -L IKELIHOOD VIEW OF THE RETRIEVER UPDATE 
+
+We show that the future-aware posterior and retriever objective in Eqs. (5) and (6) follow directly from maximum likelihood in the latent-context predictive model Eq. (2). This also clarifies why FAR matches a posterior that combines predictive utility with the current recall distribution, rather than a target based on predictive utility alone. For readability, within this subsection we abbreviate 
+
+rϕ(Ct) := rϕ(Ct | Z t−1, Rt), and uθ (Ct) := uθ (Ct | ot+1 , Qt),
+
+and let 
+
+Ct := {C t ⊆ M t−1 : |C t| = K}
+
+denote the set of all valid recalled context sets, i.e., all subsets of the episodic memory containing exactly K historical observations. For a fixed training example, Eq. (2) gives 
+
+pθ,ϕ (ot+1 | · · · ) = X
+
+> Ct∈Ct
+
+rϕ(Ct) pθ (ot+1 | C t, Qt) = X
+
+> Ct∈Ct
+
+rϕ(Ct) exp uθ (Ct).
+
+The corresponding posterior over recalled contexts is 
+
+qθ,ϕ (Ct) := rϕ(Ct) exp uθ (Ct)
+
+P 
+
+> C′
+> t∈Ct
+
+rϕ(C′
+
+> t
+
+) exp uθ (C′
+
+> t
+
+) .
+
+For any distribution q over Ct, a direct rearrangement gives the standard latent-variable decomposi-tion 
+
+log pθ,ϕ (ot+1 | · · · ) = ECt∼q [uθ (Ct)] − D KL (q ∥ rϕ) + DKL (q ∥ qθ,ϕ ) . (11) Since the final term is nonnegative, the bound is maximized at q = qθ,ϕ , or equivalently, 
+
+qθ,ϕ = arg max 
+
+> q
+
+{ECt∼q [uθ (Ct)] − D KL (q ∥ rϕ)} .
+
+Thus, the future-aware posterior increases expected predictive utility while remaining anchored to the relevance inferred by the future-blind retriever. Because rϕ(Ct) ∝ exp sϕ(Ct | Z t−1, Rt), the optimizer has the form 
+
+qθ,ϕ (Ct) ∝ exp[ sϕ(Ct | Z t−1, Rt) + uθ (Ct | ot+1 , Qt)] ,
+
+which recovers the future-aware posterior in Eq. (5). The realized future therefore updates the relevance already inferred from the available retrieval cues, rather than replacing it. This also explains why we do not construct the target from predictive utility alone. Normalizing only predictive utility would give 
+
+¯qθ (Ct) ∝ exp uθ (Ct).
+
+For finite Ct, this distribution solves 
+
+¯qθ = arg max 
+
+> q
+
+{Eq [uθ ] + H(q)} = arg max 
+
+> q
+
+{Eq [uθ ] − D KL (q ∥ Unif( Ct)) } ,
+
+up to the constant log |Ct|. Hence, a utility-only target implicitly replaces the query-dependent recall distribution rϕ with a uniform prior over contexts, discarding the relevance already inferred from the current query and retrieval cues. For example, if all contexts have equal predictive utility, then 
+
+qθ,ϕ = rϕ, so the realized future provides no evidence for changing the current recall preference. In contrast, ¯qθ becomes uniform and would alter the retriever despite receiving no differential predictive evidence. More generally, qθ,ϕ ∝ rϕ exp uθ is the posterior implied by the latent-context model, whereas ¯qθ corresponds to a different model with a uniform latent-context prior. The same variational formulation determines how the retriever should be updated. Let ϕ− denote the current retriever parameters, and first compute qθ,ϕ − using the current model. Holding this posterior fixed, maximizing Eq. (11) with respect to ϕ reduces to 
+
+max  
+
+> ϕ
+
+ECt∼qθ,ϕ − [log rϕ(Ct)] ,
+
+15 or equivalently, 
+
+min  
+
+> ϕ
+
+DKL 
+
+ qθ,ϕ − rϕ
+
+ .
+
+Thus, the update alternates between using the realized future to compute posterior credit and fitting the future-blind retriever to this fixed target. In the notation of the main text, this is implemented by 
+
+LRet (ϕ) := E [DKL (sg[ qθ,ϕ ] ∥ rϕ)] ,
+
+which is exactly Eq. (6). The stop-gradient prevents gradients from flowing through the posterior during the retriever update, implementing the fixed-target step of this alternating optimization rather than introducing an additional heuristic objective. With the exact posterior, the same update also recovers the retriever-side marginal-likelihood gradi-ent. At the parameters ϕ = ϕ− used to construct the posterior, 
+
+∇ϕ log pθ,ϕ (ot+1 | · · · ) ϕ=ϕ− = ECt∼qθ,ϕ − [∇ϕ log rϕ(Ct)] ϕ=ϕ− = −∇ ϕDKL 
+
+ qθ,ϕ − rϕ
+
+
+
+> ϕ=ϕ−
+
+.
+
+(12) Hence, for the exact posterior, posterior matching gives exactly the negative marginal-likelihood gradient with respect to the retriever. The derivation above applies to the exact posterior over recalled context sets. Under discrete Top-K
+
+recall, enumerating these sets is combinatorial. The candidate-level objective in Section B.3 there-fore applies the same posterior-credit principle to a finite candidate pool using singleton predictive utilities. Because this restricts both the context space and the utility evaluation, the exact gradient identity in Eq. (12) need not hold globally for the practical approximation. B.3 RETRIEVER POSTERIOR APPROXIMATION 
+
+The future-aware posterior in Eq. (5) is defined over all admissible recalled context sets. Under dis-crete Top-K recall, exact evaluation is therefore combinatorial. We adapt the latent-variable retriever training strategy of EMDR 2 (Sachan et al., 2021) to obtain a tractable candidate-level approximation over a finite pool of historical observations. For each retriever update, let At ⊆ M t−1 denote the candidate pool. The observation-level rele-vance scores from Eq. (8) induce the future-blind candidate distribution 
+
+rAt 
+
+> ϕ
+
+(oi | Z t−1, Rt) := softmax oi∈A t sϕ,i . (13) This distribution represents the retriever’s relative preference among the candidates using only in-formation available at inference time. To assign predictive credit, we evaluate how well each candidate individually supports prediction of the observed future. The singleton predictive utility of candidate oi is 
+
+uθ,i := uθ ({oi} | ot+1 , Qt) = log pθ (ot+1 | { oi}, Qt) . (14) Applying the same predictive reweighting principle as Eq. (5) gives the future-aware candidate pos-terior 
+
+qAt
+
+> θ,ϕ
+
+(oi | ot+1 , Zt−1, Rt, Qt) := softmax oi∈A t [sϕ,i + uθ,i ] . (15) Thus, rAt 
+
+> ϕ
+
+captures which candidates appear relevant before the future is known, while qAt
+
+> θ,ϕ
+
+reweights them according to their predictive utility for the realized future. We train the retriever by matching its future-blind candidate distribution to this future-aware target: 
+
+bLRet (ϕ) := E
+
+h
+
+DKL 
+
+
+
+sg 
+
+h
+
+qAt
+
+> θ,ϕ
+
+i
+
+rAt
+
+> ϕ
+
+i 
+
+, (16) where sg[ ·] denotes stop-gradient and the expectation is over training examples and candidate-pool construction. For a fixed candidate pool with exact singleton likelihoods, this update yields the same retriever gradient as the corresponding candidate-level latent-variable objective of EMDR 2 (Sachan 16 et al., 2021). FAR differs in how this candidate score is parameterized. Through Eq. (8), the poste-rior supervision acts on both cue-specific relevance and query-dependent cue weights. For a fixed training example and candidate pool, 
+
+∇ϕDKL 
+
+
+
+sg[ qAt
+
+> θ,ϕ
+
+] rAt
+
+> ϕ
+
+
+
+= Eoi∼rAtϕ
+
+[∇ϕsϕ,i ] − Eoi∼qAtθ,ϕ 
+
+[∇ϕsϕ,i ]= X
+
+> m
+
+λmϕ,t 
+
+
+
+ErAtϕ
+
+∇ϕesmϕ,i 
+
+ − EqAtθ,ϕ 
+
+∇ϕesmϕ,i 
+
+
+
++ X
+
+> m
+
+
+
+ErAtϕ
+
+esmϕ,i 
+
+ − EqAtθ,ϕ 
+
+esmϕ,i 
+
+
+
+∇ϕλmϕ,t ,
+
+where qAt 
+
+> θ,ϕ
+
+is treated with stop-gradient. The decomposition exposes two learning pathways: one through the cue-specific relevance scores and another through the query-dependent cue weights. Thus, future-aware predictive credit shapes both how memories are scored under each cue and how strongly each cue influences recall for the current query. Thus, a cue is reinforced when it favors memories that receive greater future-aware predictive credit. With a single cue, the cue-reliability term vanishes, recovering the EMDR 2-style candidate update; with multiple cues, the same predic-tive signal also learns which cues to trust for the current recall query. This approximation affects only retrieval credit assignment. The world model is still trained on the complete recalled context and can therefore reason jointly over multiple memories. Candidate-level training does not explicitly score higher-order selection effects, such as memories that become informative only when recalled together, while such interactions remain represented by the set-level model in Eqs. (2) and (5). For our video instantiation, singleton likelihood is replaced by the diffusion-based utility estimator below, and the candidate pools are constructed from the temporally structured recall policy described next. 
+
+## C ADDITIONAL IMPLEMENTATION DETAILS 
+
+C.1 IMPLEMENTATION DETAILS OF FAR FOR THE VIDEO DIFFUSION INSTANTIATION 
+
+This section provides the architectural and optimization details of the video instantiation described in Section 3.3. We specify the diffusion objective, retrieval-score parameterization, adaptive cue fusion, predictive-utility estimator, and training procedure. 
+
+Video diffusion world model and objective. We parameterize pθ with a diffusion transformer (DiT) (Peebles & Xie, 2023). Retrieved context-frame tokens are processed jointly with noisy target-frame tokens, using alternating intra-frame and global self-attention following VGGT (Wang et al., 2025). The world model predicts the next observation from the current observation and action together with the recalled context frames. Time and pose metadata associated with recalled frames are treated as part of their context representation. Below, we make the diffusion objective explicit because it serves both to train the world model and, through its standard connection to likelihood-based diffusion training, to provide a tractable surro-gate for predictive utility. Let x0 denote the clean diffusion representation of the target observation 
+
+ot+1 . At diffusion time τ , we sample ϵ ∼ N (0, I) and construct 
+
+xτ = ατ x0 + στ ϵ,
+
+where ατ and στ define the noise schedule. Given recalled context Ct and prediction query Qt, the DiT outputs fθ (xτ , τ ; Ct, Qt). Let yτ denote the corresponding training target under the chosen diffusion parameterization, e.g., yτ = ϵ for noise prediction. The per-perturbation loss is 
+
+ℓdiff (θ; ot+1 , Ct, Qt, τ, ϵ) = w(τ ) ∥fθ (xτ , τ ; Ct, Qt) − yτ ∥22 ,
+
+where w(τ ) is the weighting used by the diffusion objective. The world model is trained on the complete recalled context Ct, ChunkTopK :
+
+LWM (θ) := E [ℓdiff (θ; ot+1 , Ct, ChunkTopK , Qt, τ, ϵ)] , (17) where the expectation is over training examples and diffusion perturbations. 17 Retrieval cues affect which observations enter Ct, ChunkTopK . In particular, visual and audio retrieval representations are used for memory selection and are not passed to the world model as additional generation conditions. This allows the retriever to exploit additional cues without changing the generator’s conditioning interface. 
+
+Cue-specific retrieval scores and cacheable representations. For the metadata cue, consisting of time and pose, we use a lightweight scoring network: 
+
+smeta  
+
+> ϕ,i
+
+= tanh  MLP ϕ
+
+ [zmeta  
+
+> i
+
+, zmeta  
+
+> t
+
+, at] .
+
+For a high-dimensional cue m ∈ { vision , audio }, we encode each historical cue as a memory key and the current cue as an action-conditioned query: 
+
+kmi := enc m(zmi , ∅), hmt := enc m(zmt , at),
+
+qmt := MLP ϕ,m (hmt ), smϕ,i := CosSim( kmi , qmt ),
+
+where ∅ denotes a null action. We use a ViT (Dosovitskiy et al., 2021), inject the action or null token through AdaLN conditioning (Peebles & Xie, 2023), and use a learnable [CLS] token as the retrieval representation. Audio follows the same construction with an audio-specific encoder. To make historical keys cacheable, we first pretrain the high-dimensional encoders with a predictive contrastive objective. The action-conditioned embedding hmt is trained to match the subsequent key 
+
+kmt+1 = enc m(zmt+1 , ∅). Given N − 1 negative keys {km, − 
+
+> j
+
+}N −1 
+
+> j=1
+
+, we minimize 
+
+Lm 
+
+> NCE
+
+= −E
+
+"
+
+log exp  CosSim( hmt , kmt+1 )/τ NCE 
+
+
+
+exp  CosSim( hmt , kmt+1 )/τ NCE 
+
+ + PN −1 
+
+> j=1
+
+exp  CosSim( hmt , km, − 
+
+> j
+
+)/τ NCE 
+
+#
+
+,
+
+where τNCE is the contrastive temperature. After pretraining, the encoder is frozen and historical keys are computed once and cached. The lightweight query adapter MLP ϕ,m remains trainable through FAR. 
+
+Adaptive cue weighting. Because different cues may produce scores on different scales, we stan-dardize each cue over the current episodic memory: 
+
+esmϕ,i = smϕ,i − μmt
+
+σmt + δ ,
+
+where μmt and σmt are the mean and standard deviation of {smϕ,i }oi∈M t−1 , and δ > 0 is a small numerical constant. The query-dependent weights in Eq. (8) are produced from summary statistics of each cue: 
+
+λmϕ,t ∝ exp 
+
+w⊤
+
+> ϕ
+
+
+
+max oi∈M t−1 smϕ,i 
+
+μmt
+
+σmt
+
+em
+
+∆t
+
+ , X
+
+> m
+
+λmϕ,t = 1 ,
+
+where em is a one-hot cue-type indicator and ∆t is the simulation stride. The normalization is taken over the cues available in the current environment. Because these score statistics depend on the current query, FAR can vary the relative importance of the available cues from one retrieval query to another. 
+
+Diffusion-based predictive utility. The exact singleton utility uθ,i = log pθ (ot+1 | { oi}, Qt) in Eq. (14) requires the conditional log-likelihood, which is expensive to evaluate for a diffusion model. Diffusion models are instead trained with denoising objectives that arise from, or are closely related to, variational likelihood training (Ho et al., 2020; Kingma et al., 2021; Song et al., 2021b; Lai et al., 2025). We therefore use the negative diffusion prediction loss as a tractable surrogate for comparing the predictive utility of candidate memories. For candidate memory oi, we evaluate the realized future using the singleton context {oi}:
+
+buθ,i := − 1
+
+S
+
+> S
+
+X
+
+> s=1
+
+ℓdiff (θ; ot+1 , {oi}, Qt, τ s, ϵs) . (18) 18 Algorithm 1 Training Future-Aware Recall with a Video Diffusion World Model 
+
+Require: retrieval size K, chunk size nchunk , retriever interval Nlazy , utility samples S
+
+1: for training step n = 1 , 2, . . . do 
+
+2: Sample (ot+1 , Mt−1, Zt−1, Rt, Qt)
+
+3: Compute and fuse cue-specific scores using Eq. (8) 
+
+4: Select Ct, ChunkTopK using Eq. (19) 
+
+5: Sample (τ, ϵ) and update θ using ℓdiff (θ; ot+1 , Ct, ChunkTopK , Qt, τ, ϵ)
+
+6: if n mod Nlazy = 0 then 
+
+7: Set Aglobal  
+
+> t
+
+← C t, ChunkTopK 
+
+8: Sample a represented chunk Bt−1,j and set Alocal  
+
+> t
+
+← B t−1,j 
+
+9: Sample shared perturbations {(τs, ϵs)}Ss=1 
+
+10: for At ∈ {A global  
+
+> t
+
+, Alocal  
+
+> t
+
+} do 
+
+11: Evaluate buθ,i for oi ∈ A t using Eq. (18) 
+
+12: Construct Eq. (15) using buθ,i 
+
+13: Compute the corresponding loss in Eq. (16) 
+
+14: end for 
+
+15: Update ϕ with the sum of the global and local losses 
+
+16: end if 
+
+17: end for 
+
+We use S = 4 . A memory receives greater predictive credit when conditioning on it yields lower diffusion prediction loss for the future that actually occurred. All candidates in the same training example are evaluated using the same perturbations 
+
+{(τs, ϵs)}Ss=1 . This common randomness reduces variation caused by diffusion sampling and makes candidate comparisons more directly reflect the recalled memory. We substitute buθ,i for uθ,i in Eq. (15), with the resulting posterior treated with stop-gradient during the retriever update. Singleton contexts are used for retrieval credit assignment, while the world model is trained on the complete recalled context Ct, ChunkTopK through Eq. (17). 
+
+Temporally structured recall and candidate pools. Nearby video frames are often redundant, so unconstrained Top-K selection may allocate several context slots to the same short temporal region. We partition Mt−1 into non-overlapping chunks {B t−1,j }j of nchunk consecutive observations and allow at most one recalled observation from each chunk: 
+
+Ct, ChunkTopK := arg max 
+
+> Ct⊆M t−1
+
+X
+
+> oi∈C t
+
+sϕ,i s.t. |C t| = K, |C t ∩ B t−1,j | ≤ 1 ∀j. (19) Equivalently, we retain the highest-scoring observation from each chunk and then select the K
+
+highest-scoring representatives. For retriever training, we use a global candidate pool containing the selected representatives and a local pool containing one of their corresponding chunks: 
+
+Aglobal  
+
+> t
+
+= Ct, ChunkTopK , Alocal  
+
+> t
+
+= Bt−1,j .
+
+The global pool assigns predictive credit across temporal regions, while the local pool distinguishes observations within one selected region. For each pool, we compute Eq. (18) and apply the future-aware candidate target in Eq. (15) with the loss in Eq. (16). 
+
+Joint training and inference. The world model is updated at every optimization step using Eq. (17). Candidate-wise utility evaluation requires additional DiT forward passes, so we update the retriever once every Nlazy world-model steps. At each retriever update, the global and local candidate pools are evaluated using shared diffusion perturbations, and ϕ is updated with the sum of their candidate-distillation losses. At inference, FAR requires neither the future observation nor predictive-utility evaluation. Historical retrieval keys remain cached; FAR computes the available cue-specific scores, adaptively fuses them, and recalls Ct, ChunkTopK for world-model prediction. 19 LoopNav SoundSpaces v1 SoundSpaces v2 AI2-THOR AI2-THOR-dyn Environment Minecraft Matterport3D Matterport3D iTHOR iTHOR Episodes 19 ,200 14 ,425 14 ,425 8,125 1,202                                    
+
+> Scenes 120 81 81 119 7
+> Train/test split episode-level scene-disjoint scene-disjoint scene-disjoint episode-level Train/test scenes 120 /120 57 /24 57 /24 95 /24 7/7
+> Frames 12 .62 M9.28 M10 .95 M9.23 M1.85 MFPS 20 10 10 10 10
+> Resolution 360 ×640 256 ×256 256 ×256 256 ×256 256 ×256
+> Additional signal –binaural audio binaural audio interactions second-agent state
+
+Table 3: Dataset statistics. SoundSpaces and AI2-THOR use scene-disjoint evaluation, whereas LoopNav and the reported AI2-THOR-dyn experiments use episode-level splits with the same scenes appearing in training and test. C.2 DATASET DETAILS 
+
+Table 3 summarizes the corpora used in our experiments. All datasets follow an exploration-or-outbound phase followed by a return or reveal phase, but differ in what information must be recov-ered from memory. 
+
+LoopNav. We use the released LoopNav dataset (Lian et al., 2025), containing 19 ,200 loop-navigation episodes across 120 procedurally generated Minecraft village scenes. Episodes follow ABA or ABCA routes over four range tiers, and the frame at which the released goal metadata turns toward home defines the boundary between the outbound and return legs. We use the outbound leg as episodic memory and evaluate prediction over the return leg. Our 80 /20 split is performed over episodes without a scene constraint, so all 120 scenes appear in both training and test and the benchmark measures generalization to unseen trajectories within known worlds. 
+
+SoundSpaces. We construct two paired SoundSpaces corpora (Chen et al., 2020) from Matter-port3D environments, each containing 14 ,425 episodes over 81 eligible scenes with a scene-disjoint split of 57 training and 24 test scenes. An agent traverses an ABA or ABCA loop while two to four static sound sources play continuously, with spatialized binaural audio rendered at 16 kHz through-out the trajectory. The outbound portion serves as memory and the final return leg is a freshly planned shortest path back to the starting location. SoundSpaces v1 performs 360 ◦ scans only at loop endpoints, whereas v2 adds deterministic turnaround and mid-path scans triggered by region changes, elevation changes, or long intervals without a scan. The two variants use the same episode manifest, seeds, waypoints, sound sources, clips, and gains, so matched v1/v2 comparisons isolate the effect of denser visual coverage. No scans are inserted into the return leg. 
+
+AI2-THOR. We construct 8,125 single-room iTHOR episodes (Kolve et al., 2017) over 119 
+
+scenes, using 95 scenes for training and 24 held-out scenes for evaluation. During exploration, the agent visits object stations, opens containers, and moves objects between surfaces and contain-ers before revisiting the same stations during the return phase. Station inspections use reproducible canonical viewpoints, creating same-pose observations that can depict different world states before and after an interaction. Moved objects are hidden while carried, so the updated state must be inferred from the interaction history rather than visually tracked in transit. 
+
+AI2-THOR-dyn. We additionally construct 1,202 corridor episodes over seven iTHOR rooms, including 1,002 episodes with a moving second agent and 200 frame-aligned static controls. The observer watches a corridor through a constrained aperture while the second agent repeatedly crosses between its two ends, then traverses a door and looks toward both ends. The observation post is verified to reveal the crossing agent at the aperture while hiding both corridor ends, and quality control rejects episodes containing visibility leaks outside the intended crossing windows. The second agent alternates ends on each crossing, so its final location depends on the observed crossing history rather than the current view alone. The reported experiments follow the seed-based split used by our training manifest, with 800 acted episodes for training and 202 acted episodes. All seven 20 Setting Value DiT depth / hidden / heads 12 /768 /12 
+
+Patch size 2
+
+Training context size 4 (current +3 recalled) Diffusion steps 1000 
+
+Noise schedule Linear Prediction target ϵ-prediction Variance Learned Optimizer AdamW Generator learning rate 10 −4
+
+Retriever learning rate 10 −4
+
+AdamW ϵ / weight decay 10 −6/0
+
+Warm-up 5k steps, 0.2× → 1×
+
+Gradient clipping 1.0
+
+EMA decay 0.9999 
+
+Utility noise levels 4
+
+Training precision fp32 
+
+Table 4: Shared model and optimization settings. These settings are used across all corpora unless stated otherwise.                                                       
+
+> LoopNav SoundSpaces v1 SoundSpaces v2 AI2-THOR AI2-THOR-dyn Training pool size 200 200 200 400 400
+> Prediction horizon (frames) 128 128 128 32 32 /135 †
+> Goals per observation 4444–Retrieval chunk size 10 10 10 10 30
+> FAR retrieval cues Meta+Vision Meta+Audio Meta+Audio Meta+Vision Meta / Meta+Agent Metadata MLP layers 22233
+> Retriever update interval 20 20 20 20 7
+> Event-anchored sampling –––0.30 0.35
+> Change-mask weight –––0.35.0
+> FAR effective batch size 128 64 64 64 64
+
+Table 5: Dataset-specific training settings. The FAR cue row gives the signals used for retrieval; visual and audio retrieval representations are not passed to the world model as generation conditions. 
+
+> †
+
+AI2-THOR-dyn uses a 135 -frame horizon for reveal-anchored pairs and 32 frames otherwise. rooms therefore appear in both splits, so these results measure generalization to unseen trajectories within known rooms rather than held-out-room generalization. C.3 TRAINING DETAILS 
+
+Latent preprocessing. All corpora are trained in latent space with a frozen tokenizer, and frame latents are precomputed once before world-model training. LoopNav uses the ViTVAE tokenizer from OASIS (Decart et al., 2024), producing 16 × 18 × 32 latents from 360 × 640 RGB frames with latent scale 0.07843137255 . SoundSpaces and both AI2-THOR corpora use the SDXL VAE (Podell et al., 2024) with the fp16 fix, producing 4 × 32 × 32 latents from 256 × 256 RGB frames with latent scale 0.13025 .
+
+Optimization and sampling. The learning rate is linearly warmed from 0.2× to its target value over the first 5,000 steps and held constant thereafter. We clip the global gradient norm to 1.0,maintain an EMA with decay 0.9999 , and evaluate the EMA model every 2,500 steps. FAR uses an effective batch size of 128 on LoopNav and 64 on the remaining corpora. The Temporal baseline uses effective batch sizes of 112 on LoopNav and 63 on SoundSpaces, while the remaining baseline arms match the corresponding FAR batch size. 
+
+Training pairs and memory pools. The dataset-specific settings are summarized in Table 5. For LoopNav, training queries are sampled from the return leg while the retrievable pool is restricted to the outbound leg. SoundSpaces uses the corresponding outbound portion as memory for prediction 21 LoopNav SoundSpaces v1 SoundSpaces v2 AI2-THOR AI2-THOR-dyn Evaluation checkpoint 700 k 700 k 700 k 700 k 100 kEvaluation protocol rollout rollout rollout rollout both-ends probe Stride (frames / seconds) 4/0.2 16 /1.6 16 /1.6 4/0.4 –Context size 12 12 12 12 4                    
+
+> Retrieval pool size 1000 1000 1000 1000 –Retrieval pool phase outbound outbound outbound exploration pre-reveal history Retrieval chunk size 10 10 10 10 30
+> Sampler DDIM-20 DDIM-20 DDIM-20 DDIM-20 DDIM-20
+
+Table 6: Dataset-specific inference settings. The four rollout benchmarks expand the context from 
+
+4 frames during training to 12 frames at evaluation and query up to 1000 real memory frames. on the return trajectory. AI2-THOR restricts the retrievable pool to the pre-evaluation exploration phase. With probability 0.30 , an AI2-THOR training example is replaced by an event-anchored pair centered on an evaluation-phase open/close event, providing direct supervision near changed-state reveals. AI2-THOR-dyn uses reveal-anchored sampling with probability 0.35 ; anchored examples place the current frame during the door transit before the reveal and use the longer 135 -frame pre-diction range. 
+
+Retriever initialization and updates. The high-dimensional FAR retrieval encoders are initial-ized by contrastive pretraining before joint world-model training, and cached historical keys are ex-ported from the same checkpoint used to initialize the corresponding query tower. The QueryViT has six transformer layers, hidden dimension 384 , 12 attention heads, and key dimension 256 . Pretrain-ing uses eight positive and 24 negative keys per query. The LoopNav, SoundSpaces, and AI2-THOR retrievers are pretrained for 400 k steps with learning rate 2 × 10 −4, while AI2-THOR-dyn uses a 
+
+12 .5k-step object-centric fine-tuning stage with learning rate 5 × 10 −5. For SoundSpaces, positive pairs are selected by spatial proximity without a heading constraint so that a return-phase query can match an outbound observation seen from the opposite heading, and negatives are drawn from the same episode to avoid an episode-identity shortcut. During joint training, the world model is updated at every optimization step from the context selected by the retriever. Future-aware retriever updates use four stratified diffusion noise levels with shared perturbations across candidates and combine the global and within-chunk retrieval losses with equal weight. LoopNav, both SoundSpaces vari-ants, and AI2-THOR update the retriever every 20 world-model steps, while AI2-THOR-dyn uses an interval of 7 steps and applies the retriever update only to reveal-anchored examples. 
+
+Change-focused supervision in AI2-THOR. Because object interactions often affect only a small image region, AI2-THOR reweights the diffusion loss using a per-goal change mask. The mask is normalized to preserve unit mean loss weight and uses coefficient 0.3 with a maximum weighted-area fraction of 0.15 . The same mask weighting is applied to every AI2-THOR retrieval arm so that comparisons remain matched. AI2-THOR-dyn instead uses the second-agent silhouette as the loss mask with coefficient 5.0 and the same maximum fraction, and applies this weighting to both the diffusion reader loss and FAR’s predictive-utility reward. 
+
+Second-agent supervision in AI2-THOR-dyn. Each historical frame carries the second agent’s visibility and egocentric floor position together with the same quantities 1.5 seconds earlier, allowing a recalled slot to encode local motion. An attention-pooling predictor over the recalled slots predicts second-agent presence and position using binary cross-entropy for presence and a masked position loss with weight 0.05 . This auxiliary loss enters the training objective with weight 1.0, and the same agent-state term is included in the candidate reward used for retriever training. During training, the diffusion model receives the ground-truth goal agent state through teacher forcing, while inference uses the predictor output as described below. C.4 INFERENCE DETAILS 
+
+Autoregressive rollout protocol. For LoopNav, SoundSpaces, and AI2-THOR, we evaluate with replace-tail autoregressive rollouts along the ground-truth camera path using the settings in Table 6. 22 At each step, the world model generates the next latent and the generated latent replaces only the cur-rent tail frame for the following step. The retrievable episodic memory remains composed entirely of real observations from the outbound or exploration phase, so rollout errors do not contaminate the stored memory. Camera poses are re-centered on the new current frame at every step using the same coordinate convention as in training. The retrieval module is queried at every generation step. Every method on a given clip uses the same diffusion-noise seed and target trajectory. 
+
+Generation conditioning. At each rollout step, the generator receives the current frame, recalled context frames, per-frame pose and trajectory-time conditioning, and the target action represented as a local pose displacement together with the generation stride. For AI2-THOR, the generator additionally receives the interaction labels occurring between the current and target states together with the absolute door fraction at the target. These interaction labels are supplied by the evaluation trajectory rather than generated by the model because camera motion alone does not specify ob-ject interactions. Visual and audio retrieval representations are used only to rank episodic memory and are not passed to the generator as additional conditioning variables. Thus, SoundSpaces uses binaural audio to select context while generation remains conditioned on the selected visual frames together with pose, time, and action information. 
+
+Evaluation operating point. All reported autoregressive rollouts use EMA weights and DDIM (Song et al., 2021a) with 20 sampling steps. Relative to training, the rollout protocol in-creases the context size from 4 to 12 and the retrieval pool from 200 or 400 frames to as many as 
+
+1000 frames, uniformly across compared methods within each corpus. WorldMem retains a 200 -frame pool cap on LoopNav and SoundSpaces to match its training configuration, while AI2-THOR uses the full evaluation pool. The reported batteries contain 3,796 LoopNav clips, 1,167 clips for each SoundSpaces variant, and 1,309 AI2-THOR clips. 
+
+AI2-THOR-dyn inference. AI2-THOR-dyn is evaluated with a one-step both-ends prediction probe rather than an autoregressive rollout. For each memory-dependent test trajectory, the two possible reveal ends are generated separately from the same current observation using the same diffusion-noise seed, so the generations differ only in the goal and retrieved memory. The world model uses the agent-state predictor’s own binarized output at inference without teacher forcing. Real memory frames retain their ground-truth second-agent detections, while generated states are threaded forward using the predictor output together with the corresponding state from 1.5 seconds earlier. A three-layer latent-space detector determines whether the generated frame contains the sec-ond agent, with at least 10 firing latent cells counted as a positive rendering. On real test frames, this detector has 0.906 recall and 0.070 false-positive rate at the chosen threshold. 23
