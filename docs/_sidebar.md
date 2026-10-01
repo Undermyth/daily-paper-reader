@@ -1,6 +1,9 @@
 * <a class="dpr-sidebar-root-link" href="#/">首页</a>
 * <a class="dpr-sidebar-root-link dpr-sidebar-noactive-link" href="javascript:void(0)" data-dpr-hash="#/tutorial/README">使用教程</a>
 * Daily Papers
+  * 2026-10-01 <!--dpr-date:20261001-->
+    * 速读区
+      * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202610/01/2609.32579v1-dimpo-dimensionality-reduction-for-attention-using-preference-optimization" data-sidebar-item="{&quot;title&quot;: &quot;DimPO: Dimensionality Reduction for Attention using Preference Optimization&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.32579v1-dimpo-dimensionality-reduction-for-attention-using-preference-optimization&quot;, &quot;score&quot;: &quot;6.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;查询与键降维以提升注意力效率&quot;}">DimPO: Dimensionality Reduction for Attention using Preference Optimization</a>
   * 2026-09-30 <!--dpr-date:20260930-->
     * 精读区
       * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/30/2609.32453v1-dram-delta-rule-recurrent-associative-memory-for-robot-manipulation-policies" data-sidebar-item="{&quot;title&quot;: &quot;DRAM: Delta-rule Recurrent Associative Memory for Robot Manipulation Policies&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.32453v1-dram-delta-rule-recurrent-associative-memory-for-robot-manipulation-policies&quot;, &quot;score&quot;: &quot;9.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;la&quot;}], &quot;evidence&quot;: &quot;基于Delta规则的循环联想记忆模块&quot;}">DRAM: Delta-rule Recurrent Associative Memory for Robot Manipulation Policies</a>
