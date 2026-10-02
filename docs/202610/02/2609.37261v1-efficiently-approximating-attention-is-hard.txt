@@ -1,0 +1,1148 @@
+Title: Efficiently Approximating Attention Is Hard
+
+URL Source: https://arxiv.org/pdf/2609.37261v1
+
+Published Time: Wed, 30 Sep 2026 02:01:30 GMT
+
+Number of Pages: 21
+
+Markdown Content:
+Preprint. 
+
+# EFFICIENTLY APPROXIMATING ATTENTION IS HARD 
+
+Lukas Haverbeck ♠∗ Carmen Amo Alonso ♣ Andres Felipe Posada-Moreno ♠
+
+Sebastian Trimpe ♠ Marco Pavone ♣
+
+♠ Institute for Data Science in Mechanical Engineering, RWTH Aachen University 
+
+♣ Autonomous Systems Lab, Stanford University 
+
+# ABSTRACT 
+
+Softmax attention is ubiquitous in modern machine learning, but its quadratic scal-ing with sequence length makes it costly. To reduce this cost, attention is often approximated with fast algorithms, which incur error but can still perform well in practice and on some inputs. At the same time, the growing diversity of attention applications makes approximation guarantees that do not depend on particular in-put structure a compelling target. For such uniform guarantees over all inputs, known runtime lower bounds rule out fast algorithms for near-exact attention, but leave open the practically important regime: is there an efficient algorithm with even a modest uniform approximation guarantee? We answer this question neg-atively. Under standard complexity-theoretic assumptions, no truly subquadratic algorithm can approximate attention with any nontrivial additive or relative guar-antee uniformly over all inputs. This impossibility holds in the mildest parameter regime for which known algorithms do not already achieve strong approxima-tion guarantees in near-linear time, and extends to practically relevant relaxations: even after polynomial preprocessing of the KV cache, no efficient algorithm can obtain a nontrivial uniform approximation guarantee, or identify a small set of keys receiving substantial attention under sparsity. Overall, our results settle the computational limits of uniform attention approximation. 
+
+> ∗
+
+Corresponding author: lukas.haverbeck@rwth-aachen.de 
+
+1arXiv:2609.37261v1 [cs.LG] 29 Sep 2026 Preprint. 
+
+# 1 INTRODUCTION 
+
+The Transformer architecture has become the de facto standard for the most challenging sequence modeling problems across various domains (Vaswani et al., 2017; Devlin et al., 2019; Dosovitskiy et al., 2021; Gulati et al., 2020; Rives et al., 2021; Zhou et al., 2021), owing largely to its ability to model complex relationships between different points in a sequence. The key architectural compo-nent enabling this is softmax attention , which transforms a sequence of vectors based on pairwise comparisons. While attention makes Transformers powerful in practice, its standard implementa-tion scales quadratically with the sequence length, making it the principal bottleneck of Transformer inference and often prohibitively expensive on long sequences (Beltagy et al., 2020; Dao, 2024). To address this problem, various methods aim to approximate attention with fast algorithms, which can work well empirically on typical inputs (Kitaev et al., 2020; Xiong et al., 2021; Tay et al., 2020; Roy et al., 2021) or admit formal guarantees under structural assumptions on the inputs (Vyas et al., 2020; Chen et al., 2021; Han et al., 2024). In practice, however, Transformers are deployed across increasingly diverse applications and input distributions, making it difficult to test approximation quality exhaustively or to verify that data-dependent assumptions are satisfied. That makes algo-rithms particularly attractive if they can provide approximation guarantees uniformly over all inputs .Remarkably strong approximation is already possible with uniform guarantees over sufficiently low-dimensional inputs with sufficiently small norms. In this regime, existing algorithms run in near-linear time, and guarantee error vanishing at polynomial or even super-polynomial rates in the se-quence length (Alman & Song, 2023; Schr¨ oder & Mackey, 2026). Outside this regime, however, known lower bounds rule out such strong guarantees. More precisely, the best known lower bounds show that truly subquadratic algorithms, for some sequences of length n, must incur error n−C ,where C ≫ 0 is a large constant (Alman & Song, 2023). While these results rule out extreme accu-racy with fast algorithms, they leave a substantial gap at the approximation accuracy most relevant in practice. In particular, existing lower bounds do not even rule out a linear-time algorithm that uniformly guarantees error at most, say, n−100 . For all practical purposes, such high accuracy is effectively indistinguishable from exact computation, while empirical evidence suggests that Trans-formers remain robust even under much cruder approximations (Liu et al., 2024; Lin et al., 2022; Michel et al., 2019). This raises the question whether attention can be approximated efficiently once one tolerates a modest amount of error. We therefore ask: 
+
+Can attention be approximated efficiently with even a coarse uniform error guarantee? 
+
+We show that the answer is no: such an algorithm does not exist . Concretely, we strengthen the proof of Alman & Song (2023) to show that, under standard complexity-theoretic assumptions, no algorithm running in truly subquadratic 1 time can give any nontrivial approximation guarantee uniformly over all inputs. Our result holds for both additive and relative error notions. Moreover, it applies under minimal assumptions on the data dimension and norms: even the slightest relaxation of these assumptions enters the setting in which existing algorithms supply near-linear runtime and vanishingly small error. Consequently, our new lower bound establishes a sharp transition of uniform attention approximation from possible at high accuracy to impossible at any accuracy. Additionally, we study whether preprocessing or sparse attention structure can accelerate subsequent attention computations with uniform guarantees. Such approaches are common in practice, where one is often willing to incur the quadratic cost of initially processing the input, as well as additional preprocessing overhead, in exchange for faster inference on subsequent queries (Li et al., 2024; Tang et al., 2024; Chen et al., 2025; Liu et al., 2025). We show that, even in this relaxed setting, uniform approximation remains hard. Under the same mild assumptions as before, it is impossible to preprocess the input in polynomial time and subsequently approximate attention in truly sublinear time per token while guaranteeing either a nontrivial approximation of the attention output or, under significant sparsity, retrieval of a small set of keys capturing a constant fraction of the attention. 
+
+Contributions. We provide new lower bounds that settle the limits of uniform attention approxi-mation, closing the gap left by prior work and extending them to autoregressive decoding with pre-processing and sparsity. Beyond the regimes where uniform high-precision approximation is already efficiently possible, we show that approximate attention must exploit data-dependent structure.      
+
+> 1By “truly” subquadratic, we mean polynomially faster, that is, O(n2−q)for some constant q > 0.
+
+2Preprint. 
+
+# 2 RELATED WORK 
+
+Fast approximate attention. The quadratic cost of the standard attention implementation has mo-tivated extensive work on faster approximations. For instance, existing approaches exploit sparsity (Child et al., 2019; Zaheer et al., 2020; Tay et al., 2020; Kitaev et al., 2020; Roy et al., 2021), low-rank structure (Wang et al., 2020; Xiong et al., 2021; Chen et al., 2021), or other data-dependent properties of the attention matrix (Zandieh et al., 2023; Han et al., 2024; Aliakbarpour et al., 2026) for efficient attention approximation. These methods can substantially reduce computation while preserving model quality, but they demonstrate performance often only empirically for typical inputs or give guarantees that depend on structural properties of the input. In particular, most approaches do not provide uniform guarantees over all inputs even though such guarantees are appealing given the use of attention across domains as varied as language, vision, speech, biology, and time-series forecasting (Devlin et al., 2019; Dosovitskiy et al., 2021; Gulati et al., 2020; Rives et al., 2021; Zhou et al., 2021). This raises Question (A): is the dependence on input structure merely a limitation of existing algorithms or fundamentally unavoidable in practice? 
+
+Uniform approximation guarantees. Another line of work gives approximation guarantees uni-formly over a broad class of inputs, typically satisfying a fixed norm bound without requiring ad-ditional instance-specific structure. For instance, Choromanski et al. (2021) prove uniform conver-gence of a random-feature approximation when the query and key norms are bounded, although the number of features depends strongly on the radius and desired accuracy. Alman & Song (2023) obtain a near-linear time algorithm with approximation error decaying at a rate of n−c in the se-quence length n for a configurable constant c > 0 when the entries of the key and query vectors have sufficiently small magnitude. More recently, Schr¨ oder & Mackey (2026) achieve even super-polynomial error decay in the sequence length when keys and queries have sufficiently small norms. While these algorithms give approximation guarantees uniformly over all inputs, they have in com-mon that they only result in fast algorithms for sufficiently low-dimensional inputs with sufficiently small norms. This raises Question (B): are these restricted parameter regimes merely a limitation of existing algorithms or are they the broadest possible for uniform approximation guarantees? 
+
+Runtime lower bounds. Existing runtime lower bounds provide evidence that approximating at-tention is hard, but do not conclusively answer Questions (A) or (B) . Early work by Duman Keles et al. (2023) establishes that near-exact attention computation requires near-quadratic runtime when the input dimension and norms are sufficiently large. More directly, Alman & Song (2023) show that, outside the parameter regime in which their algorithm guarantees arbitrary polynomial error decay, there exists some constant C ≫ 0 such that no truly subquadratic algorithm can approximate attention with error at most n−C uniformly over all input sequences of length n. These results con-cern high-precision approximation, since Alman & Song (2023) quantify C only existentially, while Duman Keles et al. (2023) only rule out fast algorithms with even faster-decaying additive error. More recent lower bounds by Gupta et al. (2026, Thm. 5.4) rule out constant-error approximation, but only for inputs with extremely large norms, while their complementary results in more realistic regimes (Gupta et al., 2026, Thm. 5.7) again require extreme precision. In contrast, our new lower bound rules out any nontrivial additive or relative error guarantee, thereby resolving Questions (A) 
+
+and (B) . At a technical level, our results strengthen the proof of Alman & Song (2023) and therefore build on the lower bounds of Rubinstein (2018) for the approximate closest pair problem. 
+
+Approximation with preprocessing and sparsity. In practice, the runtime of Transformers on long sequences is often not dominated by the processing of the initial input but instead by the cost of subsequent queries during generation, since the former can be parallelized across the sequence whereas the latter cannot. Because of that, significant effort has gone into designing algorithms that speed up generation, often by preprocessing the sequence into some data structure that subsequently exploits sparsity to attend only over a small subset of the original input (Li et al., 2024; Tang et al., 2024; Chen et al., 2025; Liu et al., 2025). These methods incur the full quadratic cost of attention before generation, as well as the added cost of preprocessing, in exchange for faster generation. Prior lower bounds leave open whether relaxing the computational problem in this way enables fast attention approximation with uniform guarantees during generation. We address this gap by extending our runtime lower bounds to the relaxed problem settings of approximate attention with preprocessing and retrieval under sparsity. 3Preprint. 
+
+# 3 NONTRIVIAL GUARANTEES ARE IMPOSSIBLE UNDER MILD ASSUMPTIONS 
+
+In this section, we ask whether a fast algorithm can approximate attention uniformly over all inputs. After formally defining the problem in Section 3.1, we explain in Section 3.2 why existing lower bounds do not resolve this question. Our main result in Section 3.3 then strengthens the lower-bound argument of Alman & Song (2023) to rule out any nontrivial additive or relative approximation guarantee in truly subquadratic time. 3.1 PROBLEM FORMULATION 
+
+We consider the standard softmax attention operation over a sequence of input vectors. Attention allows each vector to selectively aggregate information from all other vectors in the sequence. To determine what information to aggregate, each element exposes a query , a key , and a value . Each query is compared with all keys, and the resulting scores determine how the corresponding values are combined. Formally, this operation is defined as follows. 
+
+Definition 3.1 (Attention) . For matrices Q ∈ Rm×d and K, V ∈ Rn×d, let A = exp( QK ⊤/d )
+
+and D = diag( A1n), where exp is applied entrywise. Define attention as 
+
+Att( Q, K, V ) := D−1AV ∈ Rm×d.
+
+Remark 3.2. For better comparability of our results with prior work, we follow Alman & Song (2023, Def. 1.1) in normalizing QK ⊤ by d. In practice, normalization often uses √d or a tunable parameter, instead. The precise normalization is inconsequential for our results, however, because it can always be absorbed into the keys and queries by suitable scaling. 
+
+The straightforward implementation of attention computes the full attention matrix A, comparing each of the m queries to each of the n keys before aggregating the values. In the usual setting where 
+
+m = n, this results in O(n2) operations. At the same time, both the input and output only have 
+
+O(nd ) entries and the embedding dimension d is often much smaller than the sequence length n.Consequently, one may hope for an algorithm that avoids explicitly forming all n2 comparisons and computes Att( Q, K, V ), at least approximately, in much less than O(n2) time. We formalize this problem below for different uniform approximation guarantees such an algorithm could give. 
+
+Problem 1: Approximating attention 
+
+Fix parameters n, d ∈ N and B ≥ 0. Given matrices Q, K ∈ [−B, B ]n×d and V ∈ [0 , 1] n×d,the task is to compute a matrix T ∈ Rn×d. For this output, the problem 
+
+AbsAtt (n, d, B, η abs ) requires ∥T − Att( Q, K, V )∥ℓ∞ ≤ ηabs , and 
+
+RelAtt p(n, d, B, η rel ) requires ∥T − Att( Q, K, V )∥Sp ≤ ηrel ∥ Att( Q, K, V )∥Sp .
+
+We allow an algorithm to approximate attention with either an additive or a relative error guarantee. For additive error, we follow prior work in measuring error entrywise in ℓ∞ norm and restrict the values to [0 , 1] , since otherwise the error could be inflated arbitrarily by scaling the values. For relative error, we instead allow any Schatten norm Sp, covering a broad range of natural relative and spectral guarantees not addressed by previous lower bounds. Under these conventions, additive error 
+
+1/2 and relative error 1 are trivial to achieve with no dependence on the input. A useful algorithm should therefore guarantee additive error below 1/2 or relative error below 1.Our goal is to show that an algorithm with such nontrivial approximation guarantees cannot run in truly less than O(n2) time, under the mildest possible assumptions on d and B. Concretely, we target d = Θ(log n) and B = Θ( √log n), since making either parameter asymptotically smaller yields known algorithms with near-linear runtime and with vanishingly small error (Alman & Song, 2023; Schr¨ oder & Mackey, 2026). To rule out efficient algorithms at this boundary, we work under the strong exponential time hypothesis ( SETH ), which is a standard assumption in fine-grained complexity theory. In particular, essentially all prior lower bounds for attention are conditional on 
+
+SETH (Alman & Song, 2023; Duman Keles et al., 2023; Gupta et al., 2026). 
+
+Hypothesis 3.3 (SETH , Impagliazzo & Paturi (2001)) . For every ε > 0, there is an integer k ≥ 3
+
+such that k-SAT on formulas with n variables cannot be solved in O(2 (1 −ε)n) time, not even by a randomized algorithm with bounded error probability. 
+
+4Preprint. Table 1: Comparison of hardness results for approximating attention. All results establish n2−o(1) 
+
+runtime lower bounds under SETH , but apply to different settings (head dimensions d and entry bounds B) and rule out different error guarantees. For comparability, all parameters are standardized to exp( QK ⊤/d ) normalization. “Error scale” reports the error threshold below which hardness is established. For the exact attention output Y ∈ Rn×d and an approximation T ∈ Rn×d, additive error means ∥T −Y ∥ℓ∞ ; entrywise-relative error means the smallest η such that |Tij −Yij | ≤ η|Yij |
+
+for all i, j ; and norm-relative error means ∥T − Y ∥Sp /∥Y ∥Sp for any Schatten norm Sp. Additive errors are comparable because all constructions use value entries in [0 , 1] . All previous results either apply only under extreme temperature or rule out only extremely high-precision approximation. We establish hardness in the mildest setting and for the coarsest error scales, ruling out every nontrivial approximation guarantee under all three error notions.                                           
+
+> Setting Error scale Result dBAdditive Entrywise relative Norm relative Gupta et al. (2026) Thm. 5.4 2Θ(log ∗n)nΘ(1) Θ(1) Θ(1) –Gupta et al. (2026) Thm. 5.7 Θ(log n)Θ( √log n)n−Θ(1) n−Θ(1) –Duman Keles et al. (2023) ω(log n)Θ( d3/2)n−Ω( d)1–Alman & Song (2023) Θ(log n)Θ( √log n)n−Θ(1) n−Θ(1) –Theorem 3.7 (ours) Θ(log n)Θ( √log n)1211
+
+3.2 EXISTING LOWER BOUNDS ONLY RULE OUT HIGH -PRECISION APPROXIMATION 
+
+Attention can already be efficiently approximated to extremely high accuracy when the data dimen-sion and norms are sufficiently small. Specifically, when either d = O(log n) and B = o(√log n),or d = o(log n) and B = O(√log n), there are algorithms with near-linear runtime solving 
+
+AbsAtt (n, d, B, η abs ) for any constant error guarantee ηabs > 0. Concretely, for any constant c > 0,Alman & Song (2023) achieve error vanishing as n−c with the sequence length in n1+ o(1) time, and Schr¨ oder & Mackey (2026) even achieve error vanishing as n− ω(1) in n1+ o(1) time. Although asymptotic, these guarantees amount effectively to exact attention computation at the sequence lengths for which approximate attention is practically relevant. Consequently, the mildest regime for which we do not already know how to solve Problem 1 efficiently is at the boundary where 
+
+d = Θ(log n) and B = Θ( √log n).At this boundary, existing runtime lower bounds show that efficient algorithms can no longer guar-antee extreme accuracy. Concretely, Alman & Song (2023) show that some polynomial error decay cannot be attained in truly subquadratic time unless SETH fails. 
+
+Theorem 3.4 (Alman & Song (2023, Thm. 4.6)) . Fix q > 0. Assuming SETH , there exist constants 
+
+D, B, C > 0 such that AbsAtt (n, D log n, B √log n, n −C ) cannot be solved in O(n2−q ) time. 
+
+While this result rules out the extreme accuracy possible for small d and B, it leaves open whether some of this accuracy can be exchanged for fast attention approximation in broader regimes. In par-ticular, Theorem 3.4 does not preclude a linear-time algorithm for AbsAtt (n, log n, √log n, 0.49) .As summarized in Table 1, other lower bounds do not resolve this question either. Closing the gap would require ruling out coarse approximation when d = Θ(log n) and B = Θ( √log n).Duman Keles et al. (2023) rule out nontrivial entrywise-relative approximation, but only for super-polynomially small additive error and under more restrictive assumptions on d and B. Likewise, Gupta et al. (2026, Thm. 5.7) applies to d = Θ(log n) and B = Θ( √log n), but again only shows that some polynomial decay is impossible, while Gupta et al. (2026, Thm. 5.4) rules out constant-error approximation only in the practically unrealistic setting where query and key entries grow polynomially with n.Consequently, existing lower bounds leave open whether truly subquadratic algorithms can pro-vide uniform approximation guarantees beyond the parameter regime of known algorithms with near-linear runtime and near-exact approximation. Closing this gap requires ruling out the entire nontrivial range of additive and relative errors already at d = Θ(log n) and B = Θ( √log n).5Preprint. 3.3 NONTRIVIAL GUARANTEES ARE IMPOSSIBLE UNDER THE MILDEST ASSUMPTIONS 
+
+We show that, once d = Θ(log n) and B = Θ( √log n), no truly subquadratic algorithm can solve either AbsAtt (n, d, B, η abs ) for any ηabs < 1/2 or RelAtt p(n, d, B, η rel ) for any ηrel < 1, unless 
+
+SETH fails. To that end, we strengthen the proof of Alman & Song (2023), which draws on the connection between computing attention and finding close vectors. 
+
+Definition 3.5 (Closest pair problem) . For n, d ∈ N and ε > 0, the problem CP (n, d, ε ) is the following. Given sets {a1, . . . , an}, {b1, . . . , bn} ⊆ { 0, 1}d, find i⋆, j ⋆ ∈ [n] such that 
+
+∥ai⋆ − bj⋆ ∥0 ≤ (1 + ε) min  
+
+> i,j ∈[n]
+
+∥ai − bj ∥0.
+
+The central idea underlying the proof of Alman & Song (2023) is that the attention matrix can be repurposed to encode pairwise distances between the two sets of vectors, while the subsequent value aggregation is used to recover a close pair. Hence, a fast algorithm for computing attention yields an essentially equally fast algorithm for finding an approximate closest pair. Finding such a pair, however among two sets of n binary vectors in dimension d = O(log n) cannot be done much more efficiently than checking all n2 possible pairs unless SETH fails, as Rubinstein (2018) proves. 
+
+Proposition 3.6 (Rubinstein (2018, Thm. 1.1)) . Fix q > 0. Assuming SETH , there exist C > 0 and 
+
+ε ∈ (0 , 1) such that CP (n, C log n, ε ) cannot be solved in O(n2−q ) time. 
+
+A truly subquadratic time algorithm for attention therefore cannot exist under SETH . When only a fast approximate algorithm for attention is available, however, the particular construction of Alman & Song (2023) recovers such a pair only when the approximation error is extremely small. We therefore strengthen their construction to find a close pair reliably even when only a very coarse approximation of attention is available. Put together, any truly subquadratic algorithm for attention with a nontrivial approximation guarantee, already for d = Θ(log n) and B = Θ( √log n), then implies a truly subquadratic algorithm for the closest pair problem, which would contradict SETH 
+
+via Proposition 3.6. The following theorem formalizes this result. We sketch the main idea here and give the full proof in Appendix A. 
+
+Theorem 3.7. Fix ηabs ∈ [0 , 12 ), ηrel ∈ [0 , 1) , and q > 0. Assuming SETH , there exist Cd, C B > 0
+
+such that neither AbsAtt (n, D, B, η abs ) nor RelAtt p(n, D, B, η rel ) can be solved in O(n2−q ) time, for D := Cd log n, B := CB
+
+√log n, and any p ∈ [1 , ∞].Proof sketch. Given two sets of binary vectors as an input to the closest pair problem, we construct from them query and key matrices so that the full n × n attention matrix of all key–query compar-isons already contains the information needed to find close pairs, with the largest attention scores corresponding to closest vectors. The difficulty is that an attention algorithm does not return these scores but only their normalized aggregation against the values, which can obscure the contribution of any individual close pair. Our main idea is to turn this normalization itself into a test whether a close pair with distance below a given threshold exists. To achieve this, we add dummy keys and augment the genuine queries and keys so that close pairs score above the dummies, while far pairs score below them. We then choose the values to measure the total attention paid to genuine keys. By scaling the logits appropriately, a single close genuine key can be made to outweigh all dummy keys whereas the combined contribution of all far genuine keys remains negligible, all while keeping the query and key entries bounded by B = O(√log n). The resulting attention output then becomes an almost-binary indicator of whether a pair below distance t exists, allowing even any fixed nontrivial additive or relative approximation to distinguish the two cases. Repeating this test over logarithmi-cally many thresholds recovers an approximate closest pair. Thus, a truly subquadratic algorithm for approximating attention would yield a truly subquadratic algorithm for the closest pair problem, contradicting Proposition 3.6 unless SETH fails. Theorem 3.7 therefore settles the boundary of efficient attention approximation with uniform guar-antees. At d = Θ(log n) and B = Θ( √log n), even the weakest nontrivial guarantees require essentially quadratic work under standard complexity-theoretic assumptions. At the same time, re-laxing either parameter to d = o(log n) or B = o(√log n) admits algorithms with near-linear runtime and near-exact approximation (Alman & Song, 2023; Schr¨ oder & Mackey, 2026). Our re-sults therefore identify a sharp transition of efficient attention approximation from possible at high accuracy to impossible at any nontrivial accuracy. 6Preprint. 
+
+# 4 APPROXIMATION REMAINS HARD AFTER KV CACHE PREPROCESSING 
+
+Transformer inference in practice is typically optimized for autoregressive generation , where the model extends the original input sequence one token at a time. This differs from prefill , where the initial input is processed all at once. Because autoregressive generation is inherently sequential, it is much harder to parallelize than prefill, making attention during generation often much more costly than during prefill. This has motivated substantial work on accelerating attention specifically during generation through preprocessing of the keys and values produced during prefill, collectively known as the KV cache . In particular, such methods may spend additional computation during or after prefill to compress, index, or otherwise organize the KV cache to reduce the cost of subsequent attention queries (Li et al., 2024; Tang et al., 2024; Chen et al., 2025; Liu et al., 2025). Allowing algorithms to preprocess the KV cache before approximating attention could, in principle, make uniform approximation substantially easier. Yet existing runtime lower bounds do not address this tradeoff between preprocessing and subsequent query time, despite its practical relevance. We therefore ask whether KV cache preprocessing enables fast attention approximation with nontrivial uniform guarantees that are impossible without it. To answer this question, Section 4.1 adapts the computational problem of approximate attention to autoregressive generation after KV cache preprocessing. Section 4.2 then shows that, even with arbitrary polynomial-time preprocessing and under the same mild assumptions as before, nontrivial uniform guarantees remain impossible in every regime not already covered by fast high-accuracy approximation algorithms. 4.1 PROBLEM FORMULATION 
+
+To model approximate attention during autoregressive generation, we separate the approximation problem into two stages. In the preprocessing stage, the algorithm receives the KV cache and constructs from it an arbitrary data structure. Only afterward is a single query revealed, and the algorithm must compute its attention output using the preprocessed cache. 
+
+Problem 2: Approximating attention with preprocessing 
+
+Fix parameters n, d ∈ N and B ≥ 0. Given matrices K ∈ [−B, B ]n×d and V ∈ [0 , 1] n×d,preprocess them. Then, given a query Q ∈ [−B, B ]1×d, the task is to compute a matrix 
+
+T ∈ R1×d. For this output, the problem 
+
+AbsPreAtt (n, d, B, η abs ) requires ∥T − Att( Q, K, V )∥ℓ∞ ≤ ηabs , and 
+
+RelPreAtt (n, d, B, η rel ) requires ∥T − Att( Q, K, V )∥S2 ≤ ηrel ∥ Att( Q, K, V )∥S2 .
+
+The naive exact implementation for Problem 2 simply stores the KV cache and subsequently scans the entire cache for each query, costing O(nd ) preprocessing time and O(nd ) decoding time. Fur-thermore, as before, additive error 1/2 and relative error 1 are trivial to guarantee without prepro-cessing. The relevant question is therefore whether nontrivial uniform approximation guarantees can be achieved in truly sublinear decoding time O(n1−q ) after potentially substantial preprocessing. 4.2 NONTRIVIAL GUARANTEES ARE IMPOSSIBLE UNDER THE MILDEST ASSUMPTIONS 
+
+To rule out fast approximation even after substantial preprocessing, we again exploit the connec-tion between attention and the closest pair problem from Definition 3.5. In fact, Rubinstein (2018, Cor. 1.3) already shows that finding an approximate closest pair still requires checking essentially all pairs even when one of the two vector sets is revealed in advance and may be preprocessed in polynomial time. Incidentally, the reduction underlying Theorem 3.7 already mirrors this structure: one vector set determines K and V , while the other is used only to form Q. The same reduc-tion therefore naturally extends to Problem 2. We defer the proof details to Appendix A and state only the conclusion here. Under the same mild assumptions as before, arbitrary polynomial-time preprocessing does not enable efficient decoding with nontrivial uniform approximation guarantees. 
+
+Theorem 4.1. Fix ηabs ∈ [0 , 12 ), ηrel ∈ [0 , 1) , and k, q > 0. Assuming SETH , there ex-ist Cd, C B > 0 such that neither AbsPreAtt (n, D, B, η abs ) nor RelPreAtt (n, D, B, η rel ) can be solved with O(nk) preprocessing time and O(n1−q ) decoding time, for D := Cd log n and 
+
+B := CB
+
+√log n.
+
+7Preprint. 
+
+# 5 APPROXIMATION REMAINS HARD FOR SPARSE ATTENTION 
+
+Attention often exhibits sparse structure in practice, with a small number of tokens receiving most of the attention for any particular query. Many practical methods therefore exploit this structure to accelerate attention during generation by identifying the relevant tokens for each query and attending only over them (Li et al., 2024; Tang et al., 2024; Chen et al., 2025; Liu et al., 2025). Sparse attention methods therefore pursue an objective not captured by Problem 1 and 2: rather than approximating the full attention output, they aim to retain a small set of tokens receiving most of the attention. This can preserve accurate performance at substantially reduced cost if those tokens can be identified efficiently. Identifying the important tokens could, in principle, be easier than approximating the full attention output, and neither prior work nor our preceding lower bounds rule out this possibility. This section therefore asks whether such retrieval is possible with uniform guarantees over all inputs. To that end, Section 5.1 formalizes retrieval under sparsity as a computational problem. Section 5.2 then shows that, even after arbitrary polynomial-time preprocessing of the KV cache and under the same mild assumptions as before, no fast algorithm can identify a small set of tokens receiving substantial attention for a given query, even when its attention distribution is highly concentrated. 5.1 PROBLEM FORMULATION 
+
+A sparse attention method maps a query to a small subset of relevant keys and subsequently evalu-ates attention only over this subset. To preserve the relevant information from the full computation, the selected keys should collectively receive a substantial fraction of the total attention. We there-fore allow an algorithm to preprocess the keys into an arbitrary data structure and, once a query is revealed, ask it to return a small subset capturing a constant fraction of its attention. This objective is meaningful only when the attention distribution itself exhibits sparse structure. If all keys are identical, for example, attention is uniform and no small subset can receive much of the attention. We therefore restrict the problem to queries for which the attention distribution is actually sparse by promising that some key already receives a constant fraction of the attention. Returning any small set containing such a key then suffices. 
+
+Problem 3: Sparse attention with preprocessing 
+
+Fix parameters n, d ∈ N, B ≥ 0, and α ∈ (0 , 1) . Given a matrix K ∈ [−B, B ]n×d, preprocess it. Then, given a query q ∈ [−B, B ]d, the problem SparseAtt (n, d, B, α ) asks for a subset 
+
+I ⊆ [n] of the keys receiving attention 
+
+P 
+
+> i∈I
+
+softmax i(Kq /d ) ≥ α promised that softmax i(Kq /d ) ≥ α for some i ∈ [n].
+
+To solve this problem, a trivial algorithm could compute all attention scores and return a singleton containing the promised key, or it could return all keys, which always captures the full attention. Both approaches require O(n) time, however, and therefore provide no speedup over simply com-puting attention over all keys. The relevant question is therefore whether Problem 3 can be solved in truly sublinear time O(n1−q ) after preprocessing. In particular, we count the size of the set toward the runtime, requiring it to carry truly fewer than O(n) keys. 5.2 EFFICIENTLY RETAINING TOKENS RECEIVING SUBSTANTIAL ATTENTION IS IMPOSSIBLE 
+
+We show that, under the same mild assumptions as before, no truly sublinear algorithm can retain any constant fraction of the attention after arbitrary polynomial-time preprocessing. While we still exploit the connection between attention and the closest pair problem from Definition 3.5, the reduc-tion of Alman & Song (2023) underlying Theorems 3.7 and 4.1 does not extend directly to sparse attention. Its construction encodes close pairs through attention scores that are large relative to those of far pairs. Yet, a closest pair instance may contain many approximately closest pairs at similar dis-tances. On such inputs, approximating the full attention output can reveal some such pair even when the attention distribution is diffuse, violating the promise of Problem 3. To obtain hardness in the presence of sparsity, we therefore modify the reduction so that one approximately closest candidate dominates all others. We achieve this by randomly perturbing the encoded keys in a way that isolates 8Preprint. one of the approximately closest keys to receive almost all of the attention. Any subset capturing a constant fraction of the attention must then contain this key and thereby reveal an approximate closest pair. We state the resulting lower bound below and sketch the reduction, deferring the full proof to Appendix A. 
+
+Theorem 5.1. Fix any α ∈ (0 , 1) and k, q > 0. Assuming SETH , there exist Cd, C B > 0 such that 
+
+SparseAtt (n, D, B, α ) cannot be solved with O(nk) preprocessing time and O(n1−q ) decoding time, for D := Cd log n and B := CB
+
+√log n.Proof sketch. Suppose there were an algorithm for Problem 3 with polynomial preprocessing time and truly sublinear decoding time. We use it to construct a bounded-error randomized algorithm for approximate nearest-neighbor search after polynomial preprocessing, contradicting SETH under the lower bound of Rubinstein (2018). As in Theorem 3.7, we encode the preprocessed vectors as keys and the later query vector as an attention query, so that nearby vectors receive much larger scores than distant ones. The difficulty is that there may be many close keys, resulting in a diffuse attention distribution, whereas a sparse attention algorithm requires the attention distribution to be concentrated. Our main idea is to randomly perturb the key matrix so that one close key dominates all others with high probability. Concretely, we create a small number of copies of the key matrix and randomly shift each key by an exponentially distributed amount in a fixed direction. We truncate these shifts so that all entries remain bounded by B = O(√log n) and far vectors continue to receive negligible attention. We show that, with high probability, at least one perturbed copy contains a key corresponding to an approximate closest neighbor of the query while receiving at least 1 − 1 
+
+> n
+
+>
+
+1 − α attention. For that copy, any subset capturing an α-fraction of the attention must contain this key, thereby revealing an approximate closest neighbor. Running the hypothetical sparse attention algorithm on all copies still yields a truly sublinear bounded-error randomized algorithm for the closest-pair search problem and thus contradicting SETH .This demonstrates that retrieval of relevant tokens under sparsity is fundamentally hard to guaran-tee uniformly over all inputs: in the mildest regime beyond the reach of highly accurate attention approximation with near-linear runtime, no algorithm can uniformly and efficiently identify a small set of tokens receiving substantial attention under future queries, even when attention is highly con-centrated and even when allowing arbitrary polynomial-time preprocessing of the KV cache. Con-sequently, efficient sparse attention must exploit additional structure of the inputs beyond sparsity itself. 
+
+# 6 CONCLUSION 
+
+Motivated by the computational cost of Transformers, we study whether attention can be approxi-mated efficiently with uniform guarantees over all inputs. Under standard complexity-theoretic as-sumptions, we identify that the known tractable regimes mark the limit of what is possible: outside the regimes of existing algorithms with near-linear runtime and vanishingly small error, approxi-mating attention with a nontrivial additive or relative guarantee uniformly over all inputs requires essentially quadratic time. Interestingly, this barrier persists during autoregressive generation after arbitrary polynomial-time preprocessing of the KV cache, and then even for retrieval under sparsity. While our results make substantial improvements in algorithms with uniform worst-case guarantees unlikely, they do not rule out algorithms that perform well empirically or obtain strong guarantees under structural assumptions on the inputs. In fact, our lower bounds substantiate the need for such assumptions: beyond the already tractable regimes, exploiting input structure is genuinely necessary to obtain meaningful guarantees for fast approximate attention. 9Preprint. 
+
+# ACKNOWLEDGMENTS 
+
+Funded by the European Union. This work has received funding from the European High Per-formance Computing Joint Undertaking (JU) and from the German Federal Ministry of Research, Technology and Space (BMFTR), the Ministry of Culture and Science of North Rhine-Westphalia (MKW NRW) and the Hessian Ministry of Science and Research, Arts and Culture (HMWK) under grant agreement No 101250682 . LH was supported by an RWTH Research Ambassador Scholar-ship. CAA is supported by a Schmidt Science Fellowship. 
+
+# AI U SE STATEMENT 
+
+In the preparation of this paper, large language models were used to polish the authors’ original writing. All scientific content was written and reviewed by the authors. 
+
+# REFERENCES 
+
+Maryam Aliakbarpour, Vladimir Braverman, Junze Yin, and Haochen Zhang. Support basis: Fast attention beyond bounded entries. In Proceedings of The 29th International Conference on Artificial Intelligence and Statistics , volume 300 of Proceedings of Machine Learning Re-search , pp. 325–333. PMLR, 2026. URL https://proceedings.mlr.press/v300/ aliakbarpour26a.html .Josh Alman and Zhao Song. Fast attention requires bounded entries. In Advances in Neural Infor-mation Processing Systems , volume 36, pp. 63117–63135, 2023. doi: 10.52202/075280-2755. Iz Beltagy, Matthew E Peters, and Arman Cohan. Longformer: The long-document transformer. 
+
+arXiv preprint arXiv:2004.05150 , 2020. URL https://arxiv.org/abs/2004.05150 .Beidi Chen, Tri Dao, Eric Winsor, Zhao Song, Atri Rudra, and Christopher R´ e. Scatterbrain: Uni-fying sparse and low-rank attention. In Advances in Neural Information Processing Systems , vol-ume 34, pp. 17413–17426, 2021. URL https://proceedings.neurips.cc/paper/ 2021/hash/9185f3ec501c674c7c788464a36e7fb3-Abstract.html .Zhuoming Chen, Ranajoy Sadhukhan, Zihao Ye, Yang Zhou, Jianyu Zhang, Niklas Nolte, Yuan-dong Tian, Matthijs Douze, Leon Bottou, Zhihao Jia, and Beidi Chen. MagicPIG: LSH sam-pling for efficient LLM generation. In International Conference on Learning Representations ,2025. URL https://proceedings.iclr.cc/paper_files/paper/2025/file/ 6d50d824ae819d5a961c1d8edc15e833-Paper-Conference.pdf .Rewon Child, Scott Gray, Alec Radford, and Ilya Sutskever. Generating long sequences with Sparse Transformers. arXiv preprint arXiv:1904.10509 , 2019. URL https://arxiv.org/abs/ 1904.10509 .Krzysztof Marcin Choromanski, Valerii Likhosherstov, David Dohan, Xingyou Song, Andreea Gane, Tam´ as Sarl´ os, Peter Hawkins, Jared Quincy Davis, Afroz Mohiuddin, Łukasz Kaiser, David Benjamin Belanger, Lucy J. Colwell, and Adrian Weller. Rethinking attention with Performers. In International Conference on Learning Representations , 2021. URL https: //openreview.net/forum?id=Ua6zuk0WRH .Tri Dao. FlashAttention-2: Faster attention with better parallelism and work parti-tioning. In International Conference on Learning Representations , 2024. URL 
+
+https://proceedings.iclr.cc/paper_files/paper/2024/file/ 98ed250b203d1ac6b24bbcf263e3d4a7-Paper-Conference.pdf .Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of deep bidirectional transformers for language understanding. In Proceedings of the 2019 Con-ference of the North American Chapter of the Association for Computational Linguistics: Hu-man Language Technologies, Volume 1 (Long and Short Papers) , pp. 4171–4186, 2019. doi: 10.18653/v1/N19-1423. 10 Preprint. Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, Jakob Uszko-reit, and Neil Houlsby. An image is worth 16x16 words: Transformers for image recogni-tion at scale. In International Conference on Learning Representations , 2021. URL https: //openreview.net/forum?id=YicbFdNTTy .Feyza Duman Keles, Pruthuvi Mahesakya Wijewardena, and Chinmay Hegde. On the computational complexity of self-attention. In Proceedings of The 34th International Conference on Algorith-mic Learning Theory , volume 201 of Proceedings of Machine Learning Research , pp. 597–619. PMLR, 2023. URL https://proceedings.mlr.press/v201/duman-keles23a. html .Anmol Gulati, James Qin, Chung-Cheng Chiu, Niki Parmar, Yu Zhang, Jiahui Yu, Wei Han, Shibo Wang, Zhengdong Zhang, Yonghui Wu, and Ruoming Pang. Conformer: Convolution-augmented transformer for speech recognition. In Interspeech 2020 , pp. 5036–5040, 2020. doi: 10.21437/ Interspeech.2020-3015. Shreya Gupta, Boyang Huang, Barna Saha, Yinzhan Xu, and Christopher Ye. Subquadratic algorithms and hardness for attention with any tempera-ture. In International Conference on Learning Representations , 2026. URL 
+
+https://proceedings.iclr.cc/paper_files/paper/2026/file/ 8a01099096c85890b1d1aff3c6b4ea56-Paper-Conference.pdf .Insu Han, Rajesh Jayaram, Amin Karbasi, Vahab Mirrokni, David Woodruff, and Amir Zandieh. HyperAttention: Long-context attention in near-linear time. In International Conference on Learning Representations , 2024. URL 
+
+https://proceedings.iclr.cc/paper_files/paper/2024/file/ ab5aa940590399350401c57cdf52ce78-Paper-Conference.pdf .Russell Impagliazzo and Ramamohan Paturi. On the complexity of k-SAT. Journal of Computer and System Sciences , 62(2):367–375, 2001. doi: 10.1006/jcss.2000.1727. Nikita Kitaev, Łukasz Kaiser, and Anselm Levskaya. Reformer: The efficient transformer. In 
+
+International Conference on Learning Representations , 2020. URL https://openreview. net/forum?id=rkgNKkHtvB .Yuhong Li, Yingbing Huang, Bowen Yang, Bharat Venkitesh, Acyr Locatelli, Hanchen Ye, Tianle Cai, Patrick Lewis, and Deming Chen. SnapKV: LLM knows what you are looking for before generation. In Advances in Neural Information Processing Systems , volume 37, pp. 22947–22970, 2024. doi: 10.52202/079017-0722. Yang Lin, Tianyu Zhang, Peiqin Sun, Zheng Li, and Shuchang Zhou. FQ-ViT: Post-training quan-tization for fully quantized vision transformer. In Proceedings of the Thirty-First International Joint Conference on Artificial Intelligence , pp. 1173–1179, 2022. doi: 10.24963/ijcai.2022/164. Di Liu, Meng Chen, Baotong Lu, Huiqiang Jiang, Zhenhua Han, Qianxi Zhang, Qi Chen, Chen-gruidong Zhang, Bailu Ding, Kai Zhang, Chen Chen, Fan Yang, Yuqing Yang, and Lili Qiu. RetrievalAttention: Accelerating long-context LLM inference via vector retrieval. In Ad-vances in Neural Information Processing Systems , volume 38, pp. 54358–54385, 2025. doi: 10.52202/085713-1816. Zirui Liu, Jiayi Yuan, Hongye Jin, Shaochen Zhong, Zhaozhuo Xu, Vladimir Braverman, Beidi Chen, and Xia Hu. KIVI: A tuning-free asymmetric 2bit quantization for KV cache. In 
+
+Proceedings of the 41st International Conference on Machine Learning , volume 235 of Pro-ceedings of Machine Learning Research , pp. 32332–32344. PMLR, 2024. URL https: //proceedings.mlr.press/v235/liu24bz.html .Paul Michel, Omer Levy, and Graham Neubig. Are sixteen heads really better than one? In Advances in Neural Information Processing Systems , volume 32, pp. 14014–14024, 2019. URL https://proceedings.neurips.cc/paper_files/paper/2019/ hash/2c601ad9d2ff9bc8b282670cdd54f69f-Abstract.html .11 Preprint. Alexander Rives, Joshua Meier, Tom Sercu, Siddharth Goyal, Zeming Lin, Jason Liu, Demi Guo, Myle Ott, C. Lawrence Zitnick, Jerry Ma, and Rob Fergus. Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences. Proceedings of the National Academy of Sciences , 118(15):e2016239118, 2021. doi: 10.1073/pnas.2016239118. Aurko Roy, Mohammad Saffar, Ashish Vaswani, and David Grangier. Efficient content-based sparse attention with Routing Transformers. Transactions of the Association for Computational Linguis-tics , 9:53–68, 2021. doi: 10.1162/tacl a 00353. Aviad Rubinstein. Hardness of approximate nearest neighbor search. In Proceedings of the 50th Annual ACM SIGACT Symposium on Theory of Computing , pp. 1260–1268, 2018. doi: 10.1145/ 3188745.3188916. Tobias Schr¨ oder and Lester Mackey. WildCat: Near-linear attention in theory and practice. In 
+
+Proceedings of the 43rd International Conference on Machine Learning , 2026. URL https: //openreview.net/forum?id=lfqyLp4hZm .Jiaming Tang, Yilong Zhao, Kan Zhu, Guangxuan Xiao, Baris Kasikci, and Song Han. QUEST: Query-aware sparsity for efficient long-context LLM inference. In Proceedings of the 41st In-ternational Conference on Machine Learning , volume 235 of Proceedings of Machine Learning Research , pp. 47901–47911. PMLR, 2024. URL https://proceedings.mlr.press/ v235/tang24l.html .Yi Tay, Dara Bahri, Liu Yang, Donald Metzler, and Da-Cheng Juan. Sparse Sinkhorn atten-tion. In Proceedings of the 37th International Conference on Machine Learning , volume 119 of Proceedings of Machine Learning Research , pp. 9438–9447. PMLR, 2020. URL https: //proceedings.mlr.press/v119/tay20a.html .Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan NGomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in Neural Information Processing Systems , volume 30, pp. 5998–6008, 2017. URL 
+
+https://proceedings.neurips.cc/paper_files/paper/2017/hash/ 3f5ee243547dee91fbd053c1c4a845aa-Abstract.html .Apoorv Vyas, Angelos Katharopoulos, and Franc ¸ois Fleuret. Fast transformers with clus-tered attention. In Advances in Neural Information Processing Systems , volume 33, pp. 21665–21674, 2020. URL https://proceedings.neurips.cc/paper/2020/ hash/f6a8dd1c954c8506aadc764cc32b895e-Abstract.html .Sinong Wang, Belinda Z. Li, Madian Khabsa, Han Fang, and Hao Ma. Linformer: Self-attention with linear complexity. arXiv preprint arXiv:2006.04768 , 2020. URL https://arxiv.org/ abs/2006.04768 .Yunyang Xiong, Zhanpeng Zeng, Rudrasis Chakraborty, Mingxing Tan, Glenn Fung, Yin Li, and Vikas Singh. Nystr¨ omformer: A Nystr¨ om-based algorithm for approximating self-attention. Pro-ceedings of the AAAI Conference on Artificial Intelligence , 35(16):14138–14148, 2021. doi: 10.1609/aaai.v35i16.17664. Manzil Zaheer, Guru Guruganesh, Kumar Avinava Dubey, Joshua Ainslie, Chris Alberti, Santiago Onta˜ n´ on, Philip Pham, Anirudh Ravula, Qifan Wang, Li Yang, and Amr Ahmed. Big Bird: Transformers for longer sequences. In Advances in Neural Information Processing Systems , vol-ume 33, pp. 17283–17297, 2020. URL https://proceedings.neurips.cc/paper/ 2020/hash/c8512d142a2d849725f31a9a7a361ab9-Abstract.html .Amir Zandieh, Insu Han, Majid Daliri, and Amin Karbasi. KDEformer: Accelerating transformers via kernel density estimation. In Proceedings of the 40th International Conference on Machine Learning , volume 202 of Proceedings of Machine Learning Research , pp. 40605–40623. PMLR, 2023. URL https://proceedings.mlr.press/v202/zandieh23a.html .Haoyi Zhou, Shanghang Zhang, Jieqi Peng, Shuai Zhang, Jianxin Li, Hui Xiong, and Wancai Zhang. Informer: Beyond efficient transformer for long sequence time-series forecasting. Proceedings of the AAAI Conference on Artificial Intelligence , 35(12):11106–11115, 2021. doi: 10.1609/aaai. v35i12.17325. 12 Preprint. 
+
+# A PROOFS 
+
+This appendix contains the formal proofs of Theorems 3.7, 4.1 and 5.1. Section A.1 presents a variant of the approximate closest pair problem, to which all our results reduce, and connects it to the lower bounds of Rubinstein (2018). Section A.2 shows how even a coarse approximation of attention can be used to identify approximate closest pairs, which Section A.3 uses to prove Theorems 3.7 and 4.1. Similarly, Section A.4 shows how sparse attention retrieval can be used to identify approximate closest pairs, which Section A.5 uses to prove Theorem 5.1. A.1 SOURCE PROBLEM 
+
+We prove all our results by showing that a fast algorithm for attention with a given approximation guarantee would ultimately give a fast algorithm for the approximate closest pairs problem below, which Rubinstein (2018) proves is impossible unless SETH fails. 
+
+Definition 3.5 (Closest pair problem) . For n, d ∈ N and ε > 0, the problem CP (n, d, ε ) is the following. Given sets {a1, . . . , an}, {b1, . . . , bn} ⊆ { 0, 1}d, find i⋆, j ⋆ ∈ [n] such that 
+
+∥ai⋆ − bj⋆ ∥0 ≤ (1 + ε) min  
+
+> i,j ∈[n]
+
+∥ai − bj ∥0.
+
+Proposition 3.6 (Rubinstein (2018, Thm. 1.1)) . Fix q > 0. Assuming SETH , there exist C > 0 and 
+
+ε ∈ (0 , 1) such that CP (n, C log n, ε ) cannot be solved in O(n2−q ) time. 
+
+Remark A.1. Although Proposition 3.6, as stated, only concerns deterministic algorithms it also holds against bounded-error randomized algorithms under randomized SETH . Indeed, both the standard reduction from k-SAT to Orthogonal Vectors and the subsequent reduction of Rubinstein (2018) to CP are deterministic. Consequently, a bounded-error randomized algorithm for CP with truly subquadratic runtime would contradict SETH as stated in Hypothesis 3.3. 
+
+For convenience, we define the decision variant of this problem with preprocessing. We also follow Alman & Song (2023) in working with inputs of balanced Hamming weights, that is, vectors in dimension 2d that have Hamming weight d. To that end, define, for even d ∈ N, the slice Md := 
+
+{v ∈ { 0, 1}d | ∥ v∥0 = d/ 2} of the Boolean cube with balanced Hamming weight. 
+
+Definition A.2 (Preprocessed Gap Closest Pair) . For n, m, d ∈ N and ε > 0, the problem 
+
+PreCP (n, m, d, ε ) is the following. Given a threshold t ∈ [0 , d ] and set B = {b1, . . . , bn} ⊆ Md,preprocess them. Then, given vectors a1, . . . , am ∈ Md, decide if 
+
+min  
+
+> i∈[m], j ∈[n]
+
+∥ai − bj ∥0 ≤ t or min  
+
+> i∈[m], j ∈[n]
+
+∥ai − bj ∥0 > (1 + ε)t, 
+
+promised that one of the two holds. 
+
+Solving this problem much more efficiently than checking all mn possible pairs remains hard even for bounded-error randomized algorithm with polynomial preprocessing and under the restriction to balanced inputs, as the following proposition shows. The proof effectively combines the arguments behind Rubinstein (2018, Cor. 1.3) and Alman & Song (2023, Rem. 4.4) together with a standard boosting trick for randomization. 
+
+Proposition A.3 (Balanced gap version of Rubinstein (2018, Cor. 1.3)) . Fix k, q > 0. Suppose that SETH holds. Then, there exist C, ε > 0 such that PreCP (n, m (n), d, ε ) cannot be solved, not even by a bounded-error randomized algorithm, with O(nk) preprocessing time and O(m(n)n1−q )
+
+query time, for d := C log n and any function m : N → N with m(n) ∈ [2 n].Proof. Assume w.l.o.g. that k > 1 and q ≤ 1/4. Let γ := 1 /(2 k) and ¯q := qγ/ 2. By Proposi-tion 3.6, there exist C > 0 and ε ∈ (0 , 1) such that CP (n, γC  
+
+> 2
+
+log n, ε ) cannot be solved in O(n2−¯q )
+
+time. Suppose, for contradiction, that PreCP (n, m (n), d, ε ) can be solved by a bounded-error ran-domized algorithm, for some function m : N → N with m(n) ∈ [2 n], with O(nk) preprocess-ing time and O(m(n)n1−q ) query time. We construct an algorithm for CP (n, γd/ 2, ε ) running in 
+
+O(n2−¯q ) time, contradicting Proposition 3.6. To that end, let sets A = {a1, . . . , an} ⊆ { 0, 1}γd/ 2
+
+and B = {b1, . . . , bn} ⊆ { 0, 1}γd/ 2 be inputs to CP (n, γC  
+
+> 2
+
+log n, ε ). We replace them with the balanced sets bA := {ba1, . . . , ban} ⊆ Mγd and bB := {bb1, . . . , bbn} ⊆ Mγd , where bx := ( x, 1 − x) ∈
+
+Mγd , so that ∥a − b∥0 = 12 ∥ba − bb∥0.13 Preprint. We now devise the algorithm. Let r := nγ and s := m(r) so that γd = C log r. Partition bB into sets bB1, . . . , bB⌈n/r ⌉, each of size at most r. Then, for each threshold t ∈ { 0, . . . , γd } in increasing order, do the following. Apply the assumed preprocessing algorithm for PreCP independently L := 
+
+CL log n times to every set bBj separately, padding it to r separate vectors by duplication when necessary. Additionally, partition bA into sets bA1, . . . , bA⌈n/s ⌉, each of size at most s. On each preprocessed subset bBj , independently run the corresponding L decoding algorithms on each query bulk bAi, again padding them to s = m(r) vectors when necessary, and use their majority answer. That is, accept if at least half of the independent invocations of the decoding algorithm accept. Choosing CL as a sufficiently large constant guarantees that, on every promised input, each ma-jority answer is incorrect with probability at most n−4. Overall, we compute at most O(( γd +1)( n/r )( n/s )) = O(n2 log n) such answers. Hence, by a union bound, with probability at least 
+
+1 − O (n2 log n)n−4 ≥ 23 ,
+
+all majority answers on promised inputs are correct simultaneously. Condition on that event and consider the smallest t for which the majority answer accepts on some bBj and bAi. Then, 
+
+min  
+
+> ba∈bAi,bb∈bBj
+
+∥ba − bb∥0 ≤ (1 + ε)t ≤ (1 + ε) min 
+
+> ba∈bA,bb∈bB
+
+∥ba − bb∥0,
+
+where the first inequality uses that min ba∈bAi,bb∈bBj ∥ba − bb∥0 > (1 + ε)t would force the decoding algorithm to reject by the problem definition, and the second inequality uses that the algorithm must accept once t = min ba∈bA,bb∈bB ∥ba − bb∥0. Consequently, computing arg min ba∈bAi,bb∈bBj gives a pair 
+
+(a, b) for the original input with 
+
+∥a − b∥0 = 12 ∥ba − bb∥0 ≤ 12 (1 + ε) min 
+
+> ba′∈bA,bb′∈bB
+
+∥ba′ − bb′∥0 = (1 + ε) min  
+
+> a′∈A,b′∈B
+
+∥a′ − b′∥0
+
+satisfying the output condition of CP . Since we only need to search the small subsets bAi and bBj ,such a pair can be computed by brute force in O(rsd ) ≤ O (r2d) ≤ O (n log n) time. Consequently, we obtain an algorithm with bounded error for CP (n, γd/ 2, ε ). For each threshold, the preprocessing takes O(L rk nr ) ≤ O (n3/2 log n) time and the decoding takes O(L nrns sr 1−q ) ≤O(n2−qγ log n) time. Repeating for all γd + 1 thresholds adds a factor O(d) = O(log n). Thus, the algorithm runs in O(n2−qγ/ 2) time, contradicting Proposition 3.6 together with Remark A.1. We also use the fact that the problem is easy to solve when the decision threshold t is small. To prove this, we apply the argument of Alman & Song (2023)[Lem. B.1, Case 1] to our particular problem formulation to give a brute-force algorithm searching the immediate vicinity of every preprocessed vector, resulting in O(mn 1−q ) runtime when the search space is sufficiently small. 
+
+Lemma A.4. Fix Cd > 0 and q ∈ (0 , 1) . There exists a constant c ∈ (0 , C d/2) such that 
+
+PreCP (n, m, C d log n, ε ) can be solved with O(nd ) preprocessing time and O(mn 1−q ) decoding time whenever the input threshold t satisfies t ≤ c log n.Proof. Let d := Cd log n. Choose any c ∈ (0 , C d/2) such that c log   eC d
+
+> c
+
+ < 1 − q. Such a choice is always possible since lim c↘0 c log   eC d
+
+> c
+
+ = 0 . Now, let B := {b1, . . . , bn} ⊆ Md be the input set to PreCP (n, m, d, ε ) and a1, . . . , am ∈ Md the query revealed after preprocessing. We give a brute-force algorithm for deciding this input, following the Hamming-ball enumeration of Alman & Song (2023, Lem. B.1, Case 1). Preprocess B by storing it in a trie. This takes O(nd ) time. Then, enumerate, for all i ∈ [m] separately, all vectors b ∈ { 0, 1}d satisfying ∥ai − b∥0 ≤ t, and accept if any such b belongs to B. This correctly decides the instance: if some ai has a close partner in B, exhaustive enumeration finds it, and if no ai has such a partner, no partner is found. Since 
+
+t ≤ c log n < d/ 2, the decoding time is 
+
+O
+
+md 
+
+> ⌊t⌋
+
+X
+
+> k=0
+
+dk
+
+ ≤ O md 
+
+ ed t
+
+t!
+
+≤ O m log n
+
+ eC d log nc log n
+
+c log n!
+
+≤ O 
+
+
+
+mn c log( eC d/c )+ o(1) 
+
+≤ O  mn 1−q  .
+
+14 Preprint. A.2 FINDING CLOSE PAIRS FROM A COARSE ATTENTION APPROXIMATION 
+
+Following the general strategy of Alman & Song (2023), we encode a closest pair instance as an attention instance so that approximating the attention output reveals an approximate closest pair. Deviating from their construction, however, we ensure that recovering such a pair does not require a high-precision attention approximation. To achieve this, we shift the attention scores relative to a collection of dummy keys so that the contribution of a close pair dominates the output, while the combined contribution of all far pairs remains negligible. Importantly, the keys and values depend only on one of the two closest pair sets, whereas the queries depend only on the other. The construction is therefore compatible with preprocessing the keys and values before the query vectors are revealed. The following lemma formalizes these properties. 
+
+Lemma A.5. Fix ε, c, C d > 0. There exists CB > 0 such that the following holds for all sufficiently large n ∈ N and N := 2 n, d := 2 Cd log n, D := 4 Cd log N , and B := CB
+
+√log N .Choose t ≥ c log n with d ≥ (1 + ε)t, a set of vectors B = {b1, . . . , bn} ⊆ Md, and a sequence 
+
+a1, . . . , am ∈ Md. One can construct matrices K ∈ [−B, B ]N ×D and V ∈ [0 , 1] N ×D indepen-dent of a1, . . . , am and in O(nD ) time, and another matrix Q ∈ [−B, B ]m×D in O(mD ) time such that Att( Q, K, V ) = ye ⊤ 
+
+> 1
+
+for some y ∈ Rm satisfying, for every i ∈ [m],
+
+yi ≥ nn + 1 if min  
+
+> j∈[n]
+
+∥ai − bj ∥0 ≤ t, and 
+
+yi ≤ 1
+
+n + 1 if min  
+
+> j∈[n]
+
+∥ai − bj ∥0 ≥ (1 + ε)t. 
+
+Proof. Define 
+
+ρ := pD/ (2 d), β := 12 d log nεt , and μ := 12 −
+
+ 12 + ε
+
+3
+
+ td
+
+and note that 
+
+0 ≤ ε
+
+6(1 + ε) ≤ μ ≤ 12
+
+since t/d ≤ 1/(1 + ε) by assumption. We construct the key and value matrices as 
+
+K := ρpβ
+
+
+
+b⊤ 
+
+> 1
+
+−μ1⊤ 
+
+> d
+
+0⊤
+
+> D−2d
+
+... ... ...
+
+b⊤ 
+
+> n
+
+−μ1⊤ 
+
+> d
+
+0⊤
+
+> D−2d
+
+0⊤ 
+
+> d
+
+0⊤ 
+
+> d
+
+0⊤
+
+> D−2d
+
+... ... ...
+
+0⊤ 
+
+> d
+
+0⊤ 
+
+> d
+
+0⊤
+
+> D−2d
+
+
+
+∈ RN ×D and V := 
+
+
+
+1 0 · · · 0
+
+... ... . . . ...
+
+1 0 · · · 00 0 · · · 0
+
+... ... . . . ...
+
+0 0 · · · 0
+
+
+
+∈ RN ×D
+
+and the query matrix as 
+
+Q := ρpβ
+
+
+
+a⊤ 
+
+> 1
+
+1⊤ 
+
+> d
+
+0⊤
+
+> D−2d
+
+... ... ...
+
+a⊤ 
+
+> m
+
+1⊤ 
+
+> d
+
+0⊤
+
+> D−2d
+
+ ∈ Rm×D .
+
+Next, we choose CB so that the constructed matrices satisfy the required entry bounds. Since t ≥
+
+c log n, d = 2 Cd log n, and ρ2 = log(2 n)/ log n ≤ 2,
+
+ρ2β = log N
+
+log n
+
+12 d log nεt ≤ 24 Cd log Nεc 
+
+Hence, there exists a constant CB > 0, depending only on Cd, ε, and c, such that ρ√β ≤
+
+CB
+
+√log N . Since 0 ≤ μ ≤ 1/2, it follows that ∥Q∥ℓ∞ ≤ B and ∥K∥ℓ∞ ≤ B.15 Preprint. We now show that the attention output separates close from far pairs as claimed. To that end, let 
+
+Y := Att( Q, K, V ). For i ∈ [m] and j ∈ [n], the logit between the i-th query and the j-th non-dummy key is 
+
+⟨Qi, Kj ⟩
+
+D = ρ2βD (⟨ai, b j ⟩ − μd ) = β
+
+2d (⟨ai, b j ⟩ − μd )= β
+
+2d
+
+ ∥ai∥22 + ∥bj ∥22 − ∥ ai − bj ∥22
+
+2 − μd 
+
+
+
+= β
+
+2d
+
+ d − ∥ ai − bj ∥0
+
+2 − μd 
+
+
+
+= β
+
+4
+
+
+
+1 − ∥ai − bj ∥0
+
+d
+
+
+
+− βμ 
+
+2 , (1) where the third equality uses that ai and bj both have Hamming weight d/ 2. For i ∈ [m], let 
+
+si := 
+
+> n
+
+X
+
+> j=1
+
+exp 
+
+ ⟨Qi, Kj ⟩
+
+D
+
+
+
+(2) be the total score assigned to non-dummy keys. By the definition of V , the i-th attention output is 
+
+Yi = si
+
+si + n e⊤ 
+
+> 1
+
+, (3) since the n dummy keys are 0 so that each of them has logit 0 and contributes score 1 and only the first column of V is nonzero. Now, fix i ∈ [m] and distinguish the following two cases from the claim. Suppose first that min j∈[n] ∥ai − bj ∥0 ≤ t. Then, Equation (1) and the definition of μ imply 
+
+⟨Qi, Kj ⟩
+
+D ≥ β
+
+4
+
+
+
+1 − td
+
+
+
+− βμ 
+
+2 = βεt 
+
+6d = 2 log( n)
+
+for some j ∈ [n]. Consequently, si ≥ n2 and Equation (3) gives Yi, 1 ≥ n/ (n + 1) . Now, suppose instead that min j∈[n] ∥ai − bj ∥0 ≥ (1 + ε)t. Then, Equation (1) and the definition of μ imply 
+
+⟨Qi, Kj ⟩
+
+D ≤ β
+
+4
+
+
+
+1 − (1 + ε)td
+
+
+
+− βμ 
+
+2 = − βεt 
+
+12 d = − log n
+
+for all j ∈ [n]. Consequently, si ≤ 1, and Equation (3) gives Yi, 1 ≤ 1/(n + 1) for all i ∈ [m].Finally, K and V can be constructed in O(N D ) time and Q in O(mD ) time by copying and padding the respective inputs. That proves the claim. 16 Preprint. A.3 PROOFS OF THEOREMS 3.7 AND 4.1 Theorems 3.7 and 4.1 can now be proved by using Lemma A.5 to encode an input to the closest pair problem from Definition A.2 as an attention input whose output gives an almost-binary indicator of whether an approximate close pair exists. Consequently, a fast algorithm with even a coarse approx-imation would give a fast algorithm for deciding the closest pair problem, which would contradict Proposition A.3. While the proof is essentially the same for both theorems, the underlying problem formulations differ slightly. For compactness, we therefore formulate below a generalized problem formulation including both Problem 1 and 2 as special cases. We then prove that this generalized problem cannot be solved much more efficiently than by the trivial algorithm for attention, from which Theorems 3.7 and 4.1 follow immediately. 
+
+Problem 4: Approximating attention with preprocessing (batch variant) 
+
+Fix parameters n, m, d ∈ N and B ≥ 0. Given matrices K ∈ [−B, B ]n×d and V ∈ [0 , 1] n×d,preprocess them. Then, given a query Q ∈ [−B, B ]m×d, the task is to compute a matrix 
+
+T ∈ Rm×d. For this output and the exact target Y := Att( Q, K, V ), the problem 
+
+AbsPreBatchAtt (n, m, d, B, η abs ) requires ∥T − Y ∥ℓ∞ ≤ ηabs , and 
+
+RelPreBatchAtt p(n, m, d, B, η rel ) requires ∥T − Y ∥Sp ≤ ηrel ∥Y ∥Sp .
+
+Proposition A.6. Fix ηabs ∈ [0 , 1/2) , ηrel ∈ [0 , 1) and k, q > 0. Suppose that SETH 
+
+holds. Then, there exist Cd, C B , ε > 0 such that neither AbsPreBatchAtt (n, m (n), d, B, η abs )
+
+nor RelPreBatchAtt p(n, m (n), d, B, η rel ) can be solved with O(nk) preprocessing time and 
+
+O(m(n)n1−q ) query time, for d := C log n, B := CB
+
+√log n, any p ∈ [1 , ∞], and any function 
+
+m : N → N with m(n) ∈ [2 n].Proof. Define shorthand notation N := 2 n and m := m(n). Assume w.l.o.g. that k > 1, q ∈
+
+(0 , 1/2) , and that n is sufficiently large. We choose Cd, ε > 0 as the constant from Proposition A.3 so that PreCP (n, m, d, ε ) cannot be solved with O(nk) preprocessing time and O(mn 1−q ) query time for d := Cd 
+
+> 2
+
+log n. Suppose, for contradiction, that either AbsPreBatchAtt (n, m, D, B, η abs )
+
+or RelPreBatchAtt p(n, m, D, B, η rel ) can be solved with O(nk) preprocessing time and O(mn 1−q )
+
+decoding time. We construct an algorithm for PreCP (n, m (n), d, ε ) with O(nk) preprocessing time and O(mn 1−q )
+
+query time, contradicting Proposition A.3. To that end, let a threshold t ∈ [0 , d ] and a set B =
+
+{b1, . . . , bn} ⊆ Md be an input to PreCP (n, m, d, ε ), together with queries a1, . . . , am ∈ Md
+
+revealed after preprocessing. Applying Lemma A.4 to Cd and q gives a constant c ∈ (0 , C d/2) so that we can decide the PreCP instance with O(nd ) ≤ O (nk) preprocessing time and O(mn 1−q )
+
+decoding time if t ≤ c log n. We may there assume that t > c log n. We may further assume that 
+
+(1+ ε)t ≤ d. Indeed, if (1+ ε)t > d , then every conceivable pair (a, b) ∈ { 0, 1}d ×B has Hamming distance at most d < (1 + ε)t, so the problem is trivial to decide. We construct a KV cache (K, V ) and a query Q such that the PreCP instance can be decided from an attention approximation after KV cache preprocessing. After seeing only t and B, we apply Lemma A.5 with parameters ε, c and choose t as the threshold and B as the set. This supplies the constant CB > 0 and allows us to construct, during preprocessing and in O(N D ) = O(n log n) ≤O(nk) time, matrices K ∈ [−B, B ]N ×D and V ∈ [0 , 1] N ×D , which we preprocess with the hypothetical preprocessing algorithm for attention in O(nk) time. After that, let the vectors a1, . . . , am be revealed. Now, Lemma A.5 allows us to construct, in O(mD ) = O(m log n) ≤ O (mn 1−q ) time, a matrix Q ∈ [−B, B ]m×D such that Y := Att( Q, K, V ) = ye ⊤ 
+
+> 1
+
+for some y ∈ Rm with 
+
+yi ≥ nn + 1 if min  
+
+> j∈[n]
+
+∥ai − bj ∥0 ≤ t (4) and 
+
+yi ≤ 1
+
+n + 1 if min  
+
+> j∈[n]
+
+∥ai − bj ∥0 ≥ (1 + ε)t (5) for all i ∈ [m]. We use that to decide the PreCP instance. To that end, run the assumed approximate attention decoding algorithm on Q and let T ∈ Rm×D be its output. 17 Preprint. Suppose first that the algorithm guarantees ∥T − Y ∥ℓ∞ ≤ ηabs . If min i∈[m],j ∈[n] ∥ai − bj ∥0 ≤ t,then 
+
+Ti, 1 ≥ Yi, 1 − ηabs 
+
+> (4)
+
+≥ nn + 1 − ηabs > 12
+
+for some i ∈ [m]. If, instead, min i∈[m],j ∈[n] ∥ai − bj ∥0 ≥ (1 + ε)t, then 
+
+Ti, 1 ≤ Yi, 1 + ηabs 
+
+> (5)
+
+≤ 1
+
+n + 1 + ηabs < 12
+
+for all i ∈ [m]. Thus, we can decide the PreCP instance by checking if any entry of T exceeds 1/2.Suppose now that, instead, the algorithm guarantees ∥T − Y ∥Sp ≤ ηrel ∥Y ∥Sp . Since Y = ye ⊤ 
+
+> 1
+
+,
+
+∥Y ∥Sp = ∥y∥2 ≤ √m. If min i∈[m],j ∈[n] ∥ai − bj ∥0 ≤ t, then 
+
+∥T ∥Sp ≥ ∥ Y ∥Sp − ∥ T − Y ∥Sp ≥ (1 − ηrel )∥Y ∥Sp = (1 − ηrel )∥y∥2
+
+> (4)
+
+≥ (1 − ηrel ) nn + 1 .
+
+for some i ∈ [m]. If, instead, min i∈[m],j ∈[n] ∥ai − bj ∥0 ≥ (1 + ε)t, then 
+
+∥T ∥Sp ≤ ∥ Y ∥Sp + ∥T − Y ∥Sp ≤ (1 + ηrel )∥Y ∥Sp = (1 + ηrel )∥y∥2
+
+> (5)
+
+≤ (1 + ηrel )
+
+√mn + 1 .
+
+Thus, we can decide the PreCP instance by checking if ∥T ∥Sp > (1 − ηrel ) nn+1 . Computing 
+
+∥T ∥Sp takes O(mD 2) = O(m log 2 n) ≤ O (mn 1−q ) time. Either guarantee gives an algorithm for deciding the PreCP instance from T in O(D) = O(log n) ≤ O (n1−q ) time. Computing 
+
+T , by assumption, only requires O(nk) preprocessing time and O(mn 1−q ) decoding time. That contradicts Proposition A.3 and thereby proves the claim. 
+
+Theorem 3.7. Fix ηabs ∈ [0 , 12 ), ηrel ∈ [0 , 1) , and q > 0. Assuming SETH , there exist Cd, C B > 0
+
+such that neither AbsAtt (n, D, B, η abs ) nor RelAtt p(n, D, B, η rel ) can be solved in O(n2−q ) time, for D := Cd log n, B := CB
+
+√log n, and any p ∈ [1 , ∞].Proof. This follows directly from Proposition A.6 with m(n) := n.
+
+Theorem 4.1. Fix ηabs ∈ [0 , 12 ), ηrel ∈ [0 , 1) , and k, q > 0. Assuming SETH , there ex-ist Cd, C B > 0 such that neither AbsPreAtt (n, D, B, η abs ) nor RelPreAtt (n, D, B, η rel ) can be solved with O(nk) preprocessing time and O(n1−q ) decoding time, for D := Cd log n and 
+
+B := CB
+
+√log n.Proof. This follows directly from Proposition A.6 with m(n) := 1 .A.4 FINDING CLOSE PAIRS FROM A SPARSE ATTENTION APPROXIMATION 
+
+We next show how a sparse attention algorithm can be used to identify approximate closest pairs. As before, we encode distances between a query vector and the preprocessed set as attention scores, with closer vectors receiving larger scores. We would then like to recover an approximate closest pair from any small set of keys carrying a constant fraction of the attention mass. For this argument to apply, however, the resulting attention instance must satisfy the sparsity promise of Problem 3. But a closest pair instance may contain many approximately closest vectors, causing the corresponding keys to receive similar scores and the attention mass to be spread among them. We overcome this by randomly perturbing the scores so that, with sufficiently high probability, the score corresponding to a close pair is amplified enough to dominate the attention. Exponential random variables provide exactly this effect. At the same time, the random perturbation must not allow a far pair to dominate by chance. We therefore truncate the exponential variables, limiting how much any score can be amplified while still allowing a close pair to separate from the rest. The following lemma shows that these truncated random variables indeed still create the required separation. Lemma A.8 then translates this separation into an attention instance in which, with high probability, an approximate closest pair carries almost all of the attention mass and can therefore be identified by a retrieval algorithm for sparse attention. 18 Preprint. 
+
+Lemma A.7. Fix L > 0, n ≥ 2, and z1, . . . , z n ∈ R. Sample exponential random variables 
+
+E1, . . . , E n
+
+> iid
+
+∼ Exp( θ) of rate θ > 0 and clip them to bEj := min {Ej , L }. Then, for any g > 0,
+
+Pr 
+
+h
+
+∃j⋆ ∈ [n] : ∀j⋆̸ = j ∈ [n] : ( sj∗ + bEj⋆ ) − (sj + bEj ) ≥ g
+
+i
+
+≥ e−θg − ne −θL .
+
+Proof. Define the scores bZj := sj + bEj and their corresponding values before clipping Zj := 
+
+sj + Ej . Fix an arbitrary j⋆ ∈ [n] and condition on E−j⋆ , that is, all Ej except Ej⋆ . Among these, let 
+
+Mj⋆ := max   
+
+> j∈[n], j ̸=j⋆
+
+Zj
+
+be the maximum score. Then, 
+
+Pr Zj⋆ ≥ Mj⋆ + g | E−j⋆
+
+ = e−θ max {0,M j⋆ +g−sj⋆ }
+
+≥ e−θg e−θ max {0,M j⋆ −sj⋆ } = e−θg Pr Zj⋆ ≥ Mj⋆ | E−j⋆
+
+.
+
+Taking expectations over E−j⋆ ,
+
+Pr Zj⋆ ≥ Mj⋆ + g ≥ e−θg Pr Zj⋆ ≥ Mj⋆
+
+.
+
+Summing over all possible choices of j⋆ and using the fact that the continuous random variables 
+
+sj + Ej have a unique maximum almost surely, 
+
+Pr 
+
+h
+
+∃j⋆ ∈ [n] : ∀j⋆̸ = j ∈ [n] : Zj⋆ − Zj ≥ g
+
+i
+
+= X
+
+> j⋆∈[n]
+
+Pr Zj⋆ ≥ Mj⋆ + g
+
+≥ e−θg X
+
+> j⋆∈[n]
+
+Pr Zj⋆ ≥ Mj⋆
+
+ ≥ e−θg .
+
+Finally, it may happen that some of the exponential random variables are clipped. Therefore, work-ing on the even that no clipping occurs and using the union bound, 
+
+Pr 
+
+h
+
+∃j⋆ ∈ [n] : ∀j⋆̸ = j ∈ [n] : bZj⋆ − bZj ≥ g
+
+i
+
+≥ Pr 
+
+h
+
+∃j⋆ ∈ [n] : ∀j⋆̸ = j ∈ [n] : Zj⋆ − Zj ≥ g
+
+i
+
+− Pr 
+
+h
+
+∃j ∈ [n] : Ej > L 
+
+i
+
+≥ e−θg − ne −θL .
+
+Lemma A.8. Fix ε, c, C d > 0 and γ ∈ (0 , 1) . There exists CB > 0 such that the following holds for all sufficiently large n ∈ N, d := Cd log n, and B := CB
+
+√log n.Choose t ≥ c log n with d ≥ (1 + ε)t, a set of vectors B = {b1, . . . , bn} ⊆ Md, and a query 
+
+a ∈ Md. One can sample matrices K ∈ [−B, B ]n×2d independent of a and in O(nd ) time, and construct a vector q ∈ [−B, B ]2d in O(d) time such that 
+
+Pr 
+
+h
+
+∃j⋆ ∈ [n] : ∥a − bj⋆ ∥0 ≤ (1 + ε)t and softmax j⋆
+
+ Kq /(2 d) > 1 − 1
+
+n
+
+i
+
+≥ 12 n−γ
+
+if there exists b⋆ ∈ B with ∥a − b⋆∥ ≤ t.Proof. Define 
+
+θ := γ
+
+2 , R := 3
+
+θ , and β := 4d(R + 1) log nεt .
+
+We first sample clipped exponential random variables 
+
+bEj := min {Ej , R log n}, where E1, . . . , E n
+
+> iid
+
+∼ Exp( θ).
+
+We then construct the key matrix and query vector as 
+
+K := pβ
+
+
+
+b⊤   
+
+> 12bE1
+> β
+
+1⊤
+
+> d
+
+... ...
+
+b⊤   
+
+> n2bEn
+> β
+
+1⊤
+
+> d
+
+ ∈ Rn×2d and q := pβ a⊤ 1⊤
+
+> d
+
+ ∈ R2d.
+
+19 Preprint. Next, choose CB so that the constructed matrices satisfy the required entry bounds. Since d =
+
+Cd log n and t ≥ c log n,
+
+β = 4d(R + 1) log nεt ≤ 4Cd(R + 1) log nεc .
+
+Moreover, since t ≤ d/ (1 + ε) and bEj ≤ R log n,
+
+0 ≤ 2 bEj
+
+β ≤ Rε 
+
+2( R + 1)(1 + ε) < 12 .
+
+Consequently, there is a constant CB depending only on Cd, ε, c, and R such that ∥K∥ℓ∞ ≤
+
+CB
+
+√log n and ∥q∥ℓ∞ ≤ CB
+
+√log n.By construction, the logit between the query and key j ∈ [n] is 
+
+bZj := K⊤ 
+
+> j
+
+q
+
+2d = β
+
+2d
+
+
+
+⟨a, bj ⟩ + 2d bEj
+
+β
+
+
+
+= β
+
+2d ⟨a, bj ⟩ + bEj
+
+= β
+
+4d
+
+ ∥a∥22 + ∥bj ∥22 − ∥ a − bj ∥0
+
+ + bEj = β
+
+4d
+
+ d − ∥ a − bj ∥0
+
+ + bEj
+
+= β
+
+4
+
+
+
+1 − ∥a − bj ∥0
+
+d
+
+
+
++ bEj , (6) where we use that ∥a∥0 = ∥b∥0 = d/ 2. Suppose now there is some close partner for a at index 
+
+i ∈ [n] with ∥a − bi∥0 ≤ t. Then, for all far vectors at index j ∈ [n] with ∥a − bj ∥0 > (1 + ε)t,
+
+bZi − bZj
+
+> (6)
+
+= β
+
+4d
+
+ ∥a − bj ∥0 − ∥ a − bi∥0
+
+ + bEi − bEj
+
+≥ βεt 
+
+4d + bEi − bEj
+
+≥ (R + 1) log n − R log n > 0,
+
+so logits of close partners are separated from those of far partners. In particular, 
+
+j⋆ := arg max 
+
+> j∈[n]
+
+bZj ∈ j ∈ [n] : ∥a − bj ∥0 ≤ (1 + ε)t . (7) Now, compare this maximal logit at position j⋆ against the other logits. Applying Lemma A.7 with 
+
+θ = γ/ 2, L = R log n, and g = 2 log n gives 
+
+Pr 
+
+h
+
+∀j⋆̸ = j ∈ [n] : bZj⋆ − bZj ≥ 2 log n
+
+i
+
+≥ n−γ − n−2 ≥ 12 n−γ
+
+for all sufficiently large n. On the same event, 
+
+1 − softmax j⋆ (qK ⊤/(2 d)) = 
+
+P  
+
+> j⋆̸=j∈[n]
+
+e bZj
+
+e bZj + P  
+
+> j⋆̸=j∈[n]
+
+e bZj
+
+≤ (n − 1) e bZj −2 log n
+
+e bZj
+
+= n − 1
+
+n2 ≤ 1
+
+n ,
+
+which proves the claim. A.5 PROOF OF THEOREM 5.1 We can now prove Theorem 5.1 by applying Lemma A.8 to the closest pair problem from Defini-tion A.2. The construction identifies an approximate closest pair by letting its key receive almost all the attention for a given query, with some probability decreasing polynomially in the input size 
+
+n. To ensure a large success probability, we construct and preprocess sufficiently many independent copies, which increases preprocessing only polynomially and can be chosen so that the total de-coding time remains truly sublinear. On a successful copy, every valid sparse-attention output must contain the dominant key. 
+
+Theorem 5.1. Fix any α ∈ (0 , 1) and k, q > 0. Assuming SETH , there exist Cd, C B > 0 such that 
+
+SparseAtt (n, D, B, α ) cannot be solved with O(nk) preprocessing time and O(n1−q ) decoding time, for D := Cd log n and B := CB
+
+√log n.
+
+20 Preprint. 
+
+Proof. Assume w.l.o.g. that k > 1 and q ∈ (0 , 1/2) . We choose Cd, ε > 0 as the constant from Proposition A.3 so that PreCP (n, 1, d, ε ) cannot be solved with O(nk+1 ) preprocessing time and 
+
+O(n1−q/ 2) decoding time for d := Cd 
+
+> 2
+
+log n. Suppose, for contradiction, that SparseAtt (n, D, B, α )
+
+can be solved with O(nk) preprocessing time and O(n1−q ) decoding time. We construct an algorithm for PreCP (n, 1, d, ε ) with O(nk+1 ) preprocessing time and O(n1−q/ 2)
+
+query time, contradicting Proposition A.3. To that end, let a threshold t ∈ [0 , d ] and a set B =
+
+{b1, . . . , bn} ⊆ Md be an input to PreCP (n, 1, d, ε ), together with a query a ∈ Md revealed after preprocessing. Applying Lemma A.4 to Cd and q gives a constant c ∈ (0 , C d/2) so that we can decide the PreCP instance with O(nd ) ≤ O (nk) preprocessing time and O(n1−q ) decoding time if t ≤ c log n. We may there assume that t > c log n. We may further assume that (1 + ε)t ≤ d.Indeed, if (1 + ε)t > d , then every conceivable pair (a, b) ∈ { 0, 1}d × B has Hamming distance at most d < (1 + ε)t, so the problem is trivial to decide. We show that the PreCP instance can be decided by finding a small set of keys in K receiving at least an α-fraction of the attention for the query q. After seeing only t and B, we apply Lemma A.8 with parameters ε, c, Cd, and γ = q/ 4. This supplies the constant CB > 0 and allows us to sample, during preprocessing and in O(T nd ) ≤ O (nk+1 ) time, T := CT nγ independent key matrices K(1) , . . . , K(T ) ∈ [−B, B ]n×D , which we preprocess with the hypothetical preprocessing algorithm for sparse attention in O(T n k) ≤ O (nk+1 ) time. After that, let the vector a ∈ Md be revealed. Now, Lemma A.8 allows us to construct, in 
+
+O(T d ) ≤ O (n1−q ) time, the queries q(1) , . . . , q(T ) ∈ [−B, B ]D corresponding to the key ma-trices and guaranteeing that 
+
+Pr 
+
+h
+
+∃j⋆ ∈ [n] : ∥a − bj⋆ ∥0 ≤ (1 + ε)t and softmax j⋆
+
+ K(ℓ)q(ℓ)/D  > 1 − 1
+
+n
+
+i
+
+≥ 12 n−γ (8) for each copy ℓ ∈ [T ] if min j∈[n] ∥a − bj ∥0 ≤ t. Again for each copy, we run the hypothetical de-coding algorithm for sparse attention, resulting in explicit sets I(1) , . . . , I(T ) ⊆ [n]. Each invocation runs in O(n1−q ) time by assumption, so, in particular, |I(ℓ)| = O(n1−q ) for each ℓ ∈ [T ]. For each copy ℓ ∈ [T ] and each index i ∈ I(ℓ), we check if ∥a − bi∥0 ≤ (1 + ε)t. If we find such an index i,we accept the PreCP instance. Otherwise, reject the instance. The algorithm never falsely accepts an instance. If, however, min j∈[n] ∥a−bj ∥0 ≤ t, then it follows from (8) that only with probability 
+
+
+
+1 − 12 n−γ CT nγ
+
+≤ e−CT /2
+
+no copy contains an index receiving more than 1 − 1 
+
+> n
+
+attention. Conversely, we can choose CT as a sufficiently large absolute constant so that, with probability at least 2/3, some copy ℓ ∈ [T ] has an index i ∈ [n] with 
+
+softmax i
+
+ K(ℓ)q(ℓ)/D ) > 1 − 1
+
+n .
+
+On such a copy, assuming n is sufficiently large, I(ℓ) can only receive at least α attention if it includes the index i. Consequently, the hypothetical decoding algorithm for sparse attention guarantees i ∈
+
+I(ℓ), so our algorithm for PreCP accepts. Put together, we obtain a bounded-error algorithm for PreCP (n, 1, d, ε ). The algorithm uses 
+
+O(nk+1 ) time during preprocessing and O(nγ n1−q d) ≤ O (n1−q/ 2) time during decoding. That contradicts Proposition A.3 and thereby proves the claim. 21

@@ -1,0 +1,2933 @@
+Title: Intrinsic Associative Memory on Riemannian Manifolds: Curvature, Capacity, and Emergent Modes
+
+URL Source: https://arxiv.org/pdf/2609.35948v1
+
+Published Time: Wed, 30 Sep 2026 00:08:12 GMT
+
+Number of Pages: 55
+
+Markdown Content:
+# Intrinsic Associative Memory on Riemannian Manifolds: Curvature, Capacity, and Emergent Modes 
+
+Krishnakumar Balasubramanian 1 and Zhaoyang Shi 21Department of Statistics, University of California, Davis. kbala@ucdavis.edu 
+
+> 2
+
+Center for Applied Mathematics, Fudan University. zyshi@fudan.edu.cn 
+
+Abstract 
+
+Geometry does more than constrain an associative memory: curvature determines what it remembers and which states it creates. We develop intrinsic dense associative memories on Riemannian manifolds by casting memory as Epanechnikov kernel-density mode seeking. We compare geodesic and volume-corrected energies and show that curvature separates their behavior. We prove that geodesic memory always retains an isolated pattern, while corrected memory obeys a sharp Ricci-curvature threshold: positive curvature can erase memories in high dimensions, while negative curvature reinforces them. We derive geodesic capacity scalings of 
+
+q−1/2 
+
+> β
+
+for retaining every pattern and q−1 
+
+> β
+
+for a typical one, where qβ is the pairwise kernel-overlap probability. We show how overlap creates novel memories: designed N -pattern configurations realize all 2 N − 1 subset modes, but random data at the storage threshold yield only a Poisson number. We establish exact one-step recall using Riemannian mean shift. In simulations, we recover the predicted curvature transition and every designed mode. On WordNet’s full noun hierarchy, we demonstrate that volume correction improves low-capacity retrieval. Together, our work shows that curvature is a design variable for associative memory, not merely a property of the data. 
+
+# 1 Introduction 
+
+Modern AI increasingly relies on manifold-valued representations: hyperbolic embeddings encode lexical hierarchies such as WordNet (Nickel & Kiela, 2017; Wang et al., 2026), normalized neural embeddings lie on hyperspheres (Wang & Isola, 2020), and orientations, covariance matrices, and shapes inhabit SO (3), positive-definite manifolds, and Kendall shape spaces, respectively (Chatterjee & Govindu, 2013; Barachant et al., 2012; Kendall, 1984). The same geometric considerations arise in non-Euclidean foundation models (Yang et al., 2025; He et al., 2025) and generative modeling on manifolds (De Bortoli et al., 2022; Chen & Lipman, 2024). In these settings, geometry is part of the semantics, with direct consequences for associative memory: Euclidean updates can produce invalid states—averaged rotations need not be rotations, and perturbed covariance matrices need not remain positive definite—while projection back onto the manifold can alter distances and hence retrieval dynamics. These limitations call for associative memories that operate intrinsically on manifolds, extending beyond the predominantly binary or Euclidean formulations of existing high-capacity and modern continuous models (Krotov & Hopfield, 2016; Demircigil et al., 2017; Krotov & Hopfield, 2021; Ramsauer et al., 2021). The central challenge in this extension is accounting for curvature. Tangent spaces provide a first-order Euclidean approximation, but curvature alters geodesic distances, local volume, and 1arXiv:2609.35948v1 [cs.LG] 28 Sep 2026 h h         
+
+> stored point is the minimum
+> |s| < h
+> hh
+> center unstable
+> |s| < h
+> Kgeo (r) = (1 r2/h2)+
+> stored
+> all descent paths return to the pattern
+> Kvc (r) = (r
+> sin r)62 Kgeo (r)
+> stored
+> off-center low-energy shell
+
+Positive curvature can turn a memory well into a ring         
+
+> one isolated pattern on unit S63 ,= 10 < = 62/3; darker color means lower energy
+> (a) Geodesic Egeo : pattern retained (b) Volume-corrected Evc : pattern erased
+
+Figure 1: Curvature separates two energies that coincide in flat space. Radial profiles and normal-coordinate support disks show one isolated pattern on the unit S63 at β = 10 < β ⋆ = 62 /3and ϵ = 1; darker colors denote lower energy and arrows indicate descent. The geodesic energy retains its minimum at ξ. Multiplication by θ−1 
+
+> ξ
+
+= ( r/ sin r)62 instead makes ξ unstable for the volume-corrected energy and creates an off-center low-energy shell. The shell visualizes erasure of the original, not an additional nondegenerate memory; above threshold the center is restored, while negative curvature reinforces it. See Section 2 for the precise definitions of the two energies. intrinsic averaging beyond this approximation. These effects directly shape the memory’s energy landscape: changes in the energy Hessian affect local stability, changes in support overlap influence interference and capacity, and shifts in the balance among memory contributions can create or remove additional modes. Consequently, constructions that coincide in Euclidean space can yield different attractors and retrieval dynamics under positive or negative curvature. We therefore ask how curvature governs storage, retrieval, and the creation of new memory states. We study these questions using Epanechnikov dense associative memory, which represents memory states as modes of a compactly supported kernel-density score (Hoover et al., 2025). Compact support isolates distant patterns, while overlapping supports can generate additional modes. On a Riemannian manifold, we compare two formulations: a geodesic-distance energy that replaces Euclidean distance with geodesic distance, and a volume-corrected KDE energy that additionally compensates for the exponential map’s volume distortion (Pelletier, 2005). The two coincide in flat (Euclidean) space, but under curvature the volume correction can reshape the landscape and destabilize memory modes. We analyze both to determine how a correction motivated by density estimation affects associative memory; Figure 1 previews this distinction. For retrieval, we adopt the Riemannian mean-shift update associated with the geodesic score (Subbarao & Meer, 2009). It averages logarithmic displacements to active patterns and maps the result back through the exponential map, recalling a single active pattern in one step and taking an intrinsic averaging step when several patterns are active. We treat stored and newly created states uniformly as nondegenerate modes. Our analysis combines curvature expansions to characterize isolated-pattern stability, close-pair geometry and probability to quantify interference and capacity, overlap geometry and geodesic convexity to characterize the formation and uniqueness of additional modes, and descent estimates to establish retrieval guarantees. Throughout, we distinguish simultaneous retention, typical-pattern retention, and prescribed retrieval basins. Newly created modes constitute geometric novelty, which does not by itself imply statistical or semantic 2generalization. Our contributions in this work are as follows: • Intrinsic models, curvature, and retrieval guarantees. We formulate the geodesic and volume-corrected energies and compute their exact local Hessians. An isolated pattern is always stable for the geodesic model, whereas corrected stability obeys a sharp Ricci threshold; positive curvature can destroy storage and negative curvature can strengthen it. We also connect the geodesic energy to Riemannian mean shift and prove its gradient relation, exact one-step recall in singleton neighborhoods, descent even when the active set changes, and local linear convergence near a memory (Section 2, Theorems 1 and 2, and Figure 2). • Capacity under geometric interference. For independent patterns in the stated regimes, we identify retention with the absence of kernel-scale collisions and derive distinct laws for retaining every pattern and retaining a typical pattern. We also give high-dimensional sphere rates and expose the bandwidth tradeoff between capacity and guaranteed retrieval neighborhoods (Section 3, Theorem M.1, and Proposition M.4). Writing qβ for the pairwise support-overlap probability, the corresponding scales are q−1/2 
+
+> β
+
+and q−1 
+
+> β
+
+.• A theory of emergent memories. We characterize each mode by its active subset and show that it is an intrinsic mean or a curvature-corrected balance point. Designed configurations realize all 2 N − 1 subset modes, whereas random data at the storage threshold produce only a conditional Poisson number. This separates what is geometrically possible by design from what appears typically in random data (Section 4, Theorems 3–4, and Figure 2). • Experimental tests and scope. Controlled experiments recover the predicted curvature transition and every designed mode. On the full WordNet noun hierarchy, volume correction yields a reproducible retrieval gain in 16-memory banks across three levels of partial evidence and five independently trained embeddings. Together, these experiments test curvature-controlled stability, designed emergence, and semantic retrieval on manifold-valued representations (Section 5, Figures 2–3, and Appendix E). A detailed discussion of related work and the position of our contribution within associative memory, geometric statistics, and manifold learning is provided in Appendix A. 
+
+# 2 Curvature-controlled intrinsic memory and retrieval 
+
+We study two intrinsic Epanechnikov energies, connecting corrected manifold KDE (Pelletier, 2005) to the geodesic score used in Riemannian mean shift (Subbarao & Meer, 2009). Our analysis supplies the exact Ricci criterion, corrected balance equation, quantitative emergence construction, random retention and emergence laws, and memory guarantees for the established mean-shift update. All proofs are in the appendix. 
+
+Geometry in three operations. Let ( M, g ) be a smooth, connected, compact m-dimensional Riemannian manifold without boundary, and let ξ1, . . . , ξ N be distinct patterns. The distance d(x, p )is the length of a shortest path on M. The logarithm log x p ∈ TxM is its initial displacement, of length d(x, p ); the exponential exp x v moves from x along displacement v. We use a kernel radius 
+
+h < inj( M), so these paths are unique inside each support. Put 
+
+β = 2 /h 2, qi(x) = 12 d(x, ξ i)2, ai(x) = θξi (x)−1.
+
+Here θp is the exponential map’s volume density: dV (exp p v) = θp(exp p v) dv . It measures how Euclidean volume in the tangent space is distorted on the manifold; it equals one in flat space. 3Model. For ϵ ≥ 0, define the single-pattern kernels, scores, and energies 
+
+Kgeo (x, ξ i) = (1 − βq i(x)) +, Kvc (x, ξ i) = ai(x)(1 − βq i(x)) +, (1) 
+
+Sgeo (x) = ϵ + ∑
+
+> i
+
+Kgeo (x, ξ i), Egeo (x) = −β−1 log Sgeo (x), (2) 
+
+Svc (x) = ϵ + ∑
+
+> i
+
+Kvc (x, ξ i), Evc (x) = −β−1 log Svc (x). (3) Both kernels vanish at distance h. The corrected kernel is defined as zero outside its support, without evaluating ai there. If ϵ = 0, we consider only ST > 0. The negative logarithm is decreasing, so energy minima are score maxima. 
+
+What is a memory? A memory is a point where ET is C2 in a neighborhood, grad ET = 0, and Hess ET ≻ 0, for T ∈ { geo , vc }. The Hessian condition gives a locally attracting minimum under sufficiently small gradient steps. An η-novel memory is at distance at least η > 0 from every original. Write N T 
+
+> tot
+
+for all memories and N T
+
+> em
+
+(η) for novel ones. Global emergence requires both a novel memory and retention of every original. Thus memories are nondegenerate modes, excluding plateaus and degenerate families. 
+
+2.1 Riemannian mean-shift retrieval 
+
+At a query x, define the active set A(x) = {i : d(x, ξ i) < h }. Algorithm 1 is Riemannian mean shift with the flat weights induced by the Epanechnikov profile. For κ(s) = (1 − s)+, −κ′(s) = 1{s < 1}
+
+away from the boundary: this is the classical flat/Epanechnikov shadow-kernel relation (Cheng, 1995; Comaniciu & Meer, 2002). Substituting these weights into Subbarao & Meer (2009), equations (29)– (30), gives 
+
+αi(x) = 1{i ∈ A(x)}|A(x)| , v(x) = ∑
+
+> i∈A(x)
+
+αi(x) log x ξi, Tt(x) = exp x
+
+> (
+
+tv (x)). (4) The usual mean-shift step has t = 1; t controls its length. An empty neighborhood returns the query with an inactive flag. In attention language, the rule selects keys by radius and weights them uniformly, not by kernel height. This is the mean-shift direction for the geodesic score. The corrected energy uses the same support gate but requires an additional volume-gradient term, given in Appendix O and reflected in the corrected balance equation of Section 4. 
+
+Algorithm 1 Riemannian mean-shift retrieval with flat weights 
+
+Require: Query x ∈ M , keys ξ1, . . . , ξ N , radius h < inj( M), step t > 0 
+
+> 1:
+
+A ← { i : d(x, ξ i) < h } 
+
+> 2:
+
+if A = ∅ then  
+
+> 3:
+
+return (x, inactive)  
+
+> 4:
+
+end if  
+
+> 5:
+
+v ← | A|−1 ∑ 
+
+> i∈A
+
+log x ξi 
+
+> 6:
+
+return (exp x(tv ), active) 
+
+Theorem 1 (Memory guarantees for Riemannian mean shift) . At a query away from support boundaries with k = |A(x)| > 0,
+
+grad Sgeo (x) = βkv (x), grad Egeo (x) = − kSgeo (x) v(x), (5) 4so Tt is a gradient step with the query-computable step size tS geo (x)/k . If A(x) = {i}, then T1(x) = ξi
+
+exactly. In particular, write s = min i̸=j d(ξi, ξ j ), with s = ∞ when N = 1 . Every query in B∆(ξi)
+
+retrieves ξi in one step whenever 
+
+0 < ∆ < h, ∆ ≤ s − h. (6) 
+
+More generally, suppose each qi, i ∈ A(x), is smooth and has Hess qi ⪯ Λg along γ(u) = exp x(uv (x)) ,
+
+0 ≤ u ≤ t. If 0 < t < 2/Λ, then 
+
+Sgeo (Tt(x)) − Sgeo (x) ≥ βkt (1 − Λt/ 2) ∥v(x)∥2 . (7) 
+
+Consequently the energy decreases strictly unless v(x) = 0 , even if the active set changes. On a fixed manifold, sufficiently small h permits the full step t = 1 . Near a memory with fixed active set and 
+
+cg ⪯ Hess qi ⪯ Λg, admissible fixed steps converge locally linearly, with derivative contraction at most max {| 1 − tc |, |1 − tΛ|} < 1.
+
+From mode seeking to recall. The score-dependent step size requires no knowledge of the target identity. A singleton neighborhood yields exact recall; with multiple keys, the update takes one step toward their intrinsic mean without computing it exactly. The descent argument follows classical mean-shift monotonicity (Comaniciu & Meer, 2002); the Hessian condition provides an explicit admissible step size on the manifold, including across changes in the active set. Each iteration computes N distances, |A| logarithmic maps, and one exponential map, with manifold-dependent costs. The update is isometry equivariant (Appendix O). Outside the full-step regime, the Hessian bound or energy-based backtracking provides a descent step. The theorem establishes local convergence near a memory, without guaranteeing convergence from arbitrary initializations. 
+
+Values, sparsity, and learning. The keys are manifold-valued patterns. Euclidean values 
+
+ui ∈ Rd admit the readout r(x) = ∑ 
+
+> i
+
+αi(x)ui; Theorem 1 applies to the query update Tt(x), not to arbitrary value maps. In the similarity–separation–projection taxonomy of Millidge et al. (2022), negative squared distance defines similarity, the radius gate imposes hard separation, and the exponential map returns the tangent aggregate to the manifold. Unlike graded sparsemax/entmax weights (Hu et al., 2023; Santos et al., 2024), the flat weights can be discontinuous at support boundaries. For a fixed active set and fixed t, the update depends smoothly on the query and keys, but its derivative with respect to h vanishes. Radius selection therefore requires a separate tuning rule; smoothing the gate modifies the exact-retrieval model. The corrected energy additionally requires the Jacobian-gradient term in (19), as established in Appendix O. 
+
+2.2 Curvature-controlled stability 
+
+Theorem 2 (Curvature changes stability, not stationarity) . This pointwise statement also holds on a complete noncompact manifold with h < inj( M). If d(ξi, ξ j ) > h for all j̸ = i, both gradients vanish at ξi, and 
+
+Hess Egeo (ξi) = gξi
+
+1 + ϵ , Hess Evc (ξi) = gξi − Ric ξi /(3 β)1 + ϵ . (8) 
+
+Thus the geodesic model always stores this isolated pattern. The corrected model stores it if and only if 
+
+β > 13 λmax (Ric ξi ), (9) 5where the eigenvalue is relative to gξi . On the unit sphere Sm, this is β > (m − 1) /3, equivalently 
+
+h2 < 6/(m − 1) for m > 1.
+
+Why curvature appears. Ricci curvature governs the leading local volume distortion through 
+
+θp(exp p v) = 1 − Ric p(v, v )/6 + O(∥v∥3). The vanishing linear term preserves stationarity at the kernel center, whereas the quadratic term modifies its stability. Below the stability threshold, a spherical corrected kernel attains its maximum on a shell of positive radius rather than at its center (Appendix I). On hyperbolic space Hm of curvature −1, Ric = −(m − 1) g, so the Hessian of the isolated corrected energy is (1+( m−1) /(3 β)) g/ (1+ ϵ); negative curvature therefore strengthens local stability. At equality in (9), the Hessian is degenerate. The criterion is exact for every admissible h
+
+and requires none of the additional counting assumptions introduced below. 
+
+# 3 Storage capacity: all patterns, a typical pattern, and bandwidth 
+
+Let X1, . . . , X N 1 be independent with common law ν admitting a density relative to dV . Write AT
+
+for retention of every original, and N Tδ (h) for the largest N with P(AT ) ≥ 1 − δ. Define 
+
+bh(x) = ν(Bh(x)) , qh = P{d(X1, X 2) < h } =
+
+∫
+
+bh(x) dν (x). (10) The close-pair probability qh measures interference. For the geodesic model, an original with an active neighbor is almost surely nonstationary: exact cancellation of random displacements is a null event. The same holds for the corrected model at sufficiently small h on a fixed compact manifold, ensuring both Ricci stability and nonsingularity of the neighbor-to-gradient map. Hence, in these regimes, 
+
+AT = {d(Xi, X j ) > h for every i̸ = j} almost surely . (11) 
+
+All-pattern versus typical-pattern retention. Under qh → 0 and sup x bh(x) ≤ Cq h, with C
+
+independent of h on a fixed manifold or of m along a sphere sequence, 
+
+N 2qh → 2λ =⇒ P(AT ) → e−λ, N Tδ (h) ∼
+
+√
+
+−2 log(1 − δ)
+
+qh
+
+. (12) This is a geometric birthday problem: there are (N
+
+> 2
+
+) potential collisions. The close-pair Poisson tools are classical (Silverman & Brown, 1978; Penrose, 2003); the energy-specific step is (11). For a uniformly selected original, let pTN (h) be its retention probability and N T
+
+> typ ,δ
+
+(h) the largest 
+
+N with pTN (h) ≥ 1 − δ. In the same regimes, 
+
+pTN (h) = 
+
+∫
+
+(1 − bh(x)) N −1 dν (x), N T
+
+> typ ,δ
+
+(h) ∼ − log(1 − δ)
+
+qh
+
+(bh ≡ qh). (13) The last formula assumes homogeneous ball probabilities, as on a uniformly sampled sphere; then 
+
+pTN = (1 −qh)N −1. This is also the expected retained fraction. A vanishing fraction fails in probability when N q h → 0, without requiring N 2qh → 0. Proposition M.4 proves these statements and gives the nonuniform-density constant. Retention alone is not a guarantee for corrupted queries.      
+
+> 1Here and in the corresponding appendix proofs, Xidenotes a random stored pattern. For a realization ω, writing
+> ξi=Xi(ω) recovers the fixed-pattern notation of Section 2.
+
+6Growing dimension: uniform patterns on Sm. For m ≥ 2, the collision probability and fixed-h capacity rates are 
+
+qm(h) =   
+
+> ∫h
+> 0
+
+sin m−1 t dt   
+
+> ∫π
+> 0
+
+sin m−1 t dt , (14) log N geo  
+
+> δ
+
+(m, h ) = − m
+
+2 log(sin h) + o(m), log N geo typ ,δ (m, h ) = −m log(sin h) + o(m), (15) for fixed 0 < h < π/ 2 and 0 < δ < 1. The typical-pattern exponent is twice the all-pattern exponent. For either notion, corrected capacity is zero when β ≤ (m − 1) /3 and equals the geodesic capacity above that threshold. Nonisolated originals are almost surely nonstationary, while isolated ones obey Theorem 2. Choosing h = c/ √m with 0 < c < √6 restores corrected storage. Both models satisfy log N Tδ (m, h ) = m
+
+4 log( m/c 2) + O(log m), (16) and typical capacity has twice this leading term (Corollary M.5). The guaranteed single-kernel retrieval radius is less than h = O(m−1/2). Appendix P contrasts these random capacities with designed storage at a prescribed basin radius. 
+
+Storage versus density consistency. For independent samples from a C4 density on a fixed compact manifold, retaining all patterns with high probability requires N 2hm → 0 as h → 0, whereas mean-square density consistency requires N h m → ∞ (Appendix Q). Additional stable modes constitute geometric memories; assessing their statistical or semantic utility requires a separate criterion. 
+
+# 4 Emergent memories: balance points and counts 
+
+4.1 Self-consistent balance points 
+
+The compact support makes it possible to characterize memories one subset at a time. Recall the active set A(x) = {i : d(x, ξ i) < h }. For a nonempty subset A, let 
+
+UA = ⋂
+
+> i∈A
+
+Bh(ξi), CA = {x ∈ UA : d(x, ξ j ) > h for every j / ∈ A}. (17) The first set is the common support of the selected kernels. The second checks that only those kernels are active. A candidate computed from A is a memory only if it passes this second test. 
+
+The local convexity regime. Throughout this section, we assume that each support ball is strongly geodesically convex: any two of its points are joined by a unique minimizing geodesic contained in the ball. We also require Hess qi ⪰ cg on each support for some c > 0 and, for the corrected model, Hess[ ai(1 − βq i)] ⪯ − μg there for some μ > 0. These inequalities ensure that the active score components are strongly concave along geodesics within their supports. On a fixed smooth compact manifold, these conditions hold for all sufficiently small h. Assumption G.2 provides an explicit sufficient bound in terms of derivatives of ai, and Lemma G.3 establishes μ ≥ c0h−2 in this regime. An injectivity-radius bound ensures smooth squared distances but does not imply these convexity conditions. 7Theorem 3 (One candidate per active subset) . Under the preceding conditions, a subset A has at most one critical candidate in UA for each energy. The geodesic candidate satisfies 
+
+> ∑
+> i∈A
+
+log x ξi = 0 . (18) 
+
+The corrected candidate satisfies 
+
+> ∑
+> i∈A
+
+ai(x) log x ξi = 1
+
+β
+
+> ∑
+> i∈A
+
+ai(x)(1 − βq i(x)) grad log θξi (x). (19) 
+
+Such a candidate is a memory with active set A exactly when it lies in CA. Every memory is obtained this way; none lies on a support boundary. Every critical point in the smooth supported domain is a memory, so there are no saddles there. In particular, 
+
+N T 
+
+> tot
+
+≤ 2N − 1, N T
+
+> em
+
+(η) ≤ 2N − N − 1 if all originals are retained . (20) 
+
+Intrinsic and curvature-adjusted means. Equation (18) expresses a balance of logarithmic displacements to the active patterns. Under the convexity assumptions, the candidate minimizes the sum of squared geodesic distances to these patterns and is therefore an intrinsic, or Fréchet, mean. Equation (19) includes an additional force induced by the spatially varying volume correction, so its solution is generally not an ordinary Fréchet mean. In flat geometry, ai = 1 and this force vanishes, recovering the Euclidean subset-mean mechanism (Hoover et al., 2025). The active-set condition is essential. On the Euclidean line with h = 1, for example, the patterns 
+
+−0.99 , 0.8, 0.9 are all active at the origin. Their mean, approximately 0 .237, lies more than one unit from the first pattern and therefore does not define a three-pattern memory. Moreover, a candidate formed from several patterns may coincide with a stored pattern; novelty requires a distance of at least η from every stored pattern. A pair illustrates the coexistence of storage and emergence. At separation r ∈ (h, 2h), the two patterns do not activate one another, yet their supports overlap around the midpoint. If no third kernel interferes and the convexity conditions hold, the midpoint is a memory of the geodesic model, while both original patterns remain stored. For sufficiently small bandwidth, the corrected pair admits a nearby balance point. This pair mechanism governs the emergence count for random patterns. Theorem 3 yields a finite enumeration procedure: solve the balance equation for each nonempty subset and retain only candidates satisfying the active-set and novelty conditions. Although exponential in N , this procedure gives an exact count for small configurations. Appendix J provides a finite-sample occupancy bound, while Appendix L sharpens the count on spheres of fixed dimension. 
+
+4.2 Designed versus random emergence 
+
+The subset upper bound does not describe a typical dataset. The next result compares a configuration designed to realize every subset with independent samples at the all-pattern storage threshold. Both statements apply to both energies. 
+
+Theorem 4 (Exponential constructions and a Poisson random count) . Designed patterns. Fix 
+
+p ∈ M and 0 < τ < 1/√2. There is a constant cτ > 0, depending on the local geometry and τ , such that for every 2 ≤ N ≤ m + 1 and 0 < h ≤ cτ /√N , a configuration in an O(h) neighborhood of p
+
+satisfies 
+
+N T 
+
+> tot
+
+= 2 N − 1, N T
+
+> em
+
+(τ h ) = 2 N − N − 1, T ∈ { geo , vc }, (21) 8with every original retained. For each subset, the memory differs by O(h3) from the exponential image of its tangent-space centroid. 
+
+Independent patterns on a fixed manifold. Let the Xi have a continuous density f ,let h → 0, and suppose N 2qh → 2λ ∈ (0 , ∞). For fixed 0 < τ < 1, put aτ = max {1, 2τ } and 
+
+λτ = (2 m − amτ )λ. Then 
+
+N T
+
+> em
+
+(τ h ) | A T =⇒ Poisson( λτ ), (22) 
+
+where =⇒ denotes convergence in distribution. In particular, 
+
+P{A T , N T
+
+> em
+
+(τ h ) > 0} −→ e−λ(1 − e−λτ ). (23) 
+
+Persistence of the designed count under curvature. Construct a regular simplex in TpM
+
+and map its vertices to M through exp p. For a subset of size k, its Euclidean centroid has squared distance h2(1 − 1/k ) to member vertices and h2(1 + 1 /k ) to nonmembers. Thus every nonempty subset satisfies the active-set conditions with a squared-distance margin of at least h2/N . After rescaling coordinates by h, curvature perturbs squared distances and kernels by O(h2). Comparing these perturbations with the rescaled margin 1 /N yields the sufficient condition h ≤ cτ /√N .Appendix K bounds the critical-point displacement and verifies the support conditions uniformly over all subsets. For N = 3 on a surface, the construction yields seven memories: three original memories, three pair memories, and one triple memory. For N = m + 1, the total count is 2 m+1 − 1. The constant 
+
+cτ may depend on dimension through the underlying geometry. On unit spheres, Corollary K.1 provides dimension-independent constants in the sufficient bounds h ≤ cτ /√N for the geodesic model and h ≤ cτ /√mN for the corrected model. When N = m + 1, both sufficient radii decrease only polynomially with dimension. The result for general manifolds does not assume uniform geometry across dimensions. 
+
+Why the random count does not grow with N . In the regime N 2qh ≍ 1, form a graph connecting patterns within distance 2 h. With probability tending to one, every connected component is an isolated vertex or an isolated pair. Retaining all original patterns excludes pairs separated by less than h. Each remaining pair at separation r generates a midpoint memory in the geodesic model and a memory displaced from the midpoint by O(h3) in the corrected model. Novelty at scale τ h additionally requires r ≥ 2τ h to leading order. The contributing pair separations therefore lie in ( aτ h, 2h), yielding the volume factor 2 m − amτ .For τ ≤ 1/2, the limiting Poisson distribution has mean (2 m − 1) λ. At fixed dimension m, this mean is independent of N , and the count conditional on retaining all original patterns remains bounded in probability. This complements the exponential count for designed configurations. The underlying graph approximation is classical; Appendix N establishes its correspondence with the exact memory count, accounting for corrected pair locations and the conditioning event. 
+
+What novelty measures. We scale the novelty threshold with h: every supported memory lies at distance less than h from an original pattern, so none can satisfy a threshold η ≥ h. Density consistency concerns a distinct statistical regime, as discussed in Section 3. 
+
+# 5 Retrieval and generation experiments 
+
+We organize the experiments around the paper’s two direct memory claims: retrieval of retained patterns and generation of additional stable modes. Figure 2 tests both claims in controlled 9simulations; Figure 3 tests retrieval on the full WordNet noun hierarchy. Detailed protocols, additional diagnostics, denoising experiments, raw-output descriptions, and full-size figures are in Appendices B–E. The auxiliary EEG covariance retrieval experiments are retained in Appendix F. 
+
+Synthetic retrieval. We first isolate the pointwise curvature claim of Theorem 2. Each of 16 independently sampled centers is placed in its own singleton bank, and eight fixed tangent directions are reused throughout a bandwidth sweep. Queries begin at distance 0 .3h, with h = √2/β , and recall requires terminal distance at most 0 .05 h. On S63 , Egeo has 100% recall throughout, whereas 
+
+Evc switches from zero recall through β = 20 .5 to full recall from β = 20 .8, bracketing the exact prediction β∗ = 62 /3 = 20 .67. Its sub-threshold terminal radius matches the predicted off-center shell within 3 × 10 −4h. Both energies remain stable on SO (3), whose threshold lies below the admissible range, and on affine-invariant SPD(3), whose Ricci curvature is nonpositive. A singleton experiment formed from measured leaf contours exhibits the corresponding predicted transition on Kendall shape space rather than on simulated tangent perturbations (Appendix B.2). 
+
+Synthetic novel generation. For the maximal construction in Theorem 4, we map a centered tangent simplex to S2 and SO (3) and enumerate every nonempty active subset. Both energies realize exactly all 2 3 − 1 = 7 and 2 4 − 1 = 15 predicted stable modes at every tested bandwidth, retaining all originals. Blind support-annulus queries discover all 4 and 11 emergent modes and reach one in 43 .2% and 33 .3% of trials. In the less structured random-bank experiment, additional modes coexist with exact original recall in 10 /12 retained S2 banks and all 12 retained SO (3) banks. Their median held-out density percentiles are 66 and 70, showing that geometric novelty need not imply low probability under the data-generating distribution. 10 1 10 2            
+
+> = 2/ h2
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> center recall ( d 0.05 h)
+> * = 62/3
+> (a) Isolated retrieval on S63
+> Egeo
+> Evc
+> 0.15 0.25 0.35 0.45 0.55
+> bandwidth h
+> 04711 15
+> verified stable modes
+> 231
+> 241
+> (b) Designed novel-mode generation
+> S2,Egeo
+> S2,Evc
+> SO (3), Egeo
+> SO (3), Evc
+
+Figure 2: Direct synthetic tests. Left: on S63 , the Evc transition brackets the exact Ricci threshold while Egeo recalls throughout (16 × 8 = 128 paired trials per point). Right: both energies attain every mode predicted by the designed simplex across the bandwidth sweep. 
+
+Full WordNet hierarchy. Topic-dependent curvature in language-model semantic spaces and gains from curvature-aware retrieval routing motivate our text-domain test (Wang et al., 2026). We use all 82 ,115 WordNet 3.0 noun synsets and their 743 ,241 hypernym-closure relations (Miller, 1995). Following Nickel & Kiela (2017), each run trains a 10-dimensional Lorentz hierarchy embedding for 200 epochs, holding out 128 sufficiently deep leaf concepts. A clean memory key uses all of a leaf’s ancestor relations; its query uses a nested 25%, 50%, or 75% subset. Euclidean memory on the corresponding Poincare coordinates is the same-representation control. 10 The compact-support radius is selected from memory-to-memory distances to retain at least 80% of originals, without query outcomes. To average over bank composition, each of five independent embedding and target-split seeds uses 256 deterministic random banks drawn from its 128 held-out leaves. Confidence intervals bootstrap these five seed-level means, not the overlapping banks. Exact recovery additionally requires that the target is retained and that the terminal point lies within 0.05 h of it. 
+
+Corrected retrieval in 16-memory banks. With 16 memories, Evc exact recall is 0 .419, 0 .617, and 0 .757 as evidence increases, versus 0 .339, 0 .560, and 0 .717 for ambient Euclidean memory. The paired gains are 0 .080, 0 .057, and 0 .041, with 95% seed-bootstrap intervals [0 .055 , 0.101], [0 .036 , 0.078], and [0 .028 , 0.054]; every seed improves. Gains over Egeo are 0 .103, 0 .093, and 0 .072, with all three seed-bootstrap intervals bounded away from zero. Thus corrected dynamics gives a reproducible benefit in this low-capacity semantic retrieval setting. 25 50 75   
+
+> ancestor evidence retained (%)
+> 0.3 0.4 0.5 0.6 0.7 0.8
+> exact target recovery
+> (a) Full WordNet, 16-memory banks
+> Egeo
+> Evc
+> Ambient Euclidean
+> 25 50 75
+> ancestor evidence retained (%)
+> 0246810
+> Evc  ambient (percentage points)
+> (b) Corrected gain over ambient
+
+Figure 3: Full-WordNet partial-relation retrieval. Left: exact recovery in 16-memory banks, averaged over 256 banks for each of five embedding seeds; bars show seed-bootstrap 95% intervals. Right: paired Evc gains over Euclidean memory on the same Poincare coordinates; all intervals are positive. 
+
+# 6 Summary and limitations 
+
+We developed intrinsic Epanechnikov DAMs on Riemannian manifolds with geodesic and volume-corrected energies. Curvature separates them: geodesic memory retains isolated patterns, whereas corrected stability follows a Ricci threshold, allowing positive curvature to erase and negative curvature to strengthen memories. Riemannian mean shift gives exact singleton retrieval. Support collisions yield q−1/2 
+
+> h
+
+all-pattern and q−1 
+
+> h
+
+typical-pattern capacity, while overlap creates balance-point memories: designed configurations realize all 2 N − 1 subset modes, but random threshold-scale banks yield only Poisson-many. Experiments recover the transition and designed modes; full-WordNet retrieval shows a volume-correction gain. Limitations include fixed-dimensional general-manifold random limits, convexity-dependent counting and geometry-dependent constants. For future work building (looped) transformer-like layers from this DAM energy, to iterate intrinsic mean shift while learning manifold-valued keys, queries, bandwidths, and representations end-to-end is interesting. 11 AI use statement 
+
+In this work, we used Generative AI to formulate mathematical claims, provide critical ingredients for proving mathematical claims (e.g., carry out some calculation that were checked by the authors), assist in the writing of proofs, design or provide feedback on research methodology or experiments (e.g., asking AI whether a specific theoretical claim can be improved toward a specific direction), implement methods (e.g., write code), literature search (e.g., ask if we missed any existing literature), language editing, proof auditing, and L ATEX assistance. The authors independently checked the mathematical arguments, citations, code, and experimental claims and take responsibility for the final manuscript. 
+
+# Acknowledgements 
+
+KB is supported in part by National Science Foundation (NSF) grant DMS-2413426. The authors thank Benjamin Hoover, Dmitry Krotov and Parikshit Ram for helpful discussions. 
+
+# References 
+
+Bijan Afsari. Riemannian Lp center of mass: Existence, uniqueness, and convexity. Proceedings of the American Mathematical Society , 139(2):655–673, 2011. doi: 10.1090/S0002-9939-2010-10541-5. Bijan Afsari, Roberto Tron, and René Vidal. On the convergence of gradient descent for finding the Riemannian center of mass. SIAM Journal on Control and Optimization , 51(3):2230–2260, 2013. URL https://arxiv.org/abs/1201.0925 .Ery Arias-Castro, David Mason, and Bruno Pelletier. On the estimation of the gradient lines of a density and the consistency of the mean-shift algorithm. Journal of Machine Learning Research ,17(43):1–28, 2016a. URL https://jmlr.org/papers/v17/ariascastro16a.html .Ery Arias-Castro, David Mason, and Bruno Pelletier. ERRATA: On the estimation of the gradient lines of a density and the consistency of the mean-shift algorithm. Journal of Machine Learning Research , 17(206):1–4, 2016b. URL https://jmlr.org/papers/v17/16-527.html .Alexandre Barachant, Stéphane Bonnet, Marco Congedo, and Christian Jutten. Multiclass brain– computer interface classification by Riemannian geometry. IEEE Transactions on Biomedical Engineering , 59(4):920–928, 2012. doi: 10.1109/TBME.2011.2172210. Tyrus Berry and Timothy Sauer. Density estimation on manifolds with boundary. Computational Statistics & Data Analysis , 107:1–17, 2017. URL https://arxiv.org/abs/1511.08271 .Avishek Chatterjee and Venu Madhav Govindu. Efficient and robust large-scale rotation aver-aging. In Proceedings of the IEEE International Conference on Computer Vision , pp. 521– 528, 2013. URL https://openaccess.thecvf.com/content_iccv_2013/html/Chatterjee_ Efficient_and_Robust_2013_ICCV_paper.html .Ricky T. Q. Chen and Yaron Lipman. Flow matching on general geometries. In The Twelfth International Conference on Learning Representations , 2024. URL https://openreview.net/ forum?id=g7ohDlTITL .Yizong Cheng. Mean shift, mode seeking, and clustering. IEEE Transactions on Pattern Analysis and Machine Intelligence , 17(8):790–799, 1995. doi: 10.1109/34.400568. 12 Dorin Comaniciu and Peter Meer. Mean shift: A robust approach toward feature space analysis. 
+
+IEEE Transactions on Pattern Analysis and Machine Intelligence , 24(5):603–619, 2002. doi: 10.1109/34.1000236. URL https://comaniciu.net/Papers/MsRobustApproach.pdf .Valentin De Bortoli, Emile Mathieu, Michael Hutchinson, James Thornton, Yee Whye Teh, and Arnaud Doucet. Riemannian score-based generative modelling. In Advances in Neural Information Processing Systems , volume 35, pp. 2406–2422, 2022. Mete Demircigil, Judith Heusel, Matthias Löwe, Sven Upgang, and Franck Vermet. On a model of associative memory with huge storage capacity. Journal of Statistical Physics , 168(2):288–299, 2017. URL https://arxiv.org/abs/1702.01929 .Keinosuke Fukunaga and L. D. Hostetler. The estimation of the gradient of a density function, with applications in pattern recognition. IEEE Transactions on Information Theory , 21(1):32–40, 1975. doi: 10.1109/TIT.1975.1055330. Caglar Gulcehre, Misha Denil, Mateusz Malinowski, Ali Razavi, Razvan Pascanu, Karl Moritz Hermann, Peter Battaglia, Victor Bapst, David Raposo, Adam Santoro, and Nando de Freitas. Hyperbolic attention networks. In International Conference on Learning Representations , 2019. URL https://openreview.net/forum?id=rJxHsjRqFQ .Neil He, Jiahong Liu, Buze Zhang, Ngoc Bui, Ali Maatouk, Menglin Yang, Irwin King, Melanie Weber, and Rex Ying. Position: Beyond euclidean—foundation models should embrace non-euclidean geometries. arXiv preprint arXiv:2504.08896 , 2025. doi: 10.48550/arXiv.2504.08896. URL https://arxiv.org/abs/2504.08896 .Guillermo Henry and Daniela Rodriguez. Kernel density estimation on Riemannian manifolds: Asymptotic results. Journal of Mathematical Imaging and Vision , 34:235–239, 2009. doi: 10.1007/ s10851-009-0145-2. Benjamin Hoover, Zhaoyang Shi, Krishnakumar Balasubramanian, Dmitry Krotov, and Parikshit Ram. Dense associative memory with Epanechnikov energy. In Advances in Neural Information Processing Systems , 2025. URL https://arxiv.org/abs/2506.10801 .Jerry Yao-Chieh Hu, Donglin Yang, Dennis Wu, Chenwei Xu, Bo-Yu Chen, and Han Liu. On sparse modern Hopfield model. In Advances in Neural Information Processing Systems , 2023. URL 
+
+https://arxiv.org/abs/2309.12673 .Vinay Jayaram and Alexandre Barachant. MOABB: Trustworthy algorithm benchmarking for BCIs. 
+
+Journal of Neural Engineering , 15(6):066011, 2018. doi: 10.1088/1741-2552/aadea0. Hermann Karcher. Riemannian center of mass and mollifier smoothing. Communications on Pure and Applied Mathematics , 30(5):509–541, 1977. doi: 10.1002/cpa.3160300502. David G. Kendall. Shape manifolds, procrustean metrics, and complex projective spaces. Bulletin of the London Mathematical Society , 16(2):81–121, 1984. doi: 10.1112/blms/16.2.81. Yoon Tae Kim and Hyun Suk Park. Geometric structures arising from kernel density estimation on Riemannian manifolds. Journal of Multivariate Analysis , 114:112–126, 2013. doi: 10.1016/j.jmva. 2012.07.006. 13 Dmitry Krotov and John J. Hopfield. Dense associative memory for pattern recognition. In Advances in Neural Information Processing Systems , volume 29, 2016. URL https://arxiv.org/abs/ 1606.01164 .Dmitry Krotov and John J. Hopfield. Large associative memory problem in neurobiology and machine learning. In International Conference on Learning Representations , 2021. URL https: //openreview.net/forum?id=X4y_10OX-hX .George A. Miller. WordNet: A lexical database for english. Communications of the ACM , 38 (11):39–41, 1995. doi: 10.1145/219717.219748. URL https://wordnetcode.princeton.edu/ 5papers.pdf .Beren Millidge, Tommaso Salvatori, Yuhang Song, Thomas Lukasiewicz, and Rafal Bogacz. Uni-versal Hopfield networks: A general framework for single-shot associative memory models. In 
+
+Proceedings of the 39th International Conference on Machine Learning , volume 162 of Proceedings of Machine Learning Research , pp. 15561–15583, 2022. URL https://proceedings.mlr.press/ v162/millidge22a.html .Maximilian Nickel and Douwe Kiela. Poincaré embeddings for learning hierarchical representations. In Advances in Neural Information Processing Systems , volume 30, 2017. Bruno Pelletier. Kernel density estimation on Riemannian manifolds. Statistics & Probability Letters ,73(3):297–304, 2005. URL https://pelletierb.perso.math.cnrs.fr/Publications_files/ bp-spl05.pdf .Mathew Penrose. Random Geometric Graphs , volume 5 of Oxford Studies in Probability . Oxford University Press, 2003. URL https://academic.oup.com/book/9064 .Hubert Ramsauer, Bernhard Schäfl, Johannes Lehner, Philipp Seidl, Michael Widrich, Thomas Adler, Lukas Gruber, Markus Holzleitner, Milena Pavlović, Geir Kjetil Sandve, Victor Greiff, David Kreil, Michael Kopp, Günter Klambauer, Johannes Brandstetter, and Sepp Hochreiter. Hopfield networks is all you need. In International Conference on Learning Representations , 2021. URL https://openreview.net/forum?id=tL89RnzIiCd .Saul José Rodrigues Dos Santos, Vlad Niculae, Daniel C. McNamee, and Andre Martins. Sparse and structured Hopfield networks. In Proceedings of the 41st International Conference on Machine Learning , volume 235 of Proceedings of Machine Learning Research , pp. 43368–43388, 2024. URL 
+
+https://proceedings.mlr.press/v235/santos24a.html .Bernard W. Silverman and Tim C. Brown. Short distances, flat triangles and Poisson limits. Journal of Applied Probability , 15(4):815–825, 1978. doi: 10.2307/3213436. Oskar J. O. Söderkvist. Computer vision classification of leaves from swedish trees. Master’s the-sis, Linköping University, 2001. URL https://www.cvl.isy.liu.se/en/research/datasets/ swedish-leaf/ .Raghav Subbarao and Peter Meer. Nonlinear mean shift over Riemannian manifolds. International Journal of Computer Vision , 84(1):1–20, 2009. doi: 10.1007/s11263-008-0195-8. Michael Tangermann, Klaus-Robert Müller, Ad Aertsen, Niels Birbaumer, Christoph Braun, Clemens Brunner, Robert Leeb, Carsten Mehring, Kai J. Miller, Gernot R. Müller-Putz, Guido Nolte, Gert Pfurtscheller, Hubert Preissl, Gerwin Schalk, Alois Schlögl, Carmen Vidaurre, Stephan Waldert, 14 and Benjamin Blankertz. Review of the BCI competition IV. Frontiers in Neuroscience , 6:55, 2012. Chandan Tankala and Krishna Balasubramanian. Dense associative memory for gaussian distribu-tions. In International Conference on Machine Learning , 2026. URL https://openreview.net/ forum?id=uPHdNikfdo .Dongjie Wang, Meng Xiao, and Jimeng Sun. Curved embeddings for improving reasoning of large language models. arXiv preprint arXiv:2602.13418 , 2026. doi: 10.48550/arXiv.2602.13418. URL 
+
+https://arxiv.org/abs/2602.13418 .Tongzhou Wang and Phillip Isola. Understanding contrastive representation learning through alignment and uniformity on the hypersphere. In Proceedings of the 37th International Conference on Machine Learning , pp. 9929–9939, 2020. Dennis Wu, Jerry Yao-Chieh Hu, Weijian Li, Bo-Yu Chen, and Han Liu. STanHop: Sparse tandem Hopfield model for memory-enhanced time series prediction. In International Conference on Learning Representations , 2024. URL https://openreview.net/forum?id=6iwg437CZs .Menglin Yang, Yifei Zhang, Jialin Chen, Melanie Weber, and Rex Ying. Towards non-euclidean foundation models: Advancing AI beyond euclidean frameworks. In Companion Proceedings of the ACM Web Conference 2025 , 2025. doi: 10.1145/3701716.3717806. URL https://arxiv.org/ abs/2505.14417 .Thomas Zaslavsky. Facing up to arrangements: Face-count formulas for partitions of space by hyperplanes. Memoirs of the American Mathematical Society , 1(154), 1975. URL https:// bookstore.ams.org/memo-1-154/ .
+
+# A Extended related work and positioning 
+
+We position this work across dense associative memory, mode-seeking, Riemannian statistics, and geometric learning by its state space, success event, and use of geometry. 
+
+Associative memory and compact support. Dense associative memories use nonlinear in-teractions for storage beyond pairwise Hopfield energies (Krotov & Hopfield, 2016; Demircigil et al., 2017; Krotov & Hopfield, 2021). Modern Hopfield networks connect this view to attention through global softmax interactions (Ramsauer et al., 2021); the universal Hopfield framework separates similarity, separation, and projection (Millidge et al., 2022), and sparse or structured models modify these choices (Hu et al., 2023; Santos et al., 2024; Wu et al., 2024). A distributional extension stores Gaussian measures under the 2-Wasserstein metric and studies barycentric fixed points, capacity, and perturbation recovery (Tankala & Balasubramanian, 2026). Epanechnikov memory instead uses compact support (Hoover et al., 2025): distant patterns cease to interact, while overlaps can create additional modes. We transfer it to Riemannian manifolds, compare geodesic and volume-corrected scores, derive the Ricci stability threshold, and quantify capacity and emergence. Capacity comparisons must match success events: Demircigil et al. (2017) distinguish fixed-pattern stability from simultaneous binary error correction, whereas our all-pattern and typical-pattern capacities concern exact retention as nondegenerate manifold modes; prescribed retrieval basins are a further requirement. 15 Mean shift and retrieval. Mean shift originated in density-gradient mode seeking (Fukunaga & Hostetler, 1975), with the flat/Epanechnikov shadow-kernel relation explaining the uniform weights over active samples (Cheng, 1995; Comaniciu & Meer, 2002). Riemannian mean shift already uses logarithmic and exponential maps and distinguishes geodesic from volume-corrected objectives (Subbarao & Meer, 2009). We therefore do not claim a new generic algorithm. Instead, we identify its flat-weight update as the geodesic-memory retrieval rule and prove exact singleton recall, score increase across active-set changes, and local linear convergence. Euclidean gradient-line consistency (Arias-Castro et al., 2016a,b) is a distinct asymptotic statement and does not determine finite-sample retention, emergence, or these retrieval guarantees. 
+
+Manifold KDE and geometric probability. The second energy uses the exponential-map volume correction from manifold KDE (Pelletier, 2005); related work studies estimator bias, geometric structure, embedded distances, and boundaries (Henry & Rodriguez, 2009; Kim & Park, 2013; Berry & Sauer, 2017). Our question is different: does each finite-sample kernel center remain a stable memory? The Ricci term in the local volume expansion shows that a statistically natural correction can destabilize an isolated mode on positive curvature. All-pattern retention and mean-square density consistency also require incompatible bandwidth regimes (Appendix Q). Intrinsic-mean convexity (Karcher, 1977; Afsari, 2011; Afsari et al., 2013) supports the active-subset analysis, whereas close-pair Poisson approximations (Silverman & Brown, 1978; Penrose, 2003) underpin the random capacity and emergence laws. Appendix P separates these random laws from designed storage with prescribed basins. 
+
+Non-Euclidean foundation models and generation. Hyperbolic attention (Gulcehre et al., 2019) and hierarchical embeddings (Nickel & Kiela, 2017) established geometry-aware learning. Recent position and workshop papers argue that foundation-model data exhibit hierarchies, cycles, symmetries, multi-way relations, and non-isotropic scaling that flat embeddings distort, motivating hyperbolic, spherical, and mixed-curvature architectures (Yang et al., 2025; He et al., 2025). Riemannian score models (De Bortoli et al., 2022) and flow matching (Chen & Lipman, 2024) generate valid manifold states. These works motivate manifold-valued representations but do not formulate a dense associative memory whose observations are finite-sample modes or analyze curvature-dependent storage, retrieval, capacity, and emergence. Our WordNet study uses a learned hierarchy as its retrieval state space; it proposes neither an embedding nor a foundation model. Our work complements modern Hopfield architectures, Riemannian mean shift, manifold KDE, and non-Euclidean learning by explaining intrinsic compact-support memory: curvature controls stability and balance, collisions control capacity, and overlap creates modes. 
+
+# B Additional retrieval and denoising experiments 
+
+B.1 Detailed isolated-retrieval sweep 
+
+To isolate the pointwise claim from pattern interference, each of 16 independently sampled centers is placed in its own singleton bank. For each center, eight fixed random tangent directions are reused throughout the bandwidth sweep. Queries begin at distance 0 .3h, where h = √2/β , and recall is declared when the terminal distance is at most 0 .05 h. Thus every trial satisfies the isolation hypothesis of Theorem 2; no hyperparameter is selected. Figure 4 shows 100% Egeo recall throughout. On S63 , Evc recall is zero through β = 20 .5 and one from β = 20 .8, bracketing β∗ = ( m − 1) /3 = 20 .67. Below threshold, its median terminal radius 16 agrees with the analytically predicted off-center shell to within 3 × 10 −4h. Both energies retain every center across the tested range on SO (3) and affine-invariant SPD(3). 10 1
+
+> 10 0
+> h
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> center recall ( d 0.05 h)
+> * = ( m 1)/3
+
+Sphere S63 (K = 1)     
+
+> Egeo
+> Evc
+> 10 0
+> h
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> *= 1/6 below admissible range
+> (h<> 2/ 2): always stable
+
+SO (3) (K = 1/4)  
+
+> 10 0
+> h
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Ric 0: no threshold, always stable
+
+SPD(3), affine-invariant (K 0)                             
+
+> 10 110 2
+> = 2/ h2
+> 10 8
+> 10 7
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> 10 0
+> median  d(x , )/ h
+> predicted shell
+> 10 010 1
+> = 2/ h2
+> 10 8
+> 10 7
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> 10 010 1
+> = 2/ h2
+> 10 8
+> 10 7
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2dotted line = success tol (0.05 h)
+
+Figure 4: Isolated singleton retrieval versus β = 2 /h 2. Top: recall within 0 .05 h. Bottom: median terminal distance normalized by h, with repetition quartiles. The Evc spherical model switches at β∗ = 62 /3 and its sub-threshold endpoint tracks the analytic shell. On SO (3) and SPD(3) the threshold does not bind. 
+
+B.2 Real-leaf replication of the isolated transition 
+
+We next test whether the pointwise transition remains visible when both the memory centers and query perturbations are obtained from measured shapes. We use all 225 scans from three classes of the Swedish Leaf dataset (Alnus incana, Salix alba ‘Sericea’, and Salix cinerea), with 75 scans per class (Söderkvist, 2001). Each segmented contour is represented by k = 16 petiole/apex-anchored landmarks. Removing translation and scale and quotienting global planar rotation gives Kendall planar shape space CP k−2 = CP 14 with Fubini–Study distance 
+
+d([ z], [w]) = arccos |z∗w|.
+
+In this normalization, Ric = 2(14 + 1) g = 30 g, so Theorem 2 predicts the strict corrected-memory threshold β∗ = 30 /3 = 10. For each scan, the contour extracted with maximum image side 512 pixels is placed in its own singleton bank. The paired query is produced by resizing the same scan to maximum side 192 17 pixels and rerunning segmentation and landmark extraction. Thus the perturbations arise from the image-processing pipeline rather than sampled tangent vectors. All 225 queries lie inside the kernel support throughout the sweep, and recall uses the same terminal-distance criterion d ≤ 0.05 h as the synthetic experiment. No parameter is selected from query outcomes. Figure 5 shows that Egeo returns every query to its center throughout, whereas Evc returns no query below β = 10 and every query above it. At equality, the implemented dynamics converge to the center through higher-order terms, but its Hessian is singular; the open marker therefore does not count as a nondegenerate memory. This is a real-data replication of the pointwise Ricci transition, not a claim of superior multi-pattern retrieval. 4 6 8 10 12 14 16   
+
+> = 2/ h2
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> center recall ( d 0.05 h)
+> *= 10
+> degenerate equality off-center shell stable center
+> Real-leaf singleton retrieval on Kendall 14
+> Egeo
+> Evc
+
+Figure 5: Real-leaf singleton retrieval on Kendall CP 14 . Each point aggregates 225 paired full-resolution/downsampled contour extractions. The exact prediction is β∗ = 10: Egeo recalls through-out, while Evc moves from an off-center shell below threshold to the center above threshold. The open marker at equality denotes dynamical convergence with a degenerate Hessian, which is excluded by the memory definition. 
+
+B.3 Held-out clustered denoising 
+
+We simulate clustered observations on S63 , SO (3), and SPD(3) with its affine-invariant metric. There are respectively 24, 8, and 12 concept centers, none of which is stored. Each bank contains 
+
+k = 8 noisy tangent-space perturbations per center. In each of five independent repetitions, the centers are fixed across noise levels, while the bank, four validation queries per center, and eight test queries per center are sampled independently. Radius h is chosen by validation error for the two intrinsic energies. We likewise tune projected Euclidean Epanechnikov retrieval (Hoover et al., 2025) and the inverse temperature of the dot-product Hopfield update (Ramsauer et al., 2021). Nearest stored trial is the nonparametric baseline, while the true-cluster Karcher mean uses unavailable membership labels and is only a diagnostic reference. Figure 6 reports held-out intrinsic error. Egeo reduces nearest-neighbor error by 2 .2–2 .7× at every tested setting and usually reaches the true-cluster Karcher reference. On the sphere and SO (3), intrinsic and projected ambient methods are nearly indistinguishable. The corrected spherical model separates at the largest noise, where validation selects β ≈ 10 below the stability threshold 62 /3: its error is 0 .146, versus 0 .117 for Egeo . Geometry matters strongly for scale-varied SPD banks. As σ
+
+increases from 0 .15 to 0 .45 and 0 .8, projected-Euclidean error grows from 0 .060 to 0 .504 and 2 .17, 18 while Egeo obtains 0 .054, 0 .155, and 0 .255. 0.1 0.2 0.32               
+
+> trial noise
+> 10 1
+> held-out median intrinsic error
+> Sphere S63
+> 0.1 0.26 0.45
+> trial noise
+> 10 1
+> SO (3)
+> 0.15 0.45 0.8
+> trial noise
+> 10 1
+> 10 0
+> SPD(3), affine-invariant
+> nearest stored trial dot-product Hopfield (validation L)
+> Projected Euclidean (validation hE)
+> Egeo (validation h)
+> Evc (validation h)true-cluster Karcher reference
+
+Figure 6: Cluster denoising from k = 8 stored noisy trials per concept. Curves show median held-out center error over five independently sampled banks; bands show the repetition interquartile range. Hyperparameters use disjoint validation queries. The Karcher curve uses true cluster membership and is not an attainable unlabeled baseline. 
+
+B.4 Geometry-sensitive asymmetric-noise simulations 
+
+The isotropic sphere and rotation experiments above are a useful no-penalty control, but they do not separate intrinsic and projected ambient aggregation: chordal distance is a monotone function of geodesic distance on both manifolds, and symmetry places the intrinsic and extrinsic population centers at the same point. Here we remove only that symmetry while keeping the active-set comparison controlled. 
+
+Construction. We use S2 and SO (3). The low-dimensional sphere keeps all candidate corrected-model bandwidths below the isolated-instability boundary, separating aggregation bias from the high-dimensional transition in Figure 4. For each independently sampled center c and random unit tangent direction u, one local bank contains 16 trials near exp c(au ) and 10 near exp c(−1.6au ), each with isotropic tangent jitter of scale 0 .03. Before jitter, the weighted log-offset is exactly zero, 16( au ) + 10( −1.6au ) = 0 ,
+
+so c is the intrinsic Fréchet center, while nonlinear embedding makes the projected ambient mean drift as a grows. Each concept is evaluated in its own bank, isolating aggregation geometry from pattern interference. For each of five independent repetitions we use 12 centers, four validation queries and eight held-out test queries per center; query noise has tangent scale 0 .08. Radius and Hopfield temperature are selected by validation-set center error exactly as in the clustered denoising study. 19 Results. Figure 7 shows that all averaging methods agree in the local regime, but their targets separate with increasing spread. At a = 0 .9 on S2, median held-out error is 0 .010 for Egeo , 0 .139 for 
+
+Evc , and 0 .229 for both projected Euclidean Epanechnikov and the validation-selected dot-product Hopfield update. On SO (3) the corresponding errors are 0 .0067, 0 .087, and 0 .230. Thus Egeo 
+
+reduces the ambient error by factors of 22 and 34, while Evc reduces it by factors of 1 .65 and 2 .63. The sample Karcher reference tracks Egeo , confirming that the gap is intrinsic-versus-extrinsic center bias rather than failed optimization. 0.25 0.40 0.55 0.70 0.80 0.90           
+
+> near-lobe offset a
+> 10 2
+> 10 1
+> 10 0
+> held-out median center error
+> Sphere S2
+> 0.25 0.40 0.55 0.70 0.80 0.90
+> near-lobe offset a
+> SO (3)
+> nearest stored trial dot-product Hopfield Projected Euclidean
+> Egeo
+> Evc
+> sample Karcher reference
+
+Figure 7: Fréchet-center recovery under asymmetric manifold noise. Each bank has 16 trials near log-offset + au and 10 near −1.6au , so the unjittered intrinsic mean is the center although the projected ambient mean is biased. Curves show median held-out center error over five independent repetitions; bands show the repetition interquartile range. 
+
+# C Designed emergent-mode generation 
+
+Unlike denoising, generation has no prescribed target center. A query is a seed, and its converged output is counted as generated only if it is a stable mode at least τ h from every stored pattern. We first instantiate the maximal construction of Theorem 4, for which the complete mode set is known. 
+
+Construction and verification. At a base point p, we place a centered regular simplex in TpM,scaled so its vertices have pairwise distance √2, and store their images under v 7 → exp p(hv ). We use three vertices on S2 and four on SO (3). Thus the theorem predicts respectively 2 3 − 1 = 7 and 2 4 − 1 = 15 modes, of which 4 and 11 are non-singleton emergent modes. For each h ∈{0.15 , 0.25 , 0.35 , 0.45 , 0.55 } and each intrinsic energy, we enumerate every nonempty subset, initialize at its sample Karcher mean, and run retrieval using the full bank. A candidate is accepted only when its active set equals the proposed subset, its dimensionless stationarity residual is below 10 −6,and a tangent finite-difference score Hessian is negative definite. Novelty uses τ = 1 /2. We separately test reachability without supplying subset labels. At h = 0 .45, 5000 com-mon queries are drawn by choosing an original uniformly, choosing a radial offset uniformly in 20 [0 .55 h, 0.99 h], and choosing a random tangent direction. This support-annulus proposal is designed to probe overlap basins; its hit percentages are therefore conditional on the stated proposal, not uniform volume fractions of the entire manifold. 
+
+Results. Both Egeo and Evc realize all 7 spherical modes and all 15 rotation modes at every tested bandwidth, with all originals retained. Across the sweep, the largest stationarity residual is 1.7 × 10 −12 ; the generated points lie within 0 .022 h on S2 and 0 .0064 h on SO (3) of their tangent-centroid predictions. Blind queries reach an emergent mode in 43 .2% of spherical trials and 33 .3% of rotation trials, discovering all 4 and all 11 emergent modes for each energy. The symmetric construction makes the geodesic and corrected locations nearly coincide; this experiment tests the existence and reachability claims rather than a curvature advantage. 0.8 0.6 0.4 0.2 0.0 0.2 0.4  
+
+> log p(x)1/h
+> 0.6
+> 0.4
+> 0.2
+> 0.0 0.2 0.4 0.6
+> log p (x)2/h
+> 12 13 23 123
+
+S2: 3 originals + 4 emergent    
+
+> stored patterns
+> Egeo
+> Evc
+> 0.8
+> 0.6
+> 0.4
+> 0.2
+> 0.0 0.2
+> 1/h
+> 0.8 0.6 0.4 0.2 0.0 0.2 0.4
+> 2/h
+> 0.8
+> 0.6
+> 0.4
+> 0.2
+> 0.0 0.2 0.4 0.6 0.8
+> 3/h
+
+SO (3): 4 originals + 11 emergent      
+
+> 0.15 0.25 0.35 0.45 0.55
+> bandwidth h
+> 04711 15
+> mode count
+
+Verified stable modes across bandwidth        
+
+> S2,Egeo
+> S2,Evc
+> SO (3), Egeo
+> SO (3), Evc
+> S2
+> Egeo
+> S2
+> Evc
+> SO (3)
+> Egeo
+> SO (3)
+> Evc
+> 020 40 60 80 100
+> query outcomes (%)
+> 4/4 4/4 11/11 11/11
+
+Blind support-annulus seeds at h = 0.45 
+
+> original mode emergent mode inactive/unmatched
+
+Figure 8: Designed generation on S2 and SO (3). Top: stored simplex vertices (stars) and every verified non-singleton mode in normalized base-point log coordinates at h = 0 .45. Bottom left: the exact mode counts persist across the bandwidth sweep. Bottom right: outcomes of 5000 blind support-annulus queries; labels give emergent modes reached over emergent modes present. All original patterns remain stable. 21 D Quality of generation from retained random banks 
+
+The preceding construction deliberately realizes every subset. We next ask whether additional modes from random data remain plausible under the distribution that produced the bank. This separates geometric novelty from statistical quality, following the distinction emphasized for Euclidean Epanechnikov memories by Hoover et al. (2025). 
+
+Protocol. On each manifold we define an equal four-component tangent-normal mixture. The S2
+
+component centers are tetrahedral, with tangent standard deviation 0 .28; the SO (3) centers are the identity and rotations of angle 2 about the three coordinate axes, with tangent standard deviation 0.32. Each bank has five independently perturbed points per component. We use fixed bandwidths 
+
+h = 0 .08 and h = 0 .17, respectively, and rejection-sample 12 independent banks conditional only on every inter-pattern distance exceeding h. Hence every original is isolated. Pairs at distance below 2h may, but need not, produce overlap modes. For each retained bank, candidates are collected from every overlapping-pair midpoint and from 4000 blind support-annulus queries generated as above. Outputs are deduplicated at distance 0.02 h and must be fixed points with at least two active patterns and novelty at least 0 .5h; intrinsic candidates additionally pass a negative-definite score-Hessian check. We report the principal tangent-normal mixture log density as a percentile among 3000 independent held-out samples; the neglected probability outside the injectivity radius is numerically negligible at these scales. A 50th percentile output therefore has typical held-out density. Projected Euclidean Epanechnikov retrieval is included as a local-geometry control. 
+
+Results. Emergent modes occur in 10 /12 retained S2 banks and all 12 /12 retained SO (3) banks. For Egeo , the median numbers per bank are 3 and 2, while median normalized novelty is 0 .75 and 0.83. Among banks with an emergent mode, median per-bank quality is the 66th held-out percentile on S2 and the 70th on SO (3), compared with stored-bank medians at the 58th and 46th percentiles and uniform-manifold references at the 3rd and 0th. Blind queries reach a novel mode in median 2.82% and 1 .54% of trials; the median discovered-mode coverage is 100%. Perturbations kept inside the measured isolation margin recall every original. At these retention-scale bandwidths, Egeo , Evc , and projected Euclidean retrieval agree to plotting precision. The experiment therefore supports a compact-support emergence claim—new stable and statistically plausible points coexist with exact storage—but does not claim that Riemannian geometry alone creates semantic creativity. A decoder-valued latent experiment would be required for that stronger interpretation. 22 0.5 0.6 0.7 0.8 0.9 1.0 
+
+novelty min 
+
+> i
+
+d(z, i )/ h
+
+> 020 40 60 80 100
+> oracle quality percentile
+> stored median: 58th percentile
+
+Random mixture on S2     
+
+> 0.5 0.6 0.7 0.8 0.9 1.0
+
+novelty min 
+
+> i
+
+d(z, i )/ h
+
+> 020 40 60 80 100
+> stored median: 46th percentile
+
+Random mixture on SO (3) 
+
+> S2
+> Egeo
+> S2
+> Evc
+> S2
+> Proj. Eucl.
+> SO (3)
+> Egeo
+> SO (3)
+> Evc
+> SO (3) Proj. Eucl. 0123456
+> mode count
+
+Novel modes per retained random bank 
+
+> S2
+> Egeo
+> S2
+> Evc
+> S2
+> Proj. Eucl.
+> SO (3)
+> Egeo
+> SO (3)
+> Evc
+> SO (3) Proj. Eucl. 0246810 12 14 16
+> queries reaching a novel mode (%)
+> original recall: 100%
+
+Blind annulus-query generation rate 
+
+> Egeo
+> Evc
+> Projected Euclidean typical held-out sample uniform-manifold reference
+
+Figure 9: Generation from random banks conditioned on retaining every original. Top: oracle density percentile versus normalized novelty for every stable generated mode; the dashed line is the density of a typical held-out sample and the dotted line is the median uniform-manifold reference. Bottom: mode counts and the fraction of blind support-annulus queries reaching a novel mode across 12 retained banks. Zero counts are retained banks with no overlap-generated mode. All tested original-recall probes succeed. 23 E Full-WordNet hierarchy retrieval 
+
+This appendix gives the complete protocol for the semantic-hierarchy experiment summarized in Section 5. The principal comparison is intrinsic memory against ordinary Euclidean memory on the same Poincare coordinates, so representation quality is held fixed. 
+
+E.1 Dataset, embeddings, and held-out concepts 
+
+We parse the WordNet 3.0 noun database directly (Miller, 1995) and retain all descendants of 
+
+entity.n.01 . The resulting directed acyclic graph contains 82 ,115 noun synsets and 743 ,241 ordered synset–ancestor pairs in its hypernym closure. For each seed, 128 leaf concepts of depth at least seven are held out from embedding training. The remaining 81 ,987 concepts are anchors. We train a 10-dimensional Lorentz embedding with the sampled-softmax hierarchy objective used for Poincare representations (Nickel & Kiela, 2017). Each of the five independent runs uses 200 epochs, 300 ,000 sampled positive relations per epoch, 50 filtered negative relations per positive, batch size 1024, learning rate 0 .5, and a 20-epoch burn-in at one hundredth of that rate. A fixed set of 1000 held-out relations measures filtered ranking quality. Across seeds 83–87, mean reciprocal rank is 0 .098, with range [0 .075 , 0.109]; mean rank is 477. For each held-out leaf, its clean point is inferred from every available ancestor relation while anchor points remain fixed. Partial-query points use nested random subsets containing 25%, 50%, or 75% of those relations, with three independent relation orderings per target. Clean and partial points are optimized for 150 epochs with batch size 512, the same negative count, and the same Lorentz learning rate. The Poincare chart is obtained exactly from the inferred Lorentz points. 
+
+E.2 Retrieval protocol and statistical unit 
+
+A memory bank contains clean points for a subset of the 128 held-out leaves. For each method and bank, let si be the nearest-neighbor distance of stored point i. The support radius is the largest strict open radius for which at least 80% of stored points satisfy si > h . This depends only on the bank, never on a query or its target identity. A retrieval is successful when the target is among the retained originals and the terminal point lies within 0 .05 h of it. We compare Egeo , Evc , and ordinary Euclidean Epanechnikov memory on the same Poincare coordinates. The latter is called ambient Euclidean ; it isolates the memory geometry from the learned representation. To average over bank composition, the analysis uses 256 deterministic random banks within each embedding seed. The independent statistical units remain the five embedding and target-split seeds, and reported intervals bootstrap their five mean paired differences.                       
+
+> Bank Evidence Ambient Egeo Evc Evc −Ambient 16 25% .339 .316 .419 .080 [ .055 , . 101] 16 50% .560 .524 .617 .057 [ .036 , . 078] 16 75% .717 .686 .757 .041 [ .028 , . 054]
+
+Table 1: Exact target recovery on the full WordNet noun hierarchy. Entries are five-seed means after averaging 256 banks within seed. Brackets give the 95% seed-bootstrap interval for the paired difference. At bank size 16, all five seed-level Evc differences are positive. The mean Evc − Egeo improve-ments are 0 .103, 0 .093, and 0 .072, with seed-bootstrap intervals [0 .083 , 0.118], [0 .075 , 0.108], and 24 [0 .059 , 0.083]. These paired improvements show that the volume correction contributes beyond the use of hyperbolic distance alone. 
+
+# F EEG covariance-state storage and retrieval 
+
+We test whether the memory definitions lead to measurable behavior on real manifold-valued observations. The represented object is an EEG spatial covariance descriptor, not a time-domain signal. This auxiliary real-data study is reported only in the appendix; the main experimental section focuses on the full WordNet hierarchy. 
+
+Data and covariance representation. We use BCI Competition IV-2a (Tangermann et al., 2012), loaded through MOABB (Jayaram & Barachant, 2018). It contains nine subjects, two recording sessions, 22 EEG channels, four motor-imagery classes, and 288 trials per subject and session. Following the covariance-based Riemannian BCI representation (Barachant et al., 2012), each 2–6 second post-cue epoch is band-pass filtered to 8–30 Hz. For a centered channel-by-time matrix X, we use 
+
+C = (1 − ρ) XX ⊤
+
+T − 1 + ρ tr( XX ⊤/(T − 1)) 22 I, ρ = 0 .05 ,
+
+then divide by det( C)1/22 . The resulting covariance shapes lie on the unit-determinant part of affine-invariant SPD(22). The full four-second covariance is a stored target. Four evenly positioned covariances at each of one, two, and three seconds provide real partial-observation queries from the same physical trial. 
+
+F.1 Storage and paired retrieval 
+
+Protocol. Within held-out session 2, deterministic class-balanced farthest-first selection gives nested banks of 32, 64, and 96 full-trial covariances. The same first eight targets per class are queried at every bank size, so adding distractors does not change target difficulty. The displayed results use 96 stored covariances and all 32 × 4 paired queries. For a requested retention fraction r, the radius is the largest value determined from bank-to-bank distances alone for which at least fraction r of originals have no neighbor inside their open support. No query, target identity, or class label tunes this radius. We report the target singleton-basin fraction : the fraction of queries for which the true target is the unique active memory. For Egeo ,every such query recalls its target exactly in one step by Theorem 1. Evc has the same support event, and an isolated target is stable on affine-invariant SPD because its Ricci curvature is nonpositive; the statement is not a one-step guarantee for the corrected dynamics. The compact controls use matrix-log Euclidean distance or Frobenius distance in the native sensor coordinates. Affine-invariant nearest neighbor is included as a radius-free readout reference, not as a mode-generating energy. 
+
+Results. At 95% requested storage retention, the mean target singleton-basin fractions for intrinsic support are 0 .018, 0 .683, and 0 .940 for one-, two-, and three-second queries. At two seconds, native log-Euclidean support obtains 0 .658 and native projected Euclidean support obtains 0 .080. The corresponding affine-nearest-neighbor target recall is 0 .941, but it supplies neither a compact-support retention event nor additional modes. 25 Thus the intrinsic model improves the native log-Euclidean singleton-basin fraction by 0 .025 on average and the native projected Euclidean result by 0 .603. For the log-Euclidean comparison, the subject-paired bootstrap 95% interval is [0 .008 , 0.043] and the Holm-adjusted exact sign-flip p-value is 0 .0469. The increase from one- to three-second queries quantifies how longer partial observations enlarge target singleton basins while retaining 95% of the 96 trial memories. We separately apply common determinant-one channel transforms with condition numbers from 1 to 100. Intrinsic recall is unchanged at 0 .683 by construction. Native log-Euclidean recall decreases from 0 .658 to 0 .583, and native projected Euclidean recall falls from 0 .080 to 0 .055. This demonstrates an inherent equivariance advantage over native-coordinate flat metrics. 0.5 0.6 0.7 0.8 0.9 1.0 requested fraction of memories retained 0.0 0.2 0.4 0.6 0.8 1.0 target singleton-basin fraction  Storage--basin frontier (2 s)           
+
+> 123query window (seconds) 0.0 0.2 0.4 0.6 0.8 1.0 target singleton-basin fraction  Real partial-observation noise (95% storage)
+> 1310 30 100 condition number of channel transform 0.0 0.2 0.4 0.6 0.8 1.0 target singleton-basin fraction  Channel-coordinate robustness (2 s)
+> Egeo ,Evc (shared support) Log-Euclidean Projected Euclidean
+
+Figure 10: Paired EEG covariance storage and retrieval on held-out session 2. Left: requested original retention versus the fraction of real two-second queries whose target is the unique active memory. Middle: query duration at 95% requested retention. Right: a common invertible channel reparameterization. Curves and bands are the subject median and IQR. The singleton event certifies one-step exact recall for Egeo and identifies an isolated corrected basin for Evc ; it is not claimed as one-step corrected recall. Native log-Euclidean is the strongest flat control, while native projected Euclidean support is substantially weaker. 
+
+Scope. This experiment tests content-addressable covariance storage and paired retrieval, not end-to-end BCI decoding. The target singleton event directly matches the paper’s retrieval guarantee, while the channel-transform study tests the expected intrinsic equivariance. 
+
+# G Local geometric identities 
+
+We use the curvature convention for which the unit sphere has Ric = ( m − 1) g. The basic geometric facts about normal coordinates and intrinsic means are compatible with the conventions in Pelletier (2005); Afsari et al. (2013). The derivatives needed here are derived below. Lemma G.1 is local and remains valid on a complete noncompact manifold within normal domains; compactness enters only the subsequent uniform bounds. 
+
+Lemma G.1 (Distance derivatives and volume-density jet) . For qp(x) = d(x, p )2/2 in the normal domain, 
+
+grad qp(x) = − log x p, dq p(p) = 0 , Hess qp(p) = gp.
+
+Moreover, 
+
+θp(exp p v) = 1 − 16 Ric p(v, v ) + O(∥v∥3), (G.1) 26 so, for ap = θ−1 
+
+> p
+
+,
+
+ap(p) = 1 , da p(p) = 0 , Hess ap(p) = 13 Ric p .
+
+For points in the common short normal domain, θp(x) = θx(p).Proof. Let x(s) be a variation of x with derivative w, and let γs : [0 , 1] → M be the minimizing geodesic from x(s) to p, parameterized with constant speed. In the normal domain this is a smooth variation. Its energy is qp(x(s)). If V = ∂sγs|s=0 , differentiation and integration by parts give 
+
+dq p(x)[ w] =  
+
+> ∫10
+
+⟨DtV, ˙γ0⟩ dt = [ ⟨V, ˙γ0⟩]10 − 
+
+> ∫10
+
+⟨V, D t ˙γ0⟩ dt = − ⟨ w, log x p⟩ .
+
+Here V (1) = 0 and Dt ˙γ0 = 0. This proves the gradient formula. In normal coordinates at p,
+
+qp(exp p v) = ∥v∥2 /2, giving its value, differential, and Hessian at p.For the volume jet, fix a unit vector u and let γ(t) = exp p(tu ). Express Jacobi fields in a parallel orthonormal frame. The Jacobi matrix satisfies 
+
+A′′ (t) + R(t)A(t) = 0 , A(0) = 0 , A′(0) = I, 
+
+where R(t)z = R(z, ˙γ(t)) ˙ γ(t). Thus A′′ (0) = 0 and A′′′ (0) = −R(0), whence 
+
+A(t) = tI − 16 t3R(0) + O(t4).
+
+The differential of the exponential map at tu , represented in this frame, is A(t)/t . Expanding the determinant by its multilinearity gives det( A(t)/t ) = 1 − 16 t2 tr R(0) + O(t3) = 1 − 16 t2 Ric p(u, u ) + O(t3).
+
+Varying u proves (G.1). Taking the reciprocal gives ap(exp p v) = 1 + Ric p(v, v )/6 + O(∥v∥3) and hence the asserted derivatives. For symmetry, let r = d(p, x ) and use a parallel frame along the short geodesic from p to x. In addition to A, define the reversed Jacobi matrix B by 
+
+B′′ + RB = 0 , B(r) = 0 , B′(r) = −I. 
+
+Since R is symmetric, ddt (AT B′ − A′T B) = AT B′′ − A′′ T B = 0 .
+
+At t = 0 this constant matrix is −B(0); at t = r it is −A(r)T . Therefore B(0) = A(r)T . The two volume densities are respectively det A(r)/r m and det B(0) /r m, with positive determinants before conjugacy. Their equality proves the result. 
+
+Assumption G.2 (Convex supports and corrected-kernel concavity) . Each Bh(ξi) is strongly geodesically convex, and Hess qi ⪰ cg on Bh(ξi), c > 0.
+
+For the corrected energy also assume, on these balls, 
+
+ai ≥ a∗ > 0, ∥grad ai∥ ≤ L, ∥Hess ai∥ ≤ H, μ := βa ∗c − 2βhL − H > 0.
+
+The inequalities for tensors are pointwise; their norms are operator norms induced by g.27 The derivative bound is a sufficient condition for the corrected component concavity used in Theorem 3. The isolated-pattern criterion of Theorem 2 does not require it. 
+
+Lemma G.3 (Uniform small-bandwidth bounds) . On a fixed smooth compact manifold there is 
+
+h0 > 0 such that for 0 < h < h 0 all radius-h balls are strongly convex, and uniformly for d(x, p ) < h ,
+
+Hess qp = g + O(h2), ap = 1 + O(h2), ∥grad ap∥ = O(h), ∥Hess ap∥ = O(1) .
+
+Consequently Assumption G.2 holds, and its μ can be bounded below by c0h−2 for some c0 > 0.Proof. The short-geodesic squared distance and the volume density are smooth functions of both endpoints in a neighborhood of the diagonal. Normal-coordinate Christoffel symbols vanish at their centers, and their coefficients and derivatives have uniform bounds on a fixed small neighborhood of the diagonal by compactness. Since qp = ∥v∥2 /2 in coordinates centered at p,(Hess qp)jk = δjk − Γℓjk (v)vℓ = δjk + O(∥v∥2),
+
+where Γ( v) = O(∥v∥). The metric itself is I + O(∥v∥2), so this gives the intrinsic Hessian estimate. The remaining estimates follow from the smooth Taylor expansion in Lemma G.1, with uniform remainder bounds. Smoothness also bounds the derivatives of that expansion needed for the gradient and Hessian estimates. For completeness, uniformly small balls are strongly convex as follows. Fix a uniform normal radius r0 > 0 on which Hess qp ≻ 0 for every center p. Choose h < r 0/3 and 2 h < inj( M). Two points in Bh(p) have distance less than 2 h, so their minimizing geodesic is unique. Every point on this geodesic has distance less than 3 h from p by the triangle inequality. Along the geodesic, qp has positive second derivative unless the geodesic is constant. Its value is bounded above by the larger endpoint value by convexity of this one-dimensional function. Therefore the geodesic stays in Bh(p). In Assumption G.2, one may take c ≥ 1/2, a∗ ≥ 1/2, L ≤ C1h, and H ≤ C2 once h is small. Since β = 2 /h 2,
+
+μ ≥ 12h2 − 4C1 − C2.
+
+Shrinking h0 further gives μ ≥ 1/(4 h2). 
+
+# H Supporting density-estimation results 
+
+The volume-corrected estimator and its bias are classical manifold KDE constructions (Pelletier, 2005; Henry & Rodriguez, 2009); geometric bias is also studied by Kim & Park (2013). We specialize the expansions to the Epanechnikov kernel and distinguish raw smoothing from normalization. These expansions are supporting results, not a priority claim for manifold KDE. Let ωm be the Euclidean unit-ball volume and set 
+
+K(u) = cm(1 − ∥ u∥2)+, cm = m + 2 2ωm
+
+.
+
+For independent patterns with density f relative to dV , define ̂
+
+fgeo (x) = 1
+
+N h m
+
+> ∑
+> i
+
+K(log ξi x/h ),̂ fvc (x) = 1
+
+N h m
+
+> ∑
+> i
+
+ai(x)K(log ξi x/h ).
+
+A summand is zero when d(x, ξ i) ≥ h. Write ̂
+
+Zh = 
+
+> ∫
+> M̂
+
+fgeo dV, ˜fgeo =̂ fgeo /̂Zh, ˜fvc =̂ fvc .
+
+28 Both ˜fT are probability densities. The distinction between ̂ fgeo and ˜fgeo is important: the former is a raw smoother. 
+
+Theorem H.1 (Bias and risk of normalized density estimators) . Suppose f ∈ C4(M) and h ↓ 0.Uniformly in x,
+
+Êfvc (x) = f (x) + h2
+
+2( m + 4) ∆f (x) + O(h4), (H.1) 
+
+Êfgeo (x) = f (x) + h2
+
+2( m + 4) 
+
+[
+
+∆f (x) − 13 Scal( x)f (x)
+
+]
+
++ O(h4). (H.2) 
+
+Here ∆f = tr g Hess f and Scal = tr g Ric . For the raw and corrected smoothers, 
+
+∫
+
+> M
+
+Var( ̂fT (x)) dV (x) = Rm
+
+N h m (1 + o(1)) , Rm = 2( m + 2) (m + 4) ωm
+
+.
+
+Let ¯sf = ∫ Scal f dV , Dvc f = ∆ f , and Dgeo f = ∆ f − (Scal −¯sf )f / 3. For the normalized densities ,
+
+E
+
+∥∥∥ ˜fT − f
+
+∥∥∥2 
+
+> L2
+
+= h4
+
+4( m + 4) 2 ∥DT f ∥2 
+
+> L2
+
++ Rm
+
+N h m + o
+
+(
+
+h4 + 1
+
+N h m
+
+)
+
+. (H.3) 
+
+In particular the upper rate is O(N −4/(m+4) ) at h ≍ N −1/(m+4) .Proof. We first compute the kernel moments, then the bias and variance, and finally control the random normalizer. 
+
+Kernel moments and mass. Polar integration gives 
+
+∫
+
+> Rm
+
+(1 − ∥ u∥2)+ du = mω m
+
+( 1
+
+m − 1
+
+m + 2 
+
+)
+
+= 2ωm
+
+m + 2 .
+
+Thus ∫ K = 1. Reflection in a coordinate hyperplane gives ∫ uj K = 0 and ∫ uj ukK = 0 for j̸ = k.By permutation symmetry, all diagonal second moments are equal, and 
+
+∫
+
+u2 
+
+> j
+
+K(u) du = 1
+
+m
+
+∫
+
+∥u∥2 K(u) du 
+
+= cmωm
+
+( 1
+
+m + 2 − 1
+
+m + 4 
+
+)
+
+= 1
+
+m + 4 .
+
+Also, 
+
+∫
+
+K(u)2 du = c2
+
+> m
+
+mω m
+
+( 1
+
+m − 2
+
+m + 2 + 1
+
+m + 4 
+
+)
+
+= c2
+
+> m
+
+8ωm
+
+(m + 2)( m + 4) = 2( m + 2) (m + 4) ωm
+
+= Rm.
+
+For a fixed center y, the substitution x = exp y(hu ) gives 
+
+∫
+
+> M
+
+h−mθy(x)−1K(log y x/h ) dV (x) = 
+
+∫
+
+> ∥u∥<1
+
+K(u) du = 1 .
+
+Hence every corrected component, and its sample average, is normalized. The raw components are nonnegative and have positive integrals, so division by ̂ Zh also gives a density. 29 Bias. At a fixed query x, use y = exp x(hu ) and the volume-density symmetry of Lemma G.1. For the corrected estimator, the two Jacobian factors cancel: 
+
+Êfvc (x) = 
+
+> ∫
+
+K(u)f (exp x(hu )) du. 
+
+Taylor expansion along the radial geodesic, uniformly for x ∈ M and ∥u∥ ≤ 1, gives 
+
+f (exp x(hu )) = f (x) + h df x(u) + 12 h2 Hess fx(u, u ) + h3P3,x (u) + O(h4),
+
+where P3,x is a homogeneous cubic polynomial. Its integral and the linear term vanish because they are odd. The computed second moments therefore give (H.1). For the raw smoother, 
+
+Êfgeo (x) = 
+
+> ∫
+
+K(u)f (exp x(hu )) θx(exp x(hu )) du. 
+
+The smooth volume-density expansion is 
+
+θx(exp x(hu )) = 1 − 16 h2 Ric x(u, u ) + h3Q3,x (u) + O(h4),
+
+where Q3,x is a homogeneous cubic. All first- and third-degree terms in the product are odd. The second-degree term is h2 Hess fx(u, u )/2 − h2f (x) Ric x(u, u )/6. Tracing it against ∫ uj ukK =
+
+δjk /(m + 4) yields (H.2). 
+
+Integrated variance. Write a single normalized-scale summand as YT (x, X ), so that ̂ fT =
+
+N −1 ∑ 
+
+> i
+
+YT (x, X i). Independence gives 
+
+> ∫
+
+Var( ̂fT (x)) dV (x) = 1
+
+N E
+
+> ∫
+
+YT (x, X )2 dV (x) − 1
+
+N
+
+> ∫
+
+(EYT (x, X )) 2 dV (x).
+
+Conditional on X = y, the geodesic component has squared integral 
+
+h−m
+
+> ∫
+
+K(u)2θy(exp y(hu )) du = h−m(Rm + O(h2)).
+
+For the corrected component the remaining factor is θ−1 
+
+> y
+
+instead of θy, yielding the same estimate. The bounds are uniform in y. The squared-mean term is O(1 /N ) by the bias expansions and compactness, and is o(1 /(N h m)). This proves the variance assertion. For T = vc, squaring the uniform bias expansion and integrating gives 
+
+> ∫
+
+(Ê fvc − f )2 dV = h4
+
+4( m + 4) 2 ∥∆f ∥2 
+
+> L2
+
++ O(h6),
+
+which proves (H.3) for the corrected density. 
+
+Population normalization. Let mh = Êfgeo and Zpop  
+
+> h
+
+= ∫ mh dV . The divergence theorem gives ∫ ∆f dV = 0 because M has no boundary. Integrating (H.2) therefore yields 
+
+Zpop  
+
+> h
+
+= 1 − h2 ¯sf
+
+6( m + 4) + O(h4).
+
+30 For a scalar z = O(h2), the identity (1 + z)−1 = 1 − z + z2/(1 + z) gives its reciprocal expansion. Multiplying by (H.2) gives 
+
+mh(x)
+
+Zpop 
+
+> h
+
+= f (x) + h2
+
+2( m + 4) 
+
+[
+
+∆f (x) − Scal( x) − ¯sf
+
+3 f (x)
+
+]
+
++ O(h4). (H.4) Set Uh =̂ fgeo /Z pop  
+
+> h
+
+. This is a random function with deterministic denominator. Its squared bias follows from (H.4), and its integrated variance is the raw variance divided by ( Zpop  
+
+> h
+
+)2 = 1 + O(h2). Hence 
+
+E ∥Uh − f ∥2 
+
+> L2
+
+= h4
+
+4( m + 4) 2 ∥Dgeo f ∥2 
+
+> L2
+
++ Rm
+
+N h m + o
+
+(
+
+h4 + 1
+
+N h m
+
+)
+
+. (H.5) 
+
+The random sample normalizer. It remains to compare Uh with the actual density ˜fgeo ; we do not interchange expectation and division. The mass of a raw component centered at y is 
+
+zh(y) = 
+
+∫
+
+Ygeo (x, y ) dV (x) = 1 − h2 Scal( y)6( m + 4) + O(h4),
+
+by the same kernel moments and the volume expansion. This is uniform in y. In particular both ̂ Zh and Zpop  
+
+> h
+
+lie in [1 /2, 2] for small h, for every sample. Put Ai = zh(Xi) − Ezh(Xi) and 
+
+D =̂ Zh − Zpop  
+
+> h
+
+= N −1 ∑ 
+
+> i
+
+Ai. Then EAi = 0 and |Ai| ≤ Ch 2. Conditional on Xi, X j , the remaining 
+
+Aℓ remain independent and centered. The conditional mean of D has magnitude at most 2 Ch 2/N ,and its conditional variance is at most C2h4/N . Enlarging the constant handles i = j and N = 1, so 
+
+E[D2 | Xi, X j ] ≤ C′h4/N. 
+
+The factors Ygeo (x, X i)Ygeo (x, X j ) are nonnegative. Multiplying by them, integrating, and summing over i, j gives 
+
+E[D2 ∥∥∥̂ fgeo 
+
+∥∥∥2
+
+> L2
+
+] = 1
+
+N 2
+
+∑
+
+> i,j
+
+E
+
+∫
+
+D2Ygeo (x, X i)Ygeo (x, X j ) dV (x)
+
+≤ C′h4
+
+N E
+
+∥∥∥̂ fgeo 
+
+∥∥∥2 
+
+> L2
+
+≤ C′′ h4
+
+N
+
+(
+
+1 + 1
+
+N h m
+
+)
+
+.
+
+The last bound follows by adding the integrated variance and squared mean already established. Since both denominators are at least 1 /2, 
+
+eh := E
+
+∥∥∥ ˜fgeo − Uh
+
+∥∥∥2 
+
+> L2
+
+≤ 16 E[D2 ∥∥∥̂ fgeo 
+
+∥∥∥2
+
+> L2
+
+]
+
+≤ C′′′ h4
+
+N
+
+(
+
+1 + 1
+
+N h m
+
+)
+
+= o
+
+( 1
+
+N h m
+
+)
+
+.
+
+For the last equality, dividing its two terms by ( N h m)−1 gives O(hm+4 ) and O(h4/N ), both tending to zero. Cauchy–Schwarz now gives 
+
+∣∣∣∣E
+
+∥∥∥ ˜fgeo − f
+
+∥∥∥2 
+
+> L2
+
+− E ∥Uh − f ∥2
+
+> L2
+
+∣∣∣∣ ≤ 2
+
+√
+
+E ∥Uh − f ∥2
+
+> L2
+
+√eh + eh = o
+
+(
+
+h4 + 1
+
+N h m
+
+)
+
+.
+
+Combining with (H.5) proves (H.3) for the normalized geodesic density. Finally, at h ≍ N −1/(m+4) ,both h4 and ( N h m)−1 have order N −4/(m+4) . This is an upper-rate statement; if the leading bias coefficient vanishes it need not be an optimal bandwidth. 31 Relation to the energy background. These statistical statements concern the kernel averages, not an arbitrary uniform background added to the energy. With fixed ϵ > 0, the normalized score is a mixture with a uniform density. For the corrected energy its two unnormalized masses are 
+
+ϵ vol( M) and N h m/c m. To transfer the displayed density-risk conclusions to that score, set ϵ = 0 or make the background negligible at the required risk scale. Merely sending β to infinity, or proving mean-square density consistency, does not prove convergence of the number of energy minima. 
+
+# I Proofs of exact retrieval and the LSE comparison 
+
+Proof of Theorem 2 and the single-kernel assertion in Theorem 1. For any smooth positive S, di-rect differentiation gives grad( −β−1 log S) = − grad SβS , Hess( −β−1 log S) = − Hess SβS + dS ⊗ dS βS 2 . (I.1) At a critical point the last term vanishes. The strict separation from ξi means that only its own kernel is active in some neighborhood of ξi.Indeed, if N > 1, choose the neighborhood radius smaller than both h and min j̸ =i(d(ξi, ξ j ) − h); the triangle inequality excludes every other support. If N = 1, choose any radius smaller than h. This argument and the local identities in Lemma G.1 do not use compactness, proving the noncompact scope of Theorem 2. In that neighborhood, 
+
+Sgeo = ϵ + 1 − βq i, Svc = ϵ + ai(1 − βq i).
+
+By Lemma G.1, both have value 1 + ϵ and zero differential at ξi. Their Hessians there are Hess Sgeo = −βg, Hess Svc = 13 Ric −βg. 
+
+For the second equality, the product-rule cross terms vanish because da i = dq i = 0 at the center. Equation (I.1) now gives (8). The corrected Hessian is positive definite exactly when g(w, w ) −
+
+Ric( w, w )/(3 β) > 0 for every nonzero w, which is equivalent to (9). For the retrieval assertion, let s = min i̸=j d(ξi, ξ j ) and assume (6). If x ∈ B∆(ξi), then 
+
+d(x, ξ i) < ∆ < h . For j̸ = i,
+
+d(x, ξ j ) ≥ d(ξi, ξ j ) − d(x, ξ i) > s − ∆ ≥ h. 
+
+Thus the own kernel is active and all others are inactive. Lemma G.1 and differentiation of the logarithm give grad Egeo (x) = − log x ξi
+
+ϵ + 1 − βd (x, ξ i)2/2 . (I.2) Its denominator t(x) = Sgeo (x) is positive and is available from the query score. Therefore exp x(−t(x) grad Egeo (x)) = exp x(log x ξi) = ξi.
+
+This is the stated exact step, with no approximation of the exponential map. 32 Finite temperature and curvature examples. For any finite distinct configuration, s > 0 and compactness bounds the Ricci eigenvalues. Thus the finite choice 
+
+β > max 
+
+> {
+
+2/s 2, 2/ inj( M)2, 13 max  
+
+> i
+
+λmax (Ric ξi )
+
+> }
+
+stores all patterns for both models. In negative Ricci curvature, − Ric /(3 β) is positive definite, so the correction increases every Hessian eigenvalue relative to the geodesic model. On the complete hyperbolic space Hm of constant sectional curvature −1, let w be unit length and extend it to an orthonormal basis w, e 2, . . . , e m. The definition of Ricci curvature gives Ric( w, w ) = 
+
+> m∑
+> j=2
+
+sec(span {w, e j }) = −(m − 1) .
+
+Homogeneity of this quadratic form gives Ric = −(m − 1) g. Substitution into (8) yields Hess Evc (ξi) = 1 + ( m − 1) /(3 β)1 + ϵ gξi .
+
+Hyperbolic space has no cut locus, so every finite h is admissible for this isolated-pattern statement. This pointwise example does not extend the compact-manifold random limits to noncompact sampling laws. On the unit sphere, θp(x) = (sin r/r )m−1 for r = d(p, x ) < π , and a corrected single-kernel score has radial part 
+
+k(r) = (1 − βr 2/2)( r/ sin r)m−1 = 1 + 12
+
+> (
+
+(m − 1) /3 − β)r2 + O(r4).
+
+The expansion follows from sin r/r = 1 − r2/6 + O(r4), raising its reciprocal to power m − 1, and multiplying by 1 − βr 2/2. Below the stability threshold, its derivative is positive for sufficiently small positive r. The score is zero at h < π and positive inside, so continuity gives a maximum at some radius strictly between zero and h. Rotational symmetry makes that maximum an off-center shell. Its tangential Hessian directions vanish, so this shell is not a set of nondegenerate memories under our definition. For comparison, define the geodesic log-sum-exponential energy 
+
+ELSE (x) = −β−1 log 
+
+> N∑
+> i=1
+
+e−βd (x,ξ i)2/2.
+
+The next statement is the intrinsic analogue of the distinction between approximate LSE retrieval and exact compact-support storage discussed by Ramsauer et al. (2021); Hoover et al. (2025). It is an almost-sure result for a fixed parameter, not a claim about every symmetric configuration or every parameter selected from the data. 
+
+Proposition I.1 (Generic obstruction for geodesic LSE) . Fix N ≥ 2 and a deterministic finite 
+
+β > 0. For independent patterns drawn from any distribution absolutely continuous with respect to 
+
+dV , almost surely no original pattern is stationary for ELSE . In particular, global emergence in the memory definition in Section 2 fails almost surely at that fixed β.Proof of Proposition I.1. For a fixed center x, its cut locus has Riemannian volume zero. Thus, with probability one, none of the other finitely many independent patterns lies in the cut locus of 
+
+Xi, and the energy is smooth at each original. Differentiation there gives grad ELSE (x) = − 
+
+> ∑
+> j
+
+e−βd (x,X j )2/2 log x Xj 
+
+> ∑
+> j
+
+e−βd (x,X j )2/2 .
+
+33 Fix i̸ = j. Condition on Xi = x and all patterns except Xj . The contribution from the own pattern is zero, so stationarity requires 
+
+e−βd (x,X j )2/2 log x Xj = C
+
+for a fixed vector C ∈ TxM determined by the conditioned variables. If C = 0, the only solution away from the cut locus is Xj = x. If C̸ = 0, write Xj = exp x(ru ) before its directional cut distance. Then u = C/ ∥C∥ and 
+
+re −βr 2/2 = ∥C∥ .
+
+The derivative of the left side is e−βr 2/2(1 − βr 2), which is positive for r < β −1/2 and negative for 
+
+r > β −1/2. The equation has at most two solutions. Thus the conditional solution set, including the cut locus, has volume zero. Absolute continuity implies conditional probability zero. Integrating the conditioning and taking the union over the finitely many i proves the proposition. 
+
+# J Active sets, support boundaries, and exact enumeration 
+
+For the regions UA, C A in (17), define the untruncated active objectives 
+
+FA = ∑
+
+> i∈A
+
+qi, GA = ∑
+
+> i∈A
+
+ai(1 − βq i).
+
+The proof applies under the component concavity in the main text. Assumption G.2 supplies an explicit sufficient condition for it. 
+
+Lemma J.1 (No supported boundary maximum) . For either ST , a point with ST (x) > 0 on one or more support boundaries is not a local maximum of ST .Proof. Let B = {j : d(x, ξ j ) = h}, which is nonempty. Near x, write the score as 
+
+ST = F + ∑
+
+> j∈B
+
+aj (uj )+, uj = 1 − βq j ,
+
+where F is the smooth contribution from strictly active kernels and ϵ. For T = geo, take aj = 1. The coefficients are smooth and positive near the boundary because h < inj( M). For a tangent vector w, the one-sided directional derivative along exp x(tw ), t ↓ 0, is 
+
+DS T (x; w) = dF x(w) + ∑
+
+> j∈B
+
+aj (x) max {du j (w), 0}.
+
+Adding the derivatives in opposite directions yields 
+
+DS T (x; w) + DS T (x; −w) = ∑
+
+> j∈B
+
+aj (x)|du j (w)|.
+
+Each du j is nonzero since ∥dq j (x)∥ = h > 0. Choose w on which one du j is nonzero. The sum of the two directional derivatives is then strictly positive. Both would have to be nonpositive at a local maximum, giving a contradiction. Since − log is strictly decreasing, a local energy minimum in the finite-energy domain would be a score maximum, and is therefore also excluded. 
+
+Proof of Theorem 3. On CA, Sgeo = ϵ + |A| − βF A. Consequently grad FA = − ∑
+
+> i∈A
+
+log x ξi, Hess FA ⪰ | A|cg. 
+
+34 The critical-point equation is (18). At a solution, Equation (I.1) gives Hess Egeo = Hess FA/S geo ≻ 0. The set UA is strongly geodesically convex: the unique minimizing geodesic between two of its points lies in every ball defining the intersection. Suppose two distinct points x, y ∈ UA are critical for FA. Let γ : [0 , 1] → UA be that geodesic with constant speed ℓ = d(x, y ) > 0. Then (FA ◦ γ)′′ (t) = Hess FA( ˙ γ, ˙γ) ≥ | A|cℓ 2.
+
+Integrating from zero to one gives ( FA ◦ γ)′(1) − (FA ◦ γ)′(0) ≥ | A|cℓ 2 > 0. Both derivatives are zero by stationarity at the endpoints. This contradiction proves uniqueness. For the corrected energy, a single active term ki = ai(1 − βq i) has Hessian Hess ki = − βa i Hess qi − β(da i ⊗ dq i + dq i ⊗ da i)+ (1 − βq i) Hess ai.
+
+If w is a unit tangent vector in Bh(ξi), then ∥dq i∥ = d(x, ξ i) < h and 0 < 1 − βq i ≤ 1. Hence Hess ki(w, w ) ≤ − βa ∗c + 2 βLh + H = −μ. 
+
+Under the main-text component concavity this same bound is an assumption; the calculation above shows how Assumption G.2 implies it. Summing gives Hess GA ⪯ −| A|μg . The preceding integrated-geodesic argument with the inequality reversed proves that GA has at most one critical point in UA. At such a point in CA, the score is positive and (I.1) makes the energy Hessian positive definite. Since grad ai = −ai grad log θξi ,grad ki = βa i log x ξi − ai(1 − βq i) grad log θξi .
+
+Setting the sum equal to zero proves (19). Lemma J.1 excludes support boundaries. Outside all supports the score is either zero, outside the finite-energy domain, or constant ϵ, with zero Hessian. Therefore every memory belongs to a nonempty active set and every such set contributes at most one. Every critical point in a nonempty CA has just been shown to have positive-definite energy Hessian; thus there is no saddle in the smooth supported domain. This proves (20). If all N original patterns are memories, removing those N distinct points leaves at most 2 N − N − 1 additional points, and imposing novelty can only reduce that number. Let zTA denote the unique candidate in UA when it exists, with an absent candidate contributing zero. The theorem gives the exact deterministic formula 
+
+N T
+
+> em
+
+(η) = ∑ 
+
+> ∅̸=A⊆[N]
+
+1{zTA exists , z TA ∈ CA, min  
+
+> i
+
+d(zTA, ξ i) ≥ η}. (J.1) 
+
+Proposition J.2 (Finite-sample expected count and occupancy bound) . Assume the geometric hypotheses of Theorem 3 hold uniformly for the possible centers. Let the patterns be independent from an absolutely continuous law ν, and let 0 < η < h . If zTk is the candidate from X1, . . . , X k in their common support intersection, then 
+
+EN T
+
+> em
+
+(η) = 
+
+> N∑
+> k=2
+> (
+
+Nk
+
+> )
+
+E[1{zTk exists , min  
+
+> i≤k
+
+d(zTk , X i) ≥ η}· (1 − bh(zTk )) N −k]. (J.2) 35 Put Lh = sup x #{i : d(x, X i) < h } and p2h = sup x ν(B2h(x)) . For 1 ≤ k ≤ N − 1,
+
+P(Lh > k ) ≤ N
+
+> (
+
+N − 1
+
+k
+
+> )
+
+pk 
+
+> 2h
+
+≤ N 
+
+> (
+
+e(N − 1) p2h
+
+k
+
+> )k
+
+. (J.3) 
+
+On {Lh ≤ k}, N T 
+
+> tot
+
+≤ ∑kj=1 
+
+> (Nj
+> )
+
+.Proof. Whenever the candidate exists inside UA, its defining equation has a nonsingular derivative with respect to the candidate, by strict convexity or concavity. The implicit function theorem makes the candidate locally smooth in the pattern positions. Its existence domain is open, and uniqueness makes these local functions agree. The candidate is therefore a measurable function of the patterns on its existence domain. For an active subset A of size k, condition on its k patterns. The candidate is then fixed whenever it exists. All other independent patterns must lie outside its radius-h ball, which has conditional probability (1 − bh(zTA)) N −k. Since η < h , those excluded patterns automatically satisfy the novelty condition. Absolute continuity, when needed, removes equality on the sphere; alternatively use closed-ball exclusion throughout if the distribution has sphere atoms. Summing (J.1) and using exchangeability proves (J.2) for absolutely continuous ν. More generally the displayed formula is valid when ν(∂B h(zTk )) = 0 almost surely. Singleton candidates are their original patterns, so they do not contribute. If a radius-h ball contains at least k + 1 patterns, choose one of them. The other k are all within distance 2 h of the chosen pattern by the triangle inequality. For each possible chosen index, condition on its value and apply a union bound over subsets of k other indices. The probability is at most (N −1
+
+> k
+> )
+
+pk
+
+> 2h
+
+. A union bound over the N chosen indices proves the first inequality in (J.3). The bound (nk 
+
+> )
+
+≤ (en/k )k follows from (nk 
+
+> )
+
+≤ nk/k ! and log( k!) = 
+
+> k∑
+> j=1
+
+log j ≥ 
+
+> ∫k
+> 1
+
+log t dt = k log k − k + 1 ≥ k log k − k. 
+
+This proves the second inequality. On {Lh ≤ k}, every realized nonempty active subset has at most 
+
+k members. The one-candidate-per-subset bound proves the final statement. For example, the integer condition k ≥ max {e2(N −1) p2h, log( N/δ )} makes the right side of (J.3) at most δ, unless k ≥ N , when the deterministic total bound suffices. An expected occupancy at a fixed deterministic x does not itself control the occupancy at data-selected candidate locations. 
+
+# K Quantitative persistence of the simplex construction 
+
+The Euclidean active-subset viewpoint is the starting point of Hoover et al. (2025). The result proved here controls its maximal-count simplex realization under curvature, including the volume correction. Averaging each active score is useful: it keeps the perturbation bounds independent of the subset size. 
+
+Proof of Theorem 4, designed-pattern part. Fix an orthonormal coordinate system on TpM. All constants below are taken on one fixed normal neighborhood of p; they may depend on the metric and dimension but not on N ≤ m + 1 or on the subset. 36 The Euclidean support margins. Let e1, . . . , e N be the standard basis of RN , let ¯ e = N −1 ∑ 
+
+> i
+
+ei,and put wi = ei − ¯e. The wi lie in the ( N − 1)-dimensional subspace orthogonal to (1 , . . . , 1). Embed that subspace isometrically in TpM. For a nonempty A ⊆ [N ] with k = |A|, write ¯ wA = k−1 ∑ 
+
+> i∈A
+
+wi.Then ∥wi∥ ≤ 1, ∥ ¯wA∥ ≤ 1, and 
+
+∥ ¯wA − wi∥2 =
+
+> {
+
+1 − 1/k, i ∈ A, 
+
+1 + 1 /k, i / ∈ A. (K.1) Indeed, ¯ wA − wi = k−1 ∑ 
+
+> j∈A
+
+ej − ei. The squared norm of the first term is k/k 2 = 1 /k ; the cross term is −2/k for i ∈ A and zero otherwise. Adding ∥ei∥2 = 1 proves (K.1). Likewise ∥wi − wj ∥2 = 2 for i̸ = j. The squared-distance margin from the support boundary is at least 1 /N for every subset. 
+
+Uniform geometric perturbations. Define ξi(h) = exp p(hw i), and for ∥y∥ ≤ 2, ∥w∥ ≤ 1 put 
+
+Dh(y, w ) = h−2d(exp p(hy ), exp p(hw )) 2, ah(y, w ) = θexp p(hw )(exp p(hy )) −1.
+
+There are h0 > 0 and C0 < ∞, independent of y, w, N , such that 
+
+> ∥∥∥
+
+Dh(·, w ) − ∥· − w∥2∥∥∥C2({∥ y∥≤ 2}) ≤ C0h2, (K.2) 
+
+∥ah(·, w ) − 1∥C2({∥ y∥≤ 2}) ≤ C0h2, 0 < h < h 0. (K.3) We justify both bounds, including their derivatives. In normal coordinates at p, g(0) = I and its first derivatives vanish. On a fixed rescaled ball, gh(z) := g(hz ) consequently satisfies gh = I + O(h2)with all fixed finite orders of z-derivatives. Its Christoffel symbols are Γ h(z) = hΓ( hz ) = O(h2), with the same derivative control. Choose the coordinate domain to contain ∥z∥ ≤ 8, and take h0
+
+small enough that its physical image is normal. For the geodesic equation with initial position y and initial velocity u, integration of ¨ γ =
+
+−Γh(γ)( ˙ γ, ˙γ) on [0 , 1] gives γ(t) = y + tu + O(h2) and ˙ γ(t) = u + O(h2), uniformly for the bounded initial positions and velocities under consideration. Differentiating this differential equation with respect to y, u gives linear differential equations whose coefficients and inhomogeneous perturbations are O(h2); their integral forms give the same estimates with two endpoint derivatives. For example, the position derivative J satisfies J(0) = I, ˙J(0) = 0, and ¨J = −DΓh(γ)[ J]( ˙ γ, ˙γ) − 2Γ h(γ)( ˙J, ˙γ).
+
+Boundedness of γ, ˙γ and integration imply J = I + O(h2) and ˙J = O(h2). Velocity derivatives have initial data 0 , I and give tI + O(h2); differentiating once more gives the second-derivative estimates by the same integral bounds. The endpoint map is therefore y + u + O(h2) in C2, with derivative in u equal to I + O(h2). The inverse function theorem, uniformly on the bounded endpoint domain, solves the endpoint equation with u = w − y + O(h2), including two derivatives in y, w . Equivalently, this uniform inverse follows by writing u = w − y − Rh(y, u ); the remainder has Lipschitz constant O(h2) in u and maps a fixed small neighborhood of w − y to itself. The resulting geodesic stays in the chosen domain and is the unique short minimizing geodesic when h0 is small. Its rescaled energy is 
+
+Dh(y, w ) =  
+
+> ∫10
+
+gh(γ(t))( ˙ γ(t), ˙γ(t)) dt = ∥y − w∥2 + O(h2)with two endpoint derivatives. This proves (K.2). 37 For (K.3), the reciprocal volume density is smooth in both endpoints near the diagonal. It equals one on the diagonal and its first derivatives there vanish by Lemma G.1 and differentiation of its diagonal value. Its difference from one is thus O(h2) for the two endpoints above. Its first endpoint derivative is O(h); the chain rule supplies another factor h in y coordinates. Its bounded second endpoint derivative receives a factor h2. This gives the claimed C2 
+
+> y
+
+bound. 
+
+A critical point for every subset. On the rescaled domain define the averaged, untruncated active scores 
+
+Hgeo 
+
+> A,h
+
+(y) = 1
+
+k
+
+> ∑
+> i∈A
+
+(1 − Dh(y, w i)) , Hvc 
+
+> A,h
+
+(y) = 1
+
+k
+
+> ∑
+> i∈A
+
+ah(y, w i)(1 − Dh(y, w i)) .
+
+Their Euclidean limit is HA, 0(y) = k−1 ∑
+
+> i∈A
+
+(1 − ∥ y − wi∥2). Since ∥y∥ ≤ 2 and ∥wi∥ ≤ 1, products and derivatives in these expressions are uniformly bounded. Increasing C0 to a constant C ≥ 1gives, for both models, 
+
+> ∥∥∥
+
+HTA,h − HA, 0 
+
+> ∥∥∥C2
+
+≤ Ch 2, ∇HA, 0(y) = −2( y − ¯wA), ∇2HA, 0 = −2I. (K.4) The averaging ensures that C is independent of k.Set ρN = 1 /(32 N ) and assume 
+
+Ch 2 ≤ 1/(64 N ). (K.5) On the boundary of the Euclidean closed ball BρN ( ¯ wA), the outward unit derivative of HTA,h is at most −2ρN + Ch 2 ≤ − 3ρN /2 < 0. The continuous score attains a maximum on this compact ball. A boundary maximizer is impossible, since moving a short distance inward would increase the score. Thus an interior maximizer yTA exists and has zero gradient. Equation (K.4) gives ∇2HTA,h ⪯ − I, so the maximizer is unique in the ball. At its critical point, 2
+
+> ∥∥∥
+
+yTA − ¯wA 
+
+> ∥∥∥
+
+=
+
+> ∥∥∥
+
+∇HA, 0(yTA) − ∇ HTA,h (yTA) 
+
+> ∥∥∥
+
+≤ Ch 2.
+
+Hence 
+
+> ∥∥∥
+
+yTA − ¯wA 
+
+> ∥∥∥
+
+≤ Ch 2/2. 
+
+Checking every active set and novelty margin. For δA = yTA − ¯wA, the squared Euclidean distance changes by 
+
+> ∣∣∣∣∥∥∥
+
+yTA − wi
+
+> ∥∥∥2
+
+− ∥ ¯wA − wi∥2 
+
+> ∣∣∣∣
+
+≤ (2 ∥ ¯wA − wi∥ + ∥δA∥) ∥δA∥ ≤ 5 ∥δA∥ .
+
+The last inequality uses ∥ ¯wA∥ , ∥wi∥ ≤ 1 and ∥δA∥ ≤ 1. Combining it with (K.2) and enlarging the common C beforehand if necessary gives 
+
+> ∣∣∣
+
+Dh(yTA, w i) − ∥ ¯wA − wi∥2∣∣∣ ≤ Ch 2 + 52 Ch 2 = 72 Ch 2 < 14N .
+
+By (K.1), all members are strictly within radius h and all nonmembers strictly outside. Thus 
+
+xTA = exp p(hy TA) lies in CA. Different subsets give different points because a point has only one strict active set. The coordinate Hessian of the energy is positive definite at xTA: its score Hessian is a positive multiple of ∇2HTA,h ≺ 0 and its gradient is zero. At a critical point the connection term in the intrinsic Hessian vanishes, so this is also positive definiteness of the Riemannian Hessian. 38 For k ≥ 2, member distances satisfy 
+
+h−2d(xTA, ξ i)2 ≥ 1 − 1/k − 72 Ch 2 ≥ 12 − 72 Ch 2.
+
+Fix τ < 1/√2 and put gτ = 1 /2 − τ 2 > 0. Choose, for example, 
+
+cτ = min 
+
+> {
+
+h0/2, (64 C)−1/2, (gτ /(8 C)) 1/2}
+
+,
+
+and shrink h0 beforehand so Lemma G.3 holds. If h ≤ cτ /√N with N ≥ 2, then (K.5) holds and (7 /2) Ch 2 < g τ . Hence all member distances exceed τ h . Nonmember distances exceed h > τ h .Originals are isolated because h−2d(ξi, ξ j )2 = 2 + O(h2) > 1. At this small bandwidth they are stable for both models by Theorem 2. Each is therefore the unique singleton candidate. Theorem 3 applies by Lemma G.3 and bounds the total number by 2 N − 1. We have constructed that many distinct memories, so the count is exact and exactly 2 N − N − 1 of them meet the stated novelty threshold. Finally, the differential of y 7 → exp p(hy ) has norm at most 2 h on the bounded domain for small h. Integrating along the segment from ¯ wA to yTA gives 
+
+d(xTA, exp p(h ¯wA)) ≤ 2h
+
+> ∥∥∥
+
+yTA − ¯wA 
+
+> ∥∥∥
+
+≤ Ch 3.
+
+This proves the displacement claim and completes the quantitative construction. 
+
+Corollary K.1 (Polynomial bandwidths for the spherical construction) . Fix 0 < τ < 1/√2.There is a constant cτ > 0, independent of m, N, p , such that on the unit sphere Sm, m ≥ 2, the construction in Theorem 4 attains (21) whenever 
+
+h ≤ cτ /√N for Egeo , h ≤ cτ /√mN for Evc , 2 ≤ N ≤ m + 1 .
+
+These are sufficient, not necessary, bandwidth conditions. In particular, for N = m + 1 the sufficient shrinkage is polynomial in dimension for both energies. Proof. We verify dimension-uniform versions of the perturbation and concavity bounds used above. Sphere symmetry makes all constants independent of the center p.In normal coordinates on the unit sphere, for r = ∥v∥ and a tangent vector u the metric is 
+
+gv(u, u ) =  
+
+> (
+
+sin rr
+
+> )2
+
+∥u∥2 +
+
+> [
+
+1 − 
+
+> (
+
+sin rr 
+
+> )2]
+
+⟨v, u ⟩2
+
+r2 ,
+
+with the continuous extension at r = 0. To see this, differentiate exp p v = cos( r)p + (sin r/r )v in the ambient Euclidean space, decomposing u into its component parallel to v and its orthogonal component. The parallel component keeps its length; the orthogonal component is multiplied by sin r/r , and the images are orthogonal. Squaring their lengths gives the formula. Put A(s) = (sin √s/ √s)2 and B(s) = (1 − A(s)) /s . Their power series have finite smooth extensions near zero. The metric is therefore the operator gv = A(∥v∥2)I + B(∥v∥2)v ⊗ v. For 
+
+v = hz on a fixed bounded rescaled ball, the differences ghz − I and their derivatives up to any fixed order in z are O(h2) in operator norm, with constants independent of m. This follows from the bounded one-variable derivatives of A, B , A(0) = 1, and the dimension-free bounds on derivatives of z 7 → ∥ z∥2 and z 7 → z ⊗ z. The inverse metric is uniformly bounded for small h. The Christoffel symbols, viewed as a bilinear operator, and their required derivatives are consequently O(h2) with dimension-uniform constants, by the metric formula for the Levi-Civita connection. The integrated 39 geodesic and endpoint-inversion estimates in (K.2) then have a constant independent of dimension. It follows that the geodesic averaged-score error in (K.4) is at most Ch 2, with a universal C.The spherical reciprocal volume factor is 
+
+ah(y, w ) = exp 
+
+> (
+
+(m − 1) ℓ(h2Dh(y, w )) 
+
+> )
+
+, ℓ(s) = − log  
+
+> (
+
+sin √s
+
+√s
+
+> )
+
+.
+
+The function ℓ is smooth near zero, ℓ(0) = 0, and ℓ(s) = s/ 6 + O(s2). The preceding uniform C2
+
+bounds on Dh imply that the exponent and its first two y-derivatives have magnitude at most 
+
+Cmh 2. For example, its gradient is ( m − 1) ℓ′(h2Dh)h2∇Dh; its Hessian is (m − 1) 
+
+> [
+
+ℓ′(h2Dh)h2∇2Dh + ℓ′′ (h2Dh)h4∇Dh ⊗ ∇ Dh
+
+> ]
+
+.
+
+If mh 2 is smaller than a fixed constant, exponentiation gives ∥ah − 1∥C2 ≤ C′mh 2: its Hessian is the exponential times the sum of the exponent Hessian and the outer product of its gradient, whose norm is O(mh 2 + ( mh 2)2). Thus the corrected averaged-score error is at most C′′ mh 2.We also need uniform component concavity to exclude additional candidates outside the con-structed neighborhoods. The Hessian of qp = d(·, p )2/2 has eigenvalue 1 in the radial direction and 
+
+r cot r in orthogonal directions. This follows by differentiating radial distance in the polar metric 
+
+dr 2 + sin 2 r g Sm−1 : for a unit tangential vector u, Hess r(u, u ) = cot r, and Hess q = dr ⊗ dr + r Hess r.For a fixed small radius these eigenvalues are at least 1 /2, uniformly in m. The argument in Lemma G.3 therefore gives a dimension-uniform strongly convex support radius. For the corrected kernel, write a(r) = exp(( m − 1) ℓ(r2)). For r ≤ h and mh 2 bounded by a fixed small constant, 1 ≤ a(r) ≤ C. Direct differentiation gives 
+
+a′(r) = 2( m − 1) rℓ ′(r2)a(r),a′′ (r) = a(r)
+
+> [
+
+(m − 1)(2 ℓ′(r2) + 4 r2ℓ′′ (r2)) + 4( m − 1) 2r2ℓ′(r2)2]
+
+.
+
+Consequently |a′(r)| ≤ C1mr and |a′′ (r)| ≤ C2(m + m2r2) ≤ C3m. The radial Hessian formula gives the other eigenvalue a′(r) cot r, also bounded by C1m because r cot r ≤ 1 at these radii. Assumption G.2 therefore holds with a∗ ≥ 1, c ≥ 1/2, L ≤ C1mh , H ≤ C4m, provided 
+
+μ ≥ h−2 − (4 C1 + C4)m > 0.
+
+It suffices to bound mh 2 by a sufficiently small dimension-independent constant. Now repeat the preceding simplex proof with error parameter Ch 2 for the geodesic score and 
+
+Cmh 2 for the corrected score. The critical-point, support, and novelty arguments require this parameter to be at most 1 /(64 N ) and a fixed fraction of 1 /2 − τ 2. Choose cτ small enough to ensure these requirements and the uniform support-convexity and corrected-concavity bounds just proved. The two displayed bandwidth conditions then meet every requirement. The construction has all 2N − 1 memories and the required novelty count, completing the proof. 
+
+# L A dimension-sensitive counting bound on spheres 
+
+We use the hyperplane-arrangement region bound associated with Zaslavsky (1975); the recurrence is included below for completeness. 40 Proposition L.1 (Polynomial upper bound at fixed spherical dimension) . For patterns on the unit sphere Sm, suppose Assumption G.2 holds and h < π/ 2. Then for both energies, 
+
+N T 
+
+> tot
+
+≤
+
+> m+1 ∑
+> j=1
+> (
+
+Nj
+
+> )
+
+.
+
+If every original is retained, then N T
+
+> em
+
+(η) ≤ ∑m+1  
+
+> j=1
+> (Nj
+> )
+
+− N . We use the convention (Nj 
+
+> )
+
+= 0 for 
+
+j > N .Proof. For unit vectors x and ξi, geodesic activation is equivalent to 
+
+d(x, ξ i) < h ⇐⇒ x · ξi > cos h. 
+
+Every strict active pattern on the sphere is consequently a strict sign pattern of the N affine hyperplanes z · ξi = cos h in Rm+1 . For a fixed strict sign pattern, its realization in the ambient space is an intersection of open halfspaces, hence is convex and, when nonempty, connected. Thus distinct strict sign patterns correspond to distinct regions of the hyperplane arrangement. Let R(N, d ) be the maximal number of regions cut out by N affine hyperplanes in Rd. Adding the last hyperplane can split an old region only when its intersection with that hyperplane contains a relatively open set. The preceding hyperplanes divide the new hyperplane into at most R(N −1, d −1) such regions, and each of these can lie in and split at most one old region. Therefore 
+
+R(N, d ) ≤ R(N − 1, d ) + R(N − 1, d − 1) .
+
+The initial conditions are R(0 , d ) = 1 and R(N, 0) = 1. Induction using Pascal’s identity gives 
+
+R(N, d ) ≤
+
+> d∑
+> j=0
+> (
+
+Nj
+
+> )
+
+.
+
+Because cos h > 0, the ambient point z = 0 strictly satisfies all inactive inequalities. The empty sign pattern therefore occupies at least one ambient region, whether or not it occurs on the sphere. The number of nonempty spherical active patterns is at most R(N, m + 1) − 1. Theorem 3 contributes at most one memory per nonempty active pattern, proving the total bound. Removing the N original memories proves the additional-memory bound. 
+
+# M Random storage and small-ball probabilities 
+
+Theorem M.1 (Collision characterization and sharp random capacity) . At a fixed deterministic bandwidth h < inj( M), for any absolutely continuous ν,
+
+Ageo = {d(Xi, X j ) > h for every i̸ = j} almost surely .
+
+The same statement holds for Avc for all sufficiently small h on a fixed smooth compact manifold: smallness is used for the Ricci stability condition and for invertibility of the neighbor-to-gradient derivative in Lemma M.2. In particular, 
+
+P(AT ) ≥ 1 −
+
+> (
+
+N
+
+2
+
+> )
+
+qh. (M.1) 41 Suppose qh → 0 and sup x bh(x) ≤ Cq h, where C is independent of h on a fixed manifold or of the dimension m along the sphere sequences considered below. If N 2qh → 2λ ∈ (0 , ∞), then 
+
+P(AT ) −→ e−λ. (M.2) 
+
+Let N Tδ (h) be the largest N with success probability at least 1 − δ, for fixed 0 < δ < 1. Then 
+
+N Tδ (h) ∼
+
+> √
+
+−2 log(1 − δ)
+
+qh
+
+. (M.3) 
+
+For a continuous density f on a fixed compact m-dimensional manifold, 
+
+qh = ωmhm
+
+> (∫
+> M
+
+f 2 dV + o(1) 
+
+> )
+
+,
+
+so both energies have the asymptotic all-pattern capacity 
+
+N Tδ (β) ∼ 
+
+> (
+
+−2 log(1 − δ)
+
+ωm 
+
+> ∫
+
+f 2 dV   
+
+> )1/2(
+
+β
+
+2
+
+> )m/ 4
+
+. (M.4) 
+
+Lemma M.2 (Generic nonstationarity with an active neighbor) . At a fixed deterministic h < inj( M),independent absolutely continuous patterns almost surely have no stationary original with an active neighbor for Egeo . The same holds for Evc for every sufficiently small h on a fixed smooth compact manifold. Proof. Distance-equality events d(Xi, X j ) = h have probability zero: conditional on Xi = x, the sphere of radius h lies in a normal chart and has volume zero. Fix i̸ = j, condition on Xi = x and all patterns except Xj , and restrict to d(x, X j ) < h .For the geodesic energy, the own contribution to the score gradient is zero and stationarity requires β log x Xj = C for a fixed tangent vector C. The exponential map is one-to-one on the radius-h tangent ball, so the conditional equation has at most one solution and probability zero. A finite union over ( i, j ) proves the geodesic assertion. For the corrected energy, write a(x, y ) = θy(x)−1 and q(x, y ) = d(x, y )2/2. For fixed x, the contribution of y to the score gradient is 
+
+Fx(y) = (1 − βq (x, y )) grad x a(x, y ) − βa (x, y ) grad x q(x, y ).
+
+Differentiating with respect to y and dividing by β gives 
+
+β−1DyFx = − aD y grad x q − (dya) ⊗ grad x q − (dyq) ⊗ grad x a
+
++ ( β−1 − q)Dy grad x a. 
+
+Use parallel transport to identify the nearby tangent spaces. On the diagonal, Dy grad x q = −I, and this derivative converges uniformly to −I as the endpoints approach one another. Also a = 1+ O(h2), both first derivatives of a are O(h), both first derivatives of q are O(h), and Dy grad x a is uniformly bounded. Finally, |β−1 − q| ≤ h2/2 inside the support. Thus β−1DyFx converges uniformly to I for 
+
+d(x, y ) < h , and is invertible once h is sufficiently small. By the inverse function theorem, Fx is locally one-to-one everywhere on Bh(x). Each fiber is therefore a discrete subset of that ball. A discrete subset of a second-countable manifold is countable: assign to each point a basis neighborhood meeting the fiber in that point only, and use the resulting injection into a countable basis. The fiber consequently has volume zero. Stationarity under the conditioning requires Fx(Xj ) = C for a fixed vector. Its conditional probability is zero by absolute continuity. Integrating and taking the finite union over ( i, j ) proves the corrected assertion. 42 Lemma M.3 (No-collision limit) . Suppose qh → 0, sup x bh(x) ≤ Cq h, and N 2qh → 2λ ∈ (0 , ∞). If 
+
+Zh = ∑
+
+> i<j
+
+1{d(Xi, X j ) < h },
+
+then P(Zh = 0) → e−λ. If N → ∞ , qh → 0, and N 2qh → ∞ , then P(Zh = 0) → 0.Proof. Fix k ≥ 1. Expand E(Zh
+
+> k
+
+) over sets of k distinct unordered edges on the sample indices. Edges with disjoint endpoints contribute (N )2k
+
+2kk! qkh −→ λk
+
+k! ,
+
+where ( N )2k = N (N − 1) · · · (N − 2k + 1). For any edge pattern with overlapping endpoints, let v be its number of vertices and c its number of connected components. Each component has at least two vertices, and at least one has three or more, so v > 2c. Select a spanning forest. Reveal one root in each component and then every other vertex after its parent. Each required forest edge has conditional probability at most Cq h, so the probability of the whole edge pattern is at most ( Cq h)v−c. For fixed k there are at most a constant times N v labelings of each of finitely many patterns. Since N = O(q−1/2 
+
+> h
+
+), their total contribution is 
+
+Ok(N vqv−ch ) = Ok(qv/ 2−ch ) −→ 0.
+
+We have proved E(Zh
+
+> k
+
+) → λk/k ! for every fixed k.For an integer z ≥ 1, Pascal’s identity and cancellation give 
+
+> r
+
+∑
+
+> k=0
+
+(−1) k
+
+(zk
+
+)
+
+= ( −1) r
+
+(z − 1
+
+r
+
+)
+
+.
+
+For z = 0 the sum is one. Therefore the odd and even partial sums bound 1{z = 0 }. Applying these bounds to Zh yields, for each fixed K,
+
+> 2K+1
+
+∑
+
+> k=0
+
+(−1) kE
+
+(Zh
+
+k
+
+)
+
+≤ P(Zh = 0) ≤
+
+> 2K
+
+∑
+
+> k=0
+
+(−1) kE
+
+(Zh
+
+k
+
+)
+
+.
+
+First let h → 0, using the moment limits, and then let K → ∞ . The two limiting series both tend to e−λ.For the second assertion, disjoint edges are independent. Two distinct edges sharing a vertex have joint probability E[bh(X1)2] ≤ Cq hEbh(X1) = Cq 2
+
+> h
+
+. There are at most a constant times N 3
+
+such edge pairs. Hence Var( Zh) ≤ EZh + C′N 3q2
+
+> h
+
+, EZh =
+
+(N
+
+2
+
+)
+
+qh.
+
+If N 2qh → ∞ , then 
+
+P(Zh = 0) ≤ Var( Zh)(EZh)2 ≤ C′′ 
+
+N 2qh
+
++ C′′ 
+
+N −→ 0,
+
+by Chebyshev’s inequality. 43 Proof of Theorem M.1. In the absence of a pair at distance at most h, Theorem 2 stores every original for the geodesic energy and, uniformly on a fixed compact manifold, for the corrected energy once h is small. Conversely, Lemma M.2 shows that any active neighbor almost surely prevents stationarity at an original. Equality events have probability zero. This proves the event identities. The union bound over (N 
+
+> 2
+> )
+
+possible close pairs proves (M.1). Lemma M.3 proves (M.2). To obtain (M.3), put cδ = √−2 log(1 − δ). For any constants 0 < c − < c δ < c +, sample sizes ⌊c−q−1/2 
+
+> h
+
+⌋
+
+and ⌈c+q−1/2 
+
+> h
+
+⌉ have success probabilities tending respectively to e−c2 
+
+> −/2
+
+> 1 − δ and e−c2+/2 < 1 − δ.The no-collision probability is nonincreasing in N . These two sample sizes therefore sandwich N Tδ (h)for small h. Sending c− and c+ to cδ gives the asymptotic equivalence. For a continuous density, normal coordinates yield 
+
+bh(x) = hm
+
+> ∫
+> ∥u∥<1
+
+f (exp x(hu )) θx(exp x(hu )) du = ωmhm(f (x) + o(1)) uniformly in x, by uniform continuity and Lemma G.1. Integrating against f (x)dV (x) gives the expansion for qh. Since ∫ f 2 > 0 and f is bounded, it also gives sup x bh(x) ≤ Cq h for small h.Substitution of h = (2 /β )1/2 proves (M.4). 
+
+Proposition M.4 (Typical-pattern retention and the fraction of failures) . Work in a regime in which each original is a memory if and only if it has no neighbor within distance h, almost surely. This holds for Egeo at fixed h < inj( M), for Evc at sufficiently small h on a fixed compact manifold, and for uniform spherical patterns above the corrected stability threshold as shown in Corollary M.5. Define 
+
+RTN = 1
+
+N
+
+> N∑
+> i=1
+
+1{Xi is a memory for ET }, pTN (h) = P(X1 is a memory for ET ).
+
+For 0 < δ < 1, let N T
+
+> typ ,δ
+
+(h) be the largest N for which pTN (h) ≥ 1 − δ.
+
+Exact probability and a fraction bound. For every N ≥ 1,
+
+pTN (h) = ERTN =
+
+> ∫
+
+(1 − bh(x)) N −1 dν (x), E(1 − RTN ) ≤ (N − 1) qh. (M.5) 
+
+For every η > 0,
+
+P(1 − RTN > η ) ≤ (N − 1) qh
+
+η . (M.6) 
+
+In particular, N q h → 0 implies a vanishing fraction of failed originals in probability. 
+
+Homogeneous ball probabilities. If bh(x) = qh for ν-almost every x and 0 < q h < 1, then 
+
+pTN (h) = (1 − qh)N −1, N T
+
+> typ ,δ
+
+(h) = 1 +  
+
+> ⌊
+
+log(1 − δ)log(1 − qh)
+
+> ⌋
+
+. (M.7) 
+
+As qh → 0,
+
+N q h → ρ ∈ [0 , ∞) =⇒ pTN (h) → e−ρ, N T
+
+> typ ,δ
+
+(h) ∼ − log(1 − δ)
+
+qh
+
+. (M.8) 
+
+A fixed nonuniform density. Suppose M is fixed and compact, f is a continuous density, and h → 0. Write cf = ∫ f 2 dV > 0 and define 
+
+Gf (ρ) = 
+
+> ∫
+> M
+
+f (x) exp 
+
+> (
+
+−ρ f (x)
+
+cf
+
+> )
+
+dV (x). (M.9) 44 Then N q h → ρ ∈ [0 , ∞) implies pTN (h) → Gf (ρ). There is a unique ρδ > 0 with Gf (ρδ ) = 1 − δ, and 
+
+N T
+
+> typ ,δ
+
+(h) ∼ ρδ
+
+qh
+
+∼ ρδ
+
+ωmcf 
+
+> (
+
+β
+
+2
+
+> )m/ 2
+
+. (M.10) 
+
+For homogeneous ball probabilities, and also for a fixed continuous density as above, RTN → 1 in probability if and only if N q h → 0 along a sequence with qh → 0.Proof. Condition on X1 = x. It is a memory exactly when each of the other N − 1 independent patterns lies outside Bh(x), an event of conditional probability (1 − bh(x)) N −1. Integrating over 
+
+x proves the first expression in (M.5). Exchangeability gives ERTN = pTN (h). To see that this is also the success probability of a uniformly selected original, take an independent uniform index 
+
+I ∈ { 1, . . . , N }. Then 
+
+P(XI is a memory) = 1
+
+N
+
+> N∑
+> i=1
+
+P(Xi is a memory) = pTN (h).
+
+For 0 ≤ b ≤ 1, the event that at least one of N − 1 independent Bernoulli trials succeeds has probability 1 −(1 −b)N −1 and is at most the sum ( N −1) b of the individual probabilities. Consequently 1 − pTN (h) = 
+
+> ∫
+
+[1 − (1 − bh(x)) N −1] dν (x) ≤ (N − 1) 
+
+> ∫
+
+bh(x) dν (x) = ( N − 1) qh.
+
+Since 1 − RTN ≥ 0, its expectation is at least ηP(1 − RTN > η ). This proves (M.6). For each fixed 
+
+η > 0, its right-hand side tends to zero when N q h → 0, proving the stated convergence in probability. No independence of the retention indicators is used. When bh = qh almost everywhere, the integral in (M.5) equals (1 − qh)N −1. As log(1 − qh) < 0, the success inequality is equivalent to (N − 1) log(1 − qh) ≥ log(1 − δ) ⇐⇒ N − 1 ≤ log(1 − δ)log(1 − qh) .
+
+Taking the largest integer N proves (M.7). For 0 ≤ u < 1, integration of the derivative of − log(1 −u)gives 0 ≤ − log(1 − u) − u = 
+
+> ∫u
+> 0
+
+t
+
+1 − t dt ≤ u2
+
+2(1 − u) . (M.11) Thus log(1 − qh) = −qh + O(q2
+
+> h
+
+) as qh → 0. When N q h → ρ < ∞, we have ( N − 1) qh → ρ and 
+
+N q 2 
+
+> h
+
+→ 0. Multiplying the logarithm expansion by N − 1 proves (1 − qh)N −1 → e−ρ. Dividing (M.11) by u > 0 also proves − log(1 − qh)/q h → 1. The integer rounding in (M.7) changes N by at most a constant, whereas q−1 
+
+> h
+
+→ ∞ , so the capacity equivalent in (M.8) follows. For a fixed continuous density, the uniform small-ball expansion in the proof of Theorem M.1 gives 
+
+bh(x)
+
+qh
+
+−→ f (x)
+
+cf
+
+uniformly in x, sup 
+
+> x
+
+bh(x) = O(qh).
+
+If N q h → ρ < ∞, inequality (M.11) yields sup 
+
+> x
+
+|(N − 1) log(1 − bh(x)) + ( N − 1) bh(x)| ≤ N (sup x bh(x)) 2
+
+2(1 − sup x bh(x)) = O(N q 2
+
+> h
+
+) −→ 0.
+
+Meanwhile ( N − 1) bh(x) → ρf (x)/c f uniformly. Exponentiating proves uniform convergence of (1 −bh(x)) N −1 to exp( −ρf (x)/c f ). Integration against the probability measure f dV establishes (M.9) as the limit of pTN (h). 45 The function Gf is continuous by dominated convergence, since its integrand is bounded by the integrable function f . Also Gf (0) = 1. The set where f = 0 has ν-measure zero because its integral against f dV is zero. For ρ2 > ρ 1 ≥ 0, the exponential factor strictly decreases at every point with 
+
+f (x) > 0, so Gf (ρ2) < G f (ρ1). Finally, this factor tends to zero as ρ → ∞ at every such point; another application of dominated convergence gives Gf (ρ) → 0. The intermediate value theorem and strict decrease give a unique ρδ > 0 with Gf (ρδ) = 1 − δ.Choose any 0 < a < ρ δ < b . For na(h) = ⌊a/q h⌋ and nb(h) = ⌈b/q h⌉, the probability limits just proved give 
+
+pTna(h)(h) −→ Gf (a) > 1 − δ, pTnb(h)(h) −→ Gf (b) < 1 − δ. 
+
+For sufficiently small h, monotonicity of (1 − bh(x)) N −1 in N therefore implies na(h) ≤ N T
+
+> typ ,δ
+
+(h) <nb(h). Multiplying by qh, taking lower and upper limits, and then letting a ↑ ρδ and b ↓ ρδ proves the first equivalent in (M.10). The expansion qh ∼ ωmcf hm and h = (2 /β )1/2 prove the second. It remains to prove necessity for the vanishing-failure assertion. If RTN → 1 in probability, then for every 0 < η < 1, 0 ≤ 1 − pTN (h) = E(1 − RTN ) ≤ η + P(1 − RTN > η ).
+
+Taking the upper limit and then η ↓ 0 shows pTN (h) → 1. Under homogeneous ball probabilities, 
+
+pTN (h) = (1 − qh)N −1 ≤ e−(N −1) qh . If N q h failed to tend to zero, a subsequence would have 
+
+N q h ≥ a > 0. As qh → 0, that subsequence eventually has ( N − 1) qh ≥ a/ 2, contradicting 
+
+pTN (h) → 1. For a fixed continuous density, take the same subsequence and set n(h) = ⌊a/ (2 qh)⌋. Eventually 
+
+n(h) ≤ N , and monotonicity gives 
+
+pTN (h) ≤ pTn(h)(h) −→ Gf (a/ 2) < 1,
+
+again a contradiction. Sufficiency was already proved using (M.6). This completes all assertions. The distinction from all-pattern storage is quantitative: at homogeneous ball probabilities the fixed-target capacities have orders q−1 
+
+> h
+
+and q−1/2 
+
+> h
+
+, respectively. A fixed nonuniform density has the same typical-capacity order, but its leading constant is determined by (M.9), not generally by a single exponential e−N q h . These are exact-retention criteria; a corrupted-query success event additionally requires control of attraction neighborhoods. 
+
+Corollary M.5 (Unit spheres) . For uniform patterns on Sm, m ≥ 2, and 0 < h < π ,
+
+qm(h) =   
+
+> ∫h
+> 0
+
+sin m−1 t dt   
+
+> ∫π
+> 0
+
+sin m−1 t dt .
+
+At fixed 0 < h < π/ 2, the geodesic capacity satisfies 
+
+log N geo  
+
+> δ
+
+(m, h ) = − m 
+
+> 2
+
+log(sin h) + o(m), log N geo typ ,δ (m, h ) = −m log(sin h) + o(m).
+
+For the corrected energy, at any fixed admissible β = 2 /h 2,
+
+N vc  
+
+> δ
+
+(m, β ) = 
+
+> {
+
+0, β ≤ (m − 1) /3,N geo  
+
+> δ
+
+(m, β ), β > (m − 1) /3.
+
+The same dichotomy holds with N Tδ replaced by N T
+
+> typ ,δ
+
+. For h = c/ √m with fixed 0 < c < √6, both energies satisfy 
+
+log N Tδ (m, h ) = m
+
+4 log( m/c 2) + O(log m), log N T
+
+> typ ,δ
+
+(m, h ) = m
+
+2 log( m/c 2) + O(log m).
+
+46 Here a capacity of zero means that no positive sample size has the required probability of nondegenerate exact storage. Proof of Corollary M.5, fixed-bandwidth statements. On the unit sphere, the Jacobi equation has solution sin r in each of the m − 1 directions perpendicular to a radial geodesic and solution r in the radial direction. Hence 
+
+θp(x) =  
+
+> (
+
+sin rr
+
+> )m−1
+
+, r = d(p, x ).
+
+The polar volume element is proportional to sin m−1 r dr times angular volume. Integrating a spherical cap and dividing by the whole volume gives the displayed formula for qm(h). Homogeneity makes bh(x) = qm(h) for every x.Fix 0 < h < π/ 2. For 0 < a < h , the numerator is at least a sin m−1(h−a) and at most h sin m−1 h.For 0 < b < π/ 2, the denominator is at least 2 b cos m−1 b and at most π. Taking logarithms and dividing by m therefore gives log sin( h − a) ≤ lim inf  
+
+> m
+
+m−1 log qm(h) ≤ lim sup 
+
+> m
+
+m−1 log qm(h) ≤ log sin h − log cos b. 
+
+Letting a, b ↓ 0 proves m−1 log qm(h) → log sin h. The collision proof uses only the bound 
+
+bh ≤ Cq h, with C = 1 here, and thus applies along this dimension-indexed sequence as well. Equation (M.3) gives the all-pattern exponential rate. The homogeneous formula (M.8) gives log N geo typ ,δ = − log qm(h) + O(1), proving the typical-pattern rate. The corrected isolated Hessian is given by (8) with Ric = ( m − 1) g. It remains to exclude nonisolated stationary originals at an arbitrary admissible fixed h, rather than only at small h. A corrected component is radial with profile 
+
+k(r) = (1 − βr 2/2)  
+
+> (
+
+r
+
+sin r
+
+> )m−1
+
+, 0 < r < h < π. 
+
+At a fixed point x, its gradient contribution from y = exp x(ru ) is −k′(r)u. The function k′ is analytic on (0 , h ), extends with k′(0) = 0, and is not identically zero because its limit at h is 
+
+−βh (h/ sin h)m−1̸ = 0. For a prescribed nonzero tangent vector, the equation −k′(r)u = C restricts u to the two directions parallel to C and restricts r to the zeros of k′(r) ± ∥ C∥. Neither analytic function is identically zero, so these radii form a discrete, hence countable, set. The preimage has volume zero. For C = 0, the admissible radii are the discrete zeros of k′, giving a countable union of geodesic spheres and the center, again a null set. The conditioning proof from Lemma M.2 therefore applies at every fixed admissible h. Every original with an active neighbor is almost surely nonstationary. An isolated original is nondegenerately stable exactly when β > (m − 1) /3. Below or at this threshold no original can be a nondegenerate memory almost surely; above it the no-collision event is again exactly all-pattern storage. For a single specified original, the same argument gives retention probability zero below or at the threshold and (1 − qm(h)) N −1 above it. The all-pattern and typical-pattern capacity alternatives both follow. 
+
+Proof of Corollary M.5, shrinking-bandwidth statement. Fix 0 < c < √6 and take h = c/ √m. Then 
+
+β = 2 m/c 2 > (m − 1) /3, so the two capacity functions agree by the fixed-bandwidth part, applied separately at each dimension. We compute the cap probability with constants uniform in m.For 0 ≤ t ≤ 1, Taylor’s alternating bound gives 1 − t2/6 ≤ sin t/t ≤ 1. For 0 ≤ z ≤ 1/2, integrating 1 /(1 − z) ≤ 2 gives log(1 − z) ≥ − 2z. Consequently 
+
+e−t2/3 ≤ sin tt ≤ 1.
+
+47 For sufficiently large m we have h ≤ 1. Raising to power m − 1 and integrating gives 
+
+e−(m−1) h2/3 hm
+
+m ≤
+
+∫ h
+
+> 0
+
+sin m−1 t dt ≤ hm
+
+m .
+
+The exponential factor is bounded below by e−c2/3. For the denominator, substitute y = t − π/ 2. Since tan y ≥ y for 0 ≤ y < π/ 2 (its derivative is at least one), integration of (log cos y)′ = − tan y
+
+gives cos y ≤ e−y2/2. Symmetry therefore implies 
+
+∫ π
+
+> 0
+
+sin m−1 t dt ≤
+
+∫
+
+> R
+
+e−(m−1) y2/2 dy =
+
+√
+
+2πm − 1 .
+
+For |y| ≤ m−1/2, cos y ≥ 1 − y2/2 ≥ 1 − 1/(2 m). The preceding logarithm bound yields (1 −
+
+1/(2 m)) m−1 ≥ e−1. Hence ∫ π
+
+> 0
+
+sin m−1 t dt ≥ 2e−1m−1/2.
+
+Combining numerator and denominator bounds gives constants c1, c 2 > 0, depending only on c,with 
+
+c1
+
+hm
+
+√m ≤ qm(h) ≤ c2
+
+hm
+
+√m .
+
+Thus log qm(h) = m log h − 12 log m + O(1). Uniform spherical sampling has bh(x) = qm(h) at every point. The proof of Lemma M.3 uses only independence and this ball-probability bound, so it applies to the sequence of dimensions with constant C = 1. The capacity sandwich in Theorem M.1 yields N Tδ ∼ [−2 log(1 − δ)/q m(h)] 1/2. Taking logarithms and substituting h = c/ √m gives log N Tδ = − m 
+
+> 2
+
+log h + 14 log m + O(1) = m
+
+4 log( m/c 2) + O(log m),
+
+as claimed. For the typical capacity, the same ball-probability identity and (M.8) give log N T 
+
+> typ ,δ
+
+= − log qm(h) + log[ − log(1 − δ)] + o(1) = −m log h + 12 log m + O(1) = m 
+
+> 2
+
+log( m/c 2) + O(log m).
+
+Condition (6) requires ∆ < h , so the single-kernel retrieval guarantee uses radii at most O(m−1/2)along this sequence. No upper bound on every possible attraction basin is asserted. 
+
+# N Proof of the conditional emergence law 
+
+The edge-count argument is a marked version of the close-pair Poisson method of Silverman & Brown (1978); see also Penrose (2003). The geometric part below identifies precisely which edges create memories for each energy. 
+
+Lemma N.1 (Two disjoint classes of close edges) . In the fixed-manifold continuous-density setting, let h → 0 and N 2qh → 2λ. Let Ih count pairs at distance less than h and let Jh count pairs at distance in (ah, 2h) for a fixed 1 ≤ a < 2. Then, for each integer j ≥ 0,
+
+P(Ih = 0 , J h = j) −→ e−(λ+λJ ) λjJ
+
+j! , λJ = (2 m − am)λ. 
+
+In particular, Jh | { Ih = 0 } =⇒ Poisson( λJ ).
+
+48 Proof. The small-ball expansion in Theorem M.1 gives qrh /q h → rm for each fixed r > 0. The probability of a J-edge is pJ = q2h − qah , and the probability of an edge of either counted type is 
+
+pU = qh + pJ . Thus (N
+
+2
+
+> )
+
+pJ → λJ ,
+
+> (
+
+N
+
+2
+
+> )
+
+pU → λ + λJ .
+
+For fixed nonnegative integers j, k , put 
+
+Tj,k = E
+
+> [(
+
+Jh
+
+j
+
+> )(
+
+Ih + Jh − jk
+
+> )]
+
+,
+
+with the product defined as zero when Jh < j . It selects j distinct J-edges and k further distinct edges of either counted type. Disjoint-endpoint selections contribute (N )2( j+k)
+
+2j+kj!k! pjJ pkU −→ λjJ
+
+j!(λ + λJ )k
+
+k! .
+
+Any selection with overlapping endpoints has a spanning forest with the notation v > 2c from Lemma M.3. All its edges have distance less than 2 h. Since sup x b2h(x) = O(qh), its probability is at most ( Cq h)v−c and its total labeled contribution tends to zero exactly as in that lemma. Therefore 
+
+Tj,k has the displayed limit. Apply the odd/even binomial bounds from Lemma M.3 to the nonnegative integer Ih + Jh − j
+
+on {Jh ≥ j}, multiply them by (Jh
+
+> j
+> )
+
+, and set the products to zero outside this event. The indicator bounded in this way is 
+
+> (
+
+Jh
+
+j
+
+> )
+
+1{Ih + Jh − j = 0 } = 1{Ih = 0 , J h = j}.
+
+For any fixed truncation order the expected bounds are alternating sums of Tj,k . First passing to the bandwidth limit and then sending the truncation order to infinity gives 
+
+P(Ih = 0 , J h = j) → λjJ
+
+j!
+
+> ∞∑
+> k=0
+
+(−1) k(λ + λJ )k
+
+k! = e−(λ+λJ ) λjJ
+
+j! .
+
+Lemma M.3 gives P(Ih = 0) → e−λ > 0. Dividing proves convergence of each conditional point probability to the Poisson point probabilities. Their sum is one, so these pointwise limits imply convergence in distribution: for any integer cutoff, sum finitely many point probabilities, and then let the cutoff increase to make the limiting tail arbitrarily small. 
+
+Proof of Theorem 4, independent-pattern part. Join two patterns by an edge when their distance is less than 2 h. A connected component with three or more vertices contains two edges sharing a vertex. For any specified ordered triple, the probability of two such edges is at most (sup x b2h(x)) 2 = O(h2m). A union bound gives 
+
+P(some component has at least three vertices) = O(N 3h2m).
+
+Since qh ≍ hm and N 2qh → 2λ, this is O(hm/ 2) → 0. With probability tending to one, the graph is a union of isolated vertices and isolated pairs. By Lemma G.3 and Theorem 3, every nondegenerate memory has an active set of size at most two on this graph event. A singleton candidate is exactly its original. For a pair at separation 49 r < 2h, the geodesic midpoint c has opposite logarithms to the endpoints, each of length r/ 2 < h .It is therefore the unique two-kernel geodesic candidate, with positive-definite energy Hessian. We verify the corresponding corrected candidate and its displacement uniformly over all such pairs away from a negligible shell. At the midpoint, let a1, a 2 and q1, q 2 be the two components. Their corrected active-score gradient is grad G{1,2}(c) = β
+
+> 2∑
+> i=1
+
+(ai(c) − 1) log c Xi +
+
+> 2∑
+> i=1
+
+(1 − βq i(c)) grad ai(c).
+
+The unweighted logarithms cancel. Lemma G.3 gives ai − 1 = O(h2), ∥log c Xi∥ ≤ h, and ∥grad ai∥ =
+
+O(h). Because β = 2 /h 2, the displayed gradient is O(h). The same lemma and the proof of Theorem 3 give Hess G{1,2} ⪯ − c0h−2g
+
+on the support intersection, for a uniform c0 > 0. Choose a fixed D large enough. If r < 2h − 2Dh 3, the closed ball of radius Dh 3 about c lies within both supports. Along any unit-speed radial geodesic from c, the outward derivative of G{1,2}
+
+at this ball’s boundary is at most 
+
+C0h − c0h−2Dh 3 = ( C0 − c0D)h < 0.
+
+The score attains a maximum on the compact closed ball. Its negative outward derivative excludes the boundary, so it has an interior critical point. Strict concavity makes it unique. Its distance from the midpoint is at most Dh 3, and the energy Hessian there is positive definite. We now bound the exceptional shells. A continuous density is bounded; uniformly in x, a shell at radius bh , for fixed b > 0, and thickness Ch 3 has probability O(hm−1h3) = O(hm+2 ). This follows by normal-coordinate polar integration, with the volume density uniformly bounded. Therefore the expected number of sample pairs in such a shell is O(N 2hm+2 ) = O(h2) → 0. In particular, pairs within 2 Dh 3 of radius 2 h may be discarded with probability tending to one. The pair candidate has no active third pattern. If a third pattern were within distance h of it, the triangle inequality would put that pattern within distance 2 h of an endpoint, contradicting the isolated-pair graph event. Such excluded patterns are at distance at least h from the candidate and hence satisfy the novelty condition for every τ < 1. By Theorem M.1, AT = {Ih = 0 } almost surely for sufficiently small h. On this event every pair separation exceeds h. The geodesic midpoint is at distance exactly r/ 2 from its two endpoints. The corrected candidate has each endpoint distance between r/ 2 − Dh 3 and r/ 2 + Dh 3. Except for another negligible shell around 2 τ h when this radius lies in [ h, 2h), the candidate is τ h -novel exactly when r > max {1, 2τ }h = aτ h. When 2 τ < 1, all allowed pair separations already meet novelty for small h.We have shown that N T
+
+> em
+
+(τ h ) agrees with the pair count Jh from Lemma N.1, on AT , with probability tending to one. All excluded events have unconditional probability tending to zero. Since P(AT ) → e−λ > 0, their conditional probabilities also tend to zero. Applying Lemma N.1 proves (22). In particular the conditional probability of no novel memory tends to e−λτ , and multiplication by P(AT ) proves (23). Every supported memory is within distance h of at least one original. Hence N T
+
+> em
+
+(η) = 0 whenever η ≥ h. A fixed positive novelty threshold must not be retained unchanged in a theorem that sends h → 0. 50 O Mean-shift identity, descent, and local retrieval rates 
+
+The established mean-shift identity. For a radial profile κ, the nonlinear mean-shift displace-ment of Subbarao & Meer (2009), equations (29)–(30), is the weighted average of log x ξi with weights 
+
+−κ′(d(x, ξ i)2/h 2), followed by exp x. With κ(s) = (1 − s)+, these weights are one for s < 1 and zero for s > 1. Their normalized average is exactly v(x) in (4), and the published update is T1(x). In the terminology of Cheng (1995); Comaniciu & Meer (2002), the Epanechnikov kernel is the shadow of the flat kernel ; the flat profile is its negative derivative. We therefore describe Algorithm 1 as flat-weight Riemannian mean shift. The proof below specializes the classical score-minorization argument to explicit distance-Hessian bounds and memory retrieval. It does not assert global convergence of every nonsmooth trajectory. 
+
+Proof of Theorem 1. Set A = A(x), k = |A|, v = v(x), and y = Tt(x). On the open active-set region containing x, Sgeo = ϵ + k − βF A, with grad FA = − ∑ 
+
+> i∈A
+
+log x ξi = −kv . Hence grad Sgeo = βkv ,and differentiation of −β−1 log Sgeo proves (5). Multiplying this gradient by −tS geo /k gives tv , so its exponential-map gradient step is exactly Tt. The singleton and radius assertions were proved in Appendix I. Define γ(s) = exp x(stv ), 0 ≤ s ≤ 1, and FA = ∑ 
+
+> i∈A
+
+qi. Its initial directional derivative is (FA ◦ γ)′(0) = ⟨grad FA(x), tv ⟩ = −tk ∥v∥2 .
+
+The constant-speed geodesic and the assumed Hessian bound give (FA ◦ γ)′′ (s) ≤ kΛt2 ∥v∥2 .
+
+The identity FA(γ(1)) = FA(γ(0)) + ( FA ◦ γ)′(0) + ∫ 10 (1 − s)( FA ◦ γ)′′ (s) ds , obtained by integrating twice and changing the order of integration, yields 
+
+FA(y) ≤ FA(x) − tk ∥v∥2 + 12 kΛt2 ∥v∥2 = FA(x) − kt (1 − Λt/ 2) ∥v∥2 .
+
+Since (1 − βq i(y)) + ≥ 1 − βq i(y) for every i ∈ A, and all other truncated terms are nonnegative, 
+
+Sgeo (y) ≥ ϵ + ∑
+
+> i∈A
+
+(1 − βq i(y)) = Sgeo (x) + β(FA(x) − FA(y)) 
+
+≥ Sgeo (x) + βkt (1 − Λt/ 2) ∥v∥2 .
+
+This is strictly larger when v̸ = 0 and 0 < t < 2/Λ. It also ensures Sgeo (y) > 0. Strict decrease of the logarithmic energy follows. For t = 1, ∥v∥ ≤ k−1 ∑ 
+
+> i∈A
+
+d(x, ξ i) < h . Every point of the segment has distance less than 2 h
+
+from every active center. On a fixed compact manifold, for sufficiently small h these points lie in the required normal domains and Lemma G.3 applied at radius 2 h gives Λ = 1 + O(h2) < 2. Thus the full step is a descent step unless already critical. Near a memory z whose active set is A, the strict support margins make the active set constant. The update is the smooth map Tt(x) = exp x(−t grad FA(x)/k ). In normal coordinates at z, the map (x, u ) 7 → exp x u equals x when u = 0; its two partial derivatives there are both the identity, since differentiating the constant curve gives the base derivative and differentiating the initial velocity gives the velocity derivative. Since grad FA(z) = 0, the chain rule therefore gives 
+
+DT t(z) = I − tk Hess FA(z).
+
+51 Every eigenvalue of Hess FA(z)/k lies in [ c, Λ]. For 0 < t < 2/Λ, the convex function λ 7 → | 1 − tλ |
+
+on [ c, Λ] is bounded by its larger endpoint value, so 
+
+∥DT t(z)∥op ≤ rt := max {| 1 − tc |, |1 − tΛ|} < 1. (O.1) The norm identity uses self-adjointness at z. Given any r with rt < r < 1, continuity gives a sufficiently small normal-coordinate ball on which the derivative norm is at most r. The line-segment mean-value bound in those coordinates implies ∥Tt(x) − Tt(z)∥ ≤ r ∥x − z∥, and the ball maps into itself. Iteration therefore gives geometric decay rn in coordinates. The coordinates are normal and centered at z, so the norm of the coordinate vector of any point in this ball equals its geodesic distance from z. Thus 
+
+d(T nt (x), z ) ≤ rnd(x, z ), n ≥ 0,
+
+which proves the local linear rate. For a query with nonempty active set A = A(x), put W (x) = ∑ 
+
+> i∈A
+
+ai(x) and define the corrected direction 
+
+vvc (x) = 1
+
+W (x)
+
+> [∑
+> i∈A
+
+ai(x) log x ξi − 1
+
+β
+
+> ∑
+> i∈A
+
+ai(x)(1 − βq i(x)) grad log θξi (x)
+
+> ]
+
+. (O.2) 
+
+Proposition O.1 (Intrinsic equivariance and the corrected direction) . For any Riemannian isometry 
+
+ϕ : M → M , applying Algorithm 1 to ϕ(x), ϕ (ξi) gives ϕ(Tt(x)) , with the same active flag. Away from support boundaries, the corrected direction in (O.2) satisfies grad Evc = −W v vc /S vc . For a fixed active set and fixed t, the geodesic layer is smooth in the query and active keys and is constant with respect to changes in h that preserve that active set. Proof. An isometry preserves lengths of curves and therefore distances, so it preserves the active indices. It maps geodesics to geodesics with the same initial speeds. Uniqueness of the geodesic within each support gives log ϕ(x) ϕ(ξi) = Dϕ x log x ξi, ϕ(exp x u) = exp ϕ(x)(Dϕ xu).
+
+The differential Dϕ x is linear. Averaging the first identity over the active indices and using the second gives exp ϕ(x) 
+
+> (
+
+t
+
+|A|
+
+> ∑
+> i∈A
+
+log ϕ(x) ϕ(ξi)
+
+> )
+
+= ϕ
+
+> (
+
+exp x 
+
+> (
+
+t
+
+|A|
+
+> ∑
+> i∈A
+
+log x ξi
+
+> ))
+
+.
+
+For an empty active set both algorithms return their input, so equivariance holds there as well. For the corrected direction, the product rule and grad qi = − log x ξi give grad Svc = ∑
+
+> i∈A
+
+[(1 − βq i) grad ai − βa i grad qi]= β ∑
+
+> i∈A
+
+ai log x ξi − ∑
+
+> i∈A
+
+ai(1 − βq i) grad log θξi = βW v vc .
+
+Substitution into (I.1)’s gradient identity proves grad Evc = −W v vc /S vc .Finally, strict support inequalities persist under sufficiently small changes in the query, keys, and radius, because distance is continuous and there are finitely many inequalities. Each active logarithm is smooth below the injectivity radius, and the exponential map is smooth. Their finite average and composition are smooth in the query and active keys. Once the active indices and 
+
+t are fixed, formula (4) contains no h. Its derivative with respect to h is therefore zero on that neighborhood. This argument makes no differentiability assertion on support boundaries. 52 P Robust capacity and an unbounded exact-storage example 
+
+On a fixed compact manifold with continuous sampling density f , Theorem M.1 gives random all-pattern capacity of order βm/ 4, while Proposition M.4 gives typical-pattern capacity of order 
+
+βm/ 2 for a fixed target success probability. Designed storage with a prescribed radius ϑh , 0 < ϑ < 1, is a different task, governed by the packing bounds below. Exact local minima without a prescribed radius or random-sampling requirement need not have finite capacity. Let P>(s) and P≥(s) be the largest cardinalities of sets with pairwise distances respectively greater than s and at least s. Fix a retrieval radius 0 < ∆ < h . Define CT 
+
+> ∆
+
+using the negative-energy-gradient flow: every radius-∆ ball about a pattern must consist of initial states whose trajectories converge to that pattern. All statements below refer to regions where this flow is smooth and uniquely defined. 
+
+Proposition P.1 (Packing bounds for robust retrieval) . For the geodesic energy, and for the corrected energy under the uniform form of Assumption G.2, 
+
+P>(h + ∆) ≤ CT 
+
+> ∆
+
+≤ P≥(2∆) .
+
+For the following volume bounds assume also 2h < inj( M). Let V = vol( M), let v+(r) = sup x vol( Br(x)) , and let v−(r) = inf x vol( Br(x)) . Then 
+
+Vv+(h + ∆) ≤ CT 
+
+> ∆
+
+≤ Vv−(∆) .
+
+For fixed dimension and a fixed manifold, at ∆ = ϑh , 0 < ϑ < 1, sufficiently small h gives 
+
+CT 
+
+> ∆
+
+= Θ( h−m) = Θ( βm/ 2).Proof. A pattern set separated by more than h + ∆ has only its own kernel active throughout each closed radius-∆ ball. For Egeo , the negative gradient points radially toward the center by (I.2). If 
+
+r(t) is its distance to the center, then ˙r(t) = − r(t)
+
+ϵ + 1 − βr (t)2/2 ≤ − r(t)1 + ϵ .
+
+It remains in the ball and converges to the center. For the corrected energy write ki = ai(1 − βq i). Its gradient vanishes at the center and Hess ki ⪯ − μg throughout the ball. Along a unit-speed radial geodesic from the center, 
+
+ddr ki(γ(r)) =  
+
+> ∫r
+> 0
+
+Hess ki( ˙ γ(s), ˙γ(s)) ds ≤ − μr. 
+
+Negative-energy-gradient flow equals grad ki/[β(ϵ + ki)]. If Smax bounds ϵ + ki on the closed ball, its radial derivative obeys ˙r(t) ≤ − μr (t)
+
+βS max 
+
+.
+
+The vector field points inward on the boundary; the denominator is bounded away from zero since ∆ < h . The trajectory therefore exists for all nonnegative time in the ball and converges exponentially to the center. This proves the lower packing bound. For the upper bound, two prescribed attraction balls cannot overlap: a unique trajectory from a common initial point cannot converge to two distinct centers. If two centers had distance less than 2∆, a midpoint of a minimizing geodesic would lie in both balls. Thus their separation is at least 2∆. 53 A maximal set separated by more than s covers M by closed radius-s balls, since otherwise another center could be added. Ball boundaries have zero volume for sufficiently small radii, which are the radii used here; hence its cardinality is at least V /v +(s). The open radius-s/ 2 balls about an 
+
+s-separated set are disjoint, implying cardinality at most V /v −(s/ 2). These observations prove the volume bounds in the small-radius regime. Finally, normal coordinates give v±(r) = ωmrm(1+ O(r2)) uniformly on a fixed compact manifold. Substitution of ∆ = ϑh proves the order statements. 
+
+Proposition P.2 (Exact storage alone need not have finite capacity) . There is a fixed circle and a fixed bandwidth at which, for arbitrarily large N , both energies store N original patterns and have exactly N additional nondegenerate memories. The basin and novelty radii shrink with N .Proof. Take a circle of circumference L, fix 0 < h < L/ 4 with h/L irrational, and put N equally spaced patterns at spacing ℓ = L/N . Choose N sufficiently large that ℓ < 2h. A one-dimensional Riemannian circle has local normal-coordinate density one, so the energies coincide. At every original pattern, reflection symmetry pairs active neighbors at opposite signed distances, so the first derivative of the score is zero. There is no pattern exactly on a support boundary because h/ℓ = N h/L is irrational. On a neighborhood with k active patterns the second derivative of the score is −βk < 0. Thus every original is a nondegenerate memory. The same reflection symmetry holds at each of the N midpoints between consecutive patterns. Each has active neighbors because ℓ/ 2 < h . No support boundary occurs there because an integer plus one half cannot equal the irrational h/ℓ . These N midpoints are also nondegenerate memories, each at novelty distance ℓ/ 2. There are exactly 2 N distinct support-boundary points ξi ± h on the circle. Indeed, equality between a plus and a minus boundary would make 2 h/L rational; equality within either sign would identify distinct equally spaced centers. Their complement consists of 2 N intervals. Supports cover the circle because ℓ/ 2 < h , so each interval has at least one active pattern and strictly negative score second derivative. It contains at most one stationary maximum. Lemma J.1 excludes boundary maxima. We have already exhibited 2 N distinct maxima, so these are all of them. The construction works for every sufficiently large N at the same L and h.
+
+# Q Statistical incompatibility and an alternative normalization 
+
+Corollary Q.1 (Incompatible fixed-dimensional asymptotic requirements) . Fix a compact manifold and a C4 density, and let N → ∞ , h → 0. For either energy, 
+
+P(AT ) → 1 ⇐⇒ N 2hm → 0.
+
+Mean integrated squared-error consistency of the normalized density ˜fT requires and, with h → 0, is implied by N h m → ∞ . These requirements cannot hold at the same bandwidth. In the high-probability exact-storage regime, the probability of any additional memory also tends to zero. Proof of Corollary Q.1. Theorem M.1 identifies all-pattern storage with no pair at distance less than h, and qh ≍ hm. If N 2qh → 0, the union bound gives success probability tending to one. Conversely, suppose success probability tends to one but N 2qh does not tend to zero. There is a subsequence along which N 2qh is bounded below by a positive constant. It has a further subsequence along which this quantity either converges to a finite positive limit or tends to infinity. In the first case Lemma M.3 gives a success limit strictly below one; in the second it gives limit zero. Both contradict the assumed success. Thus N 2qh → 0, proving the storage equivalence. 54 For either normalized density, the risk expansion (H.3) in Theorem H.1 has a nonnegative squared-bias leading term and a variance leading term Rm/(N h m) with Rm > 0. If N h m failed to tend to infinity, a subsequence would have ( N h m)−1 bounded below. Along that subsequence 
+
+h4 = o(( N h m)−1), so the remainder is o(( N h m)−1) and the risk is bounded below by Rm/(2 N h m) for small h. This contradicts consistency. Hence N h m → ∞ . Conversely, if h → 0 and N h m → ∞ , both terms in (H.3) tend to zero. But N 2hm → 0 implies N h m → 0, not infinity. The two requirements are incompatible. Finally, in the high-probability storage regime, (N
+
+> 2
+> )
+
+q2h → 0 because q2h/q h → 2m. A union bound shows that all support balls are disjoint with probability tending to one. For small h, a single active component has its unique critical maximum at its original center by Theorem 3. No additional supported memories are then possible. 
+
+Proposition Q.2 (Normalization by integrated kernel mass) . Let 
+
+Zh(p) = 
+
+> ∫
+> M
+
+(1 − d(x, p )2/h 2)+ dV (x), wi = Zh(ξi)−1.
+
+Then N −1 ∑ 
+
+> i
+
+wi(1 − d(x, ξ i)2/h 2)+ is a normalized density. The energy 
+
+Emass (x) = −β−1 log 
+
+> [
+
+ϵ + ∑
+
+> i
+
+wi(1 − βq i(x)) +
+
+> ]
+
+retains every isolated original as a nondegenerate minimum, with 
+
+Hess Emass (ξi) = wi
+
+ϵ + wi
+
+gξi .
+
+Proof. The integral Zh(p) is positive and finite because its integrand is nonnegative, is positive on 
+
+Bh(p), and the manifold is compact. Dividing the component by its integral gives mass one; averaging gives a normalized density. At an isolated original the score is locally ϵ + wi(1 − βq i). Its differential is zero and its Hessian is −βw ig. Substitution into (I.1) proves the asserted positive-definite energy Hessian. This integrated-mass construction normalizes each kernel by an x-independent factor. Its stability differs from pointwise volume correction because that factor contributes no spatial gradient or Hessian. 55

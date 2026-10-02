@@ -1,0 +1,8452 @@
+Title: In-context Learning of Single-index Targets: Comparing Kernel and Feature Learners
+
+URL Source: https://arxiv.org/pdf/2610.01712v1
+
+Published Time: Fri, 02 Oct 2026 01:46:01 GMT
+
+Number of Pages: 60
+
+Markdown Content:
+# In-context Learning of Single-index Targets: Comparing Kernel and Feature Learners 
+
+## Haotian Gu ∗1,3 , Yizhou Xu ⋆1,2 , and Lenka Zdeborová 11Statistical Physics of Computation Laboratory, École Polytechnique Fédérale de Lausanne (EPFL) 
+
+> 2
+
+Information, Learning and Physics Laboratory, École Polytechnique Fédérale de Lausanne (EPFL) 
+
+> 3
+
+University of Chinese Academy of Sciences 
+
+Abstract 
+
+In-context learning (ICL) enables a pretrained model to infer a task from demonstrations without updating its parameters. While much of the existing theory focuses on linear target functions, in this paper we study nonlinear cases by comparing two one-layer attention architectures on the same family of single-index tasks. A kernel learner first maps inputs through a fixed nonlinear feature map and then applies linear attention, whereas a feature learner applies attention to the original input, followed by a learned nonlinear readout. We derive predictions for their memorization and generalization errors using the replica method, retaining the effects of pretraining size, task-pool diversity, and training and inference context lengths. The resulting predictions closely match numerical experiments across a broad range of regimes. Our analysis yields phase diagrams that characterize when each architecture is advantageous as the amount of pretraining data, task diversity, and context lengths vary. We further identify qualitatively different context-length scalings for the two learners. Together, these results clarify how architectural choices interact with the dataset and govern nonlinear in-context learning. 
+
+# 1 Introduction 
+
+In-context learning (ICL) is the ability of a pretrained model to infer a task from examples provided in its input context and make predictions without updating its parameters. This behavior is one of the most distinctive capabilities of modern Transformers [7, 10], and has motivated a growing theoretical literature that studies ICL in controlled problems. Early work showed that Transformers trained on families of synthetic tasks can learn new functions from demonstrations [15], and connected it to familiar learning algorithms such as gradient descent, least squares, and ridge regression [2, 36, 4, 25]. These results established that attention-based models can implement nontrivial learning procedures within their forward pass. A more recent line of work asks how such in-context algorithms are acquired during pretraining. For linear attention, whether a model memorizes the pretraining tasks or generalizes to unseen tasks depends jointly on the number of pretraining prompts, task diversity, and the number of demonstrations available at inference time [33, 30, 17]. Recent high-dimensional analyses make these dependencies quantitative and characterize how the shared task structure affects in-context generalization [24, 37, 35, 21, 22]. Other works also study the learning dynamics of ICL [34, 39] and the influence of various factors including data structures, distribution shift, hyperparameters and so on [11, 35, 21, 22, 6]. Most of this theory, however, focuses on linear targets. Nonlinear tasks introduce an additional question: beyond aggregating demonstrations in context, the learner must determine how the nonlinearity on the input should be learned. Single-index models provide a natural setting for this question, and create a classical separation between fixed-kernel methods and feature-learning methods [16, 5, 3, 8]. ICL introduces a further distinction: the relevant direction changes between tasks and must be extracted from the demonstrations 
+
+> ∗These authors contributed equally to this work.
+
+1arXiv:2610.01712v1 [cs.LG] 1 Oct 2026 without updating the parameters. Recent work has shown that pretrained Transformers can exploit low-dimensional structure to learn single-index targets efficiently in context [32], and that nonlinear Transformers can perform inference-time feature learning on single-index tasks [31]. Our goal is thus to compare fixed-kernel methods and feature-learning methods across various amounts of pretraining data, task diversities, and context lengths. We consider two learners that use the same one-layer attention but place the nonlinear transformation on opposite sides of attention. The kernel learner first maps every input through a fixed nonlinear feature map and then performs linear attention in the resulting feature space. In contrast, the feature learner performs attention directly on the original inputs and applies a learned nonlinear readout after attention. We study the two architectures on the same learning problem. Pretraining prompts are generated from a finite pool of tasks, allowing us to separately measure performance on tasks that appeared during pre-training and on fresh tasks drawn from the underlying task distribution. We refer to these quantities as the 
+
+memorization error (on seen tasks) and the generalization error (on unseen tasks), respectively. Varying the task-pool size therefore lets us study how architectural choices interact with the memorization–generalization tradeoff emphasized in previous work [33, 24, 17, 35, 13]. For analytical tractability, we instantiate the kernels using spherical harmonics and analyze both learners using the non-rigorous yet well-established replica method [27, 38]. The comparison is defined for common values of the input dimension d, feature dimension D, pretraining size N , task-pool size N0, and context lengths L, eL. We validate these predictions numerically over a broad range of parameters. Our main contributions are threefold. • Comparison of kernel and feature learners on the same dataset. We formulate the two learners on a common learning problem, with the same task pool, pretraining prompts, and inference prompts, and characterize their memorization and generalization performance as functions of d, D, N 0, N, L, eL.For each learner, we derive replica-based predictions and the resulting formulas accurately predict the performance of both learners over a broad range of regimes. • Phase diagrams for when each architecture is advantageous. We map out how the relative performance of the two learners depends jointly on problem parameters. The feature learner benefits from its lower-dimensional representation and typically reaches low error with fewer pretraining prompts, while the kernel learner can achieve lower memorization error when the task pool is small and pretraining is sufficient. We further identify regimes in which context-length mismatch changes the relative advantage of the two architectures. • A theoretical characterization of context-length scaling. In the large-pretraining and large-task-diversity limit, we prove explicit context-length scaling. For a kernel learner containing degree-k spherical harmonics, recovering that component requires a context length of order dk, which produces a stage-wise learning curve. By contrast, the feature learner exhibits a single transition at L = Θ( d) and can exploit all Hermite components of the teacher at the same time. We also rigorously characterize the behavior when the training context length and the test contest length are different. 
+
+# 2 Settings 
+
+## 2.1 Task 
+
+We consider an ICL problem in which the training dataset consists of N prompts 
+
+D = {(xμ 
+
+> 0
+
+, y μ 
+
+> 0
+
+, x μ 
+
+> 1
+
+, y μ 
+
+> 1
+
+, . . . , x μL, y μL)}Nμ=1 . Each prompt contains L demonstrations {(xμℓ , y μℓ )}Lℓ=1 together with a query-label pair (xμ 
+
+> 0
+
+, y μ 
+
+> 0
+
+). At inference time, the learner observes the demonstrations and the query x0 and aims to predict the corresponding label y0.The inputs are sampled independently and uniformly on the sphere of radius √d: xμℓ
+
+> i.i.d.
+
+∼ Unif 
+
+
+
+Sd−1(√d)
+
+
+
+for ℓ = 0 , 1, . . . , L and μ = 1 , 2, . . . , N . Each prompt is associated with a latent task vector drawn from a finite task pool. Specifically, we first generate A0 = {ak}N0 
+
+> k=1
+
+with ak i.i.d.
+
+∼ Unif 
+
+
+
+Sd−1(√d)
+
+
+
+and then independently sample a task vector aμ := aτ μ
+
+with τ μ i.i.d.
+
+∼ Unif( {1, . . . , N 0}) for each training prompt μ.2Figure 1: The kernel and feature learners. The kernel learner applies a fixed map h : Rd → RD before self-attention, whereas the feature learner applies a trainable readout bσ after self-attention. Conditional on aμ, the labels are generated by the noisy single-index model 
+
+yμℓ = σ⋆
+
+ (aμ)⊤xμℓ
+
+√d
+
+
+
++ ϵμℓ , ϵμℓ
+
+> i.i.d.
+
+∼ N (0 , ∆) , (1) for ℓ = 0 , 1, . . . , L . Throughout the paper, σ⋆ : R → R is a fixed nonlinear teacher function satisfying 
+
+E[σ⋆(G)] = 0 , E[σ⋆(G)2] = 1 and μ1 := E[σ⋆(G)G]̸ = 0 , where the expectation is over G ∼ N (0 , 1) . While the first two assumptions are imposed for simplicity, μ1̸ = 0 is essential. It guarantees a nonvanishing linear component of the teacher and places the problem in the O(d2) learning regime [31]. We evaluate the trained learner on an inference prompt containing eL demonstrations: {(xℓ, y ℓ)}eLℓ=1 and a query x0 associated with a task vector a⋆. To separate the learner performance from irreducible label noise, we use noiseless labels at inference time: yℓ = σ⋆
+
+ (a⋆)⊤xℓ
+
+> √d
+
+
+
+for ℓ = 0 , 1, . . . , eL, where xℓ
+
+> i.i.d.
+
+∼ Unif 
+
+
+
+Sd−1(√d)
+
+
+
+.Given the demonstrations and the query, let by denote the learner prediction for y0.We distinguish two notions of test performance according to whether the inference task has appeared in the training task pool. We define the memorization and the generalization error by 
+
+EM := Ea⋆∼Unif( A0)Ex0: eL
+
+(y0 − by)2 , EG := Ea⋆∼Unif( Sd−1(√d)) Ex0: eL
+
+(y0 − by)2 . (2) For memorization, the test task is sampled uniformly from the same pool A0, whereas for generalization, a fresh task is sampled uniformly from the sphere. Here x0: eL := ( x0, x 1, . . . , x eL), and the expectation is taken over a fresh inference prompt, conditional on the trained learner and, for EM , on the task pool A0. Related works have also studied in-distribution and out-of-distribution task generalization by restricting the task vectors to lower-dimensional subspaces [35, 24]. We do not consider the distribution shift here because this is not our main focus. The above task model is closely related to existing models of ICL [35, 24, 32, 31]. In particular, [32, 31] characterize the sample complexity required to learn such task families. Our goal is instead to characterize and compare the memorization and generalization errors of the two classes of learners introduced below. A schematic comparison is shown in Figure 1. 32.2 Kernel learner 
+
+We first consider the kernel learner , which applies a fixed nonlinear feature map to each input before a single self-attention layer. Let h : Rd → RD be a fixed feature map. For the μ-th training prompt, we form the embedded prompt 
+
+Eμ =
+
+h(xμ 
+
+> 1
+
+) · · · h(xμL) h(xμ 
+
+> 0
+
+)
+
+yμ 
+
+> 1
+
+· · · yμL 0
+
+
+
+∈ R(D+1) ×(L+1) , (3) where the final zero corresponds to the masked query label. We apply a single linear self-attention layer, 
+
+Attn( Eμ) = Eμ + W V Eμ (W K Eμ)⊤W QEμ
+
+L , (4) and take the bottom-right entry as the prediction: byμ = Attn( Eμ)D+1 ,L +1 . Following the standard parame-terization used in theoretical analyses of self-attention [35, 24], we restrict the value and key-query matrices to satisfy 
+
+W V =
+
+∗ ∗
+
+0 1
+
+
+
+, (W K )⊤W Q =
+
+W ⊤ ∗
+
+0 ∗
+
+
+
+, (5) where W ∈ RD×D is the trainable attention matrix and the blocks denoted by ∗ do not affect the predicted query label. Under this parameterization, the learner output reduces to 
+
+byμ = Tr  W (HK)⊤ , where HK := 1
+
+L h(xμ 
+
+> 0
+
+)
+
+> L
+
+X
+
+> ℓ=1
+
+yμℓ h(xμℓ )
+
+!⊤
+
+∈ RD×D (6) Thus, after the fixed embedding h, training the attention layer is equivalent to a linear regression problem in the D2 entries of HK 
+
+> μ
+
+. We train W by empirical risk minimization, 
+
+cWK = arg min  
+
+> W∈RD×D
+
+( NX
+
+> μ=1
+
+Tr  W (HK 
+
+> μ
+
+)⊤ − yμ
+
+> 0
+
+2 + λN 0∥W ∥2
+
+> F
+
+)
+
+, (7) where λ ≥ 0 denotes the weight decay strength. We denote by EK 
+
+> M
+
+and EK 
+
+> G
+
+the memorization and general-ization errors defined in (2), respectively, when the prediction is produced by cWK.For analytical tractability, we specialize the fixed feature map h to a finite collection of spherical harmon-ics. For each degree k ≥ 1, let hk(x) ∈ RDk,d denote an orthonormal basis of the degree-k spherical harmonics on Sd−1(√d), where Dk,d = 2k+d−2
+
+> k
+
+ k+d−3
+
+> k−1
+
+. Let K ⊂ Z≥1 be a fixed finite set of harmonic degrees. We choose h(x) = L 
+
+> k∈K
+
+hk(x) ∈ RD , where D = D(d) := P 
+
+> k∈K
+
+Dk,d and L denotes vertical concatenation. This spherical-harmonic construction should be viewed as an analytically convenient realization of a fixed nonlinear feature map. More practical embeddings, such as random features [20, 1, 9], lead to closely related architectures. We leave the analysis of such random-feature learners to future work. 
+
+## 2.3 Feature learner 
+
+We next consider the feature learner , which reverses the order of the nonlinear transformation and the attention module. For the μ-th training prompt, we form 
+
+Eμ =
+
+xμ 
+
+> 1
+
+· · · xμL xμ
+
+> 0
+
+yμ 
+
+> 1
+
+· · · yμL 0
+
+
+
+∈ R(d+1) ×(L+1) . (8) We apply the same single linear self-attention layer as in (4) and impose the parameterization (5), now with 
+
+W ∈ Rd×d. The bottom-right entry of the attention output is then 
+
+uμW := Attn( Eμ)d+1 ,L +1 = 1
+
+L
+
+> L
+
+X
+
+> ℓ=1
+
+yμℓ (xμ 
+
+> 0
+
+)⊤W x μℓ . (9) 4We equivalently have 
+
+uμW = Tr  W (HF 
+
+> μ
+
+)⊤ , where HF := 1
+
+L xμ
+
+> 0
+> L
+
+X
+
+> ℓ=1
+
+yμℓ xμℓ
+
+!⊤
+
+∈ Rd×d. (10) The final prediction is obtained by applying a scalar nonlinear readout byμ = σ(uμW ).We train the attention module and the nonlinear readout in two stages. In the first stage, we fix a prescribed scalar function σ0 : R → R and optimize only the attention matrix: 
+
+cWF = arg min  
+
+> W∈Rd×d
+
+( NX
+
+> μ=1
+
+σ0
+
+ Tr  W (HF 
+
+> μ
+
+)⊤ − yμ
+
+> 0
+
+2 + λN 0∥W ∥2
+
+> F
+
+)
+
+. (11) Here σ0 is fixed throughout the first stage and is not itself trained. In the second stage, we freeze cWF and optimize only the scalar readout. Let UcWF = Tr 
+
+cWF(HF)⊤
+
+
+
+be the scalar representation produced by cWF on an independent fresh prompt of length L drawn from the same pretraining distribution, with its task vector sampled uniformly from the same task pool A0. We define 
+
+bσ ∈ arg min  
+
+> σ
+
+E
+
+
+
+σ(UcWF ) − y0
+
+2 cWF, A0
+
+
+
+, (12) where the expectation is over the fresh prompt, including its task index, inputs, and label noise. The solution of (12) is bσ(u) = E
+
+h
+
+y0 UcWF = u, cWF, A0
+
+i
+
+.The population optimization in (12) is an idealization of training a one-dimensional multi-layer perceptron (MLP) on an independent set of fresh prompts after the attention matrix has been learned. More explicitly, in experiments we use N ′ additional prompts and fit 
+
+bσN ′ = arg min 
+
+> σ∈S
+
+1
+
+N ′ 
+
+> N′
+
+X
+
+> μ=1
+
+h
+
+σ
+
+
+
+Tr 
+
+cWF(HF 
+
+> μ
+
+)⊤ 
+
+− yμ
+
+> 0
+
+i2
+
+, (13) where S is chosen to be a one-dimensional MLP. Since this stage involves only scalar regression, we idealize its estimation error away by taking N ′ → ∞ and N ′ 
+
+> N
+
+→ 0. Consequently, N + N ′ = N (1 + o(1)) , so the additional samples used to learn the scalar readout form a vanishing fraction of the total number of training prompts and do not change the leading-order sample complexity. We denote by EF 
+
+> M
+
+and EF 
+
+> G
+
+the memorization and generalization errors defined in (2), respectively, for the learner specified by (cWF, bσ).
+
+# 3 Main results 
+
+In this section we present and compare the memorization and generalization errors of the kernel learner and the feature learner. The results are derived using the replica method together with a Gaussian-equivalence ansatz, in which the local fields are replaced by Gaussian variables with matching leading-order covariances. Such Gaussian equivalence has been established rigorously for several related models [18, 19, 29]. In our ICL setting, however, we use it as an ansatz and validate the resulting predictions numerically. Let ck denote the Hermite coefficients of σ⋆, θ(a) := L 
+
+> k∈K
+
+ck
+
+q DDk,d hk(a) ∈ RD and νin := P 
+
+> k∈K
+
+c2
+
+> k
+
+,
+
+νout := P 
+
+> k / ∈K
+
+c2
+
+> k
+
+. Result 1 gives the memorization error and the generalization error in the limit D → ∞ 
+
+with κK := N0/D , αK := L/D , eαK := eL/D , and γK := N/ (DN 0) fixed. 
+
+Result 1 (kernel learner) . For νin > 0, let (mK , q K , q K , χ K , χ K , bmK , bqK , bχK ) solve Eqs. (40) . The distri-bution of the learned attention matrix is represented by 
+
+cWK
+
+> d
+
+= 1
+
+bχK
+
+"bmK SK +
+
+pνin bqK
+
+√N0
+
+ZK
+
+
+
+SK + 1 + ∆ 
+
+αK
+
+ID
+
+1/2# 
+
+SK +
+
+ 1 + ∆ 
+
+αK
+
++ λ
+
+bχK
+
+
+
+ID
+
+−1
+
+, (14) 5where SK := 1
+
+> N0
+
+PN0 
+
+> k=1
+
+θ(ak)θ(ak)⊤ and (ZK )ij 
+
+> iid
+
+∼ N (0 , 1) . For P ∈ { M, G}, the memorization error and the generalization error can be written as 
+
+Ekernel  
+
+> P
+
+≈ νout + νin (1 − 2mK, P + qK, P ) + qK
+
+eαK
+
+, (15) 
+
+where mK, M := mK , q K, M := qK and mK, G := 1 
+
+> Dν in
+
+E Tr( cWK SK, pop ), q K, G := 1 
+
+> Dν in
+
+E Tr( cWK SK, pop cW ⊤ 
+
+> K
+
+) with 
+
+SK, pop := Ea[θ(a)θ(a)⊤].Moreover, for large γK we have Ekernel M = fM(αK , eαK , S K )+ O
+
+ D2
+
+> N
+
+
+
+and Ekernel G = fG(αK , eαK , S K , S K, pop )+ 
+
+O
+
+ D2
+
+> N
+
+
+
+, where the functions fP are given in Eqs. (111) –(112) .
+
+Result 1 is derived in Appendix A. It is based on the approximation 
+
+σ⋆
+
+ a⊤x
+
+√d
+
+
+
+≈ X
+
+> k∈K
+
+ck
+
+pDk,d 
+
+hk(a)⊤hk(x) + ξ, ξ ∼ N (0 , ν out ), (16) where the residual component is modeled as independent Gaussian noise under a Gaussian-equivalence ansatz, as detailed in Appendix A.1. Result 2 gives the memorization and the generalization error of the feature learner with two-stage training in the limit d → ∞ with κF := N0/d , αF := L/d , eαF := eL/d , and γF := N/ (dN 0) fixed, which generalizes previous work on linear settings [35, 24]. 
+
+Result 2 (feature learner) . Let m, q, ¯q, χ Q, χ ¯Q and their conjugates bm, bχQ, bχ ¯Q, bqQ, bq ¯Q be the order parameters that solve the state equations in Eq. (121) . The distribution of the learned attention matrix is 
+
+cWF
+
+> d
+
+=
+
+bmS F + 1
+
+√N0
+
+Z(bqQSF + bq ¯QId)1/2
+
+  (λ + bχ ¯Q)Id + bχQSF
+
+−1, (17) 
+
+where SF := 1
+
+> N0
+
+PN0 
+
+> k=1
+
+ak(ak)⊤ and Zij 
+
+> iid
+
+∼ N (0 , 1) . The learned stage-II readout is 
+
+ˆσ(v) = Eψ
+
+"
+
+σ⋆
+
+μ1mμ21q + (1 + ∆)¯ q/α F
+
+v +
+
+s
+
+1 − μ21m2
+
+μ21q + (1 + ∆)¯ q/α F
+
+ψ
+
+!# 
+
+, (18) 
+
+where the expectation is over ψ ∼ N (0 , 1) . For P ∈ { M, G}, the memorization error and the generalization error can be written as 
+
+Efeature  
+
+> P
+
+≈ Eg,z 
+
+"
+
+σ⋆(g) − bσ
+
+
+
+CP g +
+
+q
+
+VP − C2 
+
+> P
+
+z
+
+ 2#
+
+, g, z iid 
+
+∼ N (0 , 1) , (19) 
+
+where we define CM = μ1m, V M = μ21q + ¯q 
+
+> eαF
+
+and CG = μ1d−1EZ Tr cWF , V G =
+
+
+
+μ21 + 1
+
+> eαF
+
+
+
+¯q.Moreover, for large γF , σ0(v) = v and P ∈ { M, G} we have Efeature  
+
+> P
+
+= gP (αF , eαF , S F ) + O
+
+ d2
+
+> N
+
+
+
+, where the function gP is given in Eq. (197) .
+
+The following theorem studies the context scalings. For simplicity we choose σ0(v) = v. While it can be derived from Results 1 and 2, we also prove it rigorously. See Appendix D. 
+
+Theorem 1 (Informal) . Take κF , κ K → ∞ after γF , γ K → ∞ , and set ∆ = λ = 0 and σ0(v) = v. Let 
+
+α = L/d and eα = eL/d . For the kernel learner, define ηk,L := c2   
+
+> kLDk,d +c2
+> kL
+
+. Then, for P ∈ { M, G},
+
+Ekernel  
+
+> P
+
+= νout + X
+
+> k∈K
+
+
+
+c2
+
+> k
+
+(1 − ηk,L )2 + Dk,d 
+
+eL η2
+
+> k,L
+
+
+
++ o(1) . (20) 
+
+For the feature learner, define ρα := c1√c21+1 /α , rα := ρ2 
+
+> α
+
+and sα, eα = ρα  
+
+> ρeα
+
+. Then 
+
+Efeature  
+
+> P
+
+= 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+rk 
+
+> eα
+
++ X
+
+> ℓ≥0
+
+ X
+
+> m≥0
+
+cℓ+2 mρℓ+2 mα
+
+r (ℓ + 2 m)! 
+
+ℓ!
+
+sℓα, eα
+
+m!
+
+s2 
+
+> α, eα
+
+− 12
+
+!m
+
+− cℓρℓ
+
+> eα
+
+
+
+> 2
+
++ o(1) , (21) 6One immediate corollary is that if we choose eL = L = αd s with fixed s > 0 and d → ∞ , we have 
+
+Efeature  
+
+> P
+
+−→ 
+
+
+
+1, 0 < s < 1,
+
+1 − P∞ 
+
+> k=1
+
+c2
+
+> k
+
+rkα, s = 1 ,
+
+0, s > 1,
+
+P ∈ { M, G}, (22) while for the kernel learner: 
+
+Ekernel  
+
+> P
+
+−→ νout + X
+
+> k∈K , k>s
+
+c2 
+
+> k
+
++ 1{s∈K} 
+
+c2
+
+> s
+
+1 + αs !c2
+
+> s
+
+, P ∈ { M, G}. (23) This suggests that for the kernel learner, a degree-k harmonic sector is asymptotically fully recovered when 
+
+L ≫ dk, is only partially recovered when L = Θ( dk), and is asymptotically unrecovered when L ≪ dk.Moreover, assuming s = 1 and 1 ∈ K , we obtain Ekernel  
+
+> P
+
+− E feature  
+
+> P
+
+≈ P 
+
+> k≥2
+
+c2
+
+> k
+
+rkα. For a nonlinear teacher this gap is strictly positive for every α > 0.Thus there are two advantages of the feature learner. First, Results 1 and 2 suggest that the two learners operate at different pretraining sample scales. Denote p := max K. The feature and kernel attention matrices contain d2 and D2 = Θ( d2p) parameters, respectively, and hence converge on the scales N ≫ d2 and N ≫ D2.Thus, when p > 1, there is a broad regime d2 ≪ N ≪ D2 in which the feature learner is already close to its infinite-pretraining limit while the kernel learner is not. Second, the two architectures use the demonstrations differently. For the kernel learner, a degree-k
+
+spherical-harmonic sector requires a context length of order dk to be recovered. Under L = Θ( d), only the degree-one sector contributes. By contrast, the feature learner only requires L = Θ( d) demonstrations and exploits all Hermite components of the teacher with factors rkα simultaneously. On the other hand, the kernel learner has an advantage that a longer inference context always improves its performance by Eq. (20). In contrast, such monotonicity need not hold for the feature learner. There is a nonnegative mismatch error (the third term of Eq. (21)) for the feature learner which arises because the Stage-II readout is optimized for the training context length L and is then kept fixed at inference. Theorem 1 also implies that when ˜L is fixed, both the kernel and the feature learner reach the optimal performance at L = ˜L. Increasing the training context beyond ˜L is not beneficial. 
+
+# 4 Experiments 
+
+We compare the two learners at finite d, D, N 0, N, L, eL, using the same task pool and prompts, and evaluate the state equations at the corresponding values. Experiments use the common teacher: 
+
+σ⋆
+
+ a⊤x
+
+√d
+
+
+
+=
+
+√32
+
+a⊤x
+
+√d +
+
+√24
+
+ (a⊤x)2
+
+d − 1
+
+
+
+. (24) For the kernel learner, we use the complete degree-one and degree-two spherical harmonic basis. Note that because the degree-one and degree-two harmonic basis contains the teacher, the kernel learner has no representation error ( νout = 0 ). Unless stated otherwise, we fix d = 32 , D = 559 , ∆ = 0 .01 and λ = 0 .001 . We first increase N with a small fixed task pool, then vary task diversity and the training and inference lengths to compare the two learners across these settings. In this section we denote α := L/d and eα := eL/d .• Numerics. We use the attention block in Eq. (5). In terms of the feature learner, we use the following two-stage protocol. 
+
+– Stage I. Initialize the attention block, fix the scalar readout to σ0(u) = u by initializing a width-64 ReLU readout (which remains frozen during Stage I), and do full-batch L-BFGS. 
+
+– Stage II. Freeze the learned attention block, independently draw 1024 prompts 1 from the same task pool, and train the readout by AdamW followed by full-batch L-BFGS. 
+
+> 1This choice is for a generic MLP readout. In general, Stage II requires far fewer samples than Stage I; for example, in our case fitting a quadratic readout is enough.
+
+710 3 10 4 10 5 10 6
+
+N
+
+> 10 −1
+> 10 0
+> 10 1
+> Mean squared error
+
+Memorization    
+
+> 10 310 410 510 6
+
+N
+
+Generalization    
+
+> Feature Linear attention Kernel Experiment (single run)
+
+Figure 2: Memorization (left) and generalization (right) errors as a function of N . We fix N0 = 24 and 
+
+L = eL = 1024 . Red, orange, and blue denote the feature learner, linear attention, and the kernel learner, respectively. Solid lines show replica predictions, and circles show numerical results from a single training run. The three learners use the same training and inference prompts. For the kernel learner, we map each input to the fixed kernel basis h(x) and optimize the attention block corresponding to Eq. (5) by full-batch L-BFGS. We also compare them with the linear attention baseline, which is equivalent to the feature learner after Stage I. All three learners use the same Stage-I and inference prompts. Each inference error averages 32768 prompts. • Replica curves. – Feature learner. We solve Eq. (121), substitute the order parameters into Eq. (19) with the readout in Eq. (18). 
+
+– Kernel learner. We solve Eqs. (40) and substitute their order parameters into Eq. (15). 
+
+## 4.1 Varying the number of training prompts 
+
+We first compare the numerics and the replica prediction with different numbers of training prompts. We fix N0 = 24 and α = eα = 32 , and vary N from 288 to 1200000 . Increasing N allows us to compare the two learners both before and after their interpolation peaks. In Figure 2, we can observe a good agreement between the numerics and the replica prediction. In Appendix C.1 we further check the consistency of corresponding order parameters between experiments and replica prediction. The feature learner, linear attention and kernel learner all show the familiar double-descent behavior [24], with interpolation peaks near d2 and D2, respectively. Stage II substantially reduces the interpolation peak for the feature learner, although a smaller peak remains. Our main interest, however, is the relative performance of the two learners across the different data regimes. We highlight the main observations below. • The feature learner reaches low error earlier. After its first interpolation peak, the feature learner (red line) reaches low error well before the kernel learner (blue line), since D ≫ d. At N = 36864 , its memorization/generalization errors are 0.061 /0.421 , compared with 0.088 /0.675 for the kernel learner, which later passes through its interpolation peak near D2. The feature learner is therefore better over 
+
+d2 ≪ N ≪ D2.• The kernel learner wins on memorization at large N , but fails on generalization. At 
+
+N = 1200000 , the kernel learner achieves memorization error 0.037 , below the feature learner’s 0.046 .Generalization still favors the feature learner, with mean error 0.354 compared with 0.657 for the kernel learner. In fact, as N → ∞ , Results 1 and 2 give the limiting errors: 
+
+Efeature M ≃ 0.03536 , Efeature G ≃ 0.35682 , Ekernel M ≃ 0.02264 , Ekernel G ≃ 0.67073 .
+
+810 0 10 1 10 2 10 3
+
+123
+
+> Task diversity  N0/d (a) Memorization
+
+10 0 10 1 10 2 10 3
+
+> (b) Generalization
+
+4 8 16 32 64 128 4816 32 64 128 
+
+> Inference context  ̃  α (c) Memorization
+
+4 8 16 32 64 128 
+
+> (d) Generalization
+
+−1 0 1
+
+Data and task diversity Training and inference lengths      
+
+> Number of prompts N/d2Training context α
+> log 2(kernel /feature )
+> Kernel better Feature better
+
+Figure 3: Replica predictions for the relative errors of the two learners. In all panels, the color shows 
+
+log 2(Ekernel /Efeature ). (a,b) Memorization and generalization as N/d 2 and N0/d vary, with α = eα = 32 ;vertical dashed lines mark N = d2 and N = D2. (c,d) Memorization and generalization as the training length α = L/d and inference length eα = eL/d vary, with N0 = 24 and N = 12288 ; the diagonal dotted line marks equal lengths, and the horizontal dashed line marks eα = 32 . Gold stars mark the shared parameter setting ( N = 12288 , N 0 = 24 , α = eα = 32 ). Blue favors the kernel learner, red favors the feature learner, and black curves indicate equal errors. The kernel learner can thus learn the training tasks more accurately with more trainable parameters once enough prompts are available, but generalizes worse at low task diversity. 
+
+## 4.2 Varying task diversity and context lengths 
+
+The previous comparison uses a fixed value of N0, α, eα. In this section, we vary these hyperparameters to obtain a more comprehensive phase diagram (Figure 3). Figure 3(a,b) shows that the kernel learner has a memorization advantage when the training set size N is large and the task pool N0 is small. Increasing N0 removes this kernel memorization advantage. At smaller 
+
+N , the relative performance is further affected by the two interpolation peaks near N ∼ d2 and N ∼ D2.Hence, the kernel learner has a generalization advantage only in the low-N regime, where the feature learner is affected by its N ∼ d2 interpolation peak. This is consistent with the observation in Figure 2. We next vary the training and inference lengths in Figure 3(c,d). 
+
+Longer training prompts do not always improve inference performance. Figure 3(c,d) suggests that the relative advantage depends strongly on the training and inference context lengths. Two regimes can favor the kernel learner. First, under a large context-length mismatch, the feature learner can deteriorate (see Theorem 1). Second, when both α and eα are large, the kernel learner can reconstruct the teacher with smaller fluctuations (see Theorem 1), since the kernel basis is complete. Overall, these replica predictions show that the relative advantage of feature and kernel learners depends jointly on the amount of pretraining data N , task diversity N0, and the training and inference context lengths 
+
+α, eα. Additional numerical results are provided in Appendix C.2, where we compare the replica prediction with the experiments with different N0.
+
+## 4.3 Learning different harmonic degrees 
+
+Theorem 1 predicts that the two learners have different context scalings. Figure 4 illustrates this difference for the common teacher (24). The solid curves are obtained by substituting d = 16 and L = 16 s into Eqs. (20) and (21), which agree closely with the numerical experiments. The feature learner has lower error throughout the displayed range. The dashed curves evaluate the same formulas at d = 10 6 and show the 9separation of sample complexities emerge as d becomes larger. The kernel learner acquires the degree-one and degree-two components at the separate scales L ≍ d and L ≍ d2, whereas the feature learner recovers both components at the same time. 
+
+# 5 Conclusion and Future Work 0.5 1.0 1.5 2.0 2.5 
+
+Length exponent s: L = ds
+
+> 0.00 0.25 0.50 0.75 1.00 1.25
+> Generalization error  Feature Kernel
+
+Figure 4: Learning different harmonic degrees. The horizontal coordinate is s = log L/ log d, with equal training and inference lengths L = eL = ds. The teacher is (24). Circles show experiments at d = 16 ,
+
+N0 = 8192 , N = 1200000 , ∆ = 0 , and λ = 0 . Solid curves are Theorem 1 (Eqs. (20) and (21)) evaluated at d = 16 . Dashed curves are the same formulas evaluated at d = 10 6 and display the separation be-tween the scales L ≍ d and L ≍ d2.In this work, we studied nonlinear ICL by comparing the kernel learner and the feature learner on the same single-index task. Using replica calculations, we char-acterized how their memorization and generalization errors depend jointly on pretraining size, task diver-sity, and the training and inference context lengths. In the population limit, we rigorously prove two context-scaling mechanisms. More broadly, our results sug-gest that the relative advantage of kernel and feature learning in ICL is determined by how the architectures interact with the amount of pretraining data, task di-versity, and the information available in the context. Several directions remain open. Our analysis fo-cuses on one-layer linear attention, spherical-harmonic features, and an idealized two-stage training proce-dure in which the scalar readout is learned from suffi-cient additional data. It would be useful to understand whether the same separation persists for random fea-tures or learned embeddings, jointly trained readouts, softmax attention, and deeper Transformer architec-tures. On the theoretical side, important directions include proving the finite-dimensional results and an-alyzing ICL beyond single-index targets with μ1̸ = 0 .
+
+# Acknowledgements 
+
+We acknowledge funding from the Swiss National Science Foundation grants SNSF SMArtNet (grant number 212049), the Simons Collaboration on the Physics of Learning and Neural Computation via the Simons Foundation grant (#1257413 (LZ)), the Swiss State Secretariat for Education, Research and Innovation (SERI), which funded the ERC Advanced Grant SPASM-net, and the EPFL AI Center PhD Fellowship Program 2026 (YX). 
+
+# References 
+
+[1] Fabián Aguirre-López, Silvio Franz, and Mauro Pastore. Random features and polynomial rules. SciPost Physics , 18(1):039, 2025. [2] Ekin Akyürek, Dale Schuurmans, Jacob Andreas, Tengyu Ma, and Denny Zhou. What learning algo-rithm is in-context learning? investigations with linear models. In The Eleventh International Confer-ence on Learning Representations , 2023. [3] Jimmy Ba, Murat A Erdogdu, Taiji Suzuki, Zhichao Wang, Denny Wu, and Greg Yang. High-dimensional asymptotics of feature learning: How one gradient step improves the representation. Ad-vances in Neural Information Processing Systems , 35:37932–37946, 2022. [4] Yu Bai, Fan Chen, Huan Wang, Caiming Xiong, and Song Mei. Transformers as statisticians: Provable in-context learning with in-context algorithm selection. Advances in neural information processing systems , 36:57125–57211, 2023. 10 [5] Alberto Bietti, Joan Bruna, Clayton Sanford, and Min Jae Song. Learning single-index models with shallow neural networks. Advances in neural information processing systems , 35:9768–9783, 2022. [6] Blake Bordelon, Mary Letey, and Cengiz Pehlevan. Theory of scaling laws for in-context regression: Depth, width, context and time. In International Conference on Learning Representations , volume 2026, pages 21749–21779, 2026. [7] Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, et al. Language models are few-shot learners. Advances in neural information processing systems , 33:1877–1901, 2020. [8] Yatin Dandi, Florent Krzakala, Bruno Loureiro, Luca Pesce, and Ludovic Stephan. How two-layer neural networks learn, one (giant) step at a time. Journal of Machine Learning Research , 25(349):1–65, 2024. [9] Leonardo Defilippis, Bruno Loureiro, and Theodor Misiakiewicz. Dimension-free deterministic equiv-alents and scaling laws for random feature regression. In Advances in Neural Information Processing Systems , volume 37, pages 104630–104693. Curran Associates, Inc., 2024. [10] Qingxiu Dong, Lei Li, Damai Dai, Ce Zheng, Jingyuan Ma, Rui Li, Heming Xia, Jingjing Xu, Zhiyong Wu, Baobao Chang, et al. A survey on in-context learning. In Proceedings of the 2024 conference on empirical methods in natural language processing , pages 1107–1128, 2024. [11] Sara Dragutinović, Andrew M Saxe, and Aaditya K Singh. Softmax ≥ linear: Transformers may learn to classify in-context by kernel gradient descent. arXiv preprint arXiv:2510.10425 , 2025. [12] S. F. Edwards and P. W. Anderson. Theory of spin glasses. Journal of Physics F: Metal Physics ,5(5):965–974, 1975. [13] Gabriele Farné, Fabrizio Boncoraglio, and Lenka Zdeborová. The rules-and-facts model for simultaneous generalization and memorization in neural networks. arXiv preprint arXiv:2603.25579 , 2026. [14] Christopher Frye and Costas J Efthimiou. Spherical harmonics in p dimensions. arXiv preprint arXiv:1205.3548 , 2012. [15] Shivam Garg, Dimitris Tsipras, Percy S Liang, and Gregory Valiant. What can transformers learn in-context? a case study of simple function classes. Advances in neural information processing systems ,35:30583–30598, 2022. [16] Behrooz Ghorbani, Song Mei, Theodor Misiakiewicz, and Andrea Montanari. When do neural networks outperform kernel methods? Advances in Neural Information Processing Systems , 33:14820–14830, 2020. [17] Chase Goddard, Lindsay M Smith, Vudtiwat Ngampruetikorn, and David J Schwab. When can in-context learning generalize out of task distribution? arXiv preprint arXiv:2506.05574 , 2025. [18] Sebastian Goldt, Bruno Loureiro, Galen Reeves, Florent Krzakala, Marc Mézard, and Lenka Zdeborová. The gaussian equivalence of generative models for learning with shallow neural networks. In Mathemat-ical and Scientific Machine Learning , pages 426–471. PMLR, 2022. [19] Hong Hu and Yue M Lu. Universality laws for high-dimensional learning with random features. IEEE Transactions on Information Theory , 69(3):1932–1964, 2023. [20] Hong Hu, Yue M Lu, and Theodor Misiakiewicz. Asymptotics of random feature regression beyond the linear scaling regime. arXiv preprint arXiv:2403.08160 , 2024. [21] Soo Min Kwon, Alec S Xu, Can Yaras, Dogyoon Song, Laura Balzano, and Qing Qu. The effect of training task diversity on in-context learning through the lens of low-dimensional subspaces. arXiv preprint arXiv:2606.06814 , 2026. 11 [22] Mary Letey, Jacob Zavatone-Veth, Yue Lu, and Cengiz Pehlevan. Pretrain–test task alignment governs generalization in in-context learning. In International Conference on Learning Representations , volume 2026, pages 128723–128761, 2026. [23] Bruno Loureiro. Four lectures on statistical physics of learning, 2024. Lecture notes, Princeton Machine Learning Theory Summer School. [24] Yue M Lu, Mary Letey, Jacob A Zavatone-Veth, Anindita Maiti, and Cengiz Pehlevan. Asymptotic theory of in-context learning by linear attention. Proceedings of the National Academy of Sciences ,122(28):e2502599122, 2025. [25] Arvind Mahankali, Tatsunori Hashimoto, and Tengyu Ma. One step of gradient descent is provably the optimal in-context learner with one layer of linear self-attention. In International Conference on Learning Representations , volume 2024, pages 32077–32096, 2024. [26] Song Mei, Theodor Misiakiewicz, and Andrea Montanari. Learning with invariances in random features and kernel models. In Conference on Learning Theory , pages 3351–3418. PMLR, 2021. [27] Marc Mézard, Giorgio Parisi, and Miguel Angel Virasoro. Spin glass theory and beyond: An Introduction to the Replica Method and Its Applications , volume 9. World Scientific Publishing Company, 1987. [28] Theodor Misiakiewicz. Spectrum of inner-product kernel matrices in the polynomial regime and multiple descent phenomenon in kernel ridge regression. arXiv preprint arXiv:2204.10425 , 2022. [29] Andrea Montanari and Basil N. Saeed. Universality of empirical risk minimization. In Proceedings of Thirty Fifth Conference on Learning Theory , volume 178 of Proceedings of Machine Learning Research ,pages 4310–4312. PMLR, 2022. [30] Alex Nguyen and Gautam Reddy Nallamala. Differential learning kinetics govern the transition from memorization to generalization during in-context learning. In International Conference on Learning Representations , volume 2025, pages 8677–8697, 2025. [31] Naoki Nishikawa, Yujin Song, Kazusato Oko, Denny Wu, and Taiji Suzuki. Nonlinear transformers can perform inference-time feature learning. In Forty-second International Conference on Machine Learning ,2025. [32] Kazusato Oko, Yujin Song, Taiji Suzuki, and Denny Wu. Pretrained transformer efficiently learns low-dimensional target functions in-context. Advances in Neural Information Processing Systems , 37:77316– 77365, 2024. [33] Allan Raventós, Mansheej Paul, Feng Chen, and Surya Ganguli. Pretraining task diversity and the emergence of non-bayesian in-context learning for regression. Advances in neural information processing systems , 36:14228–14246, 2023. [34] Aaditya Singh, Stephanie Chan, Ted Moskovitz, Erin Grant, Andrew Saxe, and Felix Hill. The transient nature of emergent in-context learning in transformers. Advances in neural information processing systems , 36:27801–27819, 2023. [35] Kaito Takanami, Takashi Takahashi, and Yoshiyuki Kabashima. Learning linear regression with low-rank tasks in-context. In Proceedings of the 29th International Conference on Artificial Intelligence and Statistics , volume 300 of Proceedings of Machine Learning Research , pages 4672–4680. PMLR, 2026. [36] Johannes Von Oswald, Eyvind Niklasson, Ettore Randazzo, João Sacramento, Alexander Mordvintsev, Andrey Zhmoginov, and Max Vladymyrov. Transformers learn in-context by gradient descent. In 
+
+International Conference on Machine Learning , pages 35151–35174. PMLR, 2023. [37] Jingfeng Wu, Difan Zou, Zixiang Chen, Vladimir Braverman, Quanquan Gu, and Peter Bartlett. How many pretraining tasks are needed for in-context learning of linear regression? In International Con-ference on Learning Representations , volume 2024, pages 56587–56641, 2024. 12 [38] Lenka Zdeborová and Florent Krzakala. Statistical physics of inference: Thresholds and algorithms. 
+
+Advances in Physics , 65(5):453–552, 2016. [39] Yedi Zhang, Aaditya K Singh, Peter E Latham, and Andrew Saxe. Training dynamics of in-context learning in linear attention. arXiv preprint arXiv:2501.16265 , 2025. 
+
+# Contents 
+
+1 Introduction 12 Settings 2
+
+2.1 Task . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22.2 Kernel learner . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 42.3 Feature learner . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+
+3 Main results 54 Experiments 7
+
+4.1 Varying the number of training prompts . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 84.2 Varying task diversity and context lengths . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 94.3 Learning different harmonic degrees . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+
+5 Conclusion and Future Work 10 A Derivation of the kernel learner 14 
+
+A.1 Teacher expansion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14 A.2 Fixed point equations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16 A.3 Limiting spectrum . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16 A.4 Reduction to Takanami et al. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17 A.5 Derivation of the main results . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 
+
+B Derivation of the feature learner 25 
+
+B.1 Fixed point equations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25 B.2 Derivation of the state equations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25 B.2.1 The replica trick . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25 B.2.2 Teacher score and attention outputs . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26 B.2.3 Order parameters and replica symmetry . . . . . . . . . . . . . . . . . . . . . . . . . . 28 B.2.4 Calculation of f1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30 B.2.5 Calculation of f2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30 B.2.6 Calculation of f3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31 B.2.7 Stationarity . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32 B.3 Derivation of the main results . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32 
+
+C Additional experiments 37 
+
+C.1 Consistency of the Replica method with numerical experiments . . . . . . . . . . . . . . . . . 37 C.2 Varying task diversity . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37 C.3 Derivation of Eq. (217) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38 
+
+D A formal statement of Theorem 1 40 
+
+13 E Proof of Theorem 2 42 
+
+E.1 Gegenbauer polynomials . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 42 E.2 Kernel learner . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44 E.3 Feature learner Stage-I . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 46 E.4 Concentration of the context . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 47 E.5 Feature learner Stage-II . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51 E.5.1 Asymptotical parameters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 52 E.5.2 A spherical-to-Gaussian approximation . . . . . . . . . . . . . . . . . . . . . . . . . . . 52 E.5.3 The Stage-II regression on the training distribution . . . . . . . . . . . . . . . . . . . . 53 E.5.4 Transfer from training to inference . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 55 E.5.5 Reduction of the inference error to a Gaussian channel . . . . . . . . . . . . . . . . . . 57 E.5.6 Continuity of the Gaussian-channel error . . . . . . . . . . . . . . . . . . . . . . . . . 57 E.5.7 Final proof of Theorem 2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 59 
+
+F Declaration of LLM usage 60 
+
+# A Derivation of the kernel learner 
+
+## A.1 Teacher expansion 
+
+We first express the nonlinear teacher in the spherical-harmonic basis used by the kernel learner. Let 
+
+gd := a⊤x
+
+√d , a, x i.i.d.
+
+∼ Unif( Sd−1(√d)) . (25) The random variable gd has mean zero and variance one and converges in distribution to G ∼ N (0 , 1) as 
+
+d → ∞ .For each k ≥ 0, let Pk,d denote the degree-k Gegenbauer polynomial orthonormal with respect to the distribution of gd, namely 
+
+E[Pj,d (gd)Pk,d (gd)] = δjk . (26) With the spherical harmonics normalized with respect to the uniform probability measure on Sd−1(√d), the spherical addition theorem [14] gives 
+
+Pk,d 
+
+ a⊤x
+
+√d
+
+
+
+= 1
+
+pDk,d 
+
+hk(a)⊤hk(x). (27) Define the Gegenbauer coefficients ck,d := E[σ⋆(gd)Pk,d (gd)] . Then, in L2 with respect to the distribution of gd,
+
+σ⋆(gd) = X
+
+> k≥0
+
+ck,d Pk,d (gd) = X
+
+> k≥0
+
+ck,d 
+
+pDk,d 
+
+hk(a)⊤hk(x). (28) Let Hk denote the normalized Hermite polynomial and define the Hermite coefficients of the teacher by 
+
+ck := E[σ⋆(G)Hk(G)] . (29) For every fixed k, the normalized Gegenbauer polynomial Pk,d converges to Hk as d → ∞ [26]. We assume throughout that σ⋆ is sufficiently regular so that 
+
+ck,d −→ ck for every fixed k, E[σ⋆(gd)2] −→ E[σ⋆(G)2] = 1 . (30) We now separate the harmonic degrees represented by the learner from the remaining component. For a fixed finite set K ⊂ N≥1, define 
+
+fK,d (a, x ) := X
+
+> k∈K
+
+ck,d 
+
+pDk,d 
+
+hk(a)⊤hk(x),rK,d (a, x ) := σ⋆
+
+ a⊤x
+
+√d
+
+
+
+− fK,d (a, x ).
+
+(31) 14 By orthogonality of the Gegenbauer polynomials, for every fixed a,
+
+Ex[rK,d (a, x )hk(x)] = 0 , k ∈ K , (32) and 
+
+Ex[rK,d (a, x )2] = X
+
+> k / ∈K
+
+c2
+
+> k,d
+
+. (33) Using Parseval’s identity together with (30), 
+
+X
+
+> k / ∈K
+
+c2 
+
+> k,d
+
+= E[σ⋆(gd)2] − X
+
+> k∈K
+
+c2 
+
+> k,d
+
+−→ 1 − X
+
+> k∈K
+
+c2 
+
+> k
+
+= X
+
+> k / ∈K
+
+c2
+
+> k
+
+. (34) Define 
+
+θ(a) := M
+
+> k∈K
+
+ck
+
+s
+
+DDk,d 
+
+hk(a). (35) Since K is finite and ck,d → ck for every k ∈ K ,
+
+Ea,x 
+
+
+
+fK,d (a, x ) − 1
+
+√D θ(a)⊤h(x)
+
+2
+
+= X
+
+> k∈K
+
+(ck,d − ck)2 −→ 0. (36) Hence 
+
+fK,d (a, x ) = 1
+
+√D θ(a)⊤h(x) + oL2 (1) . (37) The residual rK,d (a, x ), however, is in general neither Gaussian nor independent of h(x). To obtain a tractable effective model, we make an additional Gaussian-equivalence approximation: at the level of the high-dimensional learning problem, we replace the residual by an independent Gaussian random variable with the same variance. This approximation is motivated by Gaussian-equivalence results for high-dimensional random feature models [20, 1, 9]. Writing 
+
+νin := X
+
+> k∈K
+
+c2
+
+> k
+
+, νout := X
+
+> k / ∈K
+
+c2 
+
+> k
+
+= 1 − νin , (38) we therefore approximate the original teacher by the effective linear model 
+
+y = 1
+
+√D θ(a)⊤h(x) + eϵ, eϵ ∼ N (0 , ∆ + νout ), (39) where eϵ is taken to be independent of (a, x ) and of the feature vector h(x).15 A.2 Fixed point equations 
+
+Result A.1 (kernel learner: state equations) . Given (αK , γ K , κ K , ν in , ∆, λ, S K ), the state equations are 
+
+bmK = bχK = γK νin 
+
+νin (1 + χK ) + 1+∆  
+
+> αK
+
+χK
+
+,
+
+bqK =
+
+γK νin 
+
+h
+
+1 + ∆ − 2νin mK + νin qK + 1+∆  
+
+> αK
+
+qK
+
+ih
+
+νin (1 + χK ) + 1+∆  
+
+> αK
+
+χK
+
+i2 ,χK = 1
+
+bχK
+
+[1 − ζK rK (ζK )] ,χK = νin 
+
+bχK
+
+ 1 − κK
+
+ζK
+
++ κK rK (ζK )
+
+
+
+,mK = bmK
+
+νin bχK
+
+(νin − ζK + ζ2 
+
+> K
+
+rK (ζK )) ,qK = bm2
+
+> K
+
+νin bχ2
+
+> K
+
+(νin − 2ζK + 3 ζ2 
+
+> K
+
+rK (ζK ) − ζ3 
+
+> K
+
+tK (ζK )) + bqK
+
+bχ2
+
+> K
+
+1 + ( βK − 2ζK )rK (ζK ) + ( ζ2 
+
+> K
+
+− βK ζK )tK (ζK ) ,qK = κK bm2
+
+> K
+
+bχ2
+
+> K
+
+1 − 2ζK rK (ζK ) + ζ2 
+
+> K
+
+tK (ζK )
+
++ νin bqK
+
+bχ2
+
+> K
+
+
+
+(1 − κK ) βK
+
+ζ2
+
+> K
+
++ κK {rK (ζK ) + ( βK − ζK )tK (ζK )}
+
+
+
+,
+
+(40) 
+
+where rK (ζ) := lim N0→∞ 1 
+
+> N0
+
+Tr( GK + ζI N0 )−1 and tK (ζ) := lim N0→∞ 1 
+
+> N0
+
+Tr( GK + ζI N0 )−2. Here we define 
+
+GK := 1 
+
+> D
+
+Θ⊤ 
+
+> K
+
+ΘK ∈ RN0×N0 with ΘK := θ(a1) · · · θ(aN0 ) ∈ RD×N0 . We also define βK := (1 + ∆) κK
+
+> αK
+
+and ζK := βK + κK λ 
+
+> bχK
+
+. These equations determine five order parameters (mK , q K , q K , χ K , χ K ) and three conjugates ( bmK , bqK , bχK ).
+
+## A.3 Limiting spectrum 
+
+Result A.1 does not specialize to a particular spectrum of GK . Meanwhile, we can derive the analytical limiting spectrum of GK to simplify the equations. In Section 4, we use a different scaling N0 
+
+> d
+
+−→ ϱ ∈ (0 , ∞)
+
+for our comparison with the feature learner. Next we derive the limiting resolvents rK (ζ) and tK (ζ) in this scaling. Let 
+
+ΘK := θ(a1) · · · θ(aN0 ) ∈ RD×N0 , SK = 1
+
+N0
+
+ΘK Θ⊤ 
+
+> K
+
+, (41) and introduce the N0 × N0 task Gram matrix GK := 1 
+
+> D
+
+Θ⊤ 
+
+> K
+
+ΘK . We retain the notation κK := N0 
+
+> D
+
+. By the definition of θ(a),
+
+GK = X
+
+> k∈K
+
+c2
+
+> k
+
+1
+
+Dk,d 
+
+H⊤ 
+
+> k
+
+Hk, Hk := hk(a1) · · · hk(aN0 ) . (42) In the regime N0/d → ϱ, the degree-one block has a nontrivial Marchenko–Pastur spectrum, whereas every degree k ≥ 2 satisfies N0/D k,d → 0 and contributes asymptotically as an identity matrix. More precisely, the polynomial-regime spectral decomposition of [28] gives 
+
+GK = c21,K
+
+1
+
+d H⊤ 
+
+> 1
+
+H1 + ν>1,KIN0 + oop (1) , (43) where 
+
+c21,K := c211{1∈K} , ν>1,K := νin − c21,K. (44) 16 Here H1 = [ a1, . . . , a N0 ]. Let νκ denote the Marchenko–Pastur distribution 
+
+νκ( d s) =  1 − min {1, κ }δ0( d s) + 1[s−,s +](s) κp(s+ − s)( s − s−)2πs ds, s± = (1 ± κ−1/2)2. (45) The empirical spectral distribution of d−1H⊤ 
+
+> 1
+
+H1 converges to ν1/ϱ . Hence the empirical spectral distribution of GK converges to the law of 
+
+gϱ = ν>1,K + c21,Ks, s ∼ ν1/ϱ . (46) In particular, if 1 /∈ K , the limiting distribution reduces to the point mass at νin . The deterministic limits of the resolvents are therefore 
+
+Rϱ(ζ) := 
+
+Z ν1/ϱ (d s)
+
+ν>1,K + c21,Ks + ζ , (47) and 
+
+Tϱ(ζ) := 
+
+Z ν1/ϱ (d s)
+
+
+
+ν>1,K + c21,Ks + ζ
+
+2 . (48) For every fixed ζ > 0,
+
+rK (ζ) −→ R ϱ(ζ), tK (ζ) −→ T ϱ(ζ). (49) Substituting rK (ζK ) ≃ R ϱ(ζK ) and tK (ζK ) ≃ T ϱ(ζK ) into (40) gives the state equations used in our numerical experiments. 
+
+## A.4 Reduction to Takanami et al. 
+
+We now relate the kernel learner to the linear in-context learning model analyzed by [35]. The correspondence consists of an exact algebraic equivalence, followed by a Gaussian-equivalence approximation for the effective statistics entering the replica calculation. We first remove the normalization νin ̸ = 1 . Recall from Eq. (39) that the effective teacher obtained in the previous subsection is 
+
+y = 1
+
+√D θ(a)⊤h(x) + eϵ, eϵ ∼ N (0 , ∆ + νout ). (50) For νin > 0, define 
+
+θ′(a) := θ(a)
+
+√νin 
+
+, y′ := y
+
+√νin 
+
+, ∆′ := ∆ + νout 
+
+νin 
+
+, S′ 
+
+> K
+
+:= SK
+
+νin 
+
+, λ′ := λνin 
+
+. (51) Since HK is linear in the labels, the rescaled labels satisfy (HK )′ = HK /√νin , and hence 
+
+> N
+
+X
+
+> μ=1
+
+Tr  W (HKμ )⊤ − yμ
+
+> 0
+
+2 + λN 0∥W ∥2 
+
+> F
+
+= νin 
+
+( NX
+
+> μ=1
+
+Tr  W (( HKμ )′)⊤ − (yμ 
+
+> 0
+
+)′2 + λ′N0∥W ∥2
+
+> F
+
+)
+
+. (52) Therefore the minimizing matrix W is unchanged. It is thus sufficient to derive the result in the normalized setting 
+
+νin = 1 , νout = 0 , ∥θ(a)∥2 = D, (53) with the understanding that the replacements in Eq. (51) are restored at the end. The last identity follows from ∥hk(a)∥2 = Dk,d and the definition of θ(a).
+
+Correspondence of the linearized variables. In the notation of [35], define 
+
+xTak := h(x)
+
+√D , wTak := θ(a), σ2Tak := ∆ . (54) Then 
+
+E[xTak ] = 0 , E[xTak (xTak )⊤] = 1
+
+D ID , (55) 17 and the effective teacher takes the same linear form 
+
+y = ( wTak )⊤xTak + ϵ, ϵ ∼ N (0 , ∆) . (56) Moreover, the effective feature matrix used by the attention model is exactly 
+
+HTak = DL xTak 0
+
+> L
+
+X
+
+> ℓ=1
+
+yℓ(xTak  
+
+> ℓ
+
+)⊤ = 1
+
+L h(x0)
+
+> L
+
+X
+
+> ℓ=1
+
+yℓh(xℓ)⊤ = HK . (57) Thus the correspondence between the task matrices is also exact: 
+
+STak = 1
+
+N0
+
+> N0
+
+X
+
+> k=1
+
+wk(wk)⊤ = 1
+
+N0
+
+> N0
+
+X
+
+> k=1
+
+θ(ak)θ(ak)⊤ = SK . (58) For replicas W a, W b, the corresponding macroscopic overlaps are 
+
+maK := 1
+
+D Tr( W aSK ), Qab K := 1
+
+D Tr( W aSK (W b)⊤), Qab K := 1
+
+D Tr( W a(W b)⊤), (59) which coincide with the order parameters used in the linear model of [35]. 
+
+Gaussian equivalence for the effective statistic. The correspondence above does not imply that 
+
+xTak = h(x)/√D is Gaussian. We therefore require one additional approximation before transferring the replica calculation. For a fixed task a, the first moments needed below are: 
+
+E[y0 | a] = 0 , E[y20 | a] = 1 + ∆ , (60) and 
+
+E[y0HKij | a] = E[y0hi(x0) | a] E[yh j (x) | a] = θi(a)θj (a)
+
+D . (61) For the second moment of HK , the calculation gives 
+
+E[HKij HKi′j′ | a] = δii ′
+
+ L − 1
+
+LD θj (a)θj′ (a) + 1
+
+L Bjj ′ (a)
+
+
+
+, (62) where 
+
+B(a) := Ex[y2h(x)h(x)⊤ | a]. (63) By ∥h(x)∥2 = D for every x, we have 
+
+1
+
+D Tr B(a) = Ex[y2 | a] = 1 + ∆ . (64) Moreover, rotational invariance gives 
+
+Ea[B(a)] = (1 + ∆) ID . (65) Conditioned on a, however, B(a) is not asymptotically isotropic. Nevertheless, for the following we replace 
+
+B(a) with its expectation (i.e., a self-averaging ansatz) and write 
+
+E[HKij HKi′j′ | a] ≃ δii ′
+
+D
+
+
+
+θj (a)θj′ (a) + D(1 + ∆) 
+
+L δjj ′
+
+
+
+. (66) For the following, we invoke the Gaussian-equivalence step used in [35]: the effective learning problem is characterized through the leading first- and second-order statistics, while higher-order correlations are neglected in the high-dimensional limit. To make the connection explicit, define the task-dependent quadratic teacher matrix 
+
+Wteacher (a) := θ(a)θ(a)⊤
+
+D (67) 18 and the surrogate query label 
+
+y0 := Tr  Wteacher (a)( HK )⊤ + ϵ0, ϵ0 ∼ N (0 , ∆) . (68) Under Eq. (66), (y0, H K ) and (y0, H K ) have the same leading first- and second-order statistics. Hence, following the Gaussian-equivalence argument of [35], we replace the original training problem by the corre-sponding many-teacher regression problem. More specifically, for replicas {W a}na=1 , introduce the scalar fields 
+
+ua := Tr (Wteacher (a) − W a) ( HK )⊤ + ϵ0. (69) Under the Gaussian-equivalence approximation, the vector (u1, . . . , u n) is replaced by a centered Gaussian vector with covariance determined only by the overlaps in Eq. (59). After averaging over the task pool, its covariance is 
+
+Mab K = Qab K − maK − mbK + 1 + ∆ + 1 + ∆ 
+
+αK
+
+Qab K , αK := LD . (70) This is precisely the covariance entering the data-averaged replicated partition function of [35]. Consequently, under the same replica-symmetric ansatz, the remainder of the replica calculation has the same form as in the linear model, with the identifications 
+
+M0 ↔ N0, M ↔ N, α ↔ αK , κ ↔ κK , γ ↔ γK , S ↔ SK , σ2 ↔ ∆. (71) Restoring the original normalization with the replacements 
+
+SK 7 → SK
+
+νin 
+
+, ∆ 7 → ∆ + νout 
+
+νin 
+
+, λ 7 → λνin 
+
+, (72) this yields the saddle-point equations 
+
+bmK = bχK = γK νin 
+
+νin (1 + χK ) + 1+∆  
+
+> αK
+
+χK
+
+,
+
+bqK =
+
+γK νin 
+
+h
+
+1 + ∆ − 2νin mK + νin qK + 1+∆  
+
+> αK
+
+qK
+
+ih
+
+νin (1 + χK ) + 1+∆  
+
+> αK
+
+χK
+
+i2 ,χK = 1
+
+κK bχK D Tr( SK A−1 
+
+> K
+
+),χK = νin 
+
+κK bχK D Tr( A−1 
+
+> K
+
+),mK = bmK
+
+νin bχK D Tr( S2 
+
+> K
+
+A−1 
+
+> K
+
+),qK = bm2
+
+> K
+
+νin bχ2 
+
+> K
+
+D Tr( S3 
+
+> K
+
+A−2 
+
+> K
+
+) + bqK
+
+κK bχ2 
+
+> K
+
+D Tr 
+
+
+
+SK
+
+
+
+SK + 1 + ∆ 
+
+αK
+
+ID
+
+
+
+A−2
+
+> K
+
+
+
+,qK = bm2
+
+> K
+
+bχ2 
+
+> K
+
+D Tr( S2 
+
+> K
+
+A−2 
+
+> K
+
+) + νin bqK
+
+κK bχ2 
+
+> K
+
+D Tr 
+
+ 
+
+SK + 1 + ∆ 
+
+αK
+
+ID
+
+
+
+A−2
+
+> K
+
+
+
+,
+
+(73) where 
+
+AK := SK +
+
+ 1 + ∆ 
+
+αK
+
++ λ
+
+bχK
+
+
+
+ID . (74) 19 We finally obtain (40) using 
+
+1
+
+D Tr( A−1 
+
+> K
+
+) = κK
+
+ 1 − κK
+
+ζK
+
++ κK rK (ζK )
+
+
+
+,
+
+1
+
+D Tr( SK A−1 
+
+> K
+
+) = κK [1 − ζK rK (ζK )] ,
+
+1
+
+D Tr( S2 
+
+> K
+
+A−1 
+
+> K
+
+) = νin − ζK + ζ2 
+
+> K
+
+rK (ζK ),
+
+1
+
+D Tr( S3 
+
+> K
+
+A−2 
+
+> K
+
+) = νin − 2ζK + 3 ζ2 
+
+> K
+
+rK (ζK ) − ζ3 
+
+> K
+
+tK (ζK ),
+
+1
+
+D Tr( S2 
+
+> K
+
+A−2 
+
+> K
+
+) = κK
+
+1 − 2ζK rK (ζK ) + ζ2 
+
+> K
+
+tK (ζK ) ,
+
+1
+
+D Tr SK (SK + bK ID )A−2
+
+> K
+
+ = κK
+
+1 + ( βK − 2ζK )rK (ζK ) + ( ζ2 
+
+> K
+
+− βK ζK )tK (ζK ) ,
+
+1
+
+D Tr (SK + bK ID )A−2
+
+> K
+
+ = κK
+
+
+
+(1 − κK ) βK
+
+ζ2
+
+> K
+
++ κK {rK (ζK ) + ( βK − ζK )tK (ζK )}
+
+
+
+,
+
+(75) where bK := 1+∆  
+
+> αK
+
+and we also used the identity 
+
+1
+
+N0
+
+Tr GK = 1
+
+DN 0
+
+Tr(Θ ⊤ 
+
+> K
+
+ΘK ) = νin . (76) We emphasize that the reduction in this subsection concerns the pretraining problem and its saddle-point equations. The inference errors require a separate calculation because the original test labels are noiseless and there is an additional irreducible term; this is carried out in the following subsection. 
+
+## A.5 Derivation of the main results 
+
+We now derive the distribution of the learned attention matrix and the memorization and generalization errors stated in Result 1. Recall that 
+
+νin := X
+
+> k∈K
+
+c2
+
+> k
+
+, νout := X
+
+> k / ∈K
+
+c2
+
+> k
+
+, νin + νout = 1 , (77) and 
+
+SK := 1
+
+N0
+
+> N0
+
+X
+
+> k=1
+
+θ(ak)θ(ak)⊤. (78) The reduction in the previous subsection maps the kernel learner to the normalized linear problem with 
+
+S′ 
+
+> K
+
+= SK
+
+νin 
+
+, ∆′ = ∆ + νout 
+
+νin 
+
+, λ′ = λνin 
+
+. (79) Applying [35, Result E.1] to the normalized problem gives 
+
+cWK
+
+> d
+
+= 1
+
+bχK
+
+"bmK S′ 
+
+> K
+
++
+
+sbqK
+
+N0
+
+ZK
+
+
+
+S′ 
+
+> K
+
++ 1 + ∆ ′
+
+αK
+
+ID
+
+1/2# 
+
+S′ 
+
+> K
+
++
+
+ 1 + ∆ ′
+
+αK
+
++ λ′
+
+bχK
+
+
+
+ID
+
+−1
+
+, (80) where (ZK )ij 
+
+> iid
+
+∼ N (0 , 1) . Substituting Eq. (79) into Eq. (80) yields 
+
+cWK
+
+> d
+
+= 1
+
+bχK
+
+"bmK SK +
+
+s
+
+νin bqK
+
+N0
+
+ZK
+
+
+
+SK + 1 + ∆ 
+
+αK
+
+ID
+
+1/2# 
+
+SK +
+
+ 1 + ∆ 
+
+αK
+
++ λ
+
+bχK
+
+
+
+ID
+
+−1
+
+. (81) This gives Eq. (14). 20 We next derive the test errors. Define 
+
+SK, pop := Ea[θ(a)θ(a)⊤] = M
+
+> k∈K
+
+c2
+
+> k
+
+DDk,d 
+
+IDk,d , (82) where orthogonality of spherical harmonics across different degrees was used. In particular, 
+
+1
+
+D Tr SK, pop = νin . (83) For notational convenience, define 
+
+SK, M := SK , SK, G := SK, pop , (84) We use the test-error parameters in Eq. (15), together with 
+
+qK := 1
+
+D E Tr( cWK cW ⊤ 
+
+> K
+
+). (85) By construction, 
+
+mK, M = mK , qK, M = qK , (86) where mK and qK are the order parameters of the normalized problem in Eq. (40). At inference time the original labels are noiseless. Under the same Gaussian-equivalence approximation introduced in Section A.1, we write the test labels as 
+
+y = 1
+
+√D θ(a)⊤h(x) + ξ, ξ ∼ N (0 , ν out ), (87) where ξ is independent of h(x). Thus 
+
+E[y2 | a] = 1 , E[yh (x) | a] = θ(a)
+
+√D . (88) Let 
+
+HK 
+
+> te
+
+= 1
+
+eL h(x0)
+
+
+
+> eL
+
+X
+
+> ℓ=1
+
+yℓh(xℓ)
+
+
+
+> ⊤
+
+, by0 = Tr 
+
+cWK (HK 
+
+> te
+
+)⊤
+
+. (89) For a fixed test task a,
+
+E[y0(HK 
+
+> te
+
+)ij | a] = θi(a)θj (a)
+
+D . (90) Therefore, 
+
+E[y0 by0] = νin mK, P , P ∈ { M, G}. (91) For the second moment, define 
+
+Bte (a) := Ex[y2h(x)h(x)⊤ | a]. (92) A direct calculation gives 
+
+E[( HK 
+
+> te
+
+)ij (HK 
+
+> te
+
+)i′j′ | a] = δii ′
+
+" eL − 1
+
+eLD θj (a)θj′ (a) + 1
+
+eL (Bte (a)) jj ′
+
+#
+
+. (93) As in Appendix A.4, we have Ea[Bte (a)] = ID . For memorization, we analogously replace the empirical task average by the population quantity. Hence, using Eq. (93), we obtain 
+
+E[by20 ] = eL − 1
+
+eL νin qK, P + 1
+
+eL E Tr( cWK cW ⊤ 
+
+> K
+
+) + o(1) = νin qK, P + qK
+
+eαK
+
++ o(1) ,
+
+(94) 21 where we used eL = eαK D in the second equality. Finally, since the test labels are noiseless and normalized so that E[y20 ] = 1 = νin + νout ,
+
+Ekernel  
+
+> P
+
+= E[( y0 − by0)2]= 1 − 2νin mK, P + νin qK, P + qK
+
+eαK
+
++ o(1) = νout + νin (1 − 2mK, P + qK, P ) + qK
+
+eαK
+
++ o(1) , P ∈ { M, G}.
+
+(95) Dropping the asymptotically vanishing o(1) term gives Eq. (15). 
+
+Large-pretraining limit. Now we study the regime in which αK = L/D , eαK = eL/D , and κK = N0/D 
+
+remain fixed, while γK = N/ (DN 0) → ∞ . Let 
+
+bK := 1 + ∆ 
+
+αK
+
+, δK := λ
+
+bχK
+
+, AK,γ := SK + ( bK + δK )ID . (96) Since bmK = bχK , the first two conjugate equations in Result A.1 give 
+
+νin bqK
+
+N0 bχ2
+
+> K
+
+= DN
+
+
+
+1 + ∆ − 2νin mK + νin qK + 1 + ∆ 
+
+αK
+
+qK
+
+
+
+. (97) Define 
+
+ΞK := 1 + ∆ − 2νin mK + νin qK + 1 + ∆ 
+
+αK
+
+qK . (98) Then Eq. (81) can be written as 
+
+cWK
+
+> d
+
+= SK A−1 
+
+> K,γ
+
++
+
+r DN ΞK ZK (SK + bK ID )1/2A−1 
+
+> K,γ
+
+. (99) We first control the ridge correction δK . Using the equations for χK and χK in Eq. (40), the equation for 
+
+bχK becomes 
+
+bχK + 1
+
+κK D Tr 
+
+h
+
+(SK + bK ID )A−1
+
+> K,γ
+
+i
+
+= γK . (100) For λ ≥ 0,
+
+0 ≤ (SK + bK ID )A−1 
+
+> K,γ
+
+⪯ ID , (101) and hence 
+
+γK − 1
+
+κK
+
+≤ bχK ≤ γK . (102) Therefore 
+
+bχK = γK + O(1) , δK = O(γ−1 
+
+> K
+
+) = O
+
+ D2
+
+N
+
+
+
+, (103) where the last relation uses N = γK κK D2 with fixed κK .It follows that the deterministic part of Eq. (99) converges to 
+
+WK, ∞ := SK (SK + bK ID )−1. (104) Indeed, since bK > 0,
+
+SK A−1 
+
+> K,γ
+
+− WK, ∞ op 
+
+= O(δK ) = O
+
+ D2
+
+N
+
+
+
+. (105) The second term in Eq. (99) is a zero-mean fluctuation conditioned on SK . Its normalized squared Frobenius norm is 1
+
+D EZK
+
+cWK − SK A−1
+
+> K,γ
+> 2
+> F
+
+= DN ΞK Tr 
+
+h
+
+(SK + bK ID )A−2
+
+> K,γ
+
+i
+
+. (106) 22 For fixed αK > 0, 1 
+
+> D
+
+Tr 
+
+h
+
+(SK + bK ID )A−2
+
+> K,γ
+
+i
+
+= O(1) ,, and ΞK = O(1) in the large-pretraining regime. Con-sequently, 
+
+1
+
+D EZK
+
+cWK − SK A−1
+
+> K,γ
+> 2
+> F
+
+= O
+
+ D2
+
+N
+
+
+
+. (107) We next evaluate the limiting test errors by substituting WK, ∞ into Eq. (95). Define 
+
+AK, ∞ := SK + bK ID . (108) For memorization, 
+
+Ekernel M (∞) = νout + νin − 2
+
+D Tr( S2 
+
+> K
+
+A−1
+
+> K, ∞
+
+) + 1
+
+D Tr( S3 
+
+> K
+
+A−2
+
+> K, ∞
+
+) + 1
+
+eαK D Tr( S2 
+
+> K
+
+A−2
+
+> K, ∞
+
+). (109) Using D−1 Tr SK = νin and SK = AK, ∞ − bK ID , the first three terms reduce to 
+
+νin − 2
+
+D Tr( S2 
+
+> K
+
+A−1
+
+> K, ∞
+
+) + 1
+
+D Tr( S3 
+
+> K
+
+A−2
+
+> K, ∞
+
+) = b2
+
+> K
+
+D Tr( SK A−2
+
+> K, ∞
+
+). (110) Therefore 
+
+Ekernel M (∞) = νout + (1 + ∆) 2
+
+α2 
+
+> K
+
+D Tr( SK A−2
+
+> K, ∞
+
+) + 1
+
+eαK D Tr( S2 
+
+> K
+
+A−2
+
+> K, ∞
+
+). (111) Similarly, using D−1 Tr SK, pop = νin , the generalization error is 
+
+Ekernel G (∞) = νout + (1 + ∆) 2
+
+α2 
+
+> K
+
+D Tr( SK, pop A−2
+
+> K, ∞
+
+) + 1
+
+eαK D Tr( S2 
+
+> K
+
+A−2
+
+> K, ∞
+
+). (112) The deterministic correction caused by δK = λ/ bχK is O(D2/N ), while terms linear in the Gaussian fluctu-ation vanish after averaging over ZK and its quadratic contribution is controlled by Eq. (107). Hence 
+
+Ekernel  
+
+> P
+
+= Ekernel  
+
+> P
+
+(∞) + O
+
+ D2
+
+N
+
+
+
+, P ∈ { M, G}. (113) 
+
+Infinite task-pool limit and context-length scalings. We next set ∆ = λ = 0 and take first γK → ∞ 
+
+and then κK → ∞ , while allowing L and eL to be different. In this ordered limit, 
+
+SK −→ SK, pop = M
+
+> k∈K
+
+c2
+
+> k
+
+DDk,d 
+
+IDk,d . (114) Consequently, the memorization and generalization errors coincide. Writing S := SK, pop and A := S + 1 
+
+> αK
+
+ID ,Eqs. (111) and (112) give 
+
+Ekernel  
+
+> P
+
+= νout + 1
+
+α2 
+
+> K
+
+D Tr( SA −2) + 1
+
+eαK D Tr( S2A−2) + o(1) , P ∈ { M, G}. (115) Since the degree-k block of S has eigenvalue c2  
+
+> kDDk,d
+
+with multiplicity Dk,d , we obtain 
+
+Ekernel  
+
+> P
+
+= νout + X
+
+> k∈K
+
+"
+
+c2
+
+> k
+
+ Dk,d 
+
+Dk,d + c2
+
+> k
+
+L
+
+2
+
++ Dk,d 
+
+eL
+
+ c2
+
+> k
+
+LDk,d + c2
+
+> k
+
+L
+
+2#
+
++ o(1) . (116) Although the replica calculation above was formulated with a fixed positive αK = L/D , we can examine 
+
+d-dependent context scalings by substituting αK (d) = L(d)/D (d) before taking d → ∞ . For every fixed k,
+
+Dk,d = dk
+
+k!
+
+ 1 + O(d−1) . (117) 23 Consider a polynomial context-length scaling 
+
+L = eL = αd s, α > 0, s > 0. (118) For each k ∈ K ,
+
+c2
+
+> k
+
+Dk,d 
+
+c2
+
+> k
+
+L + Dk,d 
+
+−→ 
+
+
+
+0, k < s, c2
+
+> k
+
+1 + αk !c2
+
+> k
+
+, k = s, c2
+
+> k
+
+, k > s, 
+
+(119) where the middle case occurs only when s is an integer contained in K. Therefore, 
+
+Ekernel  
+
+> P
+
+(∞) −→ νout + X
+
+> k∈K
+> k>s
+
+c2 
+
+> k
+
++ 1{s∈N, s ∈K} 
+
+c2
+
+> s
+
+1 + αs !c2
+
+> s
+
+, P ∈ { M, G}. (120) Hence a degree-k harmonic component is asymptotically fully recovered when L ≫ dk, partially recovered when L = Θ( dk), and unrecovered when L ≪ dk.24 B Derivation of the feature learner 
+
+## B.1 Fixed point equations 
+
+Result B.1 (feature learner: state equations) . Given (αF , γ F , κ F , ∆, λ, σ ⋆, σ 0, S F ), the state equations are 
+
+V := μ21(q − m2) + 1 + ∆ 
+
+αF
+
+¯q, dχ := μ21χQ + 1 + ∆ 
+
+αF
+
+χ ¯Q, u0 := μ1mG + √V Z, v⋆ := arg min 
+
+> v∈R
+
+ 12
+
+h
+
+σ⋆(G) + √∆ ε − σ0(v)
+
+i2
+
++ (v − u0)2
+
+2dχ
+
+
+
+,
+
+bm = γF E
+
+ v⋆ − u0
+
+dχ
+
+
+
+μ1G − μ21m
+
+√V Z
+
+ 
+
+,
+
+bχQ = −γF μ21E
+
+"
+
+(v⋆ − u0)Zdχ
+
+√V
+
+#
+
+,
+
+bχ ¯Q = −γF
+
+1 + ∆ 
+
+αF
+
+E
+
+"
+
+(v⋆ − u0)Zdχ
+
+√V
+
+#
+
+,
+
+bqQ = γF μ21E
+
+ (v⋆ − u0)2
+
+d2
+
+> χ
+
+
+
+,
+
+bq ¯Q = γF
+
+1 + ∆ 
+
+αF
+
+E
+
+ (v⋆ − u0)2
+
+d2
+
+> χ
+
+
+
+,m = bm
+
+Z s2
+
+λ + bχ ¯Q + bχQs νκF ( d s),q =
+
+Z bm2s3 + κ−1 
+
+> F
+
+s(bqQs + bq ¯Q)(λ + bχ ¯Q + bχQs)2 νκF ( d s),
+
+¯q =
+
+Z bm2s2 + κ−1 
+
+> F
+
+(bqQs + bq ¯Q)(λ + bχ ¯Q + bχQs)2 νκF ( d s),χQ = 1
+
+κF
+
+Z sλ + bχ ¯Q + bχQs νκF ( d s),χ ¯Q = 1
+
+κF
+
+Z 1
+
+λ + bχ ¯Q + bχQs νκF ( d s).
+
+(121) 
+
+where G, Z, ε iid 
+
+∼ N (0 , 1) and νκ denotes the spectrum in (45) . The fixed point gives the five order parameters 
+
+(m, q, ¯q, χ Q, χ ¯Q) and their conjugates ( bm, bqQ, bq ¯Q, bχQ, bχ ¯Q).
+
+## B.2 Derivation of the state equations 
+
+We condition on the task pool throughout this calculation, and evaluate the resulting normalized traces using its limiting spectrum at the end. For notational simplicity, we will drop the subscript F. 
+
+B.2.1 The replica trick 
+
+Write ℓ(y, v ) := 12 [y − σ0(v)] 2. The Stage-I objective in Eq. (11) is, 
+
+LF (W ) = 12
+
+> N
+
+X
+
+> t=1
+
+
+
+σ⋆
+
+ (at)⊤xt
+
+> 0
+
+√d
+
+
+
++ ϵt 
+
+> 0
+
+− σ0
+
+ Tr( W (Ht)⊤)2
+
++ N0λ
+
+2 ∥W ∥2 
+
+> F
+
+. (122) The dataset D and the prompt task indices τ t are defined in Section 2. Below, ED|A 0 averages over the task indices, inputs, and label noise, conditional on the task pool. We represent loss minimization by the 25 integral [12, 23] 
+
+Zβ (D) := 
+
+Z
+
+dW e −βLF (W ), − lim 
+
+> β→∞
+
+log Zβ (D)
+
+βdN 0
+
+= min W LF (W )
+
+dN 0
+
+. (123) Here β > 0 is the inverse temperature. To evaluate the data average of the logarithm, we use its relation to moments near n = 0 :
+
+log E[Znβ | A 0] = log ED|A 0 en log Zβ = n ED|A 0 log Zβ + O(n2),
+
+ED|A 0 log Zβ = lim 
+
+> n→0
+
+1
+
+n log E[Znβ | A 0]. (124) We compute the moments for positive integers n and continue the expression to n near zero. The calculation first takes d → ∞ at fixed n, β and fixed (α, γ, κ ), then extracts the term linear in n, and finally takes 
+
+β → ∞ . This continuation and the exchanges of limits needed to relate it to Eq. (123) are formal steps in the replica method [27, 23]. For integer n, Znβ introduces n copies W 1, . . . , W n of the attention matrix. Conditional on A0, the prompts are independent, so 
+
+E[Znβ | A 0] = 
+
+Z nY
+
+> r=1
+
+dW r exp 
+
+"
+
+− βN 0λ
+
+2
+
+X
+
+> r
+
+Tr( W r (W r )⊤)
+
+# " 
+
+1
+
+N0
+
+> N0
+
+X
+
+> k=1
+
+ϕβ,k (W 1, . . . , W n)
+
+#N
+
+,ϕβ,k := Ex0: L,ϵ 0: L|ak exp 
+
+"
+
+−β
+
+> n
+
+X
+
+> r=1
+
+ℓ
+
+
+
+σ⋆(( ak)⊤x0/√d) + ϵ0, Tr( W r H⊤)
+
+#
+
+.
+
+(125) The factor N −10
+
+P 
+
+> k
+
+ϕβ,k averages one prompt over its task index; the power N accounts for all training prompts. 
+
+B.2.2 Teacher score and attention outputs 
+
+For a prompt generated by task aμ, we first compute the moments of the teacher score g := ( aμ)⊤xμ 
+
+> 0
+
+/√d
+
+and the attention output ur := Tr( W r (Hμ)⊤),r = 1 , . . . , n . We use α = L/d , eα = eL/d , γ = N/ (dN 0), and 
+
+κ = N0/d , as in Result B.1. Eq. (10) gives 
+
+Hμ := 1
+
+L xμ
+
+> 0
+> L
+
+X
+
+> ℓ=1
+
+yμℓ xμℓ
+
+!⊤
+
+,ur = Tr  W r (Hμ)⊤ = 1
+
+L
+
+> L
+
+X
+
+> ℓ=1
+
+yμℓ (xμ 
+
+> 0
+
+)⊤W r xμℓ .
+
+(126) We first compute the first- and second-order moments of these local fields. 
+
+Proposition 1. For fixed matrices W r , W s ∈ Rd×d with bounded operator norm and d−1 Tr( W r (W r )⊤) = 
+
+O(1) ,
+
+E[g | aμ] = 0 ,
+
+E[ur | aμ] = 0 ,
+
+E[g2 | aμ] = 1 ,
+
+E[g u r | aμ] = μ1
+
+d (aμ)⊤W r aμ + o(1) ,
+
+E[ur us | aμ] = μ21
+
+d (W r aμ)⊤(W saμ) + 1 + ∆ 
+
+αd Tr  W r (W s)⊤ + o(1) .
+
+(127) 
+
+Proof. Using μ1 = E[σ⋆(G)G], we decompose x = gd aμ 
+
+> √d
+
++ x⊥. Then 
+
+E[yx | aμ] = E
+
+
+
+y
+
+
+
+gd
+
+aμ
+
+√d + x⊥
+
+
+
+aμ
+
+
+
+= E[yg d | aμ] aμ
+
+√d + E[y E[x⊥ | gd, a μ]|aμ] = μ1
+
+aμ
+
+√d + o(1) ,
+
+E[y2xx ⊤ | aμ] = (1 + ∆) Id + O(1) aμ(aμ)⊤
+
+d + o(1) .
+
+(128) 26 The mixed moment of (g, u r ) is therefore 
+
+E[g u r | aμ] = 1
+
+L
+
+> L
+
+X
+
+> ℓ=1
+
+Eg y μℓ (xμ 
+
+> 0
+
+)⊤W r xμℓ aμ
+
+= 1
+
+L
+
+> L
+
+X
+
+> ℓ=1
+
+1
+
+√d (aμ)⊤W r E[yμℓ xμℓ | aμ]= μ1
+
+d (aμ)⊤W r aμ + o(1) . (129) For the second-order student statistic ur ,
+
+E[uμ(W r )uμ(W s)|aμ] (130) 
+
+= 1
+
+L2
+
+X
+
+> ℓ̸=ℓ′
+
+Eyμℓ yμℓ′ (xμ 
+
+> 0
+
+)⊤W r xμℓ (xμ 
+
+> 0
+
+)⊤W sxμℓ′ aμ + 1
+
+L2
+
+> L
+
+X
+
+> ℓ=1
+
+E(yμℓ )2(xμ 
+
+> 0
+
+)⊤W r xμℓ (xμ 
+
+> 0
+
+)⊤W sxμℓ aμ
+
+= L − 1
+
+Lμ21
+
+d (W r aμ)⊤(W saμ) + 1
+
+L Tr W r E[y2xx ⊤ | aμ]( W s)⊤
+
+= μ21
+
+d (W r aμ)⊤(W saμ) + 1 + ∆ 
+
+αd Tr  W r (W s)⊤ + o(1) . (131) These calculations prove Eq. (127). These definitions are imposed inside ϕβ,k by the Fourier representations of Dirac delta functions 
+
+1 = 
+
+Z
+
+dg δ (g − (ak)⊤x0/√d) = 
+
+Z dg dbg
+
+2π eibg(g−(ak )⊤x0/√d), (132) 
+
+1 = 
+
+Z
+
+dur δ(ur − Tr( W r H⊤)) = 
+
+Z dur dbur
+
+2π eibur (ur −Tr( W r H⊤)) , r = 1 , . . . , n. (133) The variables bg, bu1, . . . , bun are temporary Fourier variables and are unrelated to the conjugate order param-eters introduced later. If p∆ denotes the density of N (0 , ∆) , substituting Eqs. (132) and (133) gives 
+
+ϕβ,k =
+
+Z
+
+dϵ0p∆(ϵ0)
+
+Z dg dbg
+
+2π
+
+> n
+
+Y
+
+> r=1
+
+dur dbur
+
+2π e−β P  
+
+> rℓ(σ⋆(g)+ ϵ0,u r)
+
+eibgg +i P  
+
+> rburur
+
+× Ex0: L,ϵ 1: L|ak exp 
+
+"
+
+−ibg(ak)⊤x0/√d − i X
+
+> r
+
+bur Tr( W r H⊤)
+
+#
+
+.
+
+(134) 
+
+Assumption 1 (Gaussian equivalence of the local field) . For fixed n and L/d → α ∈ (0 , ∞), condition on 
+
+ak, W 1, . . . , W n, independently of the current prompt. We assume that the teacher score and the attention outputs can be replaced, in an averaged prompt, by jointly Gaussian variables with the same leading first two moments: 
+
+(g, u 1, . . . , u n) = ⇒ N (0 , C k), (135) 
+
+where (Ck)00 = 1 ,
+
+(Ck)0r = μ1
+
+d (ak)⊤W r ak + o(1) ,
+
+(Ck)rs = μ21
+
+d (W r ak)⊤(W sak) + 1 + ∆ 
+
+αd Tr( W r (W s)⊤) + o(1) .
+
+(136) 
+
+Here we assume the first two moments are matched, and higher-order correlations are negligible in the high-dimensional limit. 
+
+27 Let z := ( g, u 1, . . . , u n)⊤ and bz := ( bg, bu1, . . . , bun)⊤. Assumption 1 gives 
+
+Ex0: L,ϵ 1: L|ak e−ibz⊤z = exp 
+
+
+
+− 12 bz⊤Ck bz
+
+
+
++ o(1) . (137) Substituting this function into Eq. (134) and integrating the Fourier variables gives 
+
+ϕβ,k =
+
+Z
+
+dϵ0p∆(ϵ0)
+
+Z
+
+dg Y
+
+> r
+
+dur
+
+Z dn+1 bz
+
+(2 π)n+1 e−β P  
+
+> rℓ(σ⋆(g)+ ϵ0,u r)
+
+eibz⊤z−bz⊤Ck bz/2 + o(1) =
+
+Z
+
+dϵ0p∆(ϵ0)
+
+Z
+
+dg Y
+
+> r
+
+dur N (( g, u 1, . . . , u n) | 0, C k)e−β P   
+
+> rℓ(σ⋆(g)+ ϵ0,u r)
+
++ o(1) .
+
+(138) The Fourier integrals thus replace the average over the prompt by a Gaussian integral over (g, u 1, . . . , u n).
+
+B.2.3 Order parameters and replica symmetry 
+
+As in [35], we assume self-averaging with respect to the tasks in the pool. The task-dependent quadratic forms can then be replaced by their averages over the task pool. We therefore introduce 
+
+mr := 1
+
+dN 0
+
+> N0
+
+X
+
+> k=1
+
+(ak)⊤W r ak = 1
+
+d Tr( W r S),Qrs := 1
+
+dN 0
+
+> N0
+
+X
+
+> k=1
+
+(W r ak)⊤(W sak) = 1
+
+d Tr( W r S(W s)⊤),
+
+¯Qrs := 1
+
+d Tr( W r (W s)⊤).
+
+(139) Equations (136) give 
+
+C00 = 1 ,C0r = μ1mr ,Crs = μ21Qrs + 1 + ∆ 
+
+α ¯Qrs .
+
+(140) Hence 
+
+ϕβ (m, Q, ¯Q) = 
+
+Z
+
+dϵ0p∆(ϵ0)
+
+Z
+
+dg Y
+
+> r
+
+dur N (( g, u 1, . . . , u n) | 0, C )e−β P  
+
+> rℓ(σ⋆(g)+ ϵ0,u r)
+
+, (141) and 
+
+E[Znβ | A 0] ≃
+
+Z Y
+
+> r
+
+dW r exp 
+
+"
+
+− βN 0λ
+
+2
+
+X
+
+> r
+
+Tr( W r (W r )⊤)
+
+#
+
+[ϕβ (m, Q, ¯Q)] N . (142) We insert Eq. (139) into the integral over the matrices using Dirac delta functions. Their Fourier repre-sentations introduce the conjugate parameters bmr , bQrs , b¯Qrs 
+
+:
+
+1 = 
+
+Z
+
+dmr δ
+
+
+
+mr − 1
+
+d Tr( W r S)
+
+
+
+∝
+
+Z
+
+dmr d bmr exp[ −dN 0 bmr mr + N0 bmr Tr( W r S)] ,
+
+1 = 
+
+Z
+
+dQrs δ
+
+
+
+Qrs − 1
+
+d Tr( W r S(W s)⊤)
+
+
+
+∝
+
+Z
+
+dQrs d bQrs exp 
+
+
+
+− dN 0
+
+2 bQrs Qrs + N0
+
+2 bQrs Tr( W r S(W s)⊤)
+
+
+
+,
+
+1 = 
+
+Z
+
+d ¯Qrs δ
+
+
+
+¯Qrs − 1
+
+d Tr( W r (W s)⊤)
+
+
+
+∝
+
+Z
+
+d ¯Qrs d b¯Qrs 
+
+exp 
+
+
+
+− dN 0
+
+2
+
+b¯Qrs ¯Qrs + N0
+
+2
+
+b¯Qrs 
+
+Tr( W r (W s)⊤)
+
+
+
+.
+
+(143) The conjugate integrations are along the Fourier contours, with the factors of i absorbed into the conjugate variables. Substituting these identities separates the dependence on the matrices from that on the order parameters: 
+
+E[Znβ | A 0] ≃
+
+Z
+
+dΩ e−nβdN 0fn,β (Ω) , (144) 28 where Ω = {mr , Q rs , ¯Qrs , bmr , bQrs , b¯Qrs 
+
+} and 
+
+fn,β (Ω) = − γnβ log ϕβ + 1
+
+nβ 
+
+X
+
+> r
+
+bmr mr + 12nβ 
+
+X
+
+> r,s
+
+( bQrs Qrs + b¯Qrs ¯Qrs ) − 1
+
+nβdN 0
+
+log 
+
+Z Y
+
+> r
+
+dW r eGn ,Gn = N0
+
+2
+
+X
+
+> r,s
+
+bQrs Tr( W r S(W s)⊤) + N0
+
+2
+
+X
+
+> r,s
+
+b¯Qrs 
+
+Tr( W r (W s)⊤)+ N0
+
+X
+
+> r
+
+bmr Tr( W r S) − βN 0λ
+
+2
+
+X
+
+> r
+
+Tr( W r (W r )⊤).
+
+(145) In the high-dimensional limit, the integral in Eq. (144) is evaluated at a stationary point of fn,β . We next substitute the replica-symmetric form and take the limits described above. 
+
+Assumption 2 (Replica symmetry) . We assume that the stationary solution is invariant under permutations of the replica indices. In the zero-temperature limit, write 
+
+mr = m, Qrs = q + χQ
+
+β δrs ,
+
+¯Qrs = ¯ q + χ ¯Q
+
+β δrs .
+
+(146) 
+
+Here q, ¯q are the off-diagonal values, and χQ, χ ¯Q give the leading difference between diagonal and off-diagonal values. We use the same symmetry for the conjugate parameters [35, 23]. 
+
+The 1/β differences retain the variance around a stable minimum as the loss-weighted distribution con-centrates. This scaling holds for a strictly convex quadratic objective, as in the identity-readout case with 
+
+λ > 0; for a general σ0, finite limits of these scaled differences are part of the ansatz [23]. The corresponding scaling of the conjugate parameters is 
+
+bQrs = β2 bqQ − β bχQδrs ,
+
+b¯Qrs 
+
+= β2 bq ¯Q − β bχ ¯Qδrs ,
+
+bmr = β bm. 
+
+(147) After substituting Eqs. (146) and (147), the remaining variables are 
+
+x = ( m, q, ¯q, χ Q, χ ¯Q, bm, bqQ, bq ¯Q, bχQ, bχ ¯Q). (148) Grouping the terms in Eq. (145) gives 
+
+f (x) = lim  
+
+> β→∞
+
+lim  
+
+> n→0
+
+fn,β (Ω) |RS = f1(x) + f2(x) + f3(x), (149) up to additive constants independent of x. With u0, V, d χ as defined in Eqs. (121) and AF := ( λ + bχ ¯Q)Id +
+
+bχQSF , T F := bqQSF + bq ¯QId., we would obtain 
+
+f1(x) = γEG,Z,ε min 
+
+> v∈R
+
+
+
+ℓ
+
+
+
+σ⋆(G) + √∆ ε, v 
+
+
+
++ (v − u0)2
+
+2dχ
+
+
+
+,f2(x) = bmm − 12 bχQq − 12 bχ ¯Q ¯q + 12 bqQχQ + 12 bq ¯Qχ ¯Q,f3(x) = − 12d
+
+bm2 Tr( S2A−1 
+
+> F
+
+) + 1
+
+κ Tr( TF A−1 
+
+> F
+
+)
+
+
+
+.
+
+(150) Here G, Z, ε are independent standard Gaussian variables. The three functions correspond, respectively, to the term containing log ϕβ , the sums over the order parameters and their conjugates, and the logarithm of the matrix integral in Eq. (145). The conjugate parameters act as auxiliary multipliers enforcing the definitions of the order parameters. The state equations follow from ∂f ∂x i
+
+= 0 , i = 1 , . . . , 10 . (151) We seek a stationary point of f . The function determines the training statistics. Below we calculate f1, f 2, f 3
+
+in turn and then take these derivatives. 29 B.2.4 Calculation of f1
+
+To calculate f1, we evaluate the factor ϕβ obtained above. The teacher score g and the replicated attention outputs (u1, . . . , u n) can be replaced by jointly Gaussian variables with the covariance in Eq. (140). After imposing the replica-symmetric form in Eq. (146), this Gaussian vector can be represented as 
+
+g = G, ur = μ1mG + √V Z +
+
+s
+
+dχ
+
+β ηr , G, Z, η 1, . . . , η n
+
+> iid
+
+∼ N (0 , 1) , (152) where V = μ21(q − m2) + (1 + ∆)¯ q/α and dχ = μ21χQ + (1 + ∆) χ ¯Q/α , as defined in Result B.1. The first two terms in ur are shared by all replicas in Eq. (140). The last term is replica-dependent. Indeed, E[Gu r ] = μ1m and E[ur us] = μ21q + (1 + ∆)¯ q/α + ( dχ/β )δrs , which agrees with the covariance obtained from the order parameters. Using this Gaussian representation and the definition of u0 in Eq. (121), we have 
+
+ϕβ = EG,Z,ε 
+
+(" Z e−η2/2 dη
+
+√2π e−βℓ (σ⋆(G)+ √∆ ε, u 0+√dχ/β η )
+
+#n)
+
+. (153) Extracting the coefficient linear in n gives 
+
+lim 
+
+> n→0
+
+1
+
+n log ϕβ = EG,Z,ε log 
+
+Z e−η2/2 dη
+
+√2π exp 
+
+− β
+
+2 σ⋆(G) + √∆ ε − σ0 u0 +
+
+s
+
+dχ
+
+β η
+
+!! 2 . (154) Thus the original average over all inputs and demonstrations in a prompt has been reduced to an average over a few scalar Gaussian variables. To take β → ∞ , set v = u0 + pdχ/β η . Writing y = σ⋆(G) + √∆ ε within this calculation, 
+
+Z dη
+
+√2π e−η2/2−βℓ (y,u 0+√dχ/β η ) =
+
+s
+
+β
+
+2πd χ
+
+Z
+
+dv e −β{ℓ(y,v )+( v−u0)2/(2 dχ)}. (155) The quadratic term comes from the Gaussian density. Taking the negative logarithm and dividing by β
+
+makes the logarithm of the prefactor vanish, while the integral gives the minimum of the scalar objective. Hence 
+
+f1(x) = − lim  
+
+> β→∞
+
+lim 
+
+> n→0
+
+γnβ log ϕβ = γEG,Z,ε min 
+
+> v∈R
+
+ 12 [σ⋆(G) + √∆ ε − σ0(v)] 2 + (v − u0)2
+
+2dχ
+
+
+
+. (156) We denote the minimizer of the scalar problem in Eq. (156) by v⋆. It is this scalar minimization that enters the fixed-point equations. For the identity Stage-I readout σ0(v) = v, the objective is strictly convex and v⋆ is unique. 
+
+B.2.5 Calculation of f2
+
+For f2, we evaluate the sums in Eq. (145). For the Q terms, substituting the two ansatzes gives 
+
+12nβ 
+
+X
+
+> r,s
+
+bQrs Qrs = nβ 
+
+2 bqQq + 12 bqQχQ − 12 bχQq − 12β bχQχQn→0 then β→∞ 
+
+−−−−−−−−−−−→ 12 bqQχQ − 12 bχQq
+
+1
+
+nβ 
+
+X
+
+> r
+
+bmr mr = bmm. 
+
+(157) The ¯Q terms give the same expression with bars. Combining these terms gives f2 in Eq. (150). 30 B.2.6 Calculation of f3
+
+To calculate f3, we evaluate the matrix integral in Eq. (145). Substitution into Gn gives 
+
+Gn = N0β2
+
+2 Tr 
+
+ X
+
+> r
+
+W r
+
+!
+
+TF
+
+X
+
+> s
+
+W s
+
+!⊤ − βN 0
+
+X
+
+> r
+
+ 12 Tr( W r AF (W r )⊤) − bm Tr( W r S)
+
+
+
+. (158) The remaining difficulty in the matrix integral is the quadratic coupling between different replicas through 
+
+P 
+
+> r
+
+W r . We remove this coupling by introducing an auxiliary Gaussian matrix. For (ZW )ij 
+
+> iid
+
+∼ N (0 , 1) , the Hubbard–Stratonovich identity gives 
+
+exp 
+
+
+
+N0β2
+
+2 Tr 
+
+ X
+
+> r
+
+W r
+
+!
+
+TF
+
+X
+
+> s
+
+W s
+
+!⊤ = EZW exp 
+
+"
+
+βpN0
+
+X
+
+> r
+
+Tr( W r T 1/2 
+
+> F
+
+Z⊤ 
+
+> W
+
+)
+
+#
+
+. (159) Conditioned on ZW , the replicas are now independent. Therefore the matrix integral factorizes as 
+
+Z Y
+
+> r
+
+dW r eGn = EZW
+
+> n
+
+Y
+
+> r=1
+
+Z
+
+dW r exp 
+
+−βN 0
+
+
+
+12 Tr( W r AF (W r )⊤) − bm Tr( W r S)
+
+− 1
+
+√N0
+
+Tr( ZW T 1/2 
+
+> F
+
+(W r )⊤)
+
+
+
+= EZW
+
+Z 
+
+dW e −βN 0Leff (W ;ZW )
+
+n
+
+,
+
+(160) where 
+
+Leff (W ; ZW ) := 12 Tr( W A F W ⊤) − bm Tr( W S ) − 1
+
+√N0
+
+Tr( ZW T 1/2 
+
+> F
+
+W ⊤). (161) For positive definite AF , the integral over W is Gaussian. The minimizer of its quadratic exponent satisfies 
+
+0 = W A F − bmS − 1
+
+√N0
+
+ZW T 1/2 
+
+> F
+
+=⇒ WF (ZW ) = 
+
+bmS + 1
+
+√N0
+
+ZW T 1/2
+
+> F
+
+
+
+A−1 
+
+> F
+
+. (162) Completing the square gives the exact integral 
+
+Z
+
+dW e −βN 0Leff (W ;ZW ) = e−βN 0Leff (WF (ZW ); ZW )
+
+ 2πβN 0
+
+d2/2
+
+(det AF )−d/ 2. (163) Its contribution to Eq. (145), after taking n → 0, is therefore 
+
+− lim 
+
+> n→0
+
+1
+
+nβdN 0
+
+log 
+
+Z Y
+
+> r
+
+dW r eGn = − 1
+
+βdN 0
+
+EZW log 
+
+Z
+
+dW e −βN 0Leff (W ;ZW )
+
+= 1
+
+d EZW min  
+
+> W
+
+Leff (W ; ZW ) + log det AF
+
+2βN 0
+
++ d
+
+2βN 0
+
+log βN 0
+
+2π .
+
+(164) The last term is independent of the order parameters. If d−1 log det AF remains bounded, the determinant term vanishes as β → ∞ . Substituting the minimizer into Leff gives 
+
+f3(x) = 1
+
+d EZW min  
+
+> W
+
+Leff (W ; ZW ) = − 12d EZW Tr 
+
+ bmS + ZW T 1/2
+
+> F
+
+√N0
+
+!
+
+A−1 
+
+> F
+
+bmS + ZW T 1/2
+
+> F
+
+√N0
+
+!⊤
+
+= − 12d
+
+bm2 Tr( S2A−1 
+
+> F
+
+) + 1
+
+N0
+
+EZW Tr 
+
+
+
+ZW T 1/2 
+
+> F
+
+A−1 
+
+> F
+
+T 1/2 
+
+> F
+
+Z⊤
+
+> W
+
+
+
+= − 12d
+
+bm2 Tr( S2A−1 
+
+> F
+
+) + dN0
+
+Tr( TF A−1 
+
+> F
+
+)
+
+
+
+= − 12d
+
+bm2 Tr( S2A−1 
+
+> F
+
+) + 1
+
+κ Tr( TF A−1 
+
+> F
+
+)
+
+
+
+,
+
+(165) 31 where we used E[ZW T 1/2 
+
+> F
+
+A−1 
+
+> F
+
+T 1/2 
+
+> F
+
+Z⊤ 
+
+> W
+
+] = Tr( TF A−1 
+
+> F
+
+)Id and N0 = κd in the last two lines. Together, Eqs. (156), (157), and (165) give f1, f 2, f 3 in Eq. (150), and hence f = f1 + f2 + f3.
+
+B.2.7 Stationarity 
+
+We first differentiate f with respect to the five order parameters (m, q, ¯q, χ Q, χ ¯Q). At a differentiable scalar minimum, the derivative through v⋆ vanishes because the scalar objective is stationary there. Thus 
+
+0 = ∂mf = bm − γE
+
+ v⋆ − u0
+
+dχ
+
+
+
+μ1G − μ21m
+
+√V Z
+
+ 
+
+,
+
+0 = 2 ∂q f = −bχQ − γμ 21E
+
+"
+
+(v⋆ − u0)Zdχ
+
+√V
+
+#
+
+,
+
+0 = 2 ∂¯q f = −bχ ¯Q − γ 1 + ∆ 
+
+α E
+
+"
+
+(v⋆ − u0)Zdχ
+
+√V
+
+#
+
+,
+
+0 = 2 ∂χQ f = bqQ − γμ 21E
+
+ (v⋆ − u0)2
+
+d2
+
+> χ
+
+
+
+,
+
+0 = 2 ∂χ ¯Q f = bq ¯Q − γ 1 + ∆ 
+
+α E
+
+ (v⋆ − u0)2
+
+d2
+
+> χ
+
+
+
+.
+
+(166) These are the five conjugate equations in Eq. (121). Taking derivatives of f with respect to the conjugates gives the remaining equations: 
+
+0 = ∂ bmf = m − bmd Tr( S2A−1 
+
+> F
+
+),
+
+0 = −2∂bχQ f = q − bm2
+
+d Tr( S3A−2 
+
+> F
+
+) − 1
+
+κd Tr( TF SA −2 
+
+> F
+
+),
+
+0 = −2∂bχ ¯Q f = ¯ q − bm2
+
+d Tr( S2A−2 
+
+> F
+
+) − 1
+
+κd Tr( TF A−2 
+
+> F
+
+),
+
+0 = 2 ∂bqQ f = χQ − 1
+
+κd Tr( SA −1 
+
+> F
+
+),
+
+0 = 2 ∂bq ¯Q f = χ ¯Q − 1
+
+κd Tr( A−1 
+
+> F
+
+).
+
+(167) Together, the derivatives with respect to the five order parameters and their five conjugates recover Result B.1 under the fact that as d, N 0 → ∞ with N0/d → κF ∈ (0 , ∞), the empirical spectrum of SF converges almost surely to νκF ( d s).
+
+## B.3 Derivation of the main results 
+
+Equation (162) gives the learned attention matrix stated in the main text: 
+
+cW d
+
+=
+
+bmS + 1
+
+√N0
+
+Z(bqQS + bq ¯QId)1/2
+
+ (λ + bχ ¯Q)Id + bχQS−1 . (168) After the fixed point is solved, Stage II is trained on fresh prompts from the training distribution. Its attention output has moments 
+
+E[Gu tr ] = μ1m, 
+
+E[u2tr ] = μ21q + 1 + ∆ 
+
+α ¯q (169) Hence, the output of the attention can be represented as 
+
+utr = μ1mG +
+
+r
+
+μ21(q − m2) + 1 + ∆ 
+
+α ¯q Z, G, Z iid 
+
+∼ N (0 , 1) . (170) 32 We next evaluate the same learned attention matrix on the noiseless inference prompts. The only changes are the task distribution and the prompt length eL = eαd . For a task drawn from the training pool, the relevant overlaps are m, q, ¯q, whereas a fresh task averages over an isotropic direction and therefore involves EZ Tr cW .This gives 
+
+CM = μ1m, VM = μ21q + ¯q
+
+eα ,CG = μ1
+
+d EZ Tr cW , VG =
+
+
+
+μ21 + 1
+
+eα
+
+
+
+¯q. 
+
+(171) Thus, for either test protocol P ∈ { M, G}, the attention output can be represented as 
+
+uP = CP G +
+
+q
+
+VP − C2 
+
+> P
+
+Z, G, Z iid 
+
+∼ N (0 , 1) , (172) and the corresponding error is 
+
+Efeature  
+
+> P
+
+= EG,Z 
+
+h
+
+(σ⋆(G) − bσ(uP )) 2i
+
+. (173) It remains to determine the Stage-II readout bσ. The Stage-II training label is σ⋆(G) + √∆ ε, where 
+
+ε is independent of (G, u tr ). Therefore, for any scalar function h, E
+
+
+
+σ⋆(G) + √∆ ε − h(utr )
+
+2
+
+= ∆ + 
+
+E
+
+h
+
+(σ⋆(G) − h(utr )) 2i
+
+. The query noise therefore adds only the constant ∆ and does not affect the optimal readout. Conditioning on utr gives 
+
+E(σ⋆(G) − h(utr )) 2 | utr 
+
+ = Var( σ⋆(G) | utr ) + ( E[σ⋆(G) | utr ] − h(utr )) 2 . (174) The second term is minimized by bσ(v) = E[σ⋆(G) | utr = v].
+
+Since (G, u tr ) is jointly Gaussian, its conditional distribution is 
+
+G | (utr = v) d
+
+= μ1mμ21q + (1 + ∆)¯ q/α v +
+
+s
+
+1 − μ21m2
+
+μ21q + (1 + ∆)¯ q/α ψ, ψ ∼ N (0 , 1) . (175) Therefore, 
+
+bσ(v) = Eψ
+
+"
+
+σ⋆
+
+μ1mμ21q + (1 + ∆)¯ q/α v +
+
+s
+
+1 − μ21m2
+
+μ21q + (1 + ∆)¯ q/α ψ
+
+!# 
+
+, (176) where ψ ∼ N (0 , 1) . Equations (168)–(176) determine the learned attention matrix, the Stage-II readout, and the two inference errors, and therefore derive Result 2. Now we set σ0(v) = v. We first study the large-pretraining regime ( γ → ∞ with α, eα fixed). Then we take the infinite-pretraining and infinite-task-pool limits with the more general context scaling L = eL = αd s.
+
+Large-pretraining limit. For σ0(v) = v, the scalar minimizer in Eq. (121) is 
+
+v⋆ = u0 + dχy
+
+1 + dχ
+
+, y := σ⋆(G) + √∆ ε. (177) Hence the conjugate equations simplify to 
+
+bm = bχQ = γμ 21
+
+1 + dχ
+
+,
+
+bχ ¯Q = γ(1 + ∆) 
+
+α(1 + dχ) ,
+
+bqQ = γμ 21R
+
+(1 + dχ)2 ,
+
+bq ¯Q = γ(1 + ∆) Rα(1 + dχ)2 ,
+
+(178) 33 where R := 1 + ∆ − 2μ21m + μ21q + 1+∆  
+
+> α
+
+¯q. Define τ := 1+∆ 
+
+> αμ 21
+
+. Equation (178) implies 
+
+bχ ¯Q = τ bm, bq ¯Q = τ bqQ. (179) Therefore 
+
+A = bm
+
+
+
+S +
+
+
+
+τ + λ
+
+bm
+
+
+
+Id
+
+
+
+, T = bqQ(S + τ I d). (180) Substituting these identities into Eq. (168) gives 
+
+cW d
+
+= S
+
+
+
+S +
+
+
+
+τ + λ
+
+bm
+
+
+
+Id
+
+−1
+
++
+
+sbqQ
+
+N0 bm2 Z(S + τ I d)1/2
+
+
+
+S +
+
+
+
+τ + λ
+
+bm
+
+
+
+Id
+
+−1
+
+. (181) Moreover, Eq. (178) yields 
+
+bqQ
+
+bm2 = Rγμ 21
+
+. (182) For fixed α > 0, the resolvents in Eq. (181) are uniformly bounded because τ > 0. Using the equations for 
+
+χQ and χ ¯Q,
+
+dχ = μ21
+
+κd bm Tr 
+
+h
+
+(S + τ I d) ( S + ( τ + λ/ bm) Id)−1i
+
+= O( bm−1), (183) and hence 
+
+bm = Θ( γ), λ
+
+bm = O(γ−1). (184) Since N = γdN 0 = γκd 2, we have, 
+
+γ−1 = O
+
+ d2
+
+N
+
+
+
+. (185) The large-γ limit of Eq. (181) is therefore 
+
+W∞ := S(S + τ I d)−1. (186) Write cW = W∞ + δW det + δW fl , where δW det is the correction caused by λ/ bm, and δW fl is the fluctuation (the last term of Eq. (181)). Equation (184) gives 
+
+∥δW det ∥op = O
+
+ d2
+
+N
+
+
+
+. (187) Conditioned on S, the fluctuation δW fl has zero mean. Moreover, using γN 0 = N/d ,
+
+1
+
+d EZ ∥δW fl ∥2 
+
+> F
+
+= Rγμ 21N0
+
+Tr 
+
+h
+
+(S + τ I d) ( S + ( τ + λ/ bm) Id)−2i
+
+= dR μ21N Tr 
+
+h
+
+(S + τ I d) ( S + ( τ + λ/ bm) Id)−2i
+
+.
+
+(188) For fixed α > 0, we have τ > 0, so the normalized trace in Eq. (188) is O(1) . Furthermore, 
+
+R = E
+
+
+
+σ⋆(G) + √∆ ε − u0
+
+2
+
+. (189) As the large-γ solution converges to the finite population solution (m∞, q ∞, ¯q∞), we have 
+
+R −→ R∞ := 1 + ∆ − 2μ21m∞ + μ21q∞ + 1 + ∆ 
+
+α ¯q∞, (190) which is finite. Consequently, 
+
+1
+
+d EZ ∥δW fl ∥2 
+
+> F
+
+= O
+
+ d2
+
+N
+
+
+
+. (191) 34 It follows that the order parameters differ from their infinite-pretraining values by O(d2/N ):
+
+m = m∞ + O
+
+ d2
+
+N
+
+
+
+,q = q∞ + O
+
+ d2
+
+N
+
+
+
+,
+
+¯q = ¯ q∞ + O
+
+ d2
+
+N
+
+
+
+,
+
+1
+
+d EZ Tr cWF = w∞ + O
+
+ d2
+
+N
+
+
+
+,
+
+(192) where 
+
+m∞ = 1
+
+d Tr S2(S + τ I d)−1 ,q∞ = 1
+
+d Tr S3(S + τ I d)−2 ,
+
+¯q∞ = 1
+
+d Tr S2(S + τ I d)−2 ,w∞ = 1
+
+d Tr S(S + τ I d)−1 .
+
+(193) The linear fluctuation terms vanish after averaging over Z, while their quadratic contribution is controlled by Eq. (188). The Stage-II training at infinite pretraining has moments 
+
+C(∞)tr = μ1m∞, V (∞)tr = μ21q∞ + 1 + ∆ 
+
+α ¯q∞. (194) Accordingly, define the population-optimal readout 
+
+bσ∞(v) := E
+
+
+
+σ⋆(G) C(∞)tr G +
+
+q
+
+V (∞)tr − (C(∞)tr )2 Z = v
+
+
+
+. (195) For memorization and generalization, respectively, the infinite-pretraining test moments are 
+
+C(∞)M = μ1m∞, V (∞)M = μ21q∞ + ¯q∞
+
+eα ,C(∞)G = μ1w∞, V (∞)G =
+
+
+
+μ21 + 1
+
+eα
+
+
+
+¯q∞.
+
+(196) Hence we define 
+
+gP (α, eα, S ) := EG,Z 
+
+"
+
+σ⋆(G) − bσ∞
+
+
+
+C(∞) 
+
+> P
+
+G +
+
+q
+
+V (∞) 
+
+> P
+
+− (C(∞) 
+
+> P
+
+)2 Z
+
+ 2#
+
+, P ∈ { M, G}. (197) For fixed positive α, eα, these Gaussian channels are nondegenerate. Their covariances, and hence the corre-sponding conditional expectation in Eq. (195), vary smoothly under the O(d2/N ) perturbations in Eq. (192). Therefore 
+
+Efeature  
+
+> P
+
+= gP (αF , eαF , S F ) + O
+
+ d2
+
+N
+
+
+
+, P ∈ { M, G}. (198) This gives the feature-learner finite-pretraining correction. 
+
+Infinite task-pool limit and context-length scalings. We next set ∆ = λ = 0 and take first γ → ∞ 
+
+and then κ → ∞ . (186) gives 
+
+W∞ = S
+
+
+
+S + 1
+
+αμ 21
+
+Id
+
+−1
+
+. (199) 35 In the κ → ∞ limit, isotropy of the task distribution implies S −→ Id. Hence 
+
+W∞ −→ rαId, rα := αμ 21
+
+1 + αμ 21
+
+. (200) The corresponding limiting order parameters therefore satisfy 
+
+m∞ = rα, q∞ = ¯ q∞ = r2
+
+> α
+
+, 1
+
+d Tr W∞ = rα. (201) For β > 0, define 
+
+Bβ := 
+
+r
+
+c21 + 1
+
+β , ρβ := c1
+
+Bβ
+
+, rβ := ρ2 
+
+> β
+
+= βc 21
+
+1 + βc 21
+
+. (202) The Stage-II training channel can be written as 
+
+utr = rαBαTα, Tα = ραG + p1 − ρ2 
+
+> α
+
+Z, (203) where G, Z iid 
+
+∼ N (0 , 1) . By Mehler’s identity, the optimal Stage-II readout is 
+
+bσα(v) = X
+
+> k≥1
+
+ckρkαHk
+
+ vrαBα
+
+
+
+. (204) At inference with context length eL = eαd , the learned attention matrix produces 
+
+ute = rαBeαTeα, Teα = ρeαG +
+
+q
+
+1 − ρ2 
+
+> eα
+
+Z. (205) Define sα, eα := B eα 
+
+> Bα
+
+= ρα  
+
+> ρeα
+
+. For the Hermite polynomials, 
+
+Hn(sx ) = 
+
+> ⌊n/ 2⌋
+
+X
+
+> m=0
+
+s
+
+n!(n − 2m)! 
+
+sn−2m
+
+m!
+
+ s2 − 12
+
+m
+
+Hn−2m(x). (206) Hence 
+
+bσα(ute ) = X
+
+> ℓ≥0
+
+Aℓ(α, eα)Hℓ(Teα), (207) where 
+
+Aℓ(α, eα) := X
+
+> m≥0
+
+cℓ+2 mρℓ+2 mα
+
+r (ℓ + 2 m)! 
+
+ℓ!
+
+sℓα, eα
+
+m!
+
+s2 
+
+> α, eα
+
+− 12
+
+!m
+
+. (208) Let 
+
+fα, eα(Teα) := bσα(ute ) = X
+
+> ℓ≥0
+
+Aℓ(α, eα)Hℓ(Teα).
+
+On the other hand, Mehler’s identity gives the Bayes-optimal predictor for the inference channel, 
+
+meα(Teα) := E[σ⋆(G) | Teα] = X
+
+> ℓ≥1
+
+cℓρℓ
+
+> eα
+
+Hℓ(Teα). (209) Since E[σ⋆(G) − meα(Teα) | Teα] = 0 , we have 
+
+E
+
+h
+
+(σ⋆(G) − fα, eα(Teα)) 2i
+
+= E
+
+h
+
+(σ⋆(G) − meα(Teα)) 2i
+
++ E
+
+h
+
+(meα(Teα) − fα, eα(Teα)) 2i
+
+. (210) The first term is the MMSE of the inference channel. Using E[σ⋆(G)2] = 1 and the orthonormality of the Hermite polynomials, 
+
+E
+
+h
+
+(σ⋆(G) − meα(Teα)) 2i
+
+= 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+rk
+
+> eα
+
+. (211) 36 The same orthonormality gives 
+
+E
+
+h
+
+(meα(Teα) − fα, eα(Teα)) 2i
+
+= X
+
+> ℓ≥0
+
+Aℓ(α, eα) − cℓρℓ
+
+> eα
+
+2 , (212) where c0 = 0 . Therefore, 
+
+Efeature  
+
+> P
+
+= 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+rk 
+
+> eα
+
++ X
+
+> ℓ≥0
+
+Aℓ(α, eα) − cℓρℓ
+
+> eα
+
+2 + o(1) , P ∈ { M, G}. (213) Although the replica calculation above was formulated with a fixed α = L/d , (213) naturally allows us to examine d-dependent context scalings by substituting α(d) = L(d) 
+
+> d
+
+before taking d → ∞ . Consider 
+
+L = eL = αd s, α > 0, s > 0. (214) Then α(d) = αd s−1, and hence, using μ1 = c1,
+
+rα(d) = αc 21ds−1
+
+1 + αc 21ds−1 −→ 
+
+
+
+0, s < 1,rα := αc 21
+
+1 + αc 21
+
+, s = 1 ,
+
+1, s > 1.
+
+(215) Substituting this limit into Eq. (213) gives 
+
+Efeature  
+
+> P
+
+−→ 
+
+
+
+1, s < 1,
+
+1 −
+
+> ∞
+
+X
+
+> k=1
+
+c2
+
+> k
+
+rkα, s = 1 ,
+
+0, s > 1,
+
+P ∈ { M, G}. (216) 
+
+# C Additional experiments 
+
+## C.1 Consistency of the Replica method with numerical experiments 
+
+We first validate our analytical results from the replica method against numerical experiments. We use the same learned attention matrices and the same fixed-point solutions as in Section 4. All runs use the teacher in Eq. (24), ∆ = 0 .01 , and λ = 10 −3. In Figure 5 we compare the order parameters obtained from numerics against those obtained from replica under the following settings: Panels d N N0 α eα
+
+A–B 32 288 to 1200000 24 32 32 
+
+C–D 24 1200000 24 , 48 , 96 , 144 , 192 32 32 
+
+The plotted m, q, ¯q are the corresponding learner’s order parameters in Eqs. (15), (85), and (139), mea-sured from the saved attention matrices. The additional quantity r is d−1 Tr cW for the feature learner and 
+
+D−1 Tr cWK for the kernel learner. The feature learner and linear attention share the same learned attention, and Stage II leaves these quantities unchanged. Figure 5 shows that the replica predictions capture the main trends of the measured order parameters, with visible deviations near the kernel interpolation peak. 
+
+## C.2 Varying task diversity 
+
+The following experiment varies the task-diversity N0 with N = 1200000 and α = eα = 32 , and N0 ∈{24 , 48 , 96 , 144 , 192 }. Increasing N0 means a more diverse task pool and fewer training prompts per task. 37 10 3 10 4 10 5
+
+10 6
+
+N
+
+0510 
+
+> Order parameter
+
+## A Feature 
+
+> qm̄
+> qr
+
+10 3 10 4 10 5
+
+10 6
+
+N
+
+0123
+
+> Order parameter
+
+## B Kernel 
+
+> qm̄
+> qr
+> 24 48 96 144 192
+
+N0
+
+0.8 0.9 
+
+> Order parameter
+
+## C Feature 
+
+> qm̄
+> qr
+> 24 48 96 144 192
+
+N0
+
+0.2 0.4 0.6 0.8 1.0 
+
+> Order parameter
+
+## D Kernel 
+
+> qm̄
+> qr
+
+Figure 5: Consistency of the replica method with numerical experiments. Left: feature learner; right: kernel learner. The upper row varies N at d = 32 , and the lower row varies N0 at d = 24 , N = 1200000 . Solid lines are replica predictions, and stars show the order parameters measured from the learned attention matrices in one run. Red, teal, green, and purple denote q, m, ¯q, r , respectively, for the learner in that column. Figure 6 shows that increasing task diversity narrows the gap between memorization and generalization for both learners. For the kernel learner, this improves performance on unseen tasks (generalization) at the cost of accuracy on the training tasks (memorization). For the feature learner, the main effect is an improvement in generalization. The replica analysis also predicts this crossover. For the common teacher in Eq. (24), set ∆ = λ = 0 ,
+
+σ0(v) = v, and L = eL = αd . We first take N → ∞ , then d, N 0 → ∞ at fixed κ = N0/d , and finally α → ∞ .In Appendix C.3, we show that the memorization errors satisfy 
+
+EFM (∞) = 5 min(1 , κ )3α + o(α−1), EKM (∞) = κα + o(α−1). (217) For κ ≥ 1, which covers the scan in Fig. 6, the leading terms therefore give 
+
+EKM (∞) < EFM (∞) ⇐⇒ κ < 53 . (218) For d = 24 , this gives N0 ≃ 40 , consistent with the crossover between N0 = 24 and 48 in Figure 6. 
+
+## C.3 Derivation of Eq. (217) 
+
+We set ∆ = λ = 0 , σ0(v) = v, and L = eL = αd . As in Eq. (217), we first take N → ∞ , then d, N 0 → ∞ with 
+
+N0/d → κ ∈ (0 , ∞), and finally α → ∞ . The common teacher in Eq. (24) is σ⋆(G) = √32 H1(G) + 12 H2(G),38 24 48 96 144 192 
+
+Task-pool size N0
+
+0.1 0.2 0.3 0.4 0.5 0.6 
+
+> Mean squared error
+
+## Memorization 
+
+24 48 96 144 192 
+
+Task-pool size N0
+
+## Generalization    
+
+> Feature Linear attention Kernel Experiment
+
+Figure 6: Memorization (left) and generalization (right) errors as a function of N0. We fix d = 24 , D = 323 ,
+
+N = 1200000 , L = eL = 768 , ∆ = 0 .01 , and λ = 10 −3. Red, orange, and blue denote the feature learner, linear attention, and the kernel learner, respectively. Solid lines show replica predictions, and circles show numerical results. The three learners use the same training and inference prompts at each N0, with 32768 
+
+inference prompts per error estimate. so μ21 = 3 /4.
+
+Feature learner. With τα = 1 /(αμ 21) = 4 /(3 α), Eq. (193) gives 
+
+q∞ + τα ¯q∞ =
+
+Z s3 + ταs2
+
+(s + τα)2 νκ( d s) = 
+
+Z s2
+
+s + τα
+
+νκ( d s) = m∞,V (∞)M = μ21q∞ + ¯q∞
+
+α = μ21m∞, (C(∞)M )2
+
+V (∞)M
+
+= μ21m2
+
+> ∞
+
+μ21m∞
+
+= m∞.
+
+(219) Since the Stage-II training and memorization distributions coincide, substituting this identity into Eq. (197) yields 
+
+Efeature M (∞) = 34 (1 − m∞) + 14 (1 − m2
+
+> ∞
+
+) = 54 (1 − m∞) − 14 (1 − m∞)2. (220) The Marchenko–Pastur spectrum satisfies R s ν κ( d s) = 1 and νκ((0 , ∞)) = min(1 , κ ). Therefore 
+
+1 − m∞ =
+
+Z 
+
+s − s2
+
+s + τα
+
+
+
+νκ( d s) = τα
+
+Z ss + τα
+
+νκ( d s),
+
+lim 
+
+> α→∞
+
+1 − m∞
+
+τα
+
+=
+
+Z
+
+1{s> 0} νκ( d s) = min(1 , κ ).
+
+(221) As α → ∞ , τα → 0, and the ratio s/ (s + τα) tends to 1 for every s > 0 and remains 0 at s = 0 . Since this ratio always lies between 0 and 1, we can take its limit inside the integral, also when κ = 1 . Combining Eqs. (220) and (221), we obtain 
+
+Efeature M (∞) = 54 τα min(1 , κ ) + o(τα) = 5 min(1 , κ )3α + o(α−1). (222) 39 Kernel learner. Since eαK = αK and ∆ = 0 , the two trace terms in Eq. (111) combine to give 
+
+Ekernel M (∞) = 1
+
+αK D Tr 
+
+"
+
+SK
+
+
+
+SK + 1
+
+αK
+
+ID
+
+−1#
+
+. (223) Let 
+
+GK := 1
+
+D Θ⊤ 
+
+> K
+
+ΘK , ΘK = θ(a1) · · · θ(aN0 ) . (224) The nonzero eigenvalues of GK coincide with those of (N0/D )SK . Since N0 
+
+> L
+
+−→ κα , Eq. (223) can therefore be written as 
+
+Ekernel M (∞) = N0
+
+L
+
+1
+
+N0
+
+Tr 
+
+"
+
+GK
+
+
+
+GK + N0
+
+L IN0
+
+−1#
+
+. (225) For the common teacher, c21 = 3 /4 and c22 = 1 /4. By the spectral limit derived in Eq. (46), when N0/d → κ,the empirical spectral distribution of GK converges to the law 
+
+g = 14 + 34 s, s ∼ ν1/κ . (226) Hence, after taking d, N 0 → ∞ at fixed κ,
+
+Ekernel M (∞) = κα
+
+Z gg + κ/α μκ( d g) = κα
+
+h
+
+1 − κα Rκ
+
+ κα
+
+i 
+
+, (227) where μκ denotes the law in Eq. (226) and 
+
+Rκ(z) := 
+
+Z μκ( d g)
+
+g + z . (228) Since g ≥ 1/4 almost surely, 
+
+0 ≤ R κ(z) ≤ 4, z ≥ 0. (229) Therefore, for every fixed κ,
+
+Ekernel M (∞) = κα + O(α−2) = κα + o(α−1). (230) 
+
+# D A formal statement of Theorem 1 
+
+In this section, we give a formal version of Theorem 1. 
+
+Population setting. For each fixed input dimension d and context length L, a prompt is generated by first sampling 
+
+a, x 0, x 1, . . . , x L
+
+> i.i.d.
+
+∼ Unif 
+
+
+
+Sd−1(√d)
+
+
+
+, (231) and then setting 
+
+yℓ = σ⋆
+
+ a⊤xℓ
+
+√d
+
+
+
+, ℓ = 0 , 1, . . . , L. (232) Thus we study the problem with ∆ = λ = 0 . The task vector is sampled independently for every prompt, and the training objectives are defined as population expectations. This is the population limit, corresponding to γ → ∞ and κ → ∞ in Theorem 1. Let Gd := a⊤x√d , where a, x i.i.d.
+
+∼ Unif 
+
+
+
+Sd−1(√d)
+
+
+
+, and let Pk,d denote the degree-k Gegenbauer polynomial (k ≥ 0) normalized so that E[Pj,d (Gd)Pk,d (Gd)] = δjk . We write 
+
+vd := E[σ⋆(Gd)2], ck,d := E[σ⋆(Gd)Pk,d (Gd)] . (233) Recall that the Gaussian Hermite coefficients are 
+
+ck := E[σ⋆(G)Hk(G)] , G ∼ N (0 , 1) . (234) We will work under the following two regularity assumptions. 40 Assumption 3. The teacher σ⋆ : R → R is a measurable function independent of d and L, satisfying 
+
+E[σ⋆(G)] = 0 , E[σ⋆(G)2] = 1 , c1 := E[Gσ ⋆(G)] ̸ = 0 , (235) 
+
+and for some C, p < ∞:
+
+|σ⋆(x)| ≤ C(1 + |x|p) (236) 
+
+Assumption 4. Assume that d, L, eL → ∞ such that, for some fixed c, C, ε > 0,
+
+c ≤ L
+
+eL ≤ C, min {L, eL} ≥ dε. (237) 
+
+Kernel learner. Fix a finite set of degrees K ⊂ N≥1, independent of d, and let 
+
+h(x) = M
+
+> k∈K
+
+hk(x) ∈ RD , D = X
+
+> k∈K
+
+Dk,d , (238) where hk is an orthonormal basis of the degree-k spherical harmonics and Dk,d = 2k+d−2
+
+> k
+
+ k+d−3
+
+> k−1
+
+. For a prompt define 
+
+HK,L := 1
+
+L h(x0)
+
+> L
+
+X
+
+> ℓ=1
+
+yℓh(xℓ)
+
+!⊤
+
+. (239) The population-trained attention matrix is 
+
+W K 
+
+> d,L
+
+:= arg min  
+
+> W∈RD×D
+
+E
+
+h Tr  W (HK,L )⊤ − y0
+
+2i
+
+, (240) where the expectation is over the prompt in Eq. (232). We define its population error by 
+
+Ekernel   
+
+> d,L, ˜L
+
+:= E
+
+
+
+y0 − Tr 
+
+
+
+W K
+
+> d,L
+
+(HK, ˜L)⊤ 2
+
+. (241) 
+
+Feature learner. For the feature learner, define 
+
+HF,L := 1
+
+L x0
+
+> L
+
+X
+
+> ℓ=1
+
+yℓxℓ
+
+!⊤
+
+, U LW := Tr  W (HF,L )⊤ . (242) We use the identity readout in Stage I, σ0(u) = u, and define the populational attention matrix by 
+
+W F 
+
+> d,L
+
+:= arg min  
+
+> W∈Rd×d
+
+E (U LW − y0)2 . (243) In Stage II, the attention matrix is frozen and the scalar readout is optimized over all square-integrable measurable functions: 
+
+bσd,L ∈ arg min  
+
+> ϕ
+
+E
+
+
+
+ϕ(U LW F
+
+> d,L
+
+) − y0
+
+2
+
+. (244) We choose a version of the solution given by 
+
+bσd,L (u) := E
+
+h
+
+y0 U LW F
+
+> d,L
+
+= u
+
+i
+
+(245) with bσd,L (u) = 0 on the set where the conditional expectation is not specified. The resulting population test error is 
+
+Efeature   
+
+> d,L, ˜L
+
+:= E
+
+
+
+y0 − bσd,L 
+
+
+
+U ˜LW F
+
+> d,L
+
+ 2
+
+. (246) We now state the rigorous version of Theorem 1. 41 Theorem 2. Suppose Assumptions 3 and 4 hold. Define α := Ld , eα := eLd , together with ρα := c1√c21+1 /α ,
+
+rα := ρ2 
+
+> α
+
+and sα, eα := ρα  
+
+> ρeα
+
+=
+
+q c21+1 /eαc21+1 /α . For the kernel learner, define ηk,L := c2   
+
+> kLDk,d +c2
+> kL
+
+. Then 
+
+Ekernel  
+
+> d,L, eL
+
+= νout + X
+
+> k∈K
+
+
+
+c2
+
+> k
+
+(1 − ηk,L )2 + Dk,d 
+
+eL η2
+
+> k,L
+
+
+
++ od,L, eL(1) . (247) 
+
+For the feature learner, for ρ ∈ [−1, 1] define 
+
+Φρ(x) := EZ
+
+h
+
+σ⋆
+
+
+
+ρx + p1 − ρ2 Z
+
+i 
+
+, Z ∼ N (0 , 1) . (248) 
+
+For every ℓ ≥ 0, define 
+
+Aℓ(α, eα) := ET [Φ ρα (sα, eαT ) Hℓ(T )] , T ∼ N (0 , 1) . (249) 
+
+Then, with c0 := 0 ,
+
+Efeature  
+
+> d,L, eL
+
+= 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+rk 
+
+> eα
+
++ X
+
+> ℓ≥0
+
+Aℓ(α, eα) − cℓρℓ
+
+> eα
+
+2 + od,L, eL(1) . (250) 
+
+Remark. If the teacher has a Hermite expansion σ⋆(x) = P∞ 
+
+> k=1
+
+ckHk(x), then the coefficients in Eq. (249) can be evaluated explicitly as 
+
+Aℓ(α, eα) = X
+
+> m≥0
+
+cℓ+2 mρℓ+2 mα
+
+r (ℓ + 2 m)! 
+
+ℓ!
+
+sℓα, eα
+
+m!
+
+s2 
+
+> α, eα
+
+− 12
+
+!m
+
+, (251) provided that the infinite sum converges absolutely. In particular, when L = eL, we have sα, eα = 1 and therefore Aℓ(α, α ) = cℓρℓα. Consequently, the mismatch term in Eq. (250) vanishes and 
+
+Efeature  
+
+> d,L,L
+
+= 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+rkα + od,L (1) . (252) 
+
+# E Proof of Theorem 2 
+
+## E.1 Gegenbauer polynomials 
+
+We first recall some basic properties of the Gegenbauer polynomials. Define 
+
+Qk,d (q) := Pk,d (√d q )
+
+pDk,d 
+
+, −1 ≤ q ≤ 1 (253) for k ≥ 0, where we choose D0,d := 1 , P0,d (t) ≡ 1 and P1,d (t) = t.
+
+Lemma 1. Let e, b ∈ Rd be deterministic unit vectors, let q = e⊤b, and let x ∼ Unif( Sd−1(√d)) . Set 
+
+g = e⊤x, s = b⊤x. (254) 
+
+Then the following statements hold. 
+
+(i) Spherical projection formula. For every k ≥ 0,
+
+E[Pk,d (g) | s] = Qk,d (q)Pk,d (s), |Qk,d (q)| ≤ 1. (255) 
+
+(ii) Gegenbauer limits. For every fixed k,
+
+lim  
+
+> d→∞
+
+sup 
+
+> |q|≤ 1
+
+|Qk,d (q) − qk| = 0 . (256) 42 Moreover, for every fixed M , there exists a constant CM < ∞ such that, for all sufficiently large d,
+
+max  
+
+> 0≤k≤M
+
+|Pk,d (t)| ≤ CM (1 + |t|M ), t ∈ R, (257) 
+
+and for every fixed A < ∞,
+
+sup  
+
+> dsufficiently large
+
+max  
+
+> 0≤k≤M
+
+sup 
+
+> |t|≤ A
+
+ |Pk,d (t)| + |P ′
+
+> k,d
+
+(t)| < ∞. (258) 
+
+(iii) Convergence of the teacher coefficients. Suppose Assumption 3 holds. Then 
+
+vd = E[σ⋆(Gd)2] −→ E[σ⋆(G)2] = 1 , (259) 
+
+and, for every fixed k ≥ 0,
+
+ck,d = E[σ⋆(Gd)Pk,d (Gd)] −→ E[σ⋆(G)Hk(G)] = ck. (260) 
+
+Furthermore, 
+
+lim 
+
+> d→∞
+
+X
+
+> k≥0
+
+|c2 
+
+> k,d
+
+− c2
+
+> k
+
+| = 0 , lim   
+
+> M→∞
+
+lim sup 
+
+> d→∞
+
+X
+
+> k>M
+
+c2 
+
+> k,d
+
+= 0 . (261) 
+
+Proof. The identity (255) is the standard formula for spherical harmonics, equivalently a consequence of the spherical addition theorem [14]. Since Pk,d (g) is normalized to have unit second moment and Pk,d (s) has the same distribution, 
+
+Qk,d (q)2 = EE[Pk,d (g) | s]2 ≤ E[Pk,d (g)2] = 1 . (262) This proves (i). For every fixed k, the normalized Gegenbauer polynomial converges, coefficientwise, to the normalized Hermite polynomial under d → ∞ , while Qk,d converges uniformly on [−1, 1] to qk; see, e.g., [26]. This proves (256). Since the degree is fixed, coefficientwise convergence immediately implies (257) and (258). We next prove the statements involving the teacher. The random variable Gd has density 
+
+pd(t) = Γ( d/ 2) 
+
+√πd Γ(( d − 1) /2) 
+
+
+
+1 − t2
+
+d
+
+(d−3) /2
+
+1{| t|≤ √d}. (263) For every fixed t,
+
+pd(t) −→ ϕ(t) := 1
+
+√2π e−t2/2. (264) Moreover, there exists a universal constant C < ∞ such that, for all sufficiently large d,
+
+pd(t) ≤ Cϕ (t), t ∈ R. (265) Indeed, the prefactor in (263) remains uniformly bounded, and for |t| ≤ √d,
+
+
+
+1 − t2
+
+d
+
+(d−3) /2
+
+≤ exp 
+
+
+
+− d − 32d t2
+
+
+
+≤ e3/2e−t2/2. (266) Assumption 3 together with (265), implies that for every fixed r, m < ∞,
+
+sup  
+
+> dsufficiently large
+
+E[|σ⋆(Gd)|r (1 + |Gd|m)] < ∞. (267) Since |σ⋆(t)|2pd(t) ≤ C(1 + |t|2p)ϕ(t), dominated convergence gives 
+
+vd → E[σ⋆(G)2] = 1 , (268) which proves (259). 43 Fix k. By [26], Pk,d (t) → Hk(t) pointwise, and for all sufficiently large d,
+
+|Pk,d (t)| ≤ Ck(1 + |t|k). (269) Together with (265), this yields 
+
+|σ⋆(t)Pk,d (t)pd(t)| ≤ Ck|σ⋆(t)|(1 + |t|k)ϕ(t). (270) The right-hand side is integrable by Hölder’s inequality and Assumption 3. Dominated convergence therefore gives 
+
+ck,d =
+
+Z
+
+σ⋆(t)Pk,d (t)pd(t) d t −→ 
+
+Z
+
+σ⋆(t)Hk(t)ϕ(t) d t = ck, (271) proving (260). Finally, Parseval’s identity gives 
+
+X
+
+> k≥0
+
+c2 
+
+> k,d
+
+= vd, X
+
+> k≥0
+
+c2 
+
+> k
+
+= 1 . (272) Thus, lim M →∞ lim sup d→∞ 
+
+P 
+
+> k>M
+
+c2 
+
+> k,d
+
+= 0 . Moreover, 
+
+X
+
+> k≥0
+
+|c2 
+
+> k,d
+
+− c2
+
+> k
+
+| ≤ 
+
+> M
+
+X
+
+> k=0
+
+|c2 
+
+> k,d
+
+− c2
+
+> k
+
+| + X
+
+> k>M
+
+c2 
+
+> k,d
+
++ X
+
+> k>M
+
+c2
+
+> k
+
+. (273) First take d → ∞ at fixed M , using (260), and then let M → ∞ . This proves (261). From now on Assumption 3 is in force. All limits are taken along an arbitrary deterministic sequence 
+
+(d, L, eL) such that d, L, eL → ∞ and L 
+
+> eL
+
+= O(1) . We work with sufficiently large d, so that d ≥ 3, vd > 0, and 
+
+μd := E[σ⋆(Gd)Gd] = c1,d ̸ = 0 . These properties follow from vd → 1 and c1,d → c1̸ = 0 . Constants denoted by C may depend on the teacher and its uniform moment bound, but not on d or L. For a random variable 
+
+Z, write ∥Z∥Lr := ( E[|Z|r ]) 1/r .
+
+## E.2 Kernel learner 
+
+We first derive the population-trained kernel learner at finite d, L, eL, and then take the asymptotic limit in Theorem 2. For a task a, define 
+
+md(a) := E[yh (x) | a] = M
+
+> k∈K
+
+ck,d 
+
+pDk,d 
+
+hk(a), (274) where the second equality follows from the spherical-harmonic expansion of the teacher. Define also 
+
+Md := Ea[md(a)md(a)⊤] = M
+
+> k∈K
+
+c2
+
+> k,d
+
+Dk,d 
+
+IDk,d . (275) For an arbitrary context length n ≥ 1, let 
+
+V K 
+
+> d,n
+
+:= 1
+
+n
+
+> n
+
+X
+
+> ℓ=1
+
+yℓh(xℓ), Ad,n := n − 1
+
+n Md + vd
+
+n ID . (276) Then HK,n = h(x0)( V K
+
+> d,n
+
+)⊤ and Tr  W (HK,n )⊤ = h(x0)⊤W V K
+
+> d,n
+
+. We first compute the second moment of the context statistic. Conditional on a, the demonstrations are independent, and E[yh (x) | a] = md(a).Moreover, since for every fixed x the random variable a⊤x/ √d has the law of Gd,
+
+Ea,x 
+
+y2h(x)h(x)⊤ = vd Ex[h(x)h(x)⊤] = vdID . (277) Therefore 
+
+EV K
+
+> d,n
+
+(V K
+
+> d,n
+
+)⊤ = n − 1
+
+n Md + vd
+
+n ID = Ad,n . (278) 44 Similarly, conditional independence of the query and the demonstrations given a gives 
+
+Ey0h(x0)( V K
+
+> d,n
+
+)⊤ = Ea[md(a)md(a)⊤] = Md. (279) We now train the attention matrix using contexts of length L. Using Eqs. (278) and (279), the population risk in Eq. (240) becomes 
+
+RK,L (W ) = vd − 2 Tr( W M d) + Tr( W A d,L W ⊤). (280) Since Ad,L ⪰ vd 
+
+> L
+
+ID ≻ 0, the risk is strictly convex and its unique minimizer is 
+
+W K 
+
+> d,L
+
+= MdA−1
+
+> d,L
+
+. (281) We next evaluate this learned matrix on inference contexts of length eL. Applying the same moment calcu-lation with n = eL gives the exact test error 
+
+Ekernel  
+
+> d,L, eL
+
+= vd − 2 Tr  W K
+
+> d,L
+
+Md
+
+ + Tr 
+
+
+
+W K
+
+> d,L
+
+Ad, eL(W K
+
+> d,L
+
+)⊤
+
+. (282) Both Md and Ad,n are block diagonal in the harmonic decomposition. On the degree-k block, Md has eigen-value c2
+
+> k,d
+
+/D k,d , while Ad,L has eigenvalue vdDk,d +( L−1) c2 
+
+> k,d
+> LD k,d
+
+. Hence W K 
+
+> d,L
+
+acts on this block as multiplication by wk,d,L := Lc 2
+
+> k,d
+> vdDk,d +( L−1) c2
+> k,d
+
+. Substituting these eigenvalues into Eq. (282) yields 
+
+Ekernel  
+
+> d,L, eL
+
+= vd − X
+
+> k∈K
+
+c2 
+
+> k,d
+
++ X
+
+> k∈K
+
+"
+
+c2
+
+> k,d
+
+(1 − wk,d,L )2 + vdDk,d − c2
+
+> k,d
+
+eL w2
+
+> k,d,L
+
+#
+
+. (283) This identity is exact for every finite d, L, eL.It remains to replace the finite-dimensional Gegenbauer quantities in Eq. (283) by their asymptotic limits. Fix k ∈ K , and write 
+
+ad := c2
+
+> k,d
+
+, a := c2
+
+> k
+
+, n := Dk,d , bd := vd − ad
+
+n . (284) Since k ≥ 1, we have n → ∞ , and Lemma 1 gives ad −→ a and bd −→ 1. For all sufficiently large d, bd > 0.Define 
+
+t := Ln , xd := ta d
+
+bd
+
+, x := ta, r := L
+
+eL . (285) Then wk,d,L = xd 
+
+> 1+ xd
+
+, and the degree-k contribution in Eq. (283) can be written as 
+
+ad
+
+1(1 + xd)2 + r a d
+
+xd
+
+(1 + xd)2 . (286) We compare this with 
+
+a 1(1 + x)2 + r a x
+
+(1 + x)2 . (287) Suppose first that a > 0. Then xd := λdx with λd := ad 
+
+> ab d
+
+−→ 1. Let p(x) := 1(1+ x)2 and q(x) := x 
+
+> (1+ x)2
+
+for 
+
+x ≥ 0. Since sup x≥0 |xp ′(x)| < ∞ and sup x≥0 |xq ′(x)| < ∞, we have 
+
+sup 
+
+> x≥0
+
+|p(λdx) − p(x)| + sup 
+
+> x≥0
+
+|q(λdx) − q(x)| −→ 0. (288) Together with ad → a, this shows that the difference between Eqs. (286) and (287) is o(1) , uniformly over the value of t = L/n , provided r = L/ eL = O(1) .If a = 0 , then ad → 0, and using 0 ≤ p(x) ≤ 1, 0 ≤ q(x) ≤ 14 , we instead obtain directly 
+
+0 ≤ adp(xd) + r a dq(xd) ≤ ad
+
+
+
+1 + r
+
+4
+
+
+
+−→ 0, (289) 45 again because r = O(1) .Since K is fixed and finite, summing over k ∈ K gives 
+
+Ekernel  
+
+> d,L, eL
+
+= vd − X
+
+> k∈K
+
+c2 
+
+> k,d
+
++ X
+
+> k∈K
+
+
+
+c2
+
+> k
+
+1(1 + Lc 2
+
+> k
+
+/D k,d )2 + L
+
+eL c2
+
+> k
+
+Lc 2
+
+> k
+
+/D k,d 
+
+(1 + Lc 2
+
+> k
+
+/D k,d )2
+
+
+
++ od,L, eL(1) . (290) By Lemma 1, vd − P 
+
+> k∈K
+
+c2 
+
+> k,d
+
+−→ 1 − P 
+
+> k∈K
+
+c2 
+
+> k
+
+= νout . Finally, defining ηk,L := c2   
+
+> kLDk,d +c2
+> kL
+
+, we have 
+
+c2   
+
+> k1(1+ Lc 2
+> k/D k,d )2
+
+= c2
+
+> k
+
+(1 − ηk,L )2 and L 
+
+> eL
+
+c2   
+
+> kLc 2
+> k/D k,d
+> (1+ Lc 2
+> k/D k,d )2
+
+= Dk,d  
+
+> eL
+
+η2
+
+> k,L
+
+. Therefore 
+
+Ekernel  
+
+> d,L, eL
+
+= νout + X
+
+> k∈K
+
+
+
+c2
+
+> k
+
+(1 − ηk,L )2 + Dk,d 
+
+eL η2
+
+> k,L
+
+
+
++ od,L, eL(1) . (291) This proves the kernel-learner part of Theorem 2. 
+
+## E.3 Feature learner Stage-I 
+
+We next derive the population-trained attention matrix of the feature learner. For an arbitrary context length n ≥ 1, define 
+
+Vd,n := 1
+
+n
+
+> n
+
+X
+
+> ℓ=1
+
+yℓxℓ, Td,n := x⊤ 
+
+> 0
+
+Vd,n . (292) For Stage-I training we take n = L, so that U LW = x⊤ 
+
+> 0
+
+W V d,L . Let e := a√d , so that e is a unit vector and 
+
+a⊤x/ √d = e⊤x. By rotational invariance, 
+
+E[yx | a] = μde, μd := E[σ⋆(Gd)Gd] = c1,d , (293) and Ea[ee ⊤] = 1 
+
+> d
+
+Id. Moreover, averaging jointly over a and x, rotational invariance gives 
+
+E[y2xx ⊤] = vdId. (294) Since the query and the demonstrations are conditionally independent given a,
+
+E[y0x0V ⊤
+
+> d,L
+
+] = Ea
+
+E[y0x0 | a] E[Vd,L | a]⊤ = μ2
+
+> d
+
+Ea[ee ⊤] = μ2
+
+> d
+
+d Id. (295) Similarly, using conditional independence of the demonstrations, 
+
+E[Vd,L V ⊤
+
+> d,L
+
+] = L − 1
+
+L Ea
+
+E[yx | a]E[yx | a]⊤ + 1
+
+L E[y2xx ⊤] = 
+
+ L − 1
+
+Lμ2
+
+> d
+
+d + vd
+
+L
+
+
+
+Id. (296) Since x0 is independent of Vd,L and E[x0x⊤ 
+
+> 0
+
+] = Id, the Stage-I population risk in Eq. (243) is therefore 
+
+RF,L (W ) := E[( U LW − y0)2] = vd − 2μ2
+
+> d
+
+d Tr( W ) + 
+
+ L − 1
+
+Lμ2
+
+> d
+
+d + vd
+
+L
+
+
+
+∥W ∥2 
+
+> F
+
+. (297) For all sufficiently large d, we have vd > 0 and μd̸ = 0 . Hence the risk is strictly convex and has the unique minimizer 
+
+W F 
+
+> d,L
+
+= wd,L Id, wd,L := Lμ 2
+
+> d
+
+dv d + ( L − 1) μ2
+
+> d
+
+. (298) In particular, wd,L > 0. Consequently, when this learned attention matrix is evaluated on a context of arbitrary length n,
+
+U nW F
+
+> d,L
+
+= wd,L Td,n . (299) Thus Stage-II training at context length L is equivalent to scalar regression of y0 on Td,L . More precisely, for any chosen version of the Stage-II readout bσd,L , define the rescaled scalar function 
+
+fd,L (t) := bσd,L (wd,L t). (300) 46 Then its Stage-II training risk is E
+
+h
+
+(y0 − fd,L (Td,L )) 2i
+
+, while evaluation on an inference prompt of length eL
+
+takes the form 
+
+Efeature  
+
+> d,L, eL
+
+= E
+
+
+
+y0 − fd,L (Td, eL)
+
+2
+
+. (301) A canonical version of the population-optimal function fd,L , together with its asymptotic behavior under the change from L to eL, will be constructed below. 
+
+## E.4 Concentration of the context 
+
+We next study the concentration of the context statistic Td,n for an arbitrary context length n ≥ 1. Define 
+
+Bd,n := 
+
+
+
+μ2 
+
+> d
+
++ dv d
+
+n
+
+1/2
+
+, ρd,n := μd
+
+Bd,n 
+
+∈ [−1, 1] , Xd,n := Td,n 
+
+Bd,n 
+
+. (302) Recall that Td,n = x⊤ 
+
+> 0
+
+Vd,n , Vd,n = 1
+
+> n
+
+Pnℓ=1 yℓxℓ and e := a/ √d. Write 
+
+Rd,n := ∥Vd,n ∥, bd,n := 
+
+(
+
+Vd,n /R d,n , Rd,n > 0,e, Rd,n = 0 , (303) together with 
+
+qd,n := e⊤bd,n , Sd,n := b⊤
+
+> d,n
+
+x0. (304) Then 
+
+Td,n = Rd,n Sd,n , Xd,n = Rd,n 
+
+Bd,n 
+
+Sd,n . (305) 
+
+Lemma 2. Suppose Assumption 3 holds. For every fixed integer r ≥ 2, there exists a constant Cr < ∞,depending only on r and the teacher, such that, for all sufficiently large d and every n ≥ 1,
+
+E
+
+ Rd,n 
+
+Bd,n 
+
+− 1 
+
+> r
+
+
+
++ E [|qd,n − ρd,n |r ] ≤ Cr
+
+
+
+n−r/ 2 + d−r/ 2
+
+. (306) 
+
+Proof. Fix an integer r ≥ 2. All estimates below are uniform in the task direction a. We first condition on 
+
+a, and remove the conditioning at the end. Recall that e := a√d , Vd,n = 1
+
+> n
+
+Pnℓ=1 yℓxℓ, E[yx | a] = μde, where μd := E[σ⋆(Gd)Gd]. Define 
+
+ηℓ := yℓxℓ − μde, ¯ηn := 1
+
+n
+
+> n
+
+X
+
+> ℓ=1
+
+ηℓ. (307) Then, conditionally on a, the vectors η1, . . . , η n are independent and centered, and 
+
+Vd,n = μde + ¯ ηn. (308) We first record the moment bounds that will be used repeatedly. 
+
+Step 1: uniform moment bounds. Since ∥x∥ = √d, ∥ηℓ∥ ≤ √d |yℓ| + |μd|. Assumption 3 and the uniform moment bound for Gd imply that, for every fixed m < ∞, sup d E[|σ⋆(Gd)|m] < ∞. Moreover, 
+
+μd → c1, so sup d |μd| < ∞. It follows that, for every fixed m < ∞,
+
+E[∥ηℓ∥m | a] ≤ Cmdm/ 2. (309) We also require moments of one-dimensional projections of ηℓ. Let u ∈ Rd be a deterministic unit vector. Then |u⊤ηℓ| ≤ | yℓ| | u⊤xℓ| + |μd|. By Hölder’s inequality, 
+
+E[|yℓ|m|u⊤xℓ|m | a] ≤  E[|yℓ|2m | a]1/2  E[|u⊤xℓ|2m]1/2 . (310) 47 The first factor is uniformly bounded by the polynomial-growth of σ⋆ (Assumption 3), while the second factor is uniformly bounded because u⊤xℓ has the same marginal distribution as Gd. Hence 
+
+sup 
+
+> ∥u∥=1
+
+E[|u⊤ηℓ|m | a] ≤ Cm. (311) By rotational invariance around the direction e, the conditional covariance of η is 
+
+Γd(a) := E[η1η⊤ 
+
+> 1
+
+| a] = ( td − μ2
+
+> d
+
+)ee ⊤ + βd(Id − ee ⊤). (312) where td = E[σ⋆(Gd)2G2
+
+> d
+
+] and βd = dv d−td 
+
+> d−1
+
+. The same uniform moment bounds imply sup d td < ∞, sup d vd <
+
+∞, and therefore 
+
+∥Γd∥op ≤ C, Tr Γ d = dv d − μ2 
+
+> d
+
+≤ Cd. (313) Set Un := e⊤ ¯ηn = 1
+
+> n
+
+Pnℓ=1 e⊤ηℓ. The random variables e⊤ηℓ are conditionally independent, centered, and by Eq. (311) have uniformly bounded r-th moments. We use the Rosenthal inequality: for independent centered random variables ξ1, . . . , ξ n and r ≥ 2,
+
+> n
+
+X
+
+> ℓ=1
+
+ξℓ
+
+> Lr
+
+≤ Cr
+
+
+
+> n
+
+X
+
+> ℓ=1
+
+E[ξ2 
+
+> ℓ
+
+]
+
+!1/2
+
++
+
+> n
+
+X
+
+> ℓ=1
+
+E[|ξℓ|r ]
+
+!1/r  . (314) Applying this conditionally on a with ξℓ = e⊤ηℓ gives 
+
+∥Un∥Lr ≤ Cr
+
+n
+
+√n + n1/r 
+
+≤ Cr
+
+√n , (315) where we used r ≥ 2 and n ≥ 1. Thus 
+
+∥e⊤ ¯ηn∥Lr ≤ Cr n−1/2. (316) We will also need a bound for the partial sum Sηk := Pkℓ=1 ηℓ. The Rosenthal inequality gives 
+
+> k
+
+X
+
+> ℓ=1
+
+ηℓ
+
+> Lr
+
+≤ Cr
+
+
+
+> k
+
+X
+
+> ℓ=1
+
+E∥ηℓ∥2
+
+!1/2
+
++
+
+> k
+
+X
+
+> ℓ=1
+
+E∥ηℓ∥r
+
+!1/r  . (317) By Eqs. (309) and (313), E∥ηℓ∥2 = Tr Γ d ≤ Cd and E∥ηℓ∥r ≤ Cr dr/ 2. Hence 
+
+∥Sηk ∥Lr ≤ Cr
+
+√kd + k1/r √d
+
+
+
+≤ Cr
+
+√kd, (318) because k1/r ≤ √k for r ≥ 2. Therefore 
+
+> k
+
+X
+
+> ℓ=1
+
+ηℓ
+
+> Lr
+
+≤ Cr
+
+√kd. (319) 
+
+Step 2: concentration of ∥¯ηn∥2 − E[∥¯ηn∥2 | a]. Expanding the square, 
+
+∥¯ηn∥2 − E[∥¯ηn∥2 | a] = Dn + Cn, (320) where Dn := 1
+
+> n2
+
+Pnℓ=1 
+
+ ∥ηℓ∥2 − E[∥ηℓ∥2 | a] and Cn := 2
+
+> n2
+
+P 
+
+> 1≤i<j ≤n
+
+η⊤ 
+
+> i
+
+ηj .We first deal with Dn. Define ξℓ := ∥ηℓ∥2 − E[∥ηℓ∥2 | a]. Then the ξℓ are conditionally independent and centered. By Eq. (309), E[|ξℓ|r | a] ≤ Cr dr and E[ξ2 
+
+> ℓ
+
+| a] ≤ Cd 2. Applying the Rosenthal inequality (314), 
+
+∥Dn∥Lr ≤ Cr
+
+n2
+
+h
+
+(nd 2)1/2 + ( nd r )1/r i
+
+= Cr
+
+ dn3/2 + dn2−1/r 
+
+
+
+. (321) Now we deal with Cn. Set Mj := 
+
+Pj−1 
+
+> i=1
+
+ηi
+
+⊤
+
+ηj for j = 2 , . . . , n . Then Cn = 2
+
+> n2
+
+Pnj=2 Mj . Let Fj := 
+
+σ(a, η 1, . . . , η j ). Because ηj is independent of Fj−1 conditional on a, and E[ηj | a] = 0 , E[Mj | F j−1] = 0 .Thus (Mj )nj=2 is a martingale-difference sequence. 48 For r ≥ 2, the martingale Rosenthal inequality gives 
+
+> n
+
+X
+
+> j=2
+
+Mj
+
+> Lr
+
+≤ Cr
+
+
+
+> n
+
+X
+
+> j=2
+
+E[M 2 
+
+> j
+
+| F j−1]
+
+
+
+> 1/2
+> Lr
+
++
+
+
+
+> n
+
+X
+
+> j=2
+
+E|Mj |r
+
+ 
+
+> 1/r
+
+ . (322) We now bound the two terms on the right-hand side. Let Sηj−1 := Pj−1 
+
+> i=1
+
+ηi. Using Eq. (312), 
+
+E[M 2 
+
+> j
+
+| F j−1] = ( Sηj−1)⊤ΓdSηj−1 ≤ ∥ Γd∥op ∥Sηj−1∥2 ≤ C∥Sηj−1∥2. (323) Therefore 
+
+> n
+
+X
+
+> j=2
+
+E[M 2 
+
+> j
+
+| F j−1]
+
+ 
+
+> 1/22
+> Lr
+
+=
+
+> n
+
+X
+
+> j=2
+
+E[M 2 
+
+> j
+
+| F j−1]
+
+> Lr/ 2
+
+≤ C
+
+> n
+
+X
+
+> j=2
+
+∥Sηj−1∥2
+
+> Lr/ 2
+
+≤ C
+
+> n
+
+X
+
+> j=2
+
+∥Sηj−1∥2 
+
+> Lr/ 2
+
+= C
+
+> n
+
+X
+
+> j=2
+
+∥Sηj−1∥2 
+
+> Lr
+
+.
+
+(324) Using Eq. (319), ∥Sηj−1∥2 
+
+> Lr
+
+≤ Cr (j − 1) d. Hence 
+
+
+
+> n
+
+X
+
+> j=2
+
+E[M 2 
+
+> j
+
+| F j−1]
+
+ 
+
+> 1/22
+> Lr
+
+≤ Cr d
+
+> n
+
+X
+
+> j=2
+
+(j − 1) ≤ Cr dn 2, (325) and therefore 
+
+> n
+
+X
+
+> j=2
+
+E[M 2 
+
+> j
+
+| F j−1]
+
+
+
+> 1/2
+> Lr
+
+≤ Cr n√d. (326) For the second term in Eq. (322), condition on Fj−1. If Sηj−1̸ = 0 , then Eq. (311) gives 
+
+E[|Mj |r | F j−1] = ∥Sηj−1∥r E
+
+" (Sηj−1)⊤
+
+∥Sηj−1∥ ηj
+
+> r
+
+Fj−1
+
+#
+
+≤ Cr ∥Sηj−1∥r . (327) The same inequality is trivial when Sηj−1 = 0 . Taking expectation, 
+
+∥Mj ∥Lr ≤ Cr ∥Sηj−1∥Lr ≤ Cr
+
+pjd. (328) Consequently, 
+
+> n
+
+X
+
+> j=2
+
+E|Mj |r
+
+
+
+> 1/r
+
+≤ Cr
+
+√d
+
+
+
+> n
+
+X
+
+> j=2
+
+jr/ 2
+
+
+
+> 1/r
+
+≤ Cr
+
+√d n 1/2+1 /r ≤ Cr n√d, (329) because 1/2 + 1 /r ≤ 1 for r ≥ 2. Combining this estimate with Eq. (326) in Eq. (322) gives Pnj=2 Mj Lr ≤
+
+Cr n√d. Hence 
+
+∥Cn∥Lr ≤ Cr
+
+√dn . (330) Combining Eqs. (321) and (330), we obtain 
+
+∥¯ηn∥2 − E[∥¯ηn∥2 | a] Lr ≤ Cr
+
+√dn + dn3/2 + dn2−1/r 
+
+!
+
+. (331) 49 Step 3: concentration of the context radius. Using Eq. (308), 
+
+R2 
+
+> d,n
+
+= ∥Vd,n ∥2 = μ2 
+
+> d
+
++ 2 μde⊤ ¯ηn + ∥¯ηn∥2. (332) Furthermore, 
+
+E[∥¯ηn∥2 | a] = 1
+
+n Tr Γ d = dv d − μ2
+
+> d
+
+n . (333) Since B2 
+
+> d,n
+
+= μ2 
+
+> d
+
++ dv d 
+
+> n
+
+, we have the identity 
+
+R2 
+
+> d,n
+
+− B2 
+
+> d,n
+
+= 2 μde⊤ ¯ηn +  ∥¯ηn∥2 − E[∥¯ηn∥2 | a] − μ2
+
+> d
+
+n . (334) Since vd → 1 and μd → c1̸ = 0 , there exists c > 0 such that, for all sufficiently large d and all n ≥ 1,
+
+B2 
+
+> d,n
+
+= μ2 
+
+> d
+
++ dv d
+
+n ≥ c
+
+
+
+1 + dn
+
+
+
+. (335) Using Eqs. (316), (331), and (334), we get 
+
+R2
+
+> d,n
+
+B2
+
+> d,n
+
+− 1
+
+> Lr
+
+≤ Cr
+
+"
+
+n−1/2
+
+1 + d/n +
+
+√d/n 
+
+1 + d/n + d/n 3/2
+
+1 + d/n + d/n 2−1/r 
+
+1 + d/n + n−1
+
+1 + d/n 
+
+#
+
+. (336) We bound the five terms separately: 
+
+n−1/2
+
+1 + d/n ≤ n−1/2,
+
+√d/n 
+
+1 + d/n =
+
+√dn + d ≤ d−1/2,d/n 3/2
+
+1 + d/n = d
+
+√n(n + d) ≤ n−1/2,d/n 2−1/r 
+
+1 + d/n = dn + d n−1+1 /r ≤ n−1+1 /r ≤ n−1/2,n−1
+
+1 + d/n ≤ n−1 ≤ n−1/2,
+
+(337) where we uses r ≥ 2. Therefore 
+
+R2
+
+> d,n
+
+B2
+
+> d,n
+
+− 1
+
+> Lr
+
+≤ Cr
+
+
+
+n−1/2 + d−1/2
+
+. (338) Since Rd,n /B d,n ≥ 0 and |√u − 1| = |u−1|√u+1 ≤ | u − 1| for u ≥ 0, Eq. (338) implies 
+
+Rd,n 
+
+Bd,n 
+
+− 1
+
+> Lr
+
+≤ Cr
+
+
+
+n−1/2 + d−1/2
+
+. (339) 
+
+Step 4: concentration of the context direction. Set Ad,n := Rd,n  
+
+> Bd,n
+
+. Consider the event G := {Ad,n ≥
+
+1/2}. On G, we have Rd,n > 0, and hence 
+
+qd,n = e⊤Vd,n 
+
+Rd,n 
+
+= μd + e⊤ ¯ηn
+
+Ad,n Bd,n 
+
+. (340) Since ρd,n = μd 
+
+> Bd,n
+
+, we obtain 
+
+qd,n − ρd,n = e⊤ ¯ηn
+
+Ad,n Bd,n 
+
++ μd
+
+Bd,n 
+
+ 1
+
+Ad,n 
+
+− 1
+
+
+
+. (341) 50 On G,
+
+A−1 
+
+> d,n
+
+≤ 2, A−1 
+
+> d,n
+
+− 1 = |Ad,n − 1|
+
+Ad,n 
+
+≤ 2|Ad,n − 1|. (342) Moreover, Eq. (335) gives Bd,n ≥ c > 0, while μd remains uniformly bounded. Thus 
+
+|qd,n − ρd,n |1G ≤ C  |e⊤ ¯ηn| + |Ad,n − 1| . (343) By Eqs. (316) and (339), 
+
+∥(qd,n − ρd,n )1G ∥Lr ≤ Cr
+
+
+
+n−1/2 + d−1/2
+
+. (344) On the complementary event Gc, both |qd,n | ≤ 1 and |ρd,n | ≤ 1. The latter follows from μ2 
+
+> d
+
+≤ vd by Cauchy– Schwarz. Hence |qd,n − ρd,n | ≤ 2. Furthermore, Gc = {Ad,n < 1/2} ⊆ {| Ad,n − 1| ≥ 1/2}. Therefore, by Markov’s inequality, 
+
+∥(qd,n − ρd,n )1Gc ∥Lr ≤ 2 P(Gc)1/r ≤ 4∥Ad,n − 1∥Lr ≤ Cr
+
+
+
+n−1/2 + d−1/2
+
+, (345) where we used Eq. (339) in the last inequality. Combining this with Eq. (344) gives 
+
+∥qd,n − ρd,n ∥Lr ≤ Cr
+
+
+
+n−1/2 + d−1/2
+
+. (346) Together with Eq. (339), this proves 
+
+Rd,n 
+
+Bd,n 
+
+− 1
+
+> Lr
+
++ ∥qd,n − ρd,n ∥Lr ≤ Cr
+
+ 1
+
+√n + 1
+
+√d
+
+
+
+. (347) Raising both sides to the r-th power and using (x + y)r ≤ 2r−1(xr + yr ) gives Eq. (306). Let Cd,n := σ(a, x 1, . . . , x n) be the sigma-algebra generated by the task and the demonstrations. The variables Rd,n , b d,n , q d,n are Cd,n -measurable, whereas x0 is independent of Cd,n . Consequently, conditionally on Cd,n , the random variable Sd,n has the same law as Gd. In particular, 
+
+Sd,n is independent of Cd,n , E[S2 
+
+> d,n
+
+| C d,n ] = 1 . (348) Since Xd,n = Ad,n Sd,n , we have 
+
+E[( Xd,n − Sd,n )2] = E[( Ad,n − 1) 2S2
+
+> d,n
+
+] = E[( Ad,n − 1) 2]E[S2
+
+> d,n
+
+] = E[( Ad,n − 1) 2]. (349) Taking r = 2 in Eq. (339) proves 
+
+E (Xd,n − Sd,n )2 = E
+
+" Rd,n 
+
+Bd,n 
+
+− 1
+
+2#
+
+−→ 0. (350) Moreover, Lemma 2 has the following important consequence. Let δd := d−β with 0 < β < 14 min {ε, 1}.When n ≥ dε, Lemma 2 and Markov’s inequality imply that, for every M < ∞,
+
+P(|Ad,n − 1| > δ d) ≤ CM d−M (351) after choosing a sufficiently large r in Eq. (306). 
+
+## E.5 Feature learner Stage-II 
+
+We now analyze the population-optimal scalar readout learned with context length L and evaluated with a possibly different context length eL. Throughout this subsection, Assumptions 3 and 4 are in force. Recall from Eq. (299) that U nW F
+
+> d,L
+
+= wd,L Td,n with wd,L > 0 for every context length n. Recall also the definitions 
+
+Bd,n := 
+
+
+
+μ2 
+
+> d
+
++ dv d
+
+n
+
+1/2
+
+, ρd,n := μd
+
+Bd,n 
+
+, Xd,n := Td,n 
+
+Bd,n 
+
+. (352) 51 Write Ad,n := Rd,n  
+
+> Bd,n
+
+, so that, by Eq. (305), Xd,n = Ad,n Sd,n . Moreover, Sd,n is independent of the demon-stration and has the same law as Gd.By the definition of bσd,L , we can define gd,L (Xd,L ) = E[y0 | Xd,L ]. Hence, writing sd,L, eL := Bd, eL 
+
+> Bd,L
+
+, the test error is 
+
+Efeature  
+
+> d,L, eL
+
+= E
+
+
+
+y0 − gd,L 
+
+
+
+sd,L, eLXd, eL
+
+ 2
+
+. (353) Moreover, since |y0| = |σ⋆(Gd)| ≤ sup |t|≤ √d |σ⋆(t)|, the conditional expectation satisfies 
+
+|gd,L (x)| ≤ C(1 + dp/ 2), x ∈ R, (354) where we use Assumption 3. 
+
+E.5.1 Asymptotical parameters 
+
+We first relate the quantities in Eq. (352) to the limiting parameters appearing in the theorem. 
+
+Lemma 3. Let α = Ld and eα = eLd . Then, along every sequence satisfying Assumption 4, 
+
+ρd,L − ρα −→ 0, ρd, eL − ρeα −→ 0, sd,L, eL − sα, eα −→ 0, (355) 
+
+where ρβ = c1√c21+1 /β and sα, eα =
+
+q c21+1 /eαc21+1 /α .Proof. Set bd := μ2 
+
+> d
+> vd
+
+. Lemma 1 gives bd → c21 > 0, and μd has the same sign as c1 for all sufficiently large d.Hence, we can write ρ2 
+
+> d,n
+
+= αnbd 
+
+> 1+ αnbd
+
+, where αn := nd . For b bounded away from zero, 
+
+sup 
+
+> α≥0
+
+∂∂b αb 
+
+1 + αb = sup 
+
+> α≥0
+
+α
+
+(1 + αb )2 = 14b . (356) Thus the convergence of ρd,n to ραn is uniform over αn > 0.Similarly, s2 
+
+> d,L, eL
+
+= bd+1 /eαbd+1 /α . Writing r := L/ eL = α/ eα, we have s2 
+
+> d,L, eL
+
+= αb d+rαb d+1 . For Fr (b) := ( αb +
+
+r)/(αb + 1) ,
+
+∂F r
+
+∂b = α|1 − r|
+
+(αb + 1) 2 ≤ |1 − r|
+
+4b . (357) Assumption 4 keeps r in a fixed compact subset of (0 , ∞), proving the last convergence. 
+
+E.5.2 A spherical-to-Gaussian approximation 
+
+The following lemma is the main technical input for Stage II, showing that AdSd can be approximated by a Gaussian variable Z. It will be used both for the training and the inference distributions. The lemma is a weighted and randomly rescaled version of the classical Gaussian limit for high-dimensional spheres, combined with the Gegenbauer-to-Hermite limit [26]. We give a direct proof because we additionally require dimension-dependent test functions of uniform polynomial growth and the random rescaling Ad.
+
+Lemma 4. Let n = n(d) ≥ dε, and write Ad := Ad,n , Sd := Sd,n . Let fd : R → R be deterministic functions satisfying, for some fixed m, C < ∞,
+
+|fd(x)| ≤ C(1 + |x|m), d ≥ 1, x ∈ R. (358) 
+
+For k ≥ 0, define Jfd
+
+> k,d
+
+(a) := ES∼Gd [Pk,d (S)fd(aS )] and Jfd 
+
+> k
+
+:= EZ∼N (0 ,1) [Hk(Z)fd(Z)] . Then, for every fixed k ≥ 0,
+
+E
+
+h
+
+Jfd
+
+> k,d
+
+(Ad) − Jfd
+
+> k
+
+i
+
+−→ 0. (359) 52 Proof. Fix k ≥ 0. Choose 0 < β < 14 min {ε, 1}, δd := d−β , and let Gd := {| Ad − 1| ≤ δd}. By Lemma 2, for every M < ∞, after choosing a sufficiently high moment in Eq. (306), 
+
+P(Gcd) ≤ CM d−M . (360) We first work on the good event Gd. For a deterministic a > 0, since S ∼ Gd has density pd, a change of variables x = aS gives 
+
+Jfd
+
+> k,d
+
+(a) = 
+
+Z
+
+> R
+
+fd(x)Pk,d (x/a ) 1
+
+a pd(x/a ) d x. (361) We claim that 
+
+sup 
+
+> |a−1|≤ δd
+
+Z
+
+> R
+
+(1 + |x|m) Pk,d (x/a ) 1
+
+a pd(x/a ) − Hk(x)ϕ(x) dx −→ 0. (362) Indeed, choose 0 < τ < min {1/4, β/ 2}. Uniformly for |a − 1| ≤ δd and |x| ≤ dτ , the spherical density satisfies 
+
+1
+
+a pd(x/a ) = ϕ(x)(1 + o(1)) . (363) For fixed k, coefficientwise convergence of the Gegenbauer polynomials, together with a → 1, gives Pk,d (x/a )−
+
+Hk(x) → 0 uniformly on compact sets. The polynomial bound Eq. (257), the domination pd(t) ≤ Cϕ (t),and Gaussian tails then proves Eq. (362). Using the polynomial bound on fd, we therefore have 
+
+sup 
+
+> |a−1|≤ δd
+
+Jfd
+
+> k,d
+
+(a) − Jfd 
+
+> k
+
+≤ C sup 
+
+> |a−1|≤ δd
+
+Z
+
+> R
+
+(1 + |x|m) Pk,d (x/a ) 1
+
+a pd(x/a ) − Hk(x)ϕ(x) dx −→ 0. (364) Consequently, 
+
+E
+
+h
+
+Jfd
+
+> k,d
+
+(Ad) − Jfd 
+
+> k
+
+1Gd
+
+i
+
+−→ 0. (365) It remains to control the bad event. The polynomial growth of Pk,d and fd, together with the uniform moment bounds for Gd, gives 
+
+Jfd
+
+> k,d
+
+(a) ≤ Ck(1 + |a|m), a ≥ 0, (366) and similarly |Jfd 
+
+> k
+
+| ≤ Ck. Moreover, Lemma 2 implies that Ad has uniformly bounded moments of every fixed order. Hence, for any fixed r > 1, Hölder’s inequality yields 
+
+E
+
+h
+
+Jfd
+
+> k,d
+
+(Ad) − Jfd 
+
+> k
+
+1Gcd
+
+i
+
+≤ Ck (E[(1 + Amd )r ]) 1/r P(Gcd)1−1/r + CkP(Gcd) −→ 0, (367) using Eq. (360). Combining Eqs. (365) and (367) proves Eq. (359). 
+
+E.5.3 The Stage-II regression on the training distribution 
+
+For the rest of this subsection, write 
+
+Xd := Xd,L , Ad := Ad,L , Sd := Sd,L , qd := qd,L , ρd := ρd,L .
+
+We first identify gd,L under its training distribution using a matched lower and upper bound. Let Hd := 
+
+σ(Cd,L , S d). Since Xd = AdSd, σ(Xd) ⊆ H d. Define the richer regression function ¯gd := E[Yd | H d],where Yd := σ∗(Gd). Conditionally on the demonstration context, (Gd, S d) is a two-dimensional spherical projection with correlation qd. Lemma 1 therefore gives 
+
+¯gd = X
+
+> k≥0
+
+ck,d Qk,d (qd)Pk,d (Sd) in L2. (368) Consequently, 
+
+Rrich  
+
+> d
+
+:= E[( Yd − ¯gd)2] = vd − X
+
+> k≥0
+
+c2
+
+> k,d
+
+E[Qk,d (qd)2]. (369) 53 For each fixed k, Lemma 2 gives qd − ρd → 0 in probability, while Lemma 1 gives sup |q|≤ 1 |Qk,d (q) − qk| → 0.Since |Qk,d | ≤ 1,
+
+E[Qk,d (qd)2] − ρ2kd −→ 0. (370) Using the uniform tail bound Eq. (261), we obtain 
+
+Rrich  
+
+> d
+
+= 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+ρ2kd + o(1) . (371) We next introduce the Gaussian channel 
+
+hd(x) := Φ ρd (x) = EZ
+
+
+
+σ⋆
+
+
+
+ρdx +
+
+q
+
+1 − ρ2 
+
+> d
+
+Z
+
+ 
+
+. (372) Assumption 3 implies the uniform polynomial bound 
+
+|hd(x)| ≤ C(1 + |x|p). (373) We claim that 
+
+E[( Yd − hd(Xd)) 2] = 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+ρ2kd + o(1) . (374) Indeed, Lemma 4 gives 
+
+E[hd(Xd)2] = E[hd(Z)2] + o(1) = X
+
+> k≥1
+
+c2
+
+> k
+
+ρ2kd + o(1) , (375) where the last equality follows from Mehler’s identity. For the cross term, condition on the demonstration context and use the spherical projection formula in Lemma 1: 
+
+E[Ydhd(Xd)] = E
+
+X
+
+> k≥0
+
+ck,d Qk,d (qd)Jk,d (Ad)
+
+ , (376) where Jk,d (a) := ES∼Gd [Pk,d (S)hd(aS )] . For M ≥ 0, define the tail 
+
+Rtr  
+
+> M,d
+
+:= E
+
+" X
+
+> k>M
+
+ck,d Qk,d (qd)Jk,d (Ad)
+
+#
+
+. (377) Since |Qk,d (q)| ≤ 1, Cauchy–Schwarz gives 
+
+|Rtr 
+
+> M,d
+
+| ≤ X
+
+> k>M
+
+c2
+
+> k,d
+
+!1/2
+
+E
+
+ X
+
+> k>M
+
+Jk,d (Ad)2
+
+!1/2 ≤ X
+
+> k>M
+
+c2
+
+> k,d
+
+!1/2
+
+E X
+
+> k>M
+
+Jk,d (Ad)2
+
+!1/2
+
+. (378) For every fixed a, Parseval’s inequality for the orthonormal Gegenbauer basis gives 
+
+X
+
+> k≥0
+
+Jk,d (a)2 ≤ ES∼Gd
+
+hd(aS )2 . (379) Since Ad is measurable with respect to the demonstration context and Sd is independent of that context with the same law as Gd, we obtain 
+
+E X
+
+> k>M
+
+Jk,d (Ad)2 ≤ E[hd(AdSd)2] = E[hd(Xd)2]. (380) By Eq. (375), the right-hand side is uniformly bounded for all sufficiently large d. Consequently, 
+
+lim   
+
+> M→∞
+
+lim sup 
+
+> d→∞
+
+|Rtr 
+
+> M,d
+
+| = 0 , (381) where we used Eq. (261). 54 We may therefore first truncate the sum at a fixed M , pass to the limit d → ∞ term by term, and then send M → ∞ . For every fixed k, Lemma 4 gives Jk,d (Ad) − E[Hk(Z)hd(Z)] −→ 0 in L1 while 
+
+Qk,d (qd) − ρkd −→ 0 in L1 and ck,d → ck. Moreover, by Mehler’s identity, E[Hk(Z)hd(Z)] = ckρkd . Hence, for every fixed M ,
+
+E
+
+" MX
+
+> k=0
+
+ck,d Qk,d (qd)Jk,d (Ad)
+
+#
+
+=
+
+> M
+
+X
+
+> k=0
+
+c2
+
+> k
+
+ρ2kd + o(1) . (382) Finally, sup d
+
+P 
+
+> k>M
+
+c2
+
+> k
+
+ρ2kd ≤ P 
+
+> k>M
+
+c2 
+
+> k
+
+−→ 0. Combining Eq. (382) with Eq. (381) gives 
+
+E[Ydhd(Xd)] = X
+
+> k≥0
+
+c2
+
+> k
+
+ρ2kd + o(1) . (383) Combining Eqs. (375) and (383) proves Eq. (374). Let Ropt  
+
+> d
+
+:= E[( Yd − gd,L (Xd)) 2]. Because σ(Xd) ⊆ H d, while hd(Xd) is a predictor measurable with respect to Xd,
+
+Rrich  
+
+> d
+
+≤ Ropt  
+
+> d
+
+≤ E[( Yd − hd(Xd)) 2]. (384) Equations (371) and (374) therefore imply 
+
+Ropt  
+
+> d
+
+= 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+ρ2kd + o(1) . (385) Finally, since gd,L (Xd) is the orthogonal projection of Yd onto L2(σ(Xd)) ,
+
+E[( Yd − hd(Xd)) 2] = Ropt  
+
+> d
+
++ E[( gd,L (Xd) − hd(Xd)) 2]. (386) Hence 
+
+E[( gd,L (Xd,L ) − Φρd,L (Xd,L )) 2] −→ 0. (387) 
+
+E.5.4 Transfer from training to inference 
+
+The preceding convergence holds under the law of Xd,L . We next transfer it to the statistics encountered at inference. Let Pd := Law( Xd,L ) and Qd := Law 
+
+
+
+sd,L, eLXd, eL
+
+
+
+. Assumption 4 and Lemma 3 imply 
+
+0 < s − ≤ sd,L, eL ≤ s+ < ∞. (388) 
+
+Lemma 5. Suppose fd : R → R satisfies EPd [f 2 
+
+> d
+
+] → 0, and, for every fixed m < ∞, sup d EPd [|fd|m] < ∞.Suppose moreover that on the supports of Pd and Qd, |fd(x)| ≤ dCf for some Cf < ∞. Then 
+
+EQd [f 2 
+
+> d
+
+] −→ 0. (389) 
+
+Proof. Choose 0 < β < 14 min {ε, 1} and 0 < τ < min {1/4, β/ 2}. Let Gd,n = {| Ad,n − 1| ≤ d−β }. Lemma 2 gives 
+
+P(Gcd,n ) ≤ CM d−M (390) for every M < ∞, uniformly for n ∈ { L, eL}.Conditioned on the good event Gd,n , the argument used in Lemma 4 gives, uniformly on |x| ≤ dτ ,
+
+pg
+
+> d
+
+(x) = ϕ(x)(1 + o(1)) , qg 
+
+> d
+
+(x) = ϕsd (x)(1 + o(1)) , (391) where sd = sd,L, eL. Because sd ∈ [s−, s +], one may choose r > 1, sufficiently close to one, such that 
+
+sup 
+
+> d
+
+Z
+
+> |x|≤ dτ
+
+ qg 
+
+> d
+
+(x)
+
+pg
+
+> d
+
+(x)
+
+r
+
+pg
+
+> d
+
+(x) d x < ∞. (392) Let r′ = r/ (r − 1) , and choose m > 2r′. By Hölder’s inequality, 
+
+EPd |fd|2r′
+
+≤  EPd |fd|2 m−2r′ 
+
+> m−2
+
+(EPd |fd|m) 2r′−2 
+
+> m−2
+
+. (393) 55 The first factor tends to zero by assumption, whereas the second factor is uniformly bounded. Hence 
+
+∥fd∥L2r′ (Pd) −→ 0. (394) Since P(Gd,L ) → 1, the same convergence holds under the training law conditioned on the good event: 
+
+EP g 
+
+> d
+
+|fd|2r′
+
+=
+
+E
+
+h
+
+|fd(Xd,L )|2r′
+
+1Gd,L 
+
+i
+
+P(Gd,L ) ≤ EPd |fd|2r′
+
+P(Gd,L ) −→ 0. (395) Let Cd := {| x| ≤ dτ }. On this region, 
+
+EQg
+
+> d
+
+f 2 
+
+> d
+
+1Cd
+
+ =
+
+Z
+
+> Cd
+
+fd(x)2 qg 
+
+> d
+
+(x)
+
+pg
+
+> d
+
+(x) pg
+
+> d
+
+(x) d x. (396) Applying Hölder’s inequality: 
+
+EQg
+
+> d
+
+f 2 
+
+> d
+
+1Cd
+
+ ≤
+
+Z 
+
+> Cd
+
+ qg 
+
+> d
+
+(x)
+
+pg
+
+> d
+
+(x)
+
+r
+
+pg
+
+> d
+
+(x) d x
+
+1/r 
+
+×
+
+Z 
+
+> Cd
+
+|fd(x)|2r′
+
+pg
+
+> d
+
+(x) d x
+
+1/r ′
+
+. (397) The first factor is uniformly bounded by Eq. (392), while the second factor is bounded by 
+
+h
+
+EP g 
+
+> d
+
+|fd|2r′ i1/r ′
+
+−→ 
+
+0 according to Eq. (395). Therefore 
+
+EQg
+
+> d
+
+f 2 
+
+> d
+
+1{| x|≤ dτ }
+
+ −→ 0. (398) It remains to control the complement. On Gd, eL, we have |Ad, eL − 1| ≤ d−β , and sd is bounded above and below by positive constants. Hence, for all sufficiently large d, |sdXd, eL| > d τ =⇒ | Sd, eL| > c 0dτ for some fixed c0 > 0. Since Sd, eL has the same distribution as Gd, and pd(t) ≤ Cϕ (t),
+
+Qg
+
+> d
+
+(|x| > d τ ) ≤ C exp( −ctail d2τ ) (399) for some ctail > 0. Using |fd(x)| ≤ dCf on the support of Qd, we therefore obtain 
+
+EQg
+
+> d
+
+f 2 
+
+> d
+
+1{| x|>d τ }
+
+ ≤ d2Cf Qg
+
+> d
+
+(|x| > d τ ) −→ 0. (400) Finally, on the bad event, 
+
+E
+
+h
+
+fd(sdXd, eL)21Gcd, eL
+
+i
+
+≤ d2Cf P(Gcd, eL). (401) The right-hand side tends to zero after choosing M > 2Cf and using (390). Combining this estimate with Eqs. (398) and (400) proves 
+
+EQd [f 2 
+
+> d
+
+] −→ 0. (402) We apply Lemma 5 to 
+
+fd(x) := gd,L (x) − Φρd,L (x). (403) Equation (387) gives the required L2(Pd) convergence. Jensen’s inequality gives 
+
+EPd |gd,L (Xd,L )|m ≤ E|Yd|m ≤ Cm, (404) while Eq. (373) and the moment bounds for Xd,L give the corresponding estimate for Φρd,L (Xd,L ). Finally, Eq. (354) and the polynomial growth of Φρ give the required polynomial pointwise bound. Hence, all the conditions in Lemma 5 are satisfied and we have 
+
+E
+
+
+
+gd,L (sd,L, eLXd, eL) − Φρd,L (sd,L, eLXd, eL)
+
+2
+
+−→ 0. (405) 56 E.5.5 Reduction of the inference error to a Gaussian channel 
+
+Define Fd(t) := Φ ρd,L 
+
+
+
+sd,L, eLt
+
+
+
+. Equation (405), together with Cauchy–Schwarz and the uniform moment bounds, gives 
+
+Efeature  
+
+> d,L, eL
+
+− E
+
+
+
+Yd − Fd(Xd, eL)
+
+2
+
+≤ gd,L (sd,L, eLXd, eL) − Fd(Xd, eL) L2
+
+×
+
+
+
+2∥Yd∥L2 + gd,L (sd,L, eLXd, eL) L2
+
++ Fd(Xd, eL) L2
+
+
+
+= o(1) .
+
+(406) Write Ate  
+
+> d
+
+:= Ad, eL, Ste  
+
+> d
+
+:= Sd, eL, qte  
+
+> d
+
+:= qd, eL and ρte  
+
+> d
+
+:= ρd, eL. Lemma 4 applied with fd = F 2 
+
+> d
+
+gives 
+
+E[Fd(Xd, eL)2] = E[Fd(Z)2] + o(1) . (407) For the cross term, the spherical projection formula in Lemma 1 gives 
+
+E[YdFd(Xd, eL)] = E
+
+X
+
+> k≥0
+
+ck,d Qk,d (qte  
+
+> d
+
+)Jte 
+
+> k,d
+
+(Ate  
+
+> d
+
+)
+
+ , (408) where Jte 
+
+> k,d
+
+(a) := ES∼Gd [Pk,d (S)Fd(aS )] . For every fixed k, Lemma 4 gives 
+
+Jte 
+
+> k,d
+
+(Ate  
+
+> d
+
+) − E[Hk(Z)Fd(Z)] −→ 0, (409) while Qk,d (qte  
+
+> d
+
+) − (ρte  
+
+> d
+
+)k −→ 0 by Lemma 1. After truncating the Gegenbauer expansion (as in Appendix E.5.3) and using Eq. (261), we obtain 
+
+E[YdFd(Xd, eL)] = X
+
+> k≥0
+
+ck(ρte  
+
+> d
+
+)kE[Hk(Z)Fd(Z)] + o(1) . (410) Let T te  
+
+> d
+
+:= ρte  
+
+> d
+
+G + p1 − (ρte  
+
+> d
+
+)2 Z with G, Z iid 
+
+∼ N (0 , 1) . By Mehler’s identity, 
+
+E[σ⋆(G)Fd(T te  
+
+> d
+
+)] = X
+
+> k≥0
+
+ck(ρte  
+
+> d
+
+)kE[Hk(Z)Fd(Z)] . (411) Since T te  
+
+> d
+
+∼ N (0 , 1) , Eqs. (406), (407) and (410), (411) therefore imply 
+
+Efeature  
+
+> d,L, eL
+
+= EG,Z 
+
+
+
+σ⋆(G) − Φρd,L 
+
+
+
+sd,L, eLT te 
+
+> d
+
+ 2
+
++ o(1) . (412) 
+
+E.5.6 Continuity of the Gaussian-channel error 
+
+It remains to justify replacing the finite-dimensional parameters ρd,L , ρ d, eL, s d,L, eL by their limiting counter-parts ρα, ρ eα, s α, eα. Note that σ⋆ might not be continuous. We therefore establish continuity of the Gaussian channel. We first record a simple approximation lemma. 
+
+Lemma 6. Let f : R → R be measurable and suppose that, for some C, p < ∞,
+
+|f (x)| ≤ C(1 + |x|p), x ∈ R. (413) 
+
+Let Xn, X be centered Gaussian random variables such that Xn −→ X in L2 and suppose that Var( X) > 0.Then 
+
+E |f (Xn) − f (X)|2 −→ 0. (414) 
+
+Proof. Write vn := Var( Xn) and v := Var( X) > 0. Then vn → v. Hence, for all sufficiently large n,
+
+vn ∈ [v/ 2, 2v]. Let ϕw denote the density of N (0 , w ).57 Fix η > 0. We may choose R < ∞ such that 
+
+sup 
+
+> w∈[v/ 2,2v]
+
+Z
+
+> |x|>R
+
+(1 + |x|2p)ϕw(x) d x < η. (415) Since continuous compactly supported functions are dense in L2(N (0 , v )) , we may choose a continous function 
+
+g with support contained in (−R, R ), such that 
+
+Z R
+
+> −R
+
+|f (x) − g(x)|2ϕv (x) d x < η. (416) On the compact interval [−R, R ], the density ratios ϕw/ϕ v are uniformly bounded for w ∈ [v/ 2, 2v]. Therefore 
+
+sup  
+
+> nsufficiently large
+
+Z R
+
+> −R
+
+|f (x) − g(x)|2ϕvn (x) d x ≤ CRη. (417) Combining Eqs. (415) and (417), and using the polynomial growth of f , gives 
+
+lim sup 
+
+> n→∞
+
+E|f (Xn) − g(Xn)|2 ≤ C′
+
+> R
+
+η. (418) The same argument gives 
+
+E|f (X) − g(X)|2 ≤ C′
+
+> R
+
+η. (419) On the other hand, Xn → X in probability Since g is bounded and continuous, g(Xn) −→ g(X) in probability, and boundedness of g implies 
+
+E|g(Xn) − g(X)|2 −→ 0. (420) Consequently, 
+
+lim sup 
+
+> n→∞
+
+E|f (Xn) − f (X)|2 ≤ 3 lim sup 
+
+> n→∞
+
+E|f (Xn) − g(Xn)|2 + 3 lim sup 
+
+> n→∞
+
+E|g(Xn) − g(X)|2 + 3 E|g(X) − f (X)|2
+
+≤ C′′ 
+
+> R
+
+η. (421) Since η > 0 is arbitrary, this proves Eq. (414). We now apply the preceding lemma to the Gaussian channel that appears in the Stage-II test error. Recall Φρ(x) := EW
+
+h
+
+σ⋆
+
+
+
+ρx + p1 − ρ2 W
+
+i 
+
+, where W ∼ N (0 , 1) . For (ρ, u, s ) ∈ [−1, 1] 2 × (0 , ∞), define 
+
+Tu := uG + p1 − u2 Z, G, Z iid 
+
+∼ N (0 , 1) , (422) and define the corresponding error 
+
+E (ρ, u, s ) := EG,Z 
+
+h
+
+(σ⋆(G) − Φρ(sT u)) 2i
+
+. (423) 
+
+Lemma 7. The map (ρ, u, s ) 7 −→ E (ρ, u, s ) is continuous on [−1, 1] 2 × (0 , ∞). In particular, it is uniformly continuous on [−1, 1] 2 × [s−, s +], 0 < s − < s + < ∞.Proof. Let (ρn, u n, s n) −→ (ρ, u, s ) with s > 0. Introduce an additional independent W ∼ N (0 , 1) , and define 
+
+Xn := ρnsn
+
+
+
+unG + p1 − u2 
+
+> n
+
+Z
+
+
+
++ p1 − ρ2 
+
+> n
+
+W, (424) and 
+
+X := ρs 
+
+
+
+uG + p1 − u2 Z
+
+
+
++ p1 − ρ2 W. (425) All coefficients in Eq. (424) converge to the corresponding coefficients in Eq. (425). Hence 
+
+Xn −→ X in L2. (426) 58 Moreover, Var( X) = 1 − ρ2 + ρ2s2 > 0 because s > 0.Applying Lemma 6 with f = σ⋆ gives 
+
+E |σ⋆(Xn) − σ⋆(X)|2 −→ 0. (427) Conditioning on G, Z , we have 
+
+E[σ⋆(Xn) | G, Z ] = Φ ρn (snTun ), E[σ⋆(X) | G, Z ] = Φ ρ(sT u). (428) Therefore, Jensen’s inequality and Eq. (427) imply 
+
+∥Φρn (snTun ) − Φρ(sT u)∥L2 −→ 0. (429) The polynomial growth of σ⋆ (Assumption 3), together with the boundedness of the variances of Xn, also gives 
+
+sup 
+
+> n
+
+∥Φρn (snTun )∥L2 < ∞, (430) where we again use Jensen’s inequality. Hence 
+
+|E (ρn, u n, s n) − E (ρ, u, s )|≤ ∥ Φρn (snTun ) − Φρ(sT u)∥L2
+
+
+
+2∥σ⋆(G)∥L2 + ∥Φρn (snTun )∥L2 + ∥Φρ(sT u)∥L2
+
+
+
+−→ 0. (431) This proves continuity. Uniform continuity on [−1, 1] 2 × [s−, s +] then follows from compactness. We finally specialize this continuitt to our problem. Recall that sd,L, eL = Bd, eL 
+
+> Bd,L
+
+and sα, eα =
+
+q c21+1 /eαc21+1 /α .Writing r := L 
+
+> eL
+
+= α 
+
+> eα
+
+, we have 
+
+s2 
+
+> d,L, eL
+
+= μ2 
+
+> d
+
++ r dv d/L μ2 
+
+> d
+
++ dv d/L , s2 
+
+> α, eα
+
+= c21 + r/α c21 + 1 /α . (432) Each ratio in Eq. (432) is a convex combination of 1 and r. Therefore, Assumption 4 implies that there exist constants 0 < s − < s + < ∞ such that, for all sufficiently large d, s− ≤ sd,L, eL, s α, eα ≤ s+.By Lemma 3, 
+
+|ρd,L − ρα| + ρd, eL − ρeα + sd,L, eL − sα, eα −→ 0. (433) Both parameter triples therefore lie in the compact set [−1, 1] 2 × [s−, s +] for all sufficiently large d. Uniform continuity from Lemma 7 and Eq. (433) yield 
+
+EG,Z 
+
+
+
+σ⋆(G) − Φρd,L 
+
+
+
+sd,L, eLT te 
+
+> d
+
+ 2
+
+= EG,Z 
+
+h
+
+(σ⋆(G) − Φρα (sα, eαTeα)) 2i
+
++ o(1) , (434) where T te  
+
+> d
+
+= ρd, eLG + q1 − ρ2 
+
+> d, eL
+
+Z and Teα = ρeαG +
+
+q
+
+1 − ρ2 
+
+> eα
+
+Z.
+
+E.5.7 Final proof of Theorem 2 
+
+Combining Eqs. (412) and (434) gives 
+
+Efeature  
+
+> d,L, eL
+
+= EG,Z 
+
+h
+
+(σ⋆(G) − Φρα (sα, eαTeα)) 2i
+
++ od,L, eL(1) . (435) Define Fα, eα(t) := Φ ρα (sα, eαt). Under assumption 3, Fα, eα ∈ L2(N (0 , 1)) . Let 
+
+Aℓ(α, eα) := ET [Fα, eα(T )Hℓ(T )] , T ∼ N (0 , 1) . (436) Then Fα, eα(T ) = P 
+
+> ℓ≥0
+
+Aℓ(α, eα)Hℓ(T ) in L2.59 On the other hand, the Bayes-optimal predictor is 
+
+meα(Teα) := E[σ⋆(G) | Teα] = X
+
+> ℓ≥0
+
+cℓρℓ
+
+> eα
+
+Hℓ(Teα), (437) where c0 = 0 . The orthogonal-projection identity gives 
+
+E
+
+h
+
+(σ⋆(G) − Fα, eα(Teα)) 2i
+
+= E
+
+h
+
+(σ⋆(G) − meα(Teα)) 2i
+
++ E
+
+h
+
+(meα(Teα) − Fα, eα(Teα)) 2i
+
+. (438) By Mehler’s identity and Parseval’s identity, 
+
+E
+
+h
+
+(σ⋆(G) − meα(Teα)) 2i
+
+= 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+rk
+
+> eα
+
+, (439) and 
+
+E
+
+h
+
+(meα(Teα) − Fα, eα(Teα)) 2i
+
+= X
+
+> ℓ≥0
+
+Aℓ(α, eα) − cℓρℓ
+
+> eα
+
+2 . (440) Substituting these identities into Eq. (435) yields 
+
+Efeature  
+
+> d,L, eL
+
+= 1 − X
+
+> k≥1
+
+c2
+
+> k
+
+rk 
+
+> eα
+
++ X
+
+> ℓ≥0
+
+Aℓ(α, eα) − cℓρℓ
+
+> eα
+
+2 + od,L, eL(1) . (441) This proves the feature-learner part of Theorem 2. 
+
+# F Declaration of LLM usage 
+
+We used LLMs in the following stages of the preparation of this work: editing (e.g., grammar, spelling, word choice), drafting sections of the paper, assisting in the writing of proofs, facilitating or running experiments, visualizing results for submission. All LLM-generated material used in this manuscript was manually verified by the authors to ensure that it performs as intended, in particular with regard to the derivation, proof and the numerical experiments. 60
