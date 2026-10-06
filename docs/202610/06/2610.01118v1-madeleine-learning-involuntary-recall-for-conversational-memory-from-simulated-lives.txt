@@ -1,0 +1,621 @@
+Title: Madeleine: Learning Involuntary Recall for Conversational Memory from Simulated Lives
+
+URL Source: https://arxiv.org/pdf/2610.01118v1
+
+Published Time: Fri, 02 Oct 2026 01:04:02 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+# Madeleine: Learning Involuntary Recall for Conversational Memory from Simulated Lives 
+
+Zhiyun Shi 
+
+Nanyang Technological University, Singapore 
+
+ZHIYUN004@e.ntu.edu.sg 
+
+Abstract 
+
+A long-term conversational assistant must re-call the right memory at the right moment, yet the memory that matters most is often not sim-ilar to what the user says now. Current sys-tems recover such associations by letting an LLM reason at write or read time, at a cost of hundreds to over a thousand LLM calls per memory bank and up to several thousand con-text tokens per query. We argue that associ-ation is a learnable relevance: the pointwise mutual information of memories under how hu-man lives unfold. We introduce MADELEINE ,which learns amortized association : offline, an LLM life simulator writes simulated lives, whose cue–trigger pairs teach a query encoder a residual association on top of frozen simi-larity; online, it calls no LLM and plugs into any vector memory by replacing only the query encoder. On LoCoMo-Plus under the official protocol, M ADELEINE (I) reaches 66.6 when plugged into HyperMem, the highest among all systems evaluated under this protocol; (II) 
+
+used alone, reaches the score of HyperMem as released (52.4 vs. 52.9) with zero LLM calls and about 1/21 of its answer context; and (III) 
+
+lifts T-Mem by 26.2 points, significantly out-performs the same untrained backbone inside both systems, and leaves ordinary QA intact on the 4B backbone. 
+
+1 Introduction 
+
+In Proust’s novel, the taste of a madeleine dipped in tea brings back the narrator’s childhood in Com-bray, although the cake resembles nothing in the town (Proust, 1913; Gisquet-Verrier and Riccio, 2024). Psychology calls this involuntary memory: a cue that is related to the present, but not similar to it, surfaces without effort (Berntsen, 2009; Collins and Loftus, 1975). Conversational assistants now need the same ability. A user once said “learning to say no has really reduced my stress”; months later she writes “I took on that project anyway and I’m exhausted”. The two turns share no content, yet an assistant that remembers the first should an-swer the second differently (Figure 1, left). This matters in practice: assistants such as ChatGPT now keep long-term memories of their users (Ope-nAI, 2024b), and memory retrieval runs at every turn of every conversation, so recall must be both associative and cheap enough for each request. Memory systems have approached this goal by adding ever more LLM reasoning: an LLM extracts salient facts (Chhikara et al., 2025; Rasmussen et al., 2025), organizes memories into notes or hy-pergraphs (Xu et al., 2025; Yue et al., 2026), pre-dicts at write time the triggers under which a mem-ory will be needed (Guo et al., 2026), or rewrites each query into what the relevant memory might say (Gao et al., 2023; Hu et al., 2026). In the terms of dual-process theory (Kahneman, 2011), all of them realize association as System 2 , a deliberate LLM reasoning step spent on every memory or query. It faces two dilemmas. 
+
+Dilemma 1: similarity cannot see association. 
+
+Underneath the LLM calls, every such system still retrieves with an embedder that equates relevance with semantic similarity. On LoCoMo-Plus (Li et al., 2026c), a benchmark built for associative recall, Qwen3-Embedding-4B (Zhang et al., 2025) and gemini-embedding (Lee et al., 2025) miss 33% to 43% of goal and value cues from their top 10, against about 11% to 13% of causal cues. On In-Mind (Li et al., 2026b), the untrained 4B finds a personal fact in its top 10 for 96.8% of direct ques-tions but for only 5.6% of indirect questions about the same fact. InMind observes that such associa-tions rarely co-occur in text. 
+
+Dilemma 2: System-2 remedies are costly and context-hungry. HyperMem calls an LLM 1,095 times to build one memory bank and feeds the reader 7,817 answer-input tokens per query. Its accuracy rests on this breadth rather than on rank-ing: with 541 tokens it scores 9.5 instead of 52.9 1arXiv:2610.01118v1 [cs.CL] 1 Oct 2026 … … …     
+
+> Learning to say no
+> has really reduced
+> my stress.
+> March
+> I took on that project
+> anyway and I'm
+> exhausted.
+> September
+> related, but not similar
+> Similarity retriever
+> My project deadline
+> was moved up.
+> I was exhausted
+> after the gym.
+> Here are five tips to
+> finish projects faster!
+> Madeleine (encoder only)
+> Learning to say no
+> has really reduced
+> my stress.
+> Saying yes again sounds
+> draining. Want to revisit
+> your plan to say no?
+> 0 LLM calls 0110 100 1,000
+> LLM calls at write + read time (log scale)
+> 30 40 50 60 70
+> LoCoMo-Plus score (official)  System 1 (LLM-free) System 2 (LLM reasoning)
+> same score, 0 LLM calls
+> +26.2  +13.7 gemini-embedding Qwen3-Emb-4B full dialogue HyDE QueryLink T-Mem HyperMem
+> Madeleine T-Mem + Madeleine HyperMem + Madeleine
+
+Figure 1: ( Left ) Associative recall: the trigger shares no content with its cue. A similarity retriever returns memories that share surface words with the trigger, whereas M ADELEINE recalls the cue without calling an LLM. ( Right )LoCoMo-Plus score (official protocol) against LLM calls at write and read time (log scale). LLM-reasoning (System 2) memory systems lie to the right; standalone M ADELEINE reaches the score of HyperMem as released with zero LLM calls, and plugging it into HyperMem and T-Mem (arrows) raises both scores at unchanged cost. 
+
+(Figure 3). Read-time rewriting fares no better: QueryLink spends two LLM calls per query, yet its rewrites, encoded by Qwen3-Embedding-4B, score 34.4, below the 39.7 of the raw trigger. We take a different view. Human association is effortless (System 1), and it follows regularities of how lives unfold that are shared across people. We therefore reformulate association as a learn-able relevance . The optimal InfoNCE critic is the pointwise mutual information (PMI) of its training distribution (van den Oord et al., 2018; Poole et al., 2019); an encoder trained on web text learns the PMI of web text, whereas one trained on pairs sam-pled from simulated lives learns the PMI of those lives, an approximation of associative relevance 
+
+as the simulator portrays it (Section 3). Since such pairs are not written down, we let an LLM simu-late lives to write them. The result is amortized association : an LLM thinks slowly once, offline, and a retriever recalls fast at every turn afterwards. We instantiate this idea as MADELEINE : a life simulator writes (trigger, cue) pairs from several sources of simulated lives, and a residual associ-ation retriever adds a learned association score to the frozen similarity score, training only the query side so that the memory index is reused unchanged. All results below use the official LoCoMo-Plus protocol with its gemini-2.5-flash judge (Figure 1, right). MADELEINE is ❶ state-of-the-art on LoCoMo-Plus : plugged into HyperMem, it raises HyperMem from 52.9 to 66.6, the highest among all systems we evaluate under the official protocol; 
+
+❷ LLM-free : standalone, it reaches the score of HyperMem as released (52.4 vs. 52.9, not signifi-cantly different for any seed) with zero LLM calls at write and read time and about 1/21 of its answer context (375 vs. 7,817 tokens); ❸ plug-and-play :it lifts T-Mem by 26.2 points, and inside both sys-tems it is significantly above the same backbone without training ( p = 0 .012 , and 0.047 for T-Mem with three scenes); ❹ harmless : on ordinary Lo-CoMo QA, its three 4B seeds score 58.9 to 60.0 against 59.1 for the untrained backbone. Our con-tributions are: • Paradigm Reformulation : We recast associative memory retrieval as a learnable relevance, the PMI of memories under life trajectories, and pro-pose amortized association , which moves the LLM’s reasoning offline into a query encoder. • Practical Solution : We propose M ADELEINE ,which learns this relevance from life-simulated supervision as a residual on top of frozen simi-larity and plugs into existing memory systems by replacing only the query encoder. • Experimental Evaluation : Under the official LoCoMo-Plus protocol, M ADELEINE achieves the highest score when plugged into HyperMem and reaches the score of HyperMem as released with zero LLM calls; controls attribute the gain to learned association (Section 5.4). 
+
+2 Related Work 
+
+LLM-Constructed Memory Systems. Long-term conversational memory is mostly built by let-ting an LLM restructure the dialogue as it arrives: 
+
+(I) fact and OS-style memories : Mem0 (Chhikara et al., 2025) and Zep (Rasmussen et al., 2025) extract salient facts or temporal graphs, and MemGPT (Packer et al., 2023) and MemOS (Li 2et al., 2025b) page memory like an operating system; (II) structured memories such as A-Mem (Xu et al., 2025), SeCom (Pan et al., 2025), HippoRAG (Gutiérrez et al., 2024), As-soMem (Zhang et al., 2026), HyperMem (Yue et al., 2026), RippleMem (Ji et al., 2026) and CABLE (Tan et al., 2026) segment or link mem-ories into notes, knowledge or clue graphs, hy-pergraphs, recollection graphs or antecedent links; 
+
+(III) anticipatory memories such as T-Mem (Guo et al., 2026) and RootMem (Ding et al., 2026) ask an LLM at write time to predict the trig-gers under which a memory will be needed, as Doc2Query (Nogueira et al., 2019) predicts the queries a document answers. The concurrent Just-Mem (Chen et al., 2026a) chooses an access mode per query, and EdgeMem (Cui et al., 2026) builds an LLM-free hypergraph that still retrieves by con-tent, time and episode. The LLM-built systems pay for association with write-time LLM calls, and a cue the LLM did not anticipate stays reachable only by similarity; M ADELEINE replaces only their query encoder and is plugged into them. 
+
+Read-Time Reasoning and Query Rewriting. 
+
+HyDE (Gao et al., 2023) and Query2doc (Wang et al., 2023) let an LLM write a hypothetical doc-ument as the query; for conversational memory, LLMs generate keywords and implied events (Hu et al., 2026), prospective probes (Chopra et al., 2026) or abductive searches (Anonymous, 2026). Information retrieval has seen this trajectory before: vocabulary mismatch was first attacked by query ex-pansion with relevance and pseudo-relevance feed-back (Rocchio, 1971; Lavrenko and Croft, 2001), which were largely superseded by dense retrievers such as DPR (Karpukhin et al., 2020) that learn the mismatch into the encoder. Memory systems are now in their query-expansion era , re-deriving every association with an LLM; M ADELEINE takes the DPR step for associative relevance .
+
+Retrievers Trained for Reasoning or Memory. 
+
+Reasoning-intensive retrievers (Shao et al., 2025; Sun et al., 2025; Chen et al., 2026b) are trained on synthesized queries whose relevance requires rea-soning, and memory-specific models include the embedder HiNS (Tian et al., 2026), the reranker MemReranker (Li et al., 2026a) and the feedback-driven RMM (Tan et al., 2025), EAR (Senrayan et al., 2026) and EARM (Feng et al., 2026); dis-tilling a reader’s judgments into the retriever (Izac-ard and Grave, 2021) is the closest precedent for amortizing an LLM’s reasoning. They learn rel-evance that is visible in the text, or rerank candi-dates that similarity has already retrieved; none is trained on cues and triggers that share no topic, and each one we evaluate falls below M ADELEINE 
+
+(Section 5.4). Query-side tuning over a frozen in-dex follows DensePhrases (Lee et al., 2021) and frozen-encoder adapters (Yoon et al., 2024). 
+
+Synthetic Supervision and Simulated Lives. 
+
+LLM-generated data is a standard way to train re-trievers (Bonifacio et al., 2022; Dai et al., 2023; Wang et al., 2024; Lee et al., 2024), but its queries are written from, and hence similar to, their passages. LLM-simulated people (Park et al., 2023; Maharana et al., 2024; Jiang et al., 2025; Duan et al., 2026) have been used to simulate behaviour or build benchmarks, not to train re-trievers. Distilling System 2 into System 1 (Yu et al., 2024) is closest in spirit to amortized as-sociation, but it distills into a generator rather than an encoder. Associative recall is evaluated by LoCoMo-Plus (Li et al., 2026c), InMind (Li et al., 2026b) and LoCoMo-Conv (Chang and Chen, 2026); where InMind finds such associations rarely written down, M ADELEINE writes them down with 
+
+life-simulated supervision .
+
+3 Problem Formulation and Preliminaries 
+
+Associative memory retrieval. A long-term con-versational assistant keeps, for each user, a mem-ory bank M = {m1, . . . , m N } whose entries are raw dialogue turns stored verbatim as “speaker: ut-terance”. At every turn the user produces a new utterance q, which we call the trigger . Somewhere in M lies a cue m⋆, an earlier utterance that the assistant must recall to respond appropriately to 
+
+q (Li et al., 2026c). A retriever scores every mem-ory with s(q, m ) and passes the top-K, together with q, to a reader LLM. Our goal is to maximize 
+
+Pr[ m⋆ ∈ top - Km∈M s(q, m )] under a System-1 constraint : s must be computed by encoders alone, so that neither writing nor reading invokes an LLM. 
+
+The similarity assumption. Vector memory sys-tems instantiate s with a pretrained text embedder 
+
+E (Chhikara et al., 2025; Yue et al., 2026; Guo et al., 2026): 
+
+s0(q, m ) = cos  E(q), E (m). (1) This choice equates relevance with semantic sim-ilarity; a cue carries associative relevance when 3it is relevant to the trigger but s0 ranks many unre-lated memories above it, as in Section 1. 
+
+Contrastive learning estimates pointwise mu-tual information. Let p(q, m ) be a joint distribu-tion over (trigger, cue) pairs. The InfoNCE objec-tive (van den Oord et al., 2018) scores the positive 
+
+m+ ∼ p(m | q) against n−1 negatives drawn from the marginal p(m):
+
+L(f ) = − E
+
+"
+
+log exp  f (q, m +)/τ Pnj=1 exp  f (q, m j )/τ #
+
+,
+
+(2) where τ is a temperature. Its optimal critic satis-fies (van den Oord et al., 2018; Poole et al., 2019) 
+
+f ⋆(q, m )/τ = PMI p(q; m) + c(q), (3) where PMI p(q; m) = log p(m | q)/p (m) and c(q)
+
+does not affect the ranking of memories for a fixed trigger. Hence an embedder trained on generic query–passage pairs (Wang et al., 2024; Zhang et al., 2025) approximates the PMI of generic text 
+
+(“similar, therefore relevant”), while the same ob-jective on pairs sampled from how lives unfold approximates the PMI of life trajectories , which is associative relevance; in practice we sample sim-ulated lives, so the target is the simulator’s PMI. The question is how to learn the second without discarding the first. 
+
+Residual view. We keep s0 fixed and learn only an additive association term a.
+
+Proposition 1 (Residual association) . Fix s0 and let plife be the life-trajectory distribution. Among scores of the form s(q, m ) = s0(q, m ) + a(q, m )
+
+with an unrestricted a, the InfoNCE minimizer un-der plife , with negatives drawn from its marginal, is 
+
+a⋆(q, m ) = τ ·PMI plife (q; m)−s0(q, m )+ τ ·c(q).
+
+(4) 
+
+Proof sketch. Apply Eq. (3) to the summed score s
+
+and subtract the fixed s0. □
+
+The association term thus only encodes the part of life-trajectory PMI that similarity leaves unex-plained. Hence training must use the summed test-time score: an a trained alone targets τ · PMI , so adding s0 at test time counts similarity twice. 
+
+4 Method 
+
+4.1 Overview 
+
+MADELEINE rests on amortized association : the associative reasoning that current memory systems ask an LLM to perform at every write or read (Sys-tem 2) is performed once, offline, and distilled into a query encoder that recalls without any LLM call (System 1). As Figure 2 shows, it has three components: ❶ the life simulator, which produces 
+
+life-simulated supervision (Section 4.2); ❷ the 
+
+residual association retriever, which trains only the query side (Section 4.3); and ❸ a contrastive ob-jective with same-source negatives (Section 4.4). 
+
+4.2 Life Simulator 
+
+Training pairs should be sampled from how lives unfold (Section 3), so we let an LLM write them. Each call simulates one person and returns about ten earlier statements, each of a kind sampled from about twenty aspects of a life (from a diagnosis or a debt to a fear or a principle) and each with three later utterances that the statement should bring to mind and one direct question about it. We build three sources that differ in what they simulate and in which LLM writes them: v2 (concrete personal facts such as an illness, a diet or an obligation, fol-lowed by later requests to an assistant; written by gpt-4.1-mini (OpenAI, 2025)), v3 (a year of chat between two friends, in which a goal, plan, experi-ence or value develops into progress, a setback, a change of mind or a dilemma; written by DeepSeek-V4.1-Flash (DeepSeek-AI, 2026)), and v2d (the v2 prompt and personas re-written by DeepSeek-V4.1-Flash). All prompts forbid the later utterance from mentioning or hinting at the earlier topic, and none copies the wording or examples of any benchmark; direct questions keep ordinary lookup in the train-ing distribution. We prefer generators whose earlier and later utterances have a low mean cosine on a small pilot, since a high cosine teaches similarity rather than association, and we remove every train-ing row whose cosine with any test text is at least 0.85. Each source has about 32K rows and costs under $2 to write (Appendix A), and we use all three. 
+
+4.3 Residual Association Retriever 
+
+Let E be a frozen pretrained embedder and 
+
+Eθ the same network with a LoRA adapter θ.MADELEINE scores a memory m for a trigger q by     
+
+> sθ(q, m ) = cos  E(q), E (m)|{z }
+> similarity
+> + cos  Eθ(q), E (m)|{z }
+> association
+
+,
+
+(5) the residual form s0 + a of Proposition 1. Memo-ries are always encoded by the frozen E; only the 4Offline · System 2: think slowly once  
+
+> 1
+
+LLM Life 
+
+Simulator    
+
+> v2 · personal facts
+> → requests
+> v3 · a year of chat
+> between friends
+> v2d · v2 re-written
+> by another LLM
+
+Simulated lives 
+
+…     
+
+> no shared words
+> cue trigger
+> I was just diagnosed
+> with celiac disease.
+> Any quick breakfast
+> ideas before my
+> 7am flight?
+> Jan Apr Sep
+> decontaminate
+> (cos ≥ 0.85 to any test text → drop)
+> 3InfoNCE with same-source negatives
+> cues
+> triggers  positive
+> (its own cue)
+> negative
+> (same source)
+> train
+> LoRA adapter θ
+
+Online · System 1: recall in one pass  
+
+> 2
+
+Residual Association Retriever          
+
+> I took on
+> that project
+> anyway and I'm
+> exhausted.
+> E
+> (frozen)
+> Eθ
+> (+ LoRA)
+> Memory bank
+> (stored verbatim)
+> encoded once by frozen E
+> E(m)
+> trained adapter θ
+> Embedding space
+> My project deadline
+> was moved up.
+> E(q): similarity
+> Top-K
+> Learning to say no
+> has really reduced
+> my stress.
+> + association Eθ(q)
+> sθ(q,m) = cos( E(q), E(m)) + cos( Eθ(q), E(m))
+> similarity association
+> one query vector → plugs into HyperMem, T-Mem, any vector memory 0 LLM calls
+
+Figure 2: Overview of M ADELEINE . ( Left, offline / System 2 ) An LLM life simulator writes simulated lives from three sources; each earlier statement becomes a cue and each later utterance a trigger that does not hint at it. The decontaminated pairs train a query-side LoRA adapter with InfoNCE over same-source facts. ( Right, online / System 1 ) Memories are stored verbatim and embedded once by the frozen encoder E; the trigger is encoded by E
+
+and by the adapted Eθ , and the similarity and association scores are summed. A single query vector is the plug-in interface to a host system such as HyperMem. 
+
+trigger passes through the adapter. We use Qwen3-Embedding-4B (Zhang et al., 2025) as E and prefix every trigger with one fixed task instruction, as its convention prescribes; the untrained baseline uses the same instruction. 
+
+Why only the query side. Training only the query encoder yields (I) index reuse , since mem-ory vectors are those of the base embedder, and (II) zero write cost , since writing stays one forward pass of E. It also learns more association: adapting the memory side as well lowers associative recall on 4B (Section 5.5), and training with the summed test-time score makes the adapter learn the residual rather than a second copy of similarity (Proposi-tion 1). 
+
+4.4 Training Objective 
+
+Each training row is a pair (qi, m +
+
+i ) from a source 
+
+σ(i) ∈ { v2 , v3 , v2d }, where qi is a trigger or a di-rect question and m+
+
+i its fact. With Fσ the training facts of source σ, we minimize InfoNCE (Eq. (2)) with the summed score over the negatives 
+
+Ni = {m ∈ F σ(i) \{ m+ 
+
+> i
+
+} : cos( E(m), E (m+ 
+
+> i
+
+)) ≤ 0.9}.
+
+(6) Because the memory side is frozen, fact embed-dings are computed once, so every row competes against the whole fact bank of its source (7,522 facts for v2) rather than a few dozen in-batch facts. Restricting negatives to the row’s own source ,which applies Proposition 1 within each source, matters when sources are mixed, because a fact from another source may describe a related aspect of life, and treating it as a negative would penalize a correct association. We train LoRA of rank 32 with τ = 0 .05 , batch size 128 and learning rate 
+
+10 −4 for one epoch (Appendix B). 
+
+4.5 Deployment and Cost 
+
+Since all vectors in Eq. (5) have unit norm, the summed score equals an inner product with a single query vector, sθ(q, m ) = ⟨E(q) + 
+
+Eθ(q), E (m)⟩. A host memory system therefore adopts M ADELEINE as a plug-in : it replaces its query vector with the normalized E(q) + Eθ(q)
+
+and keeps its memories, index, lexical retrieval and any graph built on top; if it already embeds memo-ries with the same backbone, as HyperMem does, its index is reused unchanged. Writing costs one forward pass of E and reading one extra query en-coding, with zero LLM calls; the simulator, our only LLM, runs once offline for all users. 
+
+5 Experiments 
+
+We study effectiveness (RQ1 ), cost (RQ2 ), whether the gain is learned association (RQ3 ), de-sign choices ( RQ4 ), robustness and harmlessness (RQ5 ), and where association helps ( RQ6 ). 
+
+5.1 Experimental Setup Benchmark and protocol. We evaluate on LoCoMo-Plus (Li et al., 2026c), the benchmark that targets associative recall in long conversations. It contains 401 cognitive questions. Each ques-tion inserts a cue dialogue into one of the ten Lo-CoMo conversations (Maharana et al., 2024) and 5Table 1: Main results on LoCoMo-Plus (401 cognitive questions, official protocol: gpt-4.1-mini reader, gemini-2.5-flash judge); Causal –Value : the four relation types, All : overall. Write : LLM calls per memory bank; Read : LLM calls per query, excluding the answer call; Tokens : answer-input tokens per query. Retrievers pass K=3 turns to the reader. Standalone M ADELEINE is the mean of three seeds; plug-in rows replace the host system’s retrieval encoder with M ADELEINE (seed 0), re-encoding T-Mem’s memories with the frozen backbone. ↑: gain over the same system without M ADELEINE (standalone: over the untrained backbone). Best per column in bold , second underlined. T-Mem and JustMem report 74.81 and 62.59 under their own, non-comparable protocols (Appendices C, E).                                                                                                                                               
+
+> Group Method Write Read Tokens Causal State Goal Value All
+> gemini-embedding 00387 55.4 52.0 26.0 33.0 41.6 text-embedding-3-large 00396 58.4 45.0 30.0 31.0 41.1 Qwen3-Embedding-4B 00378 54.5 37.0 29.0 38.0 39.7 Qwen3-Embedding-8B 00386 50.5 36.0 28.0 35.0 37.4
+> (a) Embedding models
+> bge-m3 00385 31.7 28.0 9.0 19.0 21.9
+> (b) Full context Full dialogue 0018,776 49.5 49.0 41.0 40.0 44.9 QueryLink, native union 590 21,301 39.6 41.0 32.0 31.0 35.9 QueryLink, Qwen3-4B 590 2339 44.6 35.0 26.0 32.0 34.4
+> (c) Read-time LLM rewriting HyDE, Qwen3-4B 01370 51.5 45.0 42.0 29.0 41.9 ReasonIR-8B 00399 54.5 48.0 29.0 31.0 40.6 (d) Trained retrievers EAR-style adapter (fused) 00377 56.4 43.0 37.0 44.0 45.1
+> Ours MADELEINE (standalone) 00375 59.7 ↑5.2 57.3 ↑20.3 45.7 ↑16.7 46.7 ↑8.7 52.4 ↑12.7
+> T-Mem, 3 scenes 689 0307 48.5 40.0 25.0 21.0 33.7 + M ADELEINE 689 0305 62.4 ↑13.9 68.0 ↑28.0 52.0 ↑27.0 57.0 ↑36.0 59.9 ↑26.2
+> HyperMem (released) 1,095 07,817 66.3 53.0 46.0 46.0 52.9
+> (e) LLM-built memory systems
+> + M ADELEINE 1,095 07,814 72.3 ↑6.0 71.0 ↑18.0 59.0 ↑13.0 64.0 ↑18.0 66.6 ↑13.7
+
+later presents a trigger that is semantically distant from the cue. The questions cover four relation types: causal (101 questions), state, goal and value (100 each). We run the official code verbatim: the reader is gpt-4.1-mini (OpenAI, 2025) with tem-perature 0.3 and max_tokens 1024, and the official judge prompt is scored by gemini-2.5-flash (Co-manici et al., 2025). The score is the percentage of questions judged correct, and every baseline is re-run under this same code, so systems differ only in what they place in the context slot reserved for the dialogue. Memory units are raw turns, and the trigger is never stored (Appendix C). 
+
+Baselines. We compare against five groups of baselines. (a) Embedding models : gemini-embedding (Lee et al., 2025), text-embedding-3-large (OpenAI, 2024c), Qwen3-Embedding-4B and -8B (Zhang et al., 2025), and bge-m3 (Chen et al., 2024). (b) Full context : the whole di-alogue is given to the reader, as in the offi-cial baseline. (c) Read-time LLM rewriting :QueryLink (Hu et al., 2026) with its original all-MiniLM-L6-v2 encoder (Reimers and Gurevych, 2019), its native multi-view union, or a frozen Qwen3-Embedding-4B, and HyDE (Gao et al., 2023) on our backbone. (d) Trained retrievers and rerankers : ReasonIR (Shao et al., 2025), DIVER (Sun et al., 2025), ReasonEmbed (Chen et al., 2026b), an EAR-style adapter (Senrayan et al., 2026) trained on exactly our data and ob-jective, and Qwen3-Reranker (Zhang et al., 2025) and MemReranker (Li et al., 2026a). (e) LLM-built memory systems : HyperMem (Yue et al., 2026) and T-Mem (Guo et al., 2026), run from their official code and prompts. HyperMem uses its default retrieval budget, and T-Mem passes its top-3 scenes to the reader to match K.
+
+Implementation details. MADELEINE uses Qwen3-Embedding-4B (Zhang et al., 2025) as the frozen memory encoder and adds a query-side LoRA (Hu et al., 2022) of rank 32. We train three seeds (Section 4.4; Appendix B), pass K=3 re-trieved turns to the reader in the main setting, and test significance with the exact McNemar test (Mc-Nemar, 1947) per question. 
+
+5.2 RQ1: Effectiveness 
+
+Table 1 reports the main systems under the official protocol; Table 11 lists every other route. 
+
+Obs. ❶ Plugged into HyperMem, MADELEINE achieves the highest score under the official protocol. Replacing only HyperMem’s query encoder with ours raises its score from 52.9 to 66.6 ( p = 1 .7×10 −7), the best result among all systems we evaluate and the best in every column of Table 1. The same swap lifts T-Mem from 33.7 to 59.9 ( p = 7 ×10 −17 ). 
+
+Obs. ❷ Standalone, M ADELEINE reaches the score of HyperMem as released and, at K=3 ,significantly outperforms every LLM-free base-
+
+6300 500 1,000 2,000 5,000 10,000     
+
+> Answer-input tokens per query (log scale)
+> 010 20 30 40 50 60
+> LoCoMo-Plus score (%)
+> 1+2 2+3 5+8 10+15 K=3 K=5 K=10 HyperMem default (20 episodes + 30 facts)
+> ≈21 ×fewer tokens, same score
+> HyperMem (shrinking top-k)Ours standalone ( K=3/5/10)
+
+Figure 3: Score versus answer-input tokens per query on LoCoMo-Plus (official protocol). The HyperMem curve shrinks its episode and fact budgets in its default 20:30 ratio; M ADELEINE is standalone (three-seed means, 
+
+K=3 /5/10 ). 
+
+line. With three retrieved turns, M ADELEINE 
+
+scores 52.4 on average over three seeds and the re-leased HyperMem 52.9; the difference is not signif-icant for any seed ( p = 0 .93 , 0.74 and 1.0; seed 0: 
+
+−0.5 points, 95% CI [−6.2, +5 .2] ). Every seed is significantly above its untrained backbone (by 12.0 to 13.5 points), the strongest embedding model (by 10.0 to 11.5) and the full dialogue (by 6.7 to 8.2; 
+
+p ≤ 0.027 in all nine comparisons), and above every method in (c) and (d) (Section 5.4). 
+
+5.3 RQ2: Efficiency Obs. ❸ MADELEINE reaches the score of Hyper-Mem as released with about 1/21 of its context and zero LLM calls. Standalone M ADELEINE 
+
+gives the reader 375 answer-input tokens per query, whereas the released HyperMem gives 7,817 for a score that is not significantly different, about 21 times more. HyperMem cannot close this gap by passing less evidence (Figure 3): shrinking its own retrieval budget, it needs 3,862 tokens to tie MADELEINE (p = 1 .0), and below 2,000 tokens it drops sharply, to 44.9 at 1,977 tokens, which is significantly below M ADELEINE (p = 0 .022 ), and to 9.5 at 541 tokens. HyperMem relies on breadth, not ranking: its default budget brings the cue episode into context for 73.6% of the questions, MADELEINE ’s three turns for 74.8%. At write time, HyperMem, T-Mem and QueryLink call an LLM 1,095, 689 and 590 times per memory bank, whereas M ADELEINE calls none (Table 1). At read time M ADELEINE adds one encoder pass (70.5 ms against 37.9 ms for the un-trained embedder), whereas one QueryLink rewrit-ing call takes 1.27 s (median). 
+
+Table 2: Same-backbone control on LoCoMo-Plus (of-ficial protocol). Within each row only the retrieval en-coder changes: the system’s original one (bge-m3 for T-Mem, Qwen3-Embedding-4B without its query instruc-tion for HyperMem), the untrained Qwen3-Embedding-4B with the instruction, or M ADELEINE (seed 0) on that backbone; memories are encoded by the frozen encoder of each column. ↑: gain over the untrained encoder; 
+
+> ∗
+
+p < 0.05 , ∗∗ p < 10 −4 (exact McNemar). All gains over the original encoder: p < 10 −6.            
+
+> System Original Untrained MADELEINE
+> Standalone –39.7 52.4 ∗∗ ↑12 .7
+> T-Mem, 3 scenes 33.7 53.9 59.9 ∗↑6.0
+> HyperMem 52.9 60.6 66.6 ∗↑6.0
+
+5.4 RQ3: Is the Gain Learned Association? 
+
+Two controls rule out a stronger backbone, a better query format or extra computation as the cause. 
+
+Obs. ❹ Within every system, M ADELEINE 
+
+significantly outperforms the same backbone without learned association. Table 2 swaps only the retrieval encoder of each system; T-Mem’s memories are then re-encoded by the frozen 4B. Switching to the untrained Qwen3-Embedding-4B already helps both systems, lifting T-Mem from 33.7 to 53.9 because its original bge-m3 encoder is weaker, and HyperMem from 52.9 to 60.6 because its original code omits the query instruction that Qwen3-Embedding expects. M ADELEINE adds a further 6.0 points over this same backbone in T-Mem ( p = 0 .047 ) and HyperMem ( p = 0 .012 ). 
+
+Obs. ❺ Every alternative route falls signifi-cantly below M ADELEINE , and rerankers even hurt it. Table 11 (Appendix H) compares four such families at three retrieved turns. (i) Read-time LLM reasoning does not substitute for learned as-sociation: the best QueryLink configuration scores 35.9 although it makes two LLM calls per query, and HyDE on our backbone scores 41.9, which is not significantly above the untrained backbone (p = 0 .46 ). (ii) Reasoning-oriented retrievers 
+
+such as ReasonIR do not significantly exceed the untrained backbone either. (iii) Rerankers 
+
+lower M ADELEINE from 52.4 to 40.9 with Qwen3-Reranker-4B and to 31.9 with MemReranker-4B, because a cross-encoder judges whether a memory matches the trigger, while a cue by design does not. 
+
+(iv) The same data in a different structure is not enough: an EAR-style adapter trained on our exact data and objective ties the untrained backbone and, even with our fused score, stays 7.2 points below MADELEINE (p = 0 .019 ). The two controls show 7that the gain comes from association learned as a residual on the query side, not from the backbone, read-time LLM calls, or the training data alone. 
+
+5.5 RQ4: Which Design Choices Matter? 
+
+Table 10 (Appendix G) changes one design choice at a time and reports judge-independent Recall@10, mostly on 0.6B, with the decisive choices con-firmed on 4B. 
+
+Obs. ❻ Association must be learned on the query side only, as a residual on top of similarity. 
+
+Training the memory side as well learns little asso-ciation: on 4B a two-sided LoRA lowers LoCoMo-Plus cue Recall@10 from 71.1 to 69.6, whereas freezing the memory side lifts it to 78.8 with the same data, and on 0.6B full fine-tuning of both sides also lowers ordinary LoCoMo lookup from 67.3 to 55.1. Training the association term alone and summing only at test time costs 5.3 points (54.1 versus 59.4), as Proposition 1 predicts. 
+
+Obs. ❼ Mixing simulator sources helps only with same-source negatives. Naively mixing v2 and v3 is worse than either alone (50.1 versus 59.4 and 57.6), because related facts of the other source become false negatives; with same-source nega-tives the same mixture reaches 63.6, and a third source further protects ordinary QA on 4B (Ap-pendix G). 
+
+5.6 RQ5: Is the Gain Robust, and Is It Harmless? Obs. ❽ The gain holds across seeds, readers and backbones, and is largest when the reader sees few memories. All three seeds are significant at 
+
+K = 3 (Section 5.2), and with GPT-4o (OpenAI, 2024a) as reader M ADELEINE scores 50.1 against 40.4 for the untrained 4B ( p = 9 .1 × 10 −4). With more memories the untrained backbone catches up (seed means 53.8 versus 47.4 at K = 5 and 53.3 versus 49.9 at K = 10 ), because M ADELEINE ’s advantage lies at the top of the ranking, where it places the cue first for 61.2% of the items against 41.1% (three-seed mean). Across backbones, cue Recall@10 on 0.6B, 4B and 8B reaches 60.6, 83.1 and 84.0, and 8B rises end to end from 36.7 (local run) to 53.4 ( p = 2 .4 × 10 −8). 
+
+Obs. ❾ On the 4B backbone, learned associa-tion does not hurt ordinary QA. On the original LoCoMo questions ( K = 10 ), the untrained 4B scores 59.1 and the three seeds of M ADELEINE 
+
+score 58.9, 59.2 and 60.0 ( p = 0 .86 , 0.96 and 
+
+0.29 ); 8B results are in Appendix D. Causal State Goal Value 010 20 30 40 50 (a) Cue miss rate @10 (%) ↓      
+
+> Causal State Goal Value 020 40 60
+> (b) End-to-end (%) ↑
+> Ours Untrained 4B gemini-embedding
+
+Figure 4: LoCoMo-Plus by relation type ( ≈100 items each): (a) cues missing from the top 10; (b) end-to-end score ( K = 3 , three-seed mean for M ADELEINE ). 
+
+5.7 RQ6: Where Does Association Help? Obs. ❿ Similarity fails on goals and values, and that is where M ADELEINE helps. The untrained 4B and gemini-embedding miss only 10.9% and 12.9% of causal cues from the top 10 (Figure 4). Goal and value cues are the blind spot, with miss rates of 33% to 43%, which M ADELEINE lowers to 19.7% and 24.0%; end to end, on goal items it scores 45.7 against 29.0 and 26.0, whereas on causal items all three lie between 54.5 and 59.7. The gain is not tied to one simulator prompt: v2 alone, built around concrete conditions and re-quests to an assistant, lifts cue recall on all four relation types on 0.6B and most on state cues on 4B (Appendix G). In item #272, John takes salsa lessons for his cousin’s wedding and a month later gets everyone dancing at the office party; the un-trained 4B ranks this cue 39th, whereas all three seeds of M ADELEINE rank it first. On LoCoMo-Conv, whose implicit queries still name the topic, M ADELEINE ties text-embedding-3-large, so the gain is specific to associative rele-vance (Appendix F). 
+
+6 Conclusion 
+
+We have argued that the associations a conversa-tional memory needs are a learnable relevance, not something an LLM must re-derive at every turn. MADELEINE realizes this as amortized associa-tion: a life simulator lets an LLM think slowly once, offline, and a query-side residual associa-tion turns what it wrote into fast, System-1 recall, which reaches the released HyperMem’s score on its own and surpasses every evaluated system when plugged into it. Simulating richer lives is the next step towards memory that, like Proust’s madeleine, recalls what matters without being asked. 8Limitations 
+
+Scope of the end-to-end evaluation. We establish the end-to-end state of the art on LoCoMo-Plus under its official protocol; it is currently the bench-mark built for associative recall in long conversa-tions with an official evaluation protocol; evalu-ating on further benchmarks of this kind as they appear is a natural extension. Coverage of the simulated lives. The life simulator writes English conversations, and the lives it writes follow the gen-erating LLMs’ notion of how a typical life unfolds. Associations that are specific to a culture, a com-munity or an individual may therefore be learned less well, and extending the simulator to other lan-guages and to more diverse lives is left to future work. 
+
+Ethics Statement 
+
+Long-term memory makes an assistant remember personal information about its users, and better associative recall means that a remark can surface a related memory the user did not mention explicitly. Deployments should therefore let users inspect and delete what is remembered. All training data in this work is written by an LLM for simulated personas and contains no real personal data; the benchmarks we evaluate on are public and are used under their licenses. 
+
+References 
+
+Anonymous. 2026. ADAR: Abductive distance-aware retrieval for implicit-preference dialogue memory. ACL Rolling Review submission (May 2026), Open-Review. Dorthe Berntsen. 2009. Involuntary Autobiographical Memories: An Introduction to the Unbidden Past .Cambridge University Press, Cambridge, UK. Luiz Bonifacio, Hugo Abonizio, Marzieh Fadaee, and Rodrigo Nogueira. 2022. InPars: Unsupervised dataset generation for information retrieval. In Pro-ceedings of the 45th International ACM SIGIR Con-ference on Research and Development in Information Retrieval , pages 2387–2392, Madrid, Spain. ACM. Wen-Yu Chang and Yun-Nung Chen. 2026. When users don’t ask: Benchmarking context-driven mem-ory retrieval in conversational agents. Preprint ,arXiv:2609.03467. Accepted to Findings of EMNLP 2026. Guanhua Chen, Yanting Wang, Wenjing Zhi, and Lei Sha. 2026a. JustMem: Just-enough mem-ory access for long-term conversations. Preprint ,arXiv:2609.19877. Jianlyu Chen, Junwei Lan, Chaofan Li, Defu Lian, and Zheng Liu. 2026b. ReasonEmbed: Enhanced text embeddings for reasoning-intensive document retrieval. In Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Vol-ume 1: Long Papers) , pages 1203–1221, San Diego, California, United States. Association for Computa-tional Linguistics. Jianlyu Chen, Shitao Xiao, Peitian Zhang, Kun Luo, Defu Lian, and Zheng Liu. 2024. M3-Embedding: Multi-linguality, multi-functionality, multi-granularity text embeddings through self-knowledge distillation. In Findings of the Asso-ciation for Computational Linguistics: ACL 2024 ,pages 2318–2335, Bangkok, Thailand. Association for Computational Linguistics. Prateek Chhikara, Dev Khant, Saket Aryan, Taranjeet Singh, and Deshraj Yadav. 2025. Mem0: Building production-ready AI agents with scalable long-term memory. In ECAI 2025 – 28th European Conference on Artificial Intelligence , volume 413 of Frontiers in Artificial Intelligence and Applications , pages 2993– 3000. IOS Press. Harshita Chopra, Krishna Kant Chintalapudi, Suman Nath, Ryen W. White, and Chirag Shah. 2026. Think-ing ahead: Prospection-guided retrieval of memory with language models. Preprint , arXiv:2605.14177. Allan M. Collins and Elizabeth F. Loftus. 1975. Aspreading-activation theory of semantic processing. 
+
+Psychological Review , 82(6):407–428. Gheorghe Comanici et al. 2025. Gemini 2.5: Pushing the frontier with advanced reasoning, multimodality, long context, and next generation agentic capabilities. 
+
+Preprint , arXiv:2507.06261. Zeyang Cui, Jiannong Cao, Zhiyuan Wen, Bo Yuan, Junlan Feng, and Shengyuan Chen. 2026. Edge-Mem: LLM-free agent memory construction and retrieval via evidence-preserving multi-anchor hyper-graph. Preprint , arXiv:2609.05553. Zhuyun Dai, Vincent Y. Zhao, Ji Ma, Yi Luan, Jianmo Ni, Jing Lu, Anton Bakalov, Kelvin Guu, Keith B. Hall, and Ming-Wei Chang. 2023. Promptagator: Few-shot dense retrieval from 8 examples. In The Eleventh International Conference on Learning Rep-resentations (ICLR) .DeepSeek-AI. 2026. DeepSeek-V4.1-Flash: Pushing the limits of KV cache compres-sion. Preprint , arXiv:2609.19969. Model card: https://huggingface.co/deepseek-ai/ DeepSeek-V4.1-Flash .Hongxun Ding, Xiang Yu, Chengbing Wang, Jianfei Xiao, Keqin Bao, Wenjie Wang, and Xiangnan He. 2026. Towards root memories: Benchmarking and enhancing implicit logical memory retrieval for per-sonalized LLMs. Preprint , arXiv:2606.23283. 
+
+9Feiyu Duan, Xuanjing Huang, and Zhongyu Wei. 2026. LifeSim: Long-horizon user life simulator for per-sonalized assistant evaluation. In Findings of the As-sociation for Computational Linguistics: ACL 2026 ,pages 20419–20463, San Diego, California, United States. Association for Computational Linguistics. Qi Feng, Chris Ding, and Jicong Fan. 2026. The retriever should remember: Experience-amortized reranking for long-term agent memory. Preprint ,arXiv:2608.22767. Luyu Gao, Xueguang Ma, Jimmy Lin, and Jamie Callan. 2023. Precise zero-shot dense retrieval without rel-evance labels. In Proceedings of the 61st Annual Meeting of the Association for Computational Lin-guistics (Volume 1: Long Papers) , pages 1762–1777, Toronto, Canada. Association for Computational Lin-guistics. Pascale Gisquet-Verrier and David C. Riccio. 2024. Proust and involuntary retrieval. Frontiers in Psy-chology , 15:1235098. Weidong Guo, Dakai Wang, Zixuan Wang, Hui Liu, and Yu Xu. 2026. T-Mem: Memory that anticipates, not archives. Preprint , arXiv:2606.15405. Bernal Jiménez Gutiérrez, Yiheng Shu, Yu Gu, Michi-hiro Yasunaga, and Yu Su. 2024. HippoRAG: Neu-robiologically inspired long-term memory for large language models. In Advances in Neural Information Processing Systems 37 (NeurIPS 2024) .Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and Weizhu Chen. 2022. LoRA: Low-rank adaptation of large language models. In The Tenth International Conference on Learning Representations (ICLR) .Xuxian Hu, Zhu Teng, Wei Zhang, Ming He, and Jian-ping Fan. 2026. QueryLink: Leveraging query-memory alignment for long-term reasoning in LLM agents. In Findings of the Association for Computa-tional Linguistics: ACL 2026 , pages 15608–15621, San Diego, California, United States. Association for Computational Linguistics. Gautier Izacard and Edouard Grave. 2021. Distilling knowledge from reader to retriever for question an-swering. In The Ninth International Conference on Learning Representations (ICLR) .Jingbo Ji, Lingyi Li, Xilong Cheng, Yuhao Zhou, Wenji Zhang, Yuting Tan, and Yunxiao Qin. 2026. Rip-pleMem: From isolated retrieval to associative rec-ollection for long-term agent memory. Preprint ,arXiv:2608.13334. Bowen Jiang, Zhuoqun Hao, Young-Min Cho, Bryan Li, Yuan Yuan, Sihao Chen, Lyle Ungar, Camillo J. Taylor, and Dan Roth. 2025. Know me, respond to me: Benchmarking LLMs for dynamic user profil-ing and personalized responses at scale. In Second Conference on Language Modeling (COLM) .Daniel Kahneman. 2011. Thinking, Fast and Slow . Far-rar, Straus and Giroux, New York. Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and Wen-tau Yih. 2020. Dense passage retrieval for open-domain question answering. In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP) , pages 6769–6781, Online. Association for Computational Linguistics. Victor Lavrenko and W. Bruce Croft. 2001. Relevance based language models. In Proceedings of the 24th Annual International ACM SIGIR Conference on Re-search and Development in Information Retrieval ,pages 120–127. ACM. Jinhyuk Lee, Feiyang Chen, Sahil Dua, Daniel Cer, Madhuri Shanbhogue, Iftekhar Naim, Gus-tavo Hernández Ábrego, Zhe Li, Kaifeng Chen, Hen-rique Schechter Vera, et al. 2025. Gemini Em-bedding: Generalizable embeddings from Gemini. 
+
+Preprint , arXiv:2503.07891. Technical report; model 
+
+gemini-embedding-001 .Jinhyuk Lee, Zhuyun Dai, Xiaoqi Ren, Blair Chen, Daniel Cer, Jeremy R. Cole, Kai Hui, Michael Bo-ratko, Rajvi Kapadia, Wen Ding, et al. 2024. Gecko: Versatile text embeddings distilled from large lan-guage models. Preprint , arXiv:2403.20327. Jinhyuk Lee, Mujeen Sung, Jaewoo Kang, and Danqi Chen. 2021. Learning dense representations of phrases at scale. In Proceedings of the 59th Annual Meeting of the Association for Computational Lin-guistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers) , pages 6634–6647, Online. Association for Computational Linguistics. Chunyu Li, Mengyuan Zhang, Jingyi Kang, Ding Chen, Jiajun Shen, Bo Tang, Xuanhe Zhou, Feiyu Xiong, and Zhiyu Li. 2026a. MemReranker: Reasoning-aware reranking for agent memory retrieval. Preprint ,arXiv:2605.06132. Ruizhe Li, Mingxuan Du, Benfeng Xu, and Zhen-dong Mao. 2026b. Keep it InMind: Benchmarking the implicit-association blind spot in agent memory. 
+
+Preprint , arXiv:2607.24368. Xintong Li, Jalend Bantupalli, Ria Dharmani, Yuwei Zhang, and Jingbo Shang. 2025a. Toward multi-session personalized conversation: A large-scale dataset and hierarchical tree framework for implicit reasoning. In Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing ,pages 11493–11506, Suzhou, China. Association for Computational Linguistics. Yifei Li, Weidong Guo, Lingling Zhang, Rongman Xu, Muye Huang, Hui Liu, Lijiao Xu, Yu Xu, and Jun Liu. 2026c. Locomo-Plus: Beyond-factual cognitive memory evaluation framework for LLM agents. In 
+
+Proceedings of the 64th Annual Meeting of the As-sociation for Computational Linguistics (Volume 1: 
+
+10 Long Papers) , pages 25085–25100, San Diego, Cali-fornia, United States. Association for Computational Linguistics. Zhiyu Li, Chenyang Xi, Chunyu Li, Ding Chen, Boyu Chen, Shichao Song, Simin Niu, Hanyu Wang, Jiawei Yang, Chen Tang, et al. 2025b. MemOS: A memory OS for AI system. Preprint , arXiv:2507.03724. Adyasha Maharana, Dong-Ho Lee, Sergey Tulyakov, Mohit Bansal, Francesco Barbieri, and Yuwei Fang. 2024. Evaluating very long-term conversational memory of LLM agents. In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 13851– 13870, Bangkok, Thailand. Association for Compu-tational Linguistics. Quinn McNemar. 1947. Note on the sampling error of the difference between correlated proportions or percentages. Psychometrika , 12(2):153–157. Rodrigo Nogueira, Wei Yang, Jimmy Lin, and Kyunghyun Cho. 2019. Document expansion by query prediction. Preprint , arXiv:1904.08375. OpenAI. 2024a. GPT-4o system card. Preprint ,arXiv:2410.21276. OpenAI. 2024b. Memory and new controls for ChatGPT. https://openai.com/index/ memory-and-new-controls-for-chatgpt/ . Ac-cessed 2026-09-29. OpenAI. 2024c. New embedding models and API updates. OpenAI blog, 25 January 2024. Model 
+
+text-embedding-3-large .OpenAI. 2025. Introducing GPT-4.1 in the API. https: //openai.com/index/gpt-4-1/ . Accessed 2026-09-29. Charles Packer, Sarah Wooders, Kevin Lin, Vivian Fang, Shishir G. Patil, Ion Stoica, and Joseph E. Gonzalez. 2023. MemGPT: Towards LLMs as operating sys-tems. Preprint , arXiv:2310.08560. Zhuoshi Pan, Qianhui Wu, Huiqiang Jiang, Xufang Luo, Hao Cheng, Dongsheng Li, Yuqing Yang, Chin-Yew Lin, H. Vicky Zhao, Lili Qiu, and Jianfeng Gao. 2025. On memory construction and retrieval for personal-ized conversational agents. In The Thirteenth Inter-national Conference on Learning Representations (ICLR) .Joon Sung Park, Joseph C. O’Brien, Carrie J. Cai, Meredith Ringel Morris, Percy Liang, and Michael S. Bernstein. 2023. Generative agents: Interactive simu-lacra of human behavior. In Proceedings of the 36th Annual ACM Symposium on User Interface Software and Technology (UIST) , pages 1–22. ACM. Ben Poole, Sherjil Ozair, Aaron van den Oord, Alexan-der A. Alemi, and George Tucker. 2019. On varia-tional bounds of mutual information. In Proceedings of the 36th International Conference on Machine Learning (ICML) , volume 97 of Proceedings of Ma-chine Learning Research , pages 5171–5180. PMLR. Marcel Proust. 1913. Du côté de chez Swann . À la recherche du temps perdu. Grasset, Paris. Preston Rasmussen, Pavlo Paliychuk, Travis Beauvais, Jack Ryan, and Daniel Chalef. 2025. Zep: A tempo-ral knowledge graph architecture for agent memory. 
+
+Preprint , arXiv:2501.13956. Nils Reimers and Iryna Gurevych. 2019. Sentence-BERT: Sentence embeddings using Siamese BERT-networks. In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natu-ral Language Processing (EMNLP-IJCNLP) , pages 3982–3992, Hong Kong, China. Association for Com-putational Linguistics. J. J. Rocchio. 1971. Relevance feedback in informa-tion retrieval. In Gerard Salton, editor, The SMART Retrieval System: Experiments in Automatic Docu-ment Processing , pages 313–323. Prentice-Hall, En-glewood Cliffs, NJ. Ganesh Senrayan, Moyuru Yamada, Ishan Jindal, and Kiran Purohit. 2026. Exploratory and assimilating reflection: Reflective recall cycle for long-term mem-ory. Preprint , arXiv:2607.17879. Rulin Shao, Rui Qiao, Varsha Kishore, Niklas Muen-nighoff, Xi Victoria Lin, Daniela Rus, Bryan Kian Hsiang Low, Sewon Min, Wen-tau Yih, Pang Wei Koh, and Luke Zettlemoyer. 2025. Rea-sonIR: Training retrievers for reasoning tasks. In 
+
+Second Conference on Language Modeling (COLM) .Duolin Sun, Meixiu Long, Dan Yang, Junjie Wang, Yecheng Luo, Yue Shen, Jian Wang, Hualei Zhou, Chunxiao Guo, Peng Wei, Jiahai Wang, and Jin-jie Gu. 2025. DIVER: A multi-stage approach for reasoning-intensive information retrieval. Preprint ,arXiv:2508.07995. Zheling Tan, Jin Gao, and Dequan Wang. 2026. CA-BLE: Extending the reach of memory retrieval via complementary antecedent-based linking and expan-sion. In Third Conference on Language Modeling (COLM) .Zhen Tan, Jun Yan, I-Hung Hsu, Rujun Han, Zifeng Wang, Long Le, Yiwen Song, Yanfei Chen, Hamid Palangi, George Lee, Anand Rajan Iyer, Tianlong Chen, Huan Liu, Chen-Yu Lee, and Tomas Pfister. 2025. In prospect and retrospect: Reflective mem-ory management for long-term personalized dialogue agents. In Proceedings of the 63rd Annual Meet-ing of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 8416–8439, Vienna, Austria. Association for Computational Linguistics. Motong Tian, Allen P. Wong, Mingjun Mao, and Wangchunshu Zhou. 2026. HiNS: Hierarchi-cal negative sampling for more comprehensive memory retrieval embedding model. Preprint ,arXiv:2601.14857. 
+
+11 Aaron van den Oord, Yazhe Li, and Oriol Vinyals. 2018. Representation learning with contrastive predictive coding. Preprint , arXiv:1807.03748. Liang Wang, Nan Yang, Xiaolong Huang, Linjun Yang, Rangan Majumder, and Furu Wei. 2024. Improv-ing text embeddings with large language models. In 
+
+Proceedings of the 62nd Annual Meeting of the As-sociation for Computational Linguistics (Volume 1: Long Papers) , pages 11897–11916, Bangkok, Thai-land. Association for Computational Linguistics. Liang Wang, Nan Yang, and Furu Wei. 2023. Query2doc: Query expansion with large language models. In Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing ,pages 9414–9423, Singapore. Association for Com-putational Linguistics. Di Wu, Hongwei Wang, Wenhao Yu, Yuwei Zhang, Kai-Wei Chang, and Dong Yu. 2025. LongMemEval: Benchmarking chat assistants on long-term interac-tive memory. In The Thirteenth International Con-ference on Learning Representations (ICLR) .Wujiang Xu, Zujie Liang, Kai Mei, Hang Gao, Juntao Tan, and Yongfeng Zhang. 2025. A-MEM: Agentic memory for LLM agents. In Advances in Neural Information Processing Systems (NeurIPS) .Jinsung Yoon, Yanfei Chen, Sercan Arik, and Tomas Pfister. 2024. Search-Adaptor: Embedding cus-tomization for information retrieval. In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) ,pages 12230–12247, Bangkok, Thailand. Association for Computational Linguistics. Ping Yu, Jing Xu, Jason Weston, and Ilia Kulikov. 2024. Distilling System 2 into System 1. Preprint ,arXiv:2407.06023. Juwei Yue, Chuanrui Hu, Jiawei Sheng, Zuyi Zhou, Wenyuan Zhang, Tingwen Liu, Li Guo, and Yafeng Deng. 2026. HyperMem: Hypergraph memory for long-term conversations. In Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 35237– 35254, San Diego, California, United States. Associ-ation for Computational Linguistics. Kai Zhang, Xinyuan Zhang, Ejaz Ahmed, Hongda Jiang, Caleb Kumar, Kai Sun, Zhaojiang Lin, Sanat Sharma, Shereen Oraby, Aaron Colak, Ahmed Aly, Anuj Ku-mar, Xiaozhong Liu, and Xin Luna Dong. 2026. As-soMem: Scalable memory QA with multi-signal as-sociative retrieval. In The Fourteenth International Conference on Learning Representations (ICLR) .Yanzhao Zhang, Mingxin Li, Dingkun Long, Xin Zhang, Huan Lin, Baosong Yang, Pengjun Xie, An Yang, Dayiheng Liu, Junyang Lin, Fei Huang, and Jingren Zhou. 2025. Qwen3 Embedding: Advancing text embedding and reranking through foundation models. 
+
+Preprint , arXiv:2506.05176. 
+
+A Life Simulator: Prompts, Samples and Decontamination 
+
+Sources. Table 3 summarizes the three sources. Every call simulates one persona, whose age, occu-pation, place and the life areas and statement kinds to cover are sampled from fixed lists with a fixed seed. Each persona produces about ten earlier state-ments; each statement comes with three later mes-sages and one direct question. A training pair maps a later message (or the direct question) to its earlier statement, and the persona’s other statements act as natural hard negatives. The three sources together cost 3.13 dollars. None of the prompts copies the wording or examples of any benchmark. 
+
+Prompt of v3 (trajectories). Placeholders in braces are filled per call.            
+
+> You are simulating one real person’s life over about a year, as it comes up in casual chats with a close friend. Persona: a {age} -year-old {job}
+> living in {place} . (1) Write {n} different things this person told the friend early on, each as one or two casual first-person sentences. Every state-ment must be SPECIFIC (name the actual goal, plan, event, situation, person, feeling or princi-ple and why it matters to them). Spread them over these life areas: {domains} . Use these kinds (one each, in any order): {kinds} . (2) For each statement, write 3 things the person says to the friend weeks or months later, in new situations, that are part of how their life actually unfolded from it: progress, a setback, giving up, a change of heart, a consequence, a new choice it shaped, or a dilemma it creates. Make the 3 developments differ from each other. HARD RULES for the later messages: The person does not refer back: they must NOT mention, hint at or allude to the earlier statement, its topic, its key objects, people, places or feelings. No “remember when”, “like I said”, “because of that”, “given my . . . ”. Share no content words with the earlier statement; no paraphrase. A stranger reading the later message must see no link at all; a friend who remembers the earlier statement would immediately see how it explains or bears on the later one, and would answer differently because of it. Each must read as a normal standalone chat message, and for each later message only this one earlier statement of the person should matter. Good example of the spirit (do not reuse): earlier “I’m putting every spare dollar toward a used sailboat so I can sail the coast next summer.” →later “Sold my car this morning, the bus is honestly fine.” (3) For each statement, also write one short question the friend might ask that plainly refers to it. Vary tone, length and specificity. Avoid clichés and avoid repeating the same kind of development. Return JSON: {"facts": [{"fact": ..., "later": [...], "direct": ...}, ...]}
+
+Prompt of v2 and v2d (static facts). The v2 prompt has the same three-step structure and the same no-leak rules. It differs in what is simulated: 12 Table 3: The three life-simulator sources. Pair cos is the mean cosine (untrained Qwen3-Embedding-4B) between an earlier statement and its later messages on a 150-pair pilot; lower means less similar. Rows are training pairs (later message → earlier statement, plus one direct question per statement) after decontamination; they include every later message the simulator returned, and some statements received more than three. v2 and v2d happen to keep the same number of rows.                         
+
+> Source Generator Calls Cost ($) Statements Pair cos Rows kept (removed) v2 (static facts) gpt-4.1-mini 800 1.61 8,000 0.422 31,697 ( ≈1%) v3 (trajectories) DeepSeek-V4.1-Flash 800 0.79 7,975 0.398 32,419 (49) v2d (v2 prompt) DeepSeek-V4.1-Flash 800 0.73 8,136 –31,697 (1,092)
+
+the persona chats with an AI assistant, step (1) asks for specific personal facts (a named condi-tion, medication, diet, practice, rule, obligation, possession, place, event, goal or limitation) drawn from 22 fact kinds, and step (2) asks for requests, plans, purchases, invitations, updates or complaints in which “a knowledgeable assistant who remem-bers [the fact] should change its answer because of real-world consequences”. Its in-prompt exam-ple is a blood thinner followed by a request for mountain-biking tips. v2d reuses this prompt and the v2 persona seeds with a different generator. 
+
+Samples. From v3 (a 51-year-old pilot): the ear-lier statement “Signed up for the Tuesday/Thursday masters swim at the rec pool . . . I’m weirdly ner-vous about being the slowest guy in the lane” is paired with the later message “Knees are shot from all the yardage, so I moved to the bike for a while.” From v2 (a 73-year-old pharmacist): “I have type 2 diabetes and follow a strict low-carb diet” is paired with “I need ideas for snacks to bring on my morn-ing train ride that won’t cause an afternoon crash.” 
+
+Decontamination. We embed every training text with the untrained Qwen3-Embedding-4B and delete any training pair whose cosine to any test text of LoCoMo-Plus, LoCoMo-Conv (implicit queries), InMind or ImplexConv (Li et al., 2025a) is at least 0.85. This removes about 1% of v2, 49 rows of v3 and 1,092 rows of v2d. Most v2d re-movals are generic direct questions such as “What is my diet?” that coincide with a test text. 
+
+Generator choice. On a pilot of five personas (150 pairs) per generator, the mean cosine between an earlier statement and its later messages is 0.511 for gpt-4.1-mini with the v3 prompt, against 0.397 for gpt-4.1 and 0.398 for DeepSeek-V4.1-Flash; manual inspection showed that gpt-4.1-mini often continues the earlier topic directly. We therefore generate v3 with DeepSeek-V4.1-Flash and dis-able its thinking mode, which truncates the JSON output. 
+
+B Training, Evaluation and Latency Details 
+
+Table 4 lists the hyperparameters. The memory bank of each training step is the set of all training facts, encoded once by the frozen backbone. For every query in a batch, facts from other sources and facts whose cosine to the gold fact exceeds 0.9 are masked out of the softmax. After holding out 5% of the personas, the three sources give 91,067 training pairs; one epoch of the 4B model takes 711 steps. Queries carry the instruction “Given a new message in a long conversation, retrieve earlier conversation content that is relevant to it” in the Qwen3-Embedding format, both in training and at test time; memories carry no instruction. 
+
+Table 4: Hyperparameters of the query-side association adapter (identical for all backbones and seeds unless stated).                                
+
+> Item Value Backbone Qwen3-Embedding-4B (also 0.6B, 8B) (Zhang et al., 2025) Adapter LoRA (Hu et al., 2022), r=32 ,α= 64 , dropout 0.05 LoRA targets q, k, v, o, gate, up, down projections Trainable parameters (4B) 66.1M Loss InfoNCE on the summed score, τ= 0 .05
+> Negatives all same-source training facts Near-duplicate mask cosine to gold fact >0.9
+> Optimizer AdamW, lr 10 −4, weight decay 0.01 Schedule 5% linear warm-up, cosine decay Batch size, epochs 128, 1 (711 steps for 4B) Max sequence length 128 tokens Gradient clipping 1.0 Validation split 5% of simulated personas, monitored only; the final checkpoint is used Precision bf16, gradient checkpoint-ing Seeds 0, 1, 2
+
+13 Retrieval evaluation. A LoCoMo-Plus memory base is one LoCoMo conversation plus the inserted cue dialogue, with one memory per turn (about 600 per item); the trigger itself is not stored. The rank of an item is one plus the number of base turns scored above the best cue turn. The same units and ranks are used for all local retrievers. 
+
+Latency. On one RTX 4090D (bf16, batch size 1, tokenization included, median of 200 runs), the untrained 4B encodes a query in 37.9 ms. MADELEINE with an unmerged LoRA, as used in all experiments, takes 145.0 ms; with the LoRA merged into a second copy of the weights it takes 70.5 ms, about two backbone passes. Scoring about 600 memories and taking the top 10 costs 0.04 ms. 
+
+C Official Protocol and Reproduced Baselines 
+
+Protocol. We evaluate all 401 cognitive items of LoCoMo-Plus; item i uses LoCoMo conversation 
+
+i mod 10 , as in the official code. The reader in-put is built by the official _build_model_input 
+
+with the Cognitive instruction; every selected turn is rendered as X said, ". . . " in time order, and the trigger is the last line. A self-test confirms that our formatting is byte-identical to the official stitching on all 401 items. For K memories we take the top-K retrieved turns, add the preceding and following turn of the same session to each, and sort the result by time. This gives about 8, 14 and 28 dialogue lines and about 375 and 565 reader input tokens for K = 3 and K = 5 . The reader uses temperature 0.3 and at most 1,024 tokens; the judge uses temperature 0, at most 512 tokens, the verbatim official judge input and the official parser, and only correct scores a point. Photo captions stored with some turns are used for retrieval but removed from the reader input, matching the offi-cial whole-conversation input. All numbers use the verbatim official judge input, and significance is an exact McNemar test on per-item labels (McNemar, 1947). 
+
+Published whole-conversation numbers. The LoCoMo-Plus paper reports 21.05 for GPT-4o read-ing the whole conversation and 26.06 for Gemini-2.5-Pro under its protocol. Running the released code, GPT-4o with the whole conversation scores 44.8 on a 58-item subset (every seventh item; 
+
+p = 7 × 10 −5 against 21.05), and gpt-4.1-mini scores 44.9 on all 401 items. JustMem reports 21.70 for the whole-conversation baseline with gpt-
+
+Table 5: LoCoMo-Plus under the official protocol (gpt-4.1-mini reader unless stated) for K = 3 , 5, 10 (official gemini-2.5-flash judge). FullText has no K.                                                    
+
+> Retriever K=3 K=5 K=10 MADELEINE (4B), seed 0 52.4 53.1 54.1 MADELEINE (4B), seed 1 51.6 53.9 51.9 MADELEINE (4B), seed 2 53.1 54.4 53.9 MADELEINE (4B), mean 52.4 53.8 53.3 Untrained Qwen3-Embedding-4B 39.7 47.4 49.9 gemini-embedding 41.6 45.9 46.4 text-embedding-3-large 41.1 46.4 47.4 Qwen3-Embedding-8B 37.4 43.4 42.6 bge-m3 21.9 25.7 34.4 FullText (whole conversation) 44.9 MADELEINE (8B) 53.4 55.4 51.1 Untrained 8B (local run) 36.7 41.6 41.6
+> GPT-4o reader
+> MADELEINE (4B), seed 0 50.1 ––Untrained Qwen3-Embedding-4B 40.4 ––gemini-embedding 35.2 ––
+
+4.1-mini as reader and judge; the released code with the same models gives 37.7 ( p = 7 × 10 −7). We therefore compare only against baselines re-run in the same code, and list published numbers from other protocols separately. 
+
+D Full Results 
+
+Table 6: Plug-in results under the official protocol, including T-Mem at its default of 10 scenes. Only the retrieval encoder differs within each system (T-Mem’s memories are re-encoded by the frozen encoder); MADELEINE is seed 0.                  
+
+> System Query encoder Score HyperMem original 52.9 HyperMem untrained 4B (with instruction) 60.6 HyperMem MADELEINE 66.6
+> T-Mem, 3 scenes original (bge-m3) 33.7 T-Mem, 3 scenes untrained 4B 53.9 T-Mem, 3 scenes MADELEINE 59.9
+> T-Mem, 10 scenes original (bge-m3) 35.2 T-Mem, 10 scenes untrained 4B 45.4 T-Mem, 10 scenes M ADELEINE 49.9
+
+Table 5 gives all retrievers for K = 3 , 5, 10 ,and Table 6 the plug-in results, including T-Mem at its default of 10 scenes, where M ADELEINE 
+
+is 14.7 points above the original ( p = 8 × 10 −8)and 4.5 points above the untrained 4B ( p = 0 .11 ). Plugged into HyperMem, the other two seeds of MADELEINE score 68.6 and 63.3 (66.2 on average over three seeds), each above every other system we evaluate and significantly above the released HyperMem ( p ≤ 9 × 10 −5); against the instructed 14 HyperMem, the differences are +8 .0 (p = 0 .0003 )and +2 .7 (p = 0 .25 ). 
+
+Ordinary LoCoMo QA. We follow the T-Mem LoCoMo protocol (categories 1–4, 1,540 questions, gpt-4o-mini reader and judge, three judgments per question, K = 10 ) and compare each retriever with its own untrained backbone by a paired bootstrap and a sign-flip test. On 4B, the untrained backbone scores 59.1 and the three seeds of M ADELEINE 
+
+score 58.9, 59.2 and 60.0 (differences −0.2, +0 .1
+
+and +0 .9; p = 0 .86 , 0.96 , 0.29 ). On 8B, the untrained backbone scores 63.5 and M ADELEINE 
+
+60.9, a drop of 2.6 points (95% CI −4.1 to −1.0,
+
+p = 0 .0015 ); the share of questions with evidence in the top 10 drops from 72.5% to 67.4%. The loss comes from direct single-hop questions, where the association term pulls the ranking away from the literally best-matching turn towards related sit-uations; for the earlier v2-only 4B retriever, 91 questions lost their evidence from the top 10 and 62 gained it. The extra v2d source, which removes this cost on 4B, does not remove it on 8B; we con-jecture that the stronger literal matching of the 8B backbone makes the cost larger. 
+
+E T-Mem Under Its Own Protocol 
+
+We also ran T-Mem with its released code and its own LoCoMo-Plus protocol: one memory base per item built by gpt-4.1-mini, three-way embed-ding retrieval fused by RRF, the top 10 scenes, a GPT-4o reader, and T-Mem’s own answer and judge prompts with gemini-2.5-flash as judge. The three arms share the same 401 memory bases and differ only in the embedding used for retrieval; for M ADELEINE and the untrained 4B, memories are encoded by the frozen 4B. Table 7 gives the results. With the original bge-m3 retriever, T-Mem scores 51.9; with the untrained 4B, 67.6; with M ADELEINE , 70.6 (against bge-m3: p =1 × 10 −13 ; against the untrained 4B: p = 0 .23 ). When only the top three scenes are given to the reader, M ADELEINE scores 72.6 against 64.1 for the untrained 4B ( p = 1 .5×10 −4) and 41.4 for bge-m3. The T-Mem paper reports 74.81 on LoCoMo-Plus. Our run of the released code with the models named in the paper gives 51.9. The released code retrieves 10 scenes with an RRF constant of 30, whereas the paper describes 5 scenes with a con-stant of 60. The released trigger-generation prompt, which is applied to all 401 memory bases, contains two few-shot examples whose cue text is that of LoCoMo-Plus test items #81 and #188, and its negative examples include text from items #3, #188 and #306. Excluding these items together with #271 and #275, whose structure closely matches one of the examples, gives 51.6 for bge-m3 and 70.6 for MADELEINE .
+
+F Other Benchmarks 
+
+Table 8 collects the remaining benchmarks; each uses its own protocol and memory units. 
+
+LoCoMo-Conv (Chang and Chen, 2026). We follow the released pipeline (one memory per turn, top 10, gemma-4-31B-it reader, the three-level gpt-5.4-mini judge). Our reproduction of its MiniLM baseline gives Recall@10 32.1 and an answer score of 0.332, against 31.2 and 0.335 in the pa-per. M ADELEINE is 1.6 points above the untrained 4B ( p = 0 .11 ) and ties text-embedding-3-large (p = 0 .86 ). Restricting candidates to the user’s own turns, which the official prompt identifies, raises every retriever by 4.6 to 6.6 Recall@10 points. With this filter all three seeds are signif-icantly above the untrained 4B ( p = 0 .011 , 0.016 ,
+
+0.0021 ) and tie text-embedding-3-large ( p ≥ 0.42 ). 90.4% of the evidence turns are spoken by the user, and the typical retrieval error is the right topic but the wrong turn. 
+
+InMind (Li et al., 2026b). In the single-fact set-ting, one personal fact is hidden among about 2,600 LongMemEval (Wu et al., 2025) user messages and retrieved by an indirect or a direct question (125 items). MADELEINE raises indirect Recall@10 from 5.6% to 27.7% (seeds 28.8, 28.8, 25.6) while direct Recall@10 moves from 96.8% to 93.1%. 
+
+G Ablations 
+
+Table 10 gives the full ablation of Section 5.5, and Table 9 gives cue Recall@10 per relation type. Placing the same supervision in a reranker on top of the untrained 4B reaches a cue Recall@10 of only 75.3, below the query-side retriever alone (78.8), while costing 20 extra 4B forward passes per query. On ordinary LoCoMo QA with the 4B backbone, the v2-only retriever loses 2.7 points against the untrained backbone ( p = 0.0025 )and the two-source recipe 1.6 points on average, whereas the three-source recipe changes it by +0 .3
+
+on average. At K = 5 , two of the three seeds are significantly above the untrained 4B end to end; at 
+
+K = 10 , none is. 15 Table 7: T-Mem under its own released code and evaluation protocol (401 LoCoMo-Plus items, GPT-4o reader, T-Mem’s answer and judge prompts). Only the embedding used by its retrieval stage changes; the memory bases are shared by all arms. Cue@k : the scene containing the cue is among the k retrieved scenes.                              
+
+> Retriever in T-Mem All Causal Goal State Value Cue@10 3 scenes (Cue@3) bge-m3 (original) 51.9 64.4 44.0 59.0 40.0 70.1 41.4 (40.4) Untrained Qwen3-Embedding-4B 67.6 78.2 62.0 67.0 63.0 89.3 64.1 (72.6) MADELEINE 70.6 78.2 67.0 72.0 65.0 94.5 72.6 (84.3 )
+
+Table 8: Other benchmarks. Retrieval rows are Recall@10 (%); end-to-end rows use each benchmark’s own protocol. MADELEINE is the three-seed mean where three seeds exist and seed 0 otherwise.                           
+
+> Benchmark Metric Untrained 4B MADELEINE text-emb-3-large LoCoMo-Conv (1,540) Recall@10 (paper metric) 46.2 48.1 49.6
+> LoCoMo-Conv answer score, K=10 0.440 0.456 0.453 LoCoMo-Conv, user turns only answer score, K=10 0.456 0.482 0.489
+> InMind single fact (125) indirect query 5.6 27.7 0.8 InMind single fact direct query 96.8 93.1 80.8
+
+H Routes That Do Not Learn Association 
+
+Table 11 lists every route of Section 5.4 with its significance against M ADELEINE . The EAR-style adapter follows the structure of EAR (Senrayan et al., 2026): on the frozen 4B, two 2560 ×2560 
+
+matrices initialized at zero map the query to (I +
+
+Wq)q and the memory to (I + Wm)m, scored by cosine (13.1M parameters). It is trained on our data with our loss, negatives and temperature, and its epoch is chosen on held-out simulated personas, not on any benchmark. The reasoning-oriented retrievers reach a cue Recall@10 between 33.9 and 60.6, against 71.1 for the untrained backbone and 82.8 for M ADELEINE (seed 0). The best QueryLink configuration passes 1,301 answer-input tokens per query and is 16.5 points below M ADELEINE . The two rerankers cut the share of cues ranked first by M ADELEINE (seed 0) from 62.3% to 35.2% (Qwen3-Reranker-4B) and 17.7% (MemReranker-4B). 
+
+I Reproduction of QueryLink and HyperMem 
+
+QueryLink (Hu et al., 2026). We run the release branch of the official repository (commit cbf1e0d )with its three prompts verbatim, gpt-4o-mini as the rewriting model and all-MiniLM-L6-v2 as the encoder. Each turn is a unit, and its views are gener-ated from the turn and the two neighbouring turns of the same session, as in its LoCoMo adapter; the query is the trigger. The upstream code parses the rewriting output with a strict JSON parser, which drops the LLM views whenever the model wraps its answer in a code block; we keep this behaviour, so about 55.6% of the turns retain only the raw-text view. The three rows are the original configuration restricted to three memories, its native multi-view union (about 1,600 context tokens), and its rewrites encoded by the frozen Qwen3-Embedding-4B. A fourth row uses only the “guess related events” out-put as a HyDE-style query (Gao et al., 2023) on the same frozen 4B and scores 41.9. Selecting three memories from several views uses RRF ( k = 60 )over per-view maxima. Writing costs about 590 LLM calls and 243K tokens per memory base; read-ing costs two calls per query. 
+
+HyperMem (Yue et al., 2026). We run the of-ficial repository (commit 15c7009 ) with gpt-4.1-mini at temperature 0 for extraction and the Qwen3-Embedding-4B served by OpenRouter, whose vec-tors match our local model at cosine about 0.9998. The ten base conversations are built once with the official functions; for each item the cue dialogue is segmented, assigned to topics and turned into facts by the official extractors and merged into the base hypergraph. Retrieval uses the code defaults (candidate pool 100; 15 topics, 20 episodes and 30 facts; reranking off), and the reader receives episodes and facts as in its answer stage. Build-ing one memory base costs 1,095 LLM calls and about 3.55M tokens on average. For the plug-in, the query is embedded once by the new encoder and that vector replaces all three query encodings of the retrieval stage; the BM25 half of its hybrid search still uses the raw query text. The untrained 4B plug-in adds the Qwen3-Embedding query in-struction, which the original configuration omits; this accounts for 7.7 of the 13.7-point gain, and learned association for the other 6.0. 16 Table 9: Cue Recall@10 (%) on LoCoMo-Plus by relation type. v2 is a single simulator source (gpt-4.1-mini, concrete facts followed by requests to an assistant); the full recipe mixes v2, v3 and v2d (seed 0). ∗Significantly above the untrained backbone of the same size ( p < 0.05 , exact McNemar). 
+
+Retriever Causal State Goal Value All Untrained 0.6B 50.5 41.0 33.0 19.0 35.9 0.6B, v2 only 72.3 ∗ 61.0 ∗ 53.0 ∗ 51.0 ∗ 59.4 ∗
+
+Untrained 4B 89.1 65.0 67.0 63.0 71.1 4B, v2 only 90.1 82.0 ∗ 72.0 71.0 ∗ 78.8 ∗
+
+4B, full recipe 90.1 85.0 ∗ 79.0 ∗ 77.0 ∗ 82.8 ∗
+
+Table 10: Ablations of the design choices in Section 4. Columns 2–3 are retrieval Recall@10 (%); LP (LoCoMo-Plus) tests associative recall and LoCoMo ordinary lookup. The last column is the end-to-end change on ordinary LoCoMo QA relative to the untrained backbone (mean over seeds where three exist). Shaded rows are the configuration used in the paper for that block; bold marks the best LP Recall@10 in each block. 
+
+Variant LP LoCoMo LoCoMo QA ∆
+
+(a) Which side to train, and which score to train on [0.6B, v2 data] Untrained 0.6B 35.9 67.3 –Both sides, full fine-tuning 49.6 55.1 –Both sides, LoRA 50.1 56.1 –Query side, association term trained alone 54.1 64.5 –Query side, residual (summed) score 59.4 60.8 –
+
+(b) Mixing simulator sources [0.6B, query side, residual score] v2 only 59.4 60.8 –v3 only 57.6 67.3 –v2 + v3, all negatives 50.1 65.3 –v2 + v3, same-source negatives 63.6 64.0 –v2 + v3 + v2d, same-source negatives 60.6 66.2 –
+
+(c) Main backbone [4B] Untrained 4B 71.1 66.1 0.0 Both sides, LoRA (v2) 69.6 68.9 –Query side, v2 only 78.8 62.5 −2.7 ∗
+
+Query side, v2 + v3, same-source (3 seeds) 84.3 61.6 −1.6 Query side, v2 + v3 + v2d, same-source (3 seeds) 83.1 64.2 +0.3  
+
+> ∗
+
+p < 0.01 , paired sign-flip test against the untrained 4B. For the v2 + v3 recipe, two of three seeds are significantly below the untrained 4B ( p = 0 .03 and 0.025 ); for the full recipe no seed is ( p ≥ 0.29 ). 
+
+Table 11: Routes that do not learn association, on LoCoMo-Plus (official protocol, K=3 ). Read : LLM calls per query at retrieval time. ↓: score drop relative to M ADELEINE (seed 0), computed before rounding; p: exact McNemar test against it. Rerankers re-score the top 50 candidates of M ADELEINE .
+
+Method Read Score ∆ p
+
+MADELEINE (seed 0) 0 52.4 – –Untrained Qwen3-Embedding-4B 0 39.7 ↓12.7 1.2×10 −5
+
+(i) Read-time LLM rewriting or guessing 
+
+QueryLink, original config. 2 23.7 ↓28.7 1.6×10 −19 
+
+QueryLink, native union 2 35.9 ↓16.5 1.3×10 −7
+
+QueryLink, rewriting + Qwen3-4B 2 34.4 ↓18.0 9.0×10 −9
+
+HyDE, Qwen3-4B 1 41.9 ↓10.5 2.9×10 −4
+
+(ii) Reasoning-oriented retrievers 
+
+ReasonIR-8B 0 40.6 ↓11.7 8.3×10 −5
+
+ReasonEmbed-Qwen3-4B 0 29.9 ↓22.4 4.6×10 −13 
+
+Diver-Retriever-4B 0 22.4 ↓29.9 3.5×10 −21 
+
+Diver-Retriever-4B-1020 0 31.7 ↓20.7 1.4×10 −11 
+
+(iii) Rerankers on top of MADELEINE 
+
++ Qwen3-Reranker-4B 0 40.9 ↓11.5 1.6×10 −4
+
++ MemReranker-4B 0 31.9 ↓20.4 1.4×10 −10 
+
+(iv) Same data, different trained structure 
+
+EAR-style adapter 0 39.4 ↓13.0 1.3×10 −5
+
+EAR-style adapter, fused score 0 45.1 ↓7.2 0.019 
+
+17

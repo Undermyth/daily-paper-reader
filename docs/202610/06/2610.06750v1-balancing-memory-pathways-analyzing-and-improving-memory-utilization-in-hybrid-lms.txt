@@ -1,0 +1,393 @@
+Title: Balancing Memory Pathways: Analyzing and Improving Memory Utilization in Hybrid LMs
+
+URL Source: https://arxiv.org/pdf/2610.06750v1
+
+Published Time: Tue, 06 Oct 2026 03:35:16 GMT
+
+Number of Pages: 18
+
+Markdown Content:
+# BALANCING MEMORY PATHWAYS : ANALYZING AND 
+
+# IMPROVING MEMORY UTILIZATION IN HYBRID LM S
+
+Hyunji Lee 1∗ Joykirat Singh 1 Zaid Khan 1 Justin Chih-Yao Chen 1
+
+Elias Stengel-Eskin 2 Alessandro Sordoni 3 Arman Cohan 4 Mohit Bansal 11UNC Chapel Hill 2The University of Texas at Austin 3Mila 4Yale University 
+
+## ABSTRACT 
+
+Recurrent–attention hybrid language models (LMs), which interleave attention and recurrent layers, are increasingly used to combine the efficiency of the re-current layers with the strong performance of attention layers. Prior work sug-gests that attention and recurrent layers offer complementary pathways to use past information: attention supports precise memory recall from earlier tokens, while recurrent layers support consolidation of disparate information over long contexts. However, we observe that simply having access to both pathways does not mean that hybrid LMs are effectively using them. When we analyze how much the models rely on each pathway, we find a substantially greater reliance on atten-tion than on the recurrent state. Standard supervised fine-tuning improves overall performance but does not improve how the two memory pathways are coordi-nated: the model becomes more reliant on information propagated by attention layers, while its use of information propagated by recurrent layers remains lim-ited. To encourage better coordination between the two memory pathways, we add an auxiliary loss that limits attention’s access to earlier context while the recurrent state propagates through the full sequence. This objective encourages the model to retain and use information through the recurrent pathway alongside attention. It improves overall performance, with particularly strong gains on tasks involving longer contexts or requiring information aggregation, consistent with the strengths of recurrent layers observed in analysis. Crucially, this imbalance and the benefit of our auxiliary loss generalize: they apply to multiple recurrent-attention LMs in question-answering and agentic tasks, as well as to attention-based LMs that combine different forms of memory. Together, our findings show that simply pro-viding multiple memory pathways does not ensure their effective use, and that targeted supervision is needed to better coordinate them. 1
+
+## 1 INTRODUCTION 
+
+Recurrent–attention hybrid language models (Qwen Team, 2026; Ren et al., 2025; Dong et al., 2024; NVIDIA et al., 2025), which consist of recurrent and attention layers, leverage efficient recurrent computation and expressive attention memory to allow flexible access to prior context. These ar-chitectures contain two memory pathways for retaining and using past information: attention and recurrent layers. Prior work (Lee et al., 2025; Michalak & Abreu, 2025; Bick et al., 2026) has an-alyzed distinct characteristics and strengths of these components: attention layers support precise memory recall by directly accessing earlier information, while recurrent layers synthesize informa-tion distributed across long contexts. Extending these findings, we observe that attention plays a larger role when the answer appears directly in the context or can be found from a single piece of evidence, whereas the recurrent state plays a larger role when the answer must be inferred rather than copied or requires combining multiple pieces of evidence across the context. These complementary strengths motivate an important question: How well do hybrid LMs use both memory pathways, and how can their coordination be improved? 
+
+> ∗
+
+Correspondence to: hyunjil@cs.unc.edu 
+
+> 1
+
+Code in https://github.com/amy-hyunji/Balancing-Memory-Pathways 
+
+1arXiv:2610.06750v1 [cs.CL] 5 Oct 2026 Long-Horizon Context    
+
+> e.g., TextWorld agent trajectory
+> Goal: open the safe.
+> [Turn 1] Canteen. You
+> hold a key. > go south
+> ...
+> Q1
+> [Turn t] Cookhouse . You
+> see an American safe .
+> > go west
+> ...
+> [Last turn] Vault.
+> Turn limit reached.
+> Q2
+> up to 100 turns
+
+Attention Pathway 
+
+> past tokens
+> cookhouse
+> Q1: Where is the safe? direct access to
+> one earlier token
+> cookhouse
+
+Recurrent Pathway   
+
+> past tokens
+> Q2: Did the agent
+> ever open it?
+> compressed into the
+> recurrent state
+> never opened
+> Recurrent-Attention Hybrid LM
+> Adding auxiliary loss
+> to encourage recurrent use
+
+L =  LSFT  + λ·  Lrec                       
+
+> Lrec : recurrent-only pass
+> past context query
+> masked attention
+> recurrent
+> y
+> •Attention to the past
+> is masked
+> • Past info must flow by
+> the recurrent state
+> Standard SFT
+> Attention
+> Recurrent
+> Overall Attn Rec
+> •Relies more on attention
+> •Recurrent pathway underused
+> With Auxiliary Loss
+> Ours
+> Recurrent
+> Overall
+> ≈
+> Attn Rec
+> •Both pathways used
+> •Overall accuracy rises
+> •Precise recall
+> •Direct access to earlier tokens
+> •Context integration
+> •Aggregation across long spans
+> Attention
+> Acc. Acc.
+
+Figure 1: Overview of memory pathways in recurrent-attention hybrid LMs and our findings. (Middle ) Two memory pathways in recurrent-attention hybrid LMs play different roles: attention 
+
+supports precise memory recall of earlier tokens, while the recurrent state supports aggregating in-formation across long contexts. ( Right ) With Standard SFT ( LSF T ), the model relies mostly on attention and underuses the recurrent pathways. We add an auxiliary loss ( Lrec ) that masks atten-tion to past context, allowing the model to access it only through recurrent layers. We observe that adding auxiliary loss improves overall performance, with increased use of the recurrent pathway and preserved use of attention. We first examine how existing hybrid LMs use their attention and recurrent memory pathways. We find that having both pathways does not mean that models use both effectively; models retain most of their accuracy even when the recurrent pathway’s access to past information is limited (30.2% →
+
+20.2%), whereas accuracy drops substantially when the same restriction is applied to attention layers (30.2% → 5.1%). This imbalance in memory utilization persists even after standard supervised fine-tuning (SFT) on downstream tasks such as question answering. Although the overall performance improves, the gains are mostly from better utilization of attention layers whereas their use of the recurrent pathway remains limited (Figure 1, Standard SFT box). To address this imbalance in memory utilization, we add an auxiliary loss that complements stan-dard SFT by encouraging the model to retain and use information through the recurrent pathway. In an auxiliary forward pass, we restrict the attention layers’ access to past context, requiring the model to access it through recurrent states. This simple intervention improves question-answering performance, with average absolute accuracy gains of 3.9% on Qwen3.5-4B (Qwen Team, 2026) and 5.2% on Nemotron-H-4B-Instruct (NVIDIA et al., 2025) across six datasets. Adding the auxil-iary loss also substantially improves performance when past information is propagated only through recurrent layers, suggesting increased use of recurrent memory. The gains are particularly large on longer-context datasets (8.0%) compared to shorter context (0.2%), consistent with more effective use of recurrent layers’ previously identified strength in processing long contexts. Reversing the restriction to encourage attention leads to smaller gains, suggesting that the improvement from the auxiliary loss depends on which pathway is encouraged, with greater improvement from strength-ening the underutilized recurrent pathway (Figure 1, With Auxiliary Loss box). The benefits of auxiliary supervision also extend to agentic tasks, where agents must explore, ac-cumulate observations, and use them to choose subsequent actions. When averaged across both models, adding recurrent auxiliary supervision improves the success rate by 3.5% and 9.3% on Quest and Treasure tasks in TextWorld (Cˆ ot´ e et al., 2019), and by 22.0% and 13.5% on the Put-NextLocal and GoToObjMaze tasks in BabyAI (Chevalier-Boisvert et al., 2019), respectively. We observe that the larger gains on BabyAI mirror our question answering results, where the auxiliary loss tends to show stronger improvement on longer contexts; BabyAI trajectories (avg. 134.0 steps) are substantially longer compared to TextWorld (avg. 42.2 steps). 2We further examine how the auxiliary loss affects the use of past information. When models are allowed to retry after failures, with their previous attempts stored in memory so that they can revise their answers or actions (Shinn et al., 2023; Zhao et al., 2024), models trained with the auxiliary loss recover more successfully, improving the cumulative recovery rate over standard SFT by 16.6% on question answering and 19.2% on agentic tasks. In question answering, the gain is especially large on multi-evidence questions compared to single-evidence questions (30.3% vs. 2.8%). We attribute this to the auxiliary loss encouraging greater use of recurrent layers, which we observe to play a larger role in multi-evidence questions. In the agentic setup, when given multiple suboptimal suc-cessful demonstrations, we observe that agents trained with the auxiliary loss more often generate trajectories shorter than any provided demonstrations (6.0% on average), with larger gains when the demonstrations are longer. Finally, the same imbalance and the strength of the auxiliary loss gen-eralize to attention-based LMs with multiple memories: standard SFT favors one memory pathway over another, and adding auxiliary supervision that encourages the use of the underutilized pathway increases usage of the pathway and improves overall performance in question-answering. Across architectures and tasks, our findings highlight that simply providing multiple memory pathways does not lead to balanced, complementary use; models must instead be trained to coordinate these memory pathways. 
+
+## 2 BACKGROUND & R ELATED WORK 
+
+In this section, we provide an overview of recurrent-attention hybrid LMs in Section 2.1, then review and extend prior findings on the roles of the recurrent and attention memory pathways in Section 2.2. 2.1 RECURRENT -A TTENTION HYBRID LM S
+
+Recurrent-attention hybrid LMs (Ren et al., 2025; Dong et al., 2024; NVIDIA et al., 2025; Zhang et al., 2026) integrate attention and recurrent layers to combine strong language modeling perfor-mance with computational efficiency. An attention layer computes each token’s representation by attending to the current and preceding tokens, providing direct access to past information at the cost of quadratic computation in sequence length and KV cache that grows linearly. A linear recurrent layer , such as Mamba2 (Dao & Gu, 2024) or Gated DeltaNet (Yang et al., 2025), instead updates a fixed-size state as new tokens are processed, enabling computation that scales linearly with se-quence length and constant memory size. Throughout the paper, we refer to such linear recurrent layers simply as recurrent layers . Many hybrid LMs interleave these layers, combining attention’s direct access to earlier tokens with recurrent layers’ compact integration of past information (Kimi Team et al., 2025; NVIDIA et al., 2025). These models often match or outperform fully attention-based models despite using relatively few attention layers, while gaining efficiency from the larger portion of recurrent layers. 2.2 ROLES AND STRENGTHS OF ATTENTION AND RECURRENT MEMORY PATHWAYS 
+
+Findings from Prior Work. Prior work has identified distinct roles for attention and recurrent components in hybrid LMs. Attention is particularly important for precise retrieval, where remov-ing attention causes severe retrieval failure in the evaluated hybrids (Michalak & Abreu, 2025; Bick et al., 2026). Recurrent components contribute substantially to language modeling, where removing the recurrent pathway causes larger degradations in likelihood-based evaluation than removing at-tention (Lee et al., 2025; Borobia et al., 2026). While these studies characterize the distinct strengths of the two memory pathways, they do not analyze whether hybrid LMs make effective use of both pathways’ strengths or how to improve their use. 
+
+Revisiting and Extending Prior Findings. We first revisit the distinct roles of attention and re-current layers identified in the studies reviewed above. Following the setup from Lee et al. (2025), we use Based NQ (Arora et al., 2024) to evaluate memory recall and PG19 (Rae et al., 2019) to evaluate language modeling, and measure the increase in negative log-likelihood (NLL) when either attention or recurrent layers are ablated relative to the unablated model using Qwen3.5. Figure 2 shows a pattern consistent with prior findings: on retrieval QA, ablating attention increases NLL more than ablating recurrent layers (5.3 vs. 1.5). The pattern reverses for language modeling, where 3Retrieval (QA) Language modeling 0123456NLL 
+
+> 5.3 1.3 1.5 3.7
+> Attention Recurrent
+
+Figure 2: Increase in negative log-likelihood (y-axis) for Qwen3.5 when ablating attention or recurrent layers compared to unablated model, where high value indicates a greater contribution of the ablated component . Attention contributes more to retrieval QA, while recurrent layers con-tribute more to language modeling. Verbatim Non-Verbatim Single-Evid. Multi-Evid.  
+
+> 010 20 30 40 50 60
+> Accuracy
+> 48.7 20.5 33.6 28.3 30.8 (63%) 9.5 (46%) 20.2 (60%) 14.2 (50%)
+> Full Attention-only
+
+Figure 3: Accuracy (y-axis) of Qwen3.5 un-der Full (unrestricted) and Attention-only (past context accessible only through attention) across question types. Percentages show the fraction of Full accuracy retained under Attention-only: high and low retention indicates greater reliance on attention and recurrent state, respectively. ablating recurrent layers has a larger effect (1.3 vs. 3.7). This contrast suggests that attention con-tributes more to precise recall, while recurrent layers contribute more to aggregating information across the context. We then extend the analysis to different question types to test whether the two memory pathways have distinct roles or strengths for different information needs using the datasets described in Sec-tion 3. We consider two distinctions. First, we classify a question as verbatim if its normalized gold answer appears in the source context, and as non-verbatim otherwise. Second, we classify questions as single-evidence or multi-evidence based on the number of evidence required to answer them, where evidence annotations are available. We match the number of examples across the two categories in each distinction. Figure 3 compares pathway use across question types. We mea-sure attention-only retention as the fraction of full-model accuracy preserved when cross-context information is accessible only through attention layers; higher retention indicates greater reliance on attention and less on recurrent state. We observe that retention is higher for verbatim than non-verbatim questions (63% vs. 46%) and for single-evidence than multi-evidence questions (60% vs. 50%). This aligns with the findings above: attention layers play a larger role in recovering precise details, but contribute less when information must be abstracted or integrated across the context. Further details are in Appendix A. 
+
+## 3 EXPERIMENTAL SETUP 
+
+Models. We experiment over two recurrent-attention hybrid LMs: Qwen3.5-4B (Qwen Team, 2026) and Nemotron-H-4B-Instruct (NVIDIA et al., 2025). Qwen3.5-4B contains 24 
+
+Gated DeltaNet (Yang et al., 2025) and 8 full-attention layers. Nemotron-H-4B-Instruct 
+
+consists of 24 Mamba2 (Dao & Gu, 2024) and 4 full-attention layers. 
+
+Training. We train all models using LoRA (Hu et al., 2021) on all layers with rank 16, scaling factor 32, and dropout 0.05. We use AdamW with a learning rate of 1e−4, a cosine learning rate schedule, a warmup period covering 3% of training steps, and an effective batch size of 16. Since objectives with an auxiliary loss require additional computation, we halve the number of optimiza-tion steps to match the total training compute with standard SFT. Unless otherwise specified, we use the same optimization setting across all compared variants. 
+
+Task & Evaluations. We experiment on long-context question answering and long-horizon agen-tic tasks, which are two common settings for studying memory in which the model needs to re-tain and use information from earlier contexts or interactions for strong performance (Packer et al., 42024; Zhao et al., 2024; Shinn et al., 2023). For Question Answering , we pool training exam-ples from four datasets so that the model is trained over diverse context lengths and reasoning types: DROP (Dua et al., 2019), HotpotQA (Yang et al., 2018), Qasper (Dasigi et al., 2021), Narra-tiveQA (Koˇ cisk´ y et al., 2017). This yields 12k training and 2k validation instances. We evaluate each dataset separately, and additionally evaluate on MINTEval (Lee et al., 2026) and MuSR (Sprague et al., 2024), leading to a total of 8.2k test examples with an average context length of 84k tokens. For 
+
+Agentic Tasks , we experiment over TextWorld (Cˆ ot´ e et al., 2019) and BabyAI (Chevalier-Boisvert et al., 2019), where agents must explore the environment, accumulate information through sequences of observations and actions, and use it to make subsequent decisions. The environments differ in their observation spaces, action spaces, and in the structure of their trajectories. In TextWorld, we train on Quest and evaluate on both Quest and Treasure. In BabyAI, we train on MiniBossLevel and evaluate on PutNextLocal and GoToObjMaze. Further details are in Appendix B. 
+
+## 4 STANDARD SFT F AVORS ATTENTION OVER RECURRENCE 
+
+Key Observation: Standard SFT increases recurrent-attention hybrid LMs’ use of the attention pathway, but yields little improvement in their use of the recurrent pathway. In Section 2.2, we observed complementary strengths and roles of the two pathways: attention sup-ports precise recall, while recurrent layers integrate information across the context. Thus, in this section, we examine whether standard supervised fine-tuning (SFT) leads the model to use both pathways in ways that leverage these complementary strengths. We first define attention-only and 
+
+recurrent-only conditions to analyze and assess the model’s use of each memory pathway (Sec-tion 4.1). We then evaluate how overall performance and pathway utilization change after SFT on question answering and agentic tasks (Section 4.2). 4.1 DISENTANGLING TWO MEMORY PATHWAYS 
+
+To analyze how past information is carried through attention and recurrence, we divide each input into a past portion and a current portion, and selectively restrict which memory mechanism can transfer information from the past to the current input. For example, in question answering, the past portion corresponds to the context and the current portion to the question. We use full to denote the unmodified condition, in which both attention and recurrent layers can propagate information from the past to the current portion. We construct two complementary interventions, recurrent-only and 
+
+attention-only ; these indicate which mechanism can carry information from the past to the current portion . In the recurrent-only setting, attention cannot access the past portion, so past information reaches the current portion only through the recurrent state; the attention-only setting does the opposite. In both, all layers remain active within each portion. Specifically, in the recurrent-only condition, we block attention across segment boundaries while allowing the recurrent state to propagate normally: 
+
+Mt,s =
+
+0, s ≤ t and σ(s) = σ(t),
+
+−∞ , otherwise .Mt,s is added to the attention score between query position t and key position s before normaliza-tion, and σ(t) denotes the segment containing token t. The mask therefore retains standard causal attention within each segment, while blocking attention to all tokens in preceding segments. Conversely, in the attention-only condition, we retain the standard causal attention over the preced-ing context, while restricting the recurrent state from propagating across segment boundaries ( σ(·)). For t > 1, we modify the recurrent update as: 
+
+St = ⊮[σ(t) = σ(t − 1)] At(St−1) + wt, S0 = 0 ,
+
+where St denotes the recurrent state after processing token t, At denotes the recurrent transition applied to the previous state, wt denotes the contribution of the current token, and ⊮[·] denotes an indicator function. At a segment boundary ( σ(t)̸ = σ(t − 1) ), the indicator is zero, so the previous recurrent state does not contribute to the new segment and within a segment, the recurrent update is unchanged. Thus, information from preceding segments remains accessible only through attention. 5Base Standard SFT Base Standard SFT      
+
+> 020 40 60 80 100
+> Performance
+> 30.2 34.6 27.0 78.5 20.2 25.0 6.0 52.0 5.1 5.0 2.5 4.0 QA (Acc.) Agentic (Success Rate)
+> Full Attention-only Recurrent-only
+
+Figure 4: Performance of Qwen3.5-4B be-fore ( Base ) and after standard SFT ( Standard SFT ) on question answering and agentic tasks. 
+
+Standard SFT substantially improves Full and 
+
+Attention-only performance but little improve-ment in Recurrent-only performance. Verbatim Non-Verbatim Single-Evid. Multi-Evid. 020 40 60 80 100 Attention-only retention (%) 
+
+> 28.0 18.8 23.0 19.5
+> Base Standard SFT
+
+Figure 5: Attention-only retention (the fraction of Full accuracy retained when past context is accessible only through attention) before ( Base )and after SFT ( Standard SFT ). SFT increases attention-only retention across all question types, especially verbatim and single-evidence. 4.2 MEMORY PATHWAY UTILIZATION AFTER SFT We evaluate both the original and SFT-trained models under the full, attention-only, and recurrent-only conditions defined in Section 4.1. As shown in Figure 4, the SFT-trained model ( Standard SFT ) achieves 34.6% QA accuracy on Qwen3.5 under the full condition, compared to 30.2% for the original model ( Base ). Attention-only accuracy also increases from 20.2% to 25.0%, whereas recurrent-only accuracy remains nearly unchanged (5.1% to 5.0%). We observe a similar pattern on the agentic Quest task: full success rate rises from 27.0% to 78.5%, attention-only also rises from 6.0% to 52.0%, while recurrent-only improves only slightly, from 2.5% to 4.0%. These results indicate that the model retains a large portion of its full performance when recurrent layers are restricted to local information (attention-only), but drops sharply when attention is restricted to local information (recurrent-only). This gap widens after SFT. This shift toward the attention pathway also appears across the question types discussed in Sec-tion 2.2. We observe that attention-only retention, the fraction of full-model accuracy preserved under the attention-only condition, increases for all question types (Figure 5). The gain is larger for question types that already relied more on attention: verbatim and single-evidence questions show an average increase of 25.5% compared to 19.2% for non-verbatim and multi-evidence questions. Together, these results show that standard SFT improves overall performance but does not lead to balanced use of the two memory pathways: the model becomes more reliant on attention, while its use of recurrent pathway changes little. Given the distinct strengths of these pathways observed in Section 2.2, we next investigate whether encouraging more effective use of both pathways can improve memory coordination and further enhance overall performance. 
+
+## 5 ENCOURAGING RECURRENT MEMORY USE IMPROVES PERFORMANCE 
+
+Key Observation: Adding an auxiliary loss that encourages the use of recurrent pathway in-creases its utilization and improves overall performance while maintaining utilization of the attention pathway. In Section 2.2, we observe that attention and recurrent layers play complementary roles, each carry-ing important information for different types of questions. However, Section 4.2 shows that standard SFT does not effectively utilize both pathways, instead increasing the model’s reliance on attention while leaving the recurrent pathway underutilized. Thus, in this section, we examine whether adding auxiliary loss that encourages the use of recurrent pathway (Section 5.1) leads to better memory co-ordination and stronger overall performance (Section 5.2). 6Table 1: QA accuracy across six datasets. First two rows compare standard SFT with our objective; the remaining rows ablate the training objective. Avg. is micro-average over all test examples.                                                                                         
+
+> Model Training Obj. DROP MuSR HQA Qasper NQA MINT Avg.
+> Qwen3.5
+> LSFT 48.6 45.6 43.1 30.1 24.4 21.1 34.6
+> LSFT +Lrec (Ours) 46.9 44.8 44.0 35.9 33.7 28.9 38.5
+> Lrec 35.0 36.5 38.0 32.1 20.1 23.6 30.4
+> Lattn 56.9 48.1 35.7 31.3 15.6 10.3 31.6
+> LSFT +Lattn 54.0 49.1 45.7 30.3 23.7 17.1 35.6
+> Nemotron-H
+> LSFT 42.4 40.9 38.7 28.1 21.9 18.8 31.0
+> LSFT +Lrec (Ours) 44.5 38.1 42.1 34.1 31.7 27.8 36.2
+> Lrec 31.6 37.6 42.8 28.0 24.1 18.4 29.8
+> Lattn 44.7 47.6 35.8 29.4 24.0 14.7 31.4
+> LSFT +Lattn 50.7 47.1 40.1 29.0 26.1 18.0 34.1
+
+5.1 RECURRENT AUXILIARY SUPERVISION 
+
+We augment standard SFT with an auxiliary loss that uses the same supervised next-token predic-tion objective but masks attention to the preceding context, a mechanism commonly used to control information flow in LMs (Mu et al., 2024; Dong et al., 2019). Unlike attention, recurrent layers remain unrestricted: they process the entire sequence and propagate their state from the preced-ing context. Thus, during the auxiliary forward pass, information from the preceding context can influence the answer only through recurrent memory, encouraging the model to retain and use in-formation throughout the recurrent pathway. We jointly optimize the standard SFT loss ( LSFT (θ)), computed without these restrictions, and the auxiliary loss ( Lrec (θ)): 
+
+L(θ) = LSFT (θ) + λ Lrec (θ),
+
+where θ denotes model parameters and λ controls the strength of the auxiliary supervision. 2
+
+5.2 RESULTS 
+
+Question Answering. Table 1 shows accuracy across six question-answering datasets. When com-paring standard SFT ( LSF T ) with when adding auxiliary recurrent supervision ( LSF T +Lrec ), we observe that adding recurrent auxiliary loss improves the average accuracy from 34.6% to 38.5% in Qwen3.5 and from 31.0% to 36.2% in Nemotron-H. The gains are particularly large on Qasper, NarrativeQA, and MINTEval, suggesting that the auxiliary loss is especially helpful for answering questions from longer contexts. Figure 6 further shows that adding recurrent auxiliary supervision substantially improves recurrent-only accuracy (5.0% to 22.8%) while largely preserving attention-only accuracy (25.0% to 23.7%), suggesting more effective use of recurrent state. This improved utilization, together with the recurrent pathway’s strength in aggregating information across long contexts observed in Section 2.2, suggests that more effective use of recurrent state contributes to the overall performance gains. To understand which part of the objective drives these gains, we conduct analysis with several training variants. For these ablations, we consider Lattn , which is the counterpart of Lrec : it blocks recurrent-state propagation from the preceding context while leaving attention unrestricted. We compare training with auxiliary losses alone ( Lrec or Lattn ), and adding Lattn to standard SFT ( LSF T + Lattn ). We observe that LSF T + Lattn yields a smaller gain than LSF T + Lrec for both models, with average absolute improvement of 2.1% and 4.6%, respectively. Figure 6 further shows that adding Lattn increases attention-only accuracy from 25.0% to 28.0%, while recurrent-only accuracy remains much lower at 11.3%, indicating continued imbalance between the two mem-ory pathways. These results suggest that strengthening the underutilized recurrent pathway is more effective than further encouraging the use of attention. Finally, training with only the auxiliary loss ( Lattn or Lrec ) yields lower average accuracy than standard SFT ( LSF T ) when averaged over both models, by 1.3% and 2.7%, respectively. This suggests that restricted losses are most effective as auxiliary objectives alongside unrestricted SFT.   
+
+> 2Ablation of different λin Appendix C.1
+
+7SFT SFT + REC             
+
+> (Ours) REC ATTN SFT +ATTN
+> 0510 15 20 25 30 35 40 45 50
+> Accuracy (%)  34.6 38.5 30.4 31.6 35.6 25.0 23.7 9.0 25.9 28.0 5.0 22.8 20.7 4.0 11.3
+> Full Attention-only Recurrent-only With auxiliary loss
+
+Figure 6: QA accuracy of Qwen3.5-4B across various training objectives (details of objectives in Section 5.2). Hatched bars indicate that it adds an auxiliary loss. SFT+REC increases Recurrent-only accuracy while largely preserving Attention-only accuracy and best Full accuracy. Table 2: Performance on TextWorld and BabyAI under different training objectives. For each model, the first two rows compare standard SFT with our objective; the remaining rows ablate the training objective. Best in bold .
+
+Model Training Obj. TextWorld BabyAI Quest Treasure PutNextLocal GoToObjMaze 
+
+Qwen3.5 
+
+LSFT 78.5 44.0 46.0 63.0 
+
+LSFT + Lrec (Ours) 80.5 56.0 73.0 83.0 
+
+Lrec 75.5 45.0 13.0 37.0 
+
+Lattn 76.5 44.0 31.0 50.0 
+
+LSFT + Lattn 77.0 49.0 47.0 70.0 
+
+Nemotron-H 
+
+LSFT 70.5 40.5 30.0 77.0 
+
+LSFT + Lrec (Ours) 75.5 47.0 47.0 84.0 
+
+Lrec 68.5 40.0 17.0 20.0 
+
+Lattn 71.5 42.0 37.0 54.0 
+
+LSFT + Lattn 72.0 44.5 43.0 80.0 
+
+Agentic Tasks. Table 2 shows performance on two agentic tasks: TextWorld and BabyAI. We observe similar trend as we observed from question answering task: when adding recurrent auxiliary supervision to standard SFT ( LSFT + Lrec ), it improves success rate over standard SFT ( LSFT ) by a large gain: when averaged across Qwen3.5 and Nemotron-H, the absolute gains are 3.5% and 9.3% in TextWorld Quest and Treasure, respectively, and 22.0% and 13.5% in BabyAI PutNextLocal and GoToObjMaze, respectively. Similarly, LSFT + Lattn yields a smaller gain than LSFT + Lrec across all four games, with average absolute improvements of 4.1% and 12.1%, respectively. The larger gains on BabyAI are consistent with our question-answering results, where recurrent auxiliary supervision is particularly beneficial on longer-context datasets. BabyAI trajectories are generally longer than those in TextWorld, averaging 134.0 versus 42.2 steps across all trajectories and 40.2 versus 13.8 steps among successful trajectories. 
+
+## 6 AUXILIARY SUPERVISION GENERALIZES 
+
+In this section, we examine whether encouraging the use of the recurrent pathway also improves the model’s ability to learn from past failure and successful trajectories (Zhao et al., 2024; Shinn et al., 2023). We then examine whether our observations generalize to attention-based LMs with multiple memories. 
+
+Learning from Failure Trajectories. We analyze whether models can recover from their own errors when given additional attempts, with previous failed attempts provided in context (Shinn et al., 2023; Gou et al., 2024). For question answering, we evaluate on MINTEval, which includes long 81 2 3 7Maximum number of attempts 010 20 30 40 50 60 70 80 Cumulative recovery rate (%)  All Single-evidence Multi-evidence      
+
+> 1.0 1.25× 1.25 1.5× 1.5 1.75× 1.75 2.0× 2.0 2.25×
+> Median demonstration length / optimal length 510 15 20 25 30 35 40 45 Rate of shorter trajectories (%)
+> Standard SFT + Aux. Loss
+
+Figure 7: Auxiliary supervision improves learning from past trajectories. Left: Cumulative recovery rate on QA as the maximum number of attempts increases, with previous failed attempts provided in context. The auxiliary loss improves recovery, especially on multi-evidence questions. Right: Rate of generating trajectories shorter than all provided successful demonstrations, grouped by median demonstration length relative to the optimal path. The auxiliary loss yields shorter trajectories more often, especially with longer demonstrations. contexts and both single-evidence and multi-evidence questions about the same context. Figure 7 (left) shows the cumulative recovery rate (y-axis) as the maximum number of attempts (x-axis) increases. Across all questions (solid lines), recovery rates increase with additional attempts under both standard SFT and SFT with auxiliary loss. Adding the auxiliary loss consistently improves recovery, with an average absolute gain of 16.6% across attempt budgets. The gains are particularly large on multi-evidence questions: averaged across attempt budgets, recovery improves from 27.3% to 57.6%, compared to 14.8% to 17.6% on single-evidence questions. For agentic tasks, we apply the same retry setup to TextWorld, providing previous failed trajectories in context. The auxiliary loss improves cumulative recovery by an average of 19.2% (Figure 10 in Appendix). Recovery continues to improve with additional attempts under SFT with the auxiliary loss, whereas standard SFT plateaus. These results suggest that the auxiliary loss helps models more effectively use failed attempts stored in memory to recover from errors. 
+
+Learning from Successful Trajectories. We examine whether agents can use successful but sub-optimal trajectoreis to develop more efficient strategies. We provide multiple successful demonstra-tions of varying lenghts, which may contain unnecessary steps, and measure how often the agent generates a successful trajectory shorter than the shortest demonstration. As shown in Figure 7 (right), adding the auxiliary loss improves this rate by an average of 6.0%, with larger gains as demonstrations length increases relative to the optimal path. These results suggest that the auxiliary loss helps agents more effectively use successful demonstrations stored in memory to develop more efficient strategies. Text Latent SFT +Aux Oracle 
+
+> 0510 15 20 25 30 35 40
+> Accuracy  25.9 18.0 24.1 28.6 32.0
+
+Figure 8: QA accuracy of attention-based models given a single memory type ( Text , La-tent ), both ( SFT , +Aux ), or per-example Or-acle upper bound. 
+
+Generalizes to Attention-Based LMs. We find that both the imbalance in memory use and the ben-efits of auxiliary supervision extend to attention-based LMs with multiple memory types (textual and latent memory). As shown in Figure 8, stan-dard SFT ( SFT ) with both memories achieves 24.1% accuracy, far below the Oracle , which selects the better of the two single-memory predictions for each example (32.0%) and even below the text-only model (25.9%). This suggests that access to both memories does not ensure effective use of their com-plementary strengths. Even when trained jointly with standard SFT, the model remains biased toward using textual memory. Adding an auxiliary loss that encourages the use of both memory pathways im-proves accuracy to 28.6%. Further analysis shows 9that this improvement is accompanied by increased use of latent memory while largely preserving use of textual memory (Appendix C.3). 
+
+## 7 CONCLUSION 
+
+In this paper, we show that recurrent-attention hybrid LMs tend to rely predominantly on the atten-tion pathway despite the complementary strengths of their recurrent layers, and that standard SFT further increases attention use while yielding little improvement in recurrent memory use. We show that adding a simple auxiliary loss that encourages use of the recurrent pathway improves utiliza-tion of both memory pathways and overall performance. These findings generalize across multiple recurrent-attention hybrid LMs, across question answering and agentic tasks, and to attention-based LMs that combine different forms of memory. 
+
+## ACKNOWLEDGMENT 
+
+This work was supported by NSF-AI Engage Institute DRL-2112635, NSF-CAREER Award 1846185, Capital One Research Award, and NDSEG PhD Fellowship. The views contained in this article are those of the authors and not of the funding agency. 
+
+## REFERENCES 
+
+Simran Arora, Aman Timalsina, Aaryan Singhal, Benjamin Spector, Sabri Eyuboglu, Xinyi Zhao, Ashish Rao, Atri Rudra, and Christopher R´ e. Just read twice: closing the recall gap for recurrent language models, 2024. URL https://arxiv.org/abs/2407.05483 .Aviv Bick, Eric P. Xing, and Albert Gu. Retrieval-aware distillation for transformer-ssm hybrids, 2026. URL https://arxiv.org/abs/2602.11374 .Hector Borobia, Elies Segu´ ı-Mas, and Guillermina Tormo-Carb´ o. Component ablation for effi-cient hybrid language model architectures: Performance, resilience, and compression implica-tions, 2026. URL https://arxiv.org/abs/2603.22473 .Maxime Chevalier-Boisvert, Dzmitry Bahdanau, Salem Lahlou, Lucas Willems, Chitwan Saharia, Thien Huu Nguyen, and Yoshua Bengio. Babyai: A platform to study the sample efficiency of grounded language learning, 2019. URL https://arxiv.org/abs/1810.08272 .Marc-Alexandre Cˆ ot´ e, ´ Akos K´ ad´ ar, Xingdi Yuan, Ben Kybartas, Tavian Barnes, Emery Fine, James Moore, Ruo Yu Tao, Matthew Hausknecht, Layla El Asri, Mahmoud Adada, Wendy Tay, and Adam Trischler. Textworld: A learning environment for text-based games, 2019. URL https: //arxiv.org/abs/1806.11532 .Tri Dao and Albert Gu. Transformers are ssms: Generalized models and efficient algorithms through structured state space duality, 2024. URL https://arxiv.org/abs/2405.21060 .Pradeep Dasigi, Kyle Lo, Iz Beltagy, Arman Cohan, Noah A. Smith, and Matt Gardner. A dataset of information-seeking questions and answers anchored in research papers, 2021. URL https: //arxiv.org/abs/2105.03011 .Li Dong, Nan Yang, Wenhui Wang, Furu Wei, Xiaodong Liu, Yu Wang, Jianfeng Gao, Ming Zhou, and Hsiao-Wuen Hon. Unified language model pre-training for natural language understanding and generation, 2019. URL https://arxiv.org/abs/1905.03197 .Xin Dong, Yonggan Fu, Shizhe Diao, Wonmin Byeon, Zijia Chen, Ameya Sunil Mahabaleshwarkar, Shih-Yang Liu, Matthijs Van Keirsbilck, Min-Hung Chen, Yoshi Suhara, Yingyan Lin, Jan Kautz, and Pavlo Molchanov. Hymba: A hybrid-head architecture for small language models, 2024. URL https://arxiv.org/abs/2411.13676 .Dheeru Dua, Yizhong Wang, Pradeep Dasigi, Gabriel Stanovsky, Sameer Singh, and Matt Gardner. Drop: A reading comprehension benchmark requiring discrete reasoning over paragraphs, 2019. URL https://arxiv.org/abs/1903.00161 .10 Tao Ge, Jing Hu, Lei Wang, Xun Wang, Si-Qing Chen, and Furu Wei. In-context autoencoder for context compression in a large language model, 2024. URL https://arxiv.org/abs/ 2307.06945 .Zhibin Gou, Zhihong Shao, Yeyun Gong, Yelong Shen, Yujiu Yang, Nan Duan, and Weizhu Chen. Critic: Large language models can self-correct with tool-interactive critiquing, 2024. URL 
+
+https://arxiv.org/abs/2305.11738 .Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and Weizhu Chen. Lora: Low-rank adaptation of large language models, 2021. URL https: //arxiv.org/abs/2106.09685 .Kimi Team, Yu Zhang, Zongyu Lin, Xingcheng Yao, Jiaxi Hu, Fanqing Meng, Chengyin Liu, Xin Men, Songlin Yang, Zhiyuan Li, Wentao Li, Enzhe Lu, Weizhou Liu, Yanru Chen, Weixin Xu, Longhui Yu, Yejie Wang, Yu Fan, Longguang Zhong, Enming Yuan, Dehao Zhang, Yizhi Zhang, T. Y. Liu, Haiming Wang, Shengjun Fang, Weiran He, Shaowei Liu, Yiwei Li, Jianlin Su, Jiezhong Qiu, Bo Pang, Junjie Yan, Zhejun Jiang, Weixiao Huang, Bohong Yin, Jiacheng You, Chu Wei, Zhengtao Wang, Chao Hong, Yutian Chen, Guanduo Chen, Yucheng Wang, Huabin Zheng, Feng Wang, Yibo Liu, Mengnan Dong, Zheng Zhang, Siyuan Pan, Wenhao Wu, Yuhao Wu, Longyu Guan, Jiawen Tao, Guohong Fu, Xinran Xu, Yuzhi Wang, Guokun Lai, Yuxin Wu, Xinyu Zhou, Zhilin Yang, and Yulun Du. Kimi linear: An expressive, efficient attention architecture, 2025. URL https://arxiv.org/abs/2510.26692 .Tom´ aˇ s Koˇ cisk´ y, Jonathan Schwarz, Phil Blunsom, Chris Dyer, Karl Moritz Hermann, G´ abor Melis, and Edward Grefenstette. The narrativeqa reading comprehension challenge, 2017. URL https: //arxiv.org/abs/1712.07040 .Hyunji Lee, Wenhao Yu, Hongming Zhang, Kaixin Ma, Jiyeon Kim, Dong Yu, and Minjoon Seo. Understanding and enhancing mamba-transformer hybrids for memory recall and language mod-eling, 2025. URL https://arxiv.org/abs/2510.26912 .Hyunji Lee, Justin Chih-Yao Chen, Joykirat Singh, Zaid Khan, Elias Stengel-Eskin, and Mohit Bansal. Minteval: Evaluating memory under multi-target interference in long-horizon agent sys-tems, 2026. URL https://arxiv.org/abs/2605.18565 .Zongqian Li, Yixuan Su, and Nigel Collier. 500xcompressor: Generalized prompt compression for large language models, 2024. URL https://arxiv.org/abs/2408.03094 .Felix Michalak and Steven Abreu. Some attention is all you need for retrieval, 2025. URL https: //arxiv.org/abs/2510.19861 .Jesse Mu, Xiang Lisa Li, and Noah Goodman. Learning to compress prompts with gist tokens, 2024. URL https://arxiv.org/abs/2304.08467 .NVIDIA, :, Aaron Blakeman, Aarti Basant, Abhinav Khattar, Adithya Renduchintala, Akhiad Bercovich, Aleksander Ficek, Alexis Bjorlin, Ali Taghibakhshi, Amala Sanjay Deshmukh, Ameya Sunil Mahabaleshwarkar, Andrew Tao, Anna Shors, Ashwath Aithal, Ashwin Poojary, Ayush Dattagupta, Balaram Buddharaju, Bobby Chen, Boris Ginsburg, Boxin Wang, Brandon Norick, Brian Butterfield, Bryan Catanzaro, Carlo del Mundo, Chengyu Dong, Christine Har-vey, Christopher Parisien, Dan Su, Daniel Korzekwa, Danny Yin, Daria Gitman, David Mosal-lanezhad, Deepak Narayanan, Denys Fridman, Dima Rekesh, Ding Ma, Dmytro Pykhtar, Dong Ahn, Duncan Riach, Dusan Stosic, Eileen Long, Elad Segal, Ellie Evans, Eric Chung, Erick Galinkin, Evelina Bakhturina, Ewa Dobrowolska, Fei Jia, Fuxiao Liu, Gargi Prasad, Gerald Shen, Guilin Liu, Guo Chen, Haifeng Qian, Helen Ngo, Hongbin Liu, Hui Li, Igor Gitman, Ilia Kar-manov, Ivan Moshkov, Izik Golan, Jan Kautz, Jane Polak Scowcroft, Jared Casper, Jarno Seppa-nen, Jason Lu, Jason Sewall, Jiaqi Zeng, Jiaxuan You, Jimmy Zhang, Jing Zhang, Jining Huang, Jinze Xue, Jocelyn Huang, Joey Conway, John Kamalu, Jon Barker, Jonathan Cohen, Joseph Jennings, Jupinder Parmar, Karan Sapra, Kari Briski, Kateryna Chumachenko, Katherine Luna, Keshav Santhanam, Kezhi Kong, Kirthi Sivamani, Krzysztof Pawelec, Kumar Anik, Kunlun Li, Lawrence McAfee, Leon Derczynski, Lindsey Pavao, Luis Vega, Lukas Voegtle, Maciej Bala, Maer Rodrigues de Melo, Makesh Narsimhan Sreedhar, Marcin Chochowski, Markus Kliegl, 11 Marta Stepniewska-Dziubinska, Matthieu Le, Matvei Novikov, Mehrzad Samadi, Michael Ander-sch, Michael Evans, Miguel Martinez, Mike Chrzanowski, Mike Ranzinger, Mikolaj Blaz, Misha Smelyanskiy, Mohamed Fawzy, Mohammad Shoeybi, Mostofa Patwary, Nayeon Lee, Nima Tajbakhsh, Ning Xu, Oleg Rybakov, Oleksii Kuchaiev, Olivier Delalleau, Osvald Nitski, Parth Chadha, Pasha Shamis, Paulius Micikevicius, Pavlo Molchanov, Peter Dykas, Philipp Fischer, Pierre-Yves Aquilanti, Piotr Bialecki, Prasoon Varshney, Pritam Gundecha, Przemek Tredak, Rabeeh Karimi, Rahul Kandu, Ran El-Yaniv, Raviraj Joshi, Roger Waleffe, Ruoxi Zhang, Sabrina Kavanaugh, Sahil Jain, Samuel Kriman, Sangkug Lym, Sanjeev Satheesh, Saurav Muralidha-ran, Sean Narenthiran, Selvaraj Anandaraj, Seonmyeong Bak, Sergey Kashirsky, Seungju Han, Shantanu Acharya, Shaona Ghosh, Sharath Turuvekere Sreenivas, Sharon Clay, Shelby Thomas, Shrimai Prabhumoye, Shubham Pachori, Shubham Toshniwal, Shyamala Prayaga, Siddhartha Jain, Sirshak Das, Slawek Kierat, Somshubra Majumdar, Song Han, Soumye Singhal, Sriharsha Niverty, Stefania Alborghetti, Suseella Panguluri, Swetha Bhendigeri, Syeda Nahida Akter, Szy-mon Migacz, Tal Shiri, Terry Kong, Timo Roman, Tomer Ronen, Trisha Saar, Tugrul Konuk, Tuomas Rintamaki, Tyler Poon, Ushnish De, Vahid Noroozi, Varun Singh, Vijay Korthikanti, Vitaly Kurin, Wasi Uddin Ahmad, Wei Du, Wei Ping, Wenliang Dai, Wonmin Byeon, Xiaowei Ren, Yao Xu, Yejin Choi, Yian Zhang, Ying Lin, Yoshi Suhara, Zhiding Yu, Zhiqi Li, Zhiyu Li, Zhongbo Zhu, Zhuolin Yang, and Zijia Chen. Nemotron-h: A family of accurate and efficient hybrid mamba-transformer models, 2025. URL https://arxiv.org/abs/2504.03624 .Charles Packer, Sarah Wooders, Kevin Lin, Vivian Fang, Shishir G. Patil, Ion Stoica, and Joseph E. Gonzalez. Memgpt: Towards llms as operating systems, 2024. URL https://arxiv.org/ abs/2310.08560 .Qwen Team. Qwen3.5: Towards native multimodal agents, February 2026. URL https://qwen. ai/blog?id=qwen3.5 .Jack W. Rae, Anna Potapenko, Siddhant M. Jayakumar, and Timothy P. Lillicrap. Compressive transformers for long-range sequence modelling, 2019. URL https://arxiv.org/abs/ 1911.05507 .Liliang Ren, Yang Liu, Yadong Lu, Yelong Shen, Chen Liang, and Weizhu Chen. Samba: Simple hybrid state space models for efficient unlimited context language modeling, 2025. URL https: //arxiv.org/abs/2406.07522 .Noah Shinn, Federico Cassano, Edward Berman, Ashwin Gopinath, Karthik Narasimhan, and Shunyu Yao. Reflexion: Language agents with verbal reinforcement learning, 2023. URL 
+
+https://arxiv.org/abs/2303.11366 .Zayne Sprague, Xi Ye, Kaj Bostrom, Swarat Chaudhuri, and Greg Durrett. Musr: Testing the limits of chain-of-thought with multistep soft reasoning, 2024. URL https://arxiv.org/abs/ 2310.16049 .Yu Wang, Ryuichi Takanobu, Zhiqi Liang, Yuzhen Mao, Yuanzhe Hu, Julian McAuley, and Xiaojian Wu. Mem-α: Learning memory construction via reinforcement learning, 2025. URL https: //arxiv.org/abs/2509.25911 .Songlin Yang, Jan Kautz, and Ali Hatamizadeh. Gated delta networks: Improving mamba2 with delta rule, 2025. URL https://arxiv.org/abs/2412.06464 .Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio, William W. Cohen, Ruslan Salakhutdinov, and Christopher D. Manning. Hotpotqa: A dataset for diverse, explainable multi-hop question answering, 2018. URL https://arxiv.org/abs/1809.09600 .Yi Yu, Liuyi Yao, Yuexiang Xie, Qingquan Tan, Jiaqi Feng, Yaliang Li, and Libing Wu. Agentic memory: Learning unified long-term and short-term memory management for large language model agents, 2026. URL https://arxiv.org/abs/2601.01885 .Zeyu Zhang, Ziliang Guo, Yihang Sun, Xichong Zhang, Xixuan Hao, Zehao Lin, Yang Zhang, Xiaoyan Zhao, Tong Shen, Bo Tang, Zhi-Qin John Xu, Junchi Yan, Haofen Wang, Xu Chen, Feiyu Xiong, Zhiyu Li, and Tat-Seng Chua. Metis: Memory foundation model, 2026. URL 
+
+https://arxiv.org/abs/2607.26760 .12 Andrew Zhao, Daniel Huang, Quentin Xu, Matthieu Lin, Yong-Jin Liu, and Gao Huang. Expel: Llm agents are experiential learners, 2024. URL https://arxiv.org/abs/2308.10144 .13 A DETAILS ON ROLE ANALYSIS OF HYBRID LM S
+
+A.1 VERBATIM VS . N ON -V ERBATIM QUESTIONS 
+
+We first distinguish questions based on whether their answers can be directly recovered from the source context. We define a question as verbatim when its normalized gold answer appears in the source document and non-verbatim otherwise. Approximately 34.6% of the test examples (about 2.8k examples) are verbatim and to match the number of instances for the two categories, we ran-domly sample the same number of examples from the remaining non-verbatim questions. A.2 SINGLE - VS . M ULTI -E VIDENCE QUESTIONS 
+
+We next examine whether the relative strengths of the two memory pathways change with the amount of evidence required to answer a question. Using the evidence annotations provided by the datasets, we divide questions into those that rely on a single piece of evidence and those that require multiple pieces of evidence. Among the test examples, approximately 30.2% (about 2.5k) are single-evidence and 39.7% (about 3.3k) are multi-evidence, and the rest does not provide explicit evidence annota-tions. To balance the two categories, we randomly sample the same number of multi-evidence questions as single-evidence ones, resulting in around 2.5k examples each. 
+
+## B DETAILS ON EXPERIMENTAL SETUP 
+
+B.1 QUESTION ANSWERING 
+
+We evaluate each dataset with its standard metric after text normalization: token-level F1 for Narra-tiveQA and Qasper, and exact match (EM) for DROP, HotpotQA, and MINTEval. For MuSR, we provide all answer options in the input and ask the model to generate one of them, following the same generation format as the other datasets, and compute EM. For MINTEval, we evaluate on the wiki-revision and git-commit. For brevity, we refer to these metrics collectively as accuracy in the paper. We train models for 5 epochs with early stopping. For evaluation, we subsample large test sets (DROP, NarrativeQA, HotpotQA, and MINTEval) to 1.5k due to compute cost. B.2 AGENTIC SETUP 
+
+We report success rate, the fraction of games in which the agent completes the goal within the step limit. For TextWorld, we set the maximum number of steps to 100 and use 1,000 training, 150 vali-dation and 200 test games, generated with non-overlapping random seeds. For BabyAI, we use the official maximum number of steps for each level with 100 instances for each training level (Mini-BossLevel) and test levels (PutNextLocal, GoToObjMaze). In the retry experiments (Section 6), the agent is allowed up to 7 attempts per game, with its previous trajectories provided in context. In the demonstration experiments, we run the agent multiple times on each game to build a pool of success-ful trajectories with varying lengths, and sample five trajectories from this pool as demonstrations. We train the agents using the gold trajectories for 5 epochs with early stopping. 
+
+## C ADDITIONAL ANALYSIS 
+
+C.1 EFFECT OF THE AUXILIARY LOSS WEIGHT λ
+
+Figure 9 shows the success rate of Qwen3.5 on TextWorld Quest as we vary the weight of the auxiliary loss λ. Adding the auxiliary loss consistently improves over standard SFT ( λ = 0 , 78.5%) for all values of λ. We use λ = 0 .25 , which achieves the best performance, in all experiments unless otherwise specified. C.2 AGENTIC TASKS 
+
+We examine whether agents can learn from their own failures: when the agent fails to complete a game, it retries the same game up to a maximum number of attempts, with its previous trajectories 14 0(SFT) 0.25 0.5 0.75 1.0  
+
+> Auxiliary loss weight λ
+> 76 78 80 82 84
+> Success rate (%)
+
+Figure 9: Success rate (y-axis) of Qwen3.5 on TextWorld Quest across different auxiliary loss weights λ (x-axis), where λ = 0 denotes stan-dard SFT. The auxiliary loss improves over stan-dard SFT for all λ.1 2 3 7
+
+> Maximum number of attempts
+> 010 20 30 40 50 60 70
+> Cumulative recovery rate (%)  Standard SFT + Aux. Loss
+
+Figure 10: Cumulative recovery rate (y-axis) on agentic tasks as the maximum number of at-tempts increases (x-axis), where previous failed trajectories are provided in context. The auxil-iary loss continues to improve as attempts accu-mulate, whereas standard SFT plateaus. provided in context. When evaluating over TextWorld, as shown in Figure 10, the auxiliary loss improves the cumulative recovery rate by 19.2% on average. Notably, the standard SFT model tends to converge as the number of attempts increases, whereas the model with the auxiliary loss continues to improve, suggesting that it learns better from past failure trajectories. C.3 GENERALIZES TO ATTENTION -B ASED MODELS 
+
+To examine whether our findings generalize to attention-based models, which do not have multi-ple built-in memory pathways, we provide them with two commonly used forms of memory: tex-tual (Packer et al., 2024; Yu et al., 2026; Wang et al., 2025) and latent (Mu et al., 2024; Li et al., 2024) memory. We conduct the experiment with Qwen3-4B-Instruct model. C.3.1 TEXTUAL & L ATENT MEMORY .For textual memory , we summarize a given document and train the model to generate the an-swer conditioned on the resulting summary and the question. For latent memory , following prior work (Mu et al., 2024; Ge et al., 2024), we represent each document as a layer-wise KV prefix with K memory slots. Specifically, we append K learnable memory tokens to the end of the doc-ument and run the resulting sequence through the model. Because these memory tokens follow the document, they can attend to and aggregate information from the preceding tokens. We retain the key-value representations at these K memory tokens positions from every transformer layer; to-gether, these representations form the latent memory. Training proceeds in two stages: in Stage 1, we train the model to encode document information into these latent memory slots using reason-ing supervision. In Stage 2, we provide the latent memory as a prefix cache to the model, which is trained to generate the answer conditioned on the latent memory and the question. The answer-generation loss is backpropagated through the entire computation, including the forward pass used to construct the latent memory. 15 32 64 128 512 
+
+> Memory budget
+> 10.0
+> 7.5
+> 5.0
+> 2.5
+> 0.0 2.5 5.0
+> (Latent  Text)
+> Single evidence Multi-evidence Verbatim Non-verbatim
+
+Figure 11: Relative performance of la-tent versus textual memory (y-axis) under matched memory budgets (x-axis). Textual memory performs better on verbatim and single-evidence questions, while latent mem-ory is more competitive on non-verbatim and multi-evidence questions. 
+
+Textual and Latent Memory Play Complemen-tary Roles. We compare textual and latent mem-ory under a range of matched memory budgets along two axes: whether the answer appears word-for-word in the context (verbatim vs. non-verbatim) and whether answering requires one or multiple pieces of evidence (single- vs. multi-evidence). See Ap-pendix A for details. As shown in Figure 11, tex-tual memory shows a larger advantage when the re-quired information is directly recoverable (verbatim) or localized in a single piece of evidence (single-evidence), whereas latent memory becomes more competitive when the answer must be inferred (non-verbatim) or requires combining multiple pieces of evidence (multi-evidence). This suggests that tex-tual memory is especially effective when prediction relies on precise information explicitly retained in memory, whereas latent memory is relatively more effective when information must be transformed or aggregated. C.3.2 STANDARD SFT F AVORS TEXTUAL MEMORY OVER LATENT MEMORY 
+
+Key Observation: Naively training hybrid memory with standard SFT fails to coordinate its components effectively, instead favoring textual memory. 
+
+Naive Hybrid Memory. For naive hybrid memory , we follow the same Stage 1 as for latent mem-ory, training the model with reasoning supervision to encode document information into the K latent memory slots. In Stage 2, we provide both the latent memory and textual memory to the model and train it with the same question-answering objective. Thus, both memory representations are jointly 
+
+available during training, without any additional supervision that explicitly encourages coordination between them. 
+
+Analysis. Figure 8 shows question answering performance with different types of memory, using a textual memory budget of 8k tokens (Wang et al., 2025) and a latent memory budget of 128 slots (Ge et al., 2024). The Oracle , which selects the correct prediction whenever either single-memory model succeeds, measures the complementary information available across the two memories. It outper-forms the single-memory models ( Text and Latent ) by 10.1% on average, indicating that the two memories capture complementary information. However, the model trained with both memories under standard SFT ( SFT ) remains 7.9% below the Oracle and even falls below the Text (24.1% vs. 25.9%), suggesting that naively combining the two memories does not ensure better coordination or improved performance, and can instead lead them to interfere with each other. These results show that the presence of complementary information across memories does not by itself guarantee effective coordination under joint training .C.3.3 ADDING AN AUXILIARY LOSS TO ENCOURAGE LATENT MEMORY USE IMPROVES 
+
+PERFORMANCE 
+
+Key Observation: Adding an auxiliary loss that encourages the model to use a designated memory pathway improves memory coordination and overall performance. The gains are largest when pathway selection follows the verbatim criterion identified in Appendix C.3.1. The previous section shows that naive joint training leads to imbalanced use of the two memory pathways, with the model relying predominantly on textual memory and underutilizing information captured by latent memory. We therefore examine whether an auxiliary objective that explicitly en-courages the model to make use of the underutilized latent memory improves memory coordination and overall performance. 16 Table 3: Accuracy and memory use across auxiliary-training variants. ∆Latent and ∆Text denote the accuracy drop when the latent or textual memory, respectively, is replaced with one constructed from an unrelated context; higher values indicate greater use of that memory. Role-conditioned 
+
+indicates whether auxiliary supervision uses per-example role assignment.                                
+
+> Role-conditioned Variant Acc. ∆Latent ∆Text -NAIVE 24.1 -2.4 +11.4 Yes OUTCOME 26.1 +0.8 +11.5 VERBATIM 28.6 +4.7 +10.4 REVERSE 24.5 +1.1 +7.2 RANDOM 23.9 -1.0 +10.5 No LATENT -AUX 26.1 +3.4 +8.5 TEXT -AUX 24.9 +0.0 +14.5
+> UNROUTED 24.4 -1.2 +9.1 -ORACLE 32.0
+
+Auxiliary Loss for Memory Coordination. To examine whether encouraging the use of the un-derutilized latent memory improves memory coordination and, in turn, improves overall perfor-mance, we add an auxiliary loss that assigns each memory an explicit role based on its strengths (Ap-pendix C.3.1). The auxiliary loss encourages the model to use a designated memory pathway by making the other pathway uninformative for the target. For each example i, the standard hybrid-memory objective is: 
+
+ℓ(Ti, L i) = − log pθ (yi | qi, T i, L i),
+
+where qi and yi denote the query and target, and Ti and Li denote the textual and latent memories constructed from the source context of example i.We augment the objective with an auxiliary term ( Laux  
+
+> i
+
+): 
+
+Li = ℓ(Ti, L i) + λLaux  
+
+> i
+
+, Laux  
+
+> i
+
+=
+
+ℓ(Ti, sg[ Lj ]) , role( i) = text ,ℓ(Tj , L i), role( i) = latent . (1) Here, λ controls the weight of the auxiliary loss, and j denotes a sampled irrelevant example 3.For a text-role example ( role( i) = text ), we keep the correct textual memory Ti and replace the latent memory with Lj , so that the model must rely on Ti to predict yi; we stop gradients ( sg[ ·])through Lj so that this auxiliary term does not update the latent-memory writer. For a latent-role 
+
+example ( role( i) = latent ), we instead keep the correct latent memory Li and replace the textual memory with Tj , encouraging the model to preserve and use the target-relevant information through the latent pathway. We use the same λ to 0.25 for all experiments. Since the optimal role for each example is not known a priori, we experiment over four criteria for assigning role( i). O UTCOME assigns roles based on which single-memory model answers the example correctly: role( i) = latent if the latent-memory model answers example i correctly, and 
+
+role( i) = text otherwise. RANDOM assigns each example to the text or latent role uniformly at random. VERBATIM follows the distinction identified in Appendix C.3.1, assigning verbatim examples to the text role and non-verbatim examples to the latent role: role( i) = text if i = verbatim else role( i) = latent . REVERSE uses the opposite assignment, assigning verbatim examples to the latent role and non-verbatim examples to the text role: role( i) = latent if i = verbatim else 
+
+role( i) = text .
+
+Results. We examine whether auxiliary supervision improves coordination between textual and latent memory, and how the criterion used to assign role( i) affects this coordination. Table 3 reports accuracy together with the use of each memory ( ∆Latent and ∆Text). Standard SFT without aux-iliary supervision (N AIVE ) largely ignores latent memory: replacing it with an unrelated one even slightly improves accuracy ( ∆Latent = −2.4).   
+
+> 3To reduce the unrelated factor impact, we sample jfrom the same source dataset with a similar document length.
+
+17 Role-conditioned supervision. Among the role assignment criteria, V ERBATIM achieves the best accuracy, improving it from 24.1% to 28.6%, and the largest increase in latent-memory use (−2.4 → +4 .7) while largely preserving textual-memory use ( +11 .4 → +10 .4). O UTCOME also improves accuracy (26.1%) but yields a smaller increase in latent-memory use; we hypothesize that per-example correctness is influenced by factors beyond the consistent strengths of each memory, making it a noisier signal for role assignment. R EVERSE increases latent-memory use only mod-estly while reducing textual-memory use, and R ANDOM does not improve accuracy, showing that the assignment criterion is critical for coordinating the two memories. 
+
+Supervision without role assignment. We also apply auxiliary supervision without per-example role assignment: L ATENT -AUX and T EXT -AUX assign all examples to the latent or text role, respectively, and U NROUTED applies both auxiliary terms to every example. LATENT -AUX increases latent-memory use and improves accuracy to 26.1%, but at the cost of textual-memory use, whereas T EXT - 
+
+> AUX
+
+mainly increases textual-memory use with little gain in accuracy, and U NROUTED improves neither memory use nor accuracy. Together, these results suggest that increasing the use of a single memory can help, but the largest gains come from assigning each example to the memory suited to it, according to the complementary strengths of the two memories. 18
