@@ -1,0 +1,3494 @@
+Title: Retrieval-Centric Deep Learning in Growing Nonparametric Neural Networks
+
+URL Source: https://arxiv.org/pdf/2610.03858v1
+
+Published Time: Tue, 06 Oct 2026 00:10:05 GMT
+
+Number of Pages: 47
+
+Markdown Content:
+# Retrieval-Centric Deep Learning in Growing Nonparametric Neural Networks 
+
+Maximilian Schlegel *1 Rajai Nasser *1 Seijin Kobayashi *1 Yanick Schimpf *1
+
+Oliver Sieberling *2 Robert Obryk *1
+
+Kazuki Irie *3 João Sacramento *1 Johannes von Oswald *11Google, Paradigms of Intelligence Team, Zurich, Switzerland 
+
+> 2
+
+MIT CSAIL, Cambridge, MA, USA 
+
+> 3
+
+Department of Computer Science and Wu Tsai Institute Yale University, New Haven, CT, USA 
+
+## Abstract 
+
+We investigate a general-purpose layer for deep learning that, instead of compress-ing arbitrary-size training data into fixed-size weight matrices, stores a new pair of key-value representations for every data point during training, and retrieves and re-combines these representations through an attention mechanism at inference time— resulting in a growing neural net (NN). While Irie et al. [1] have put forward this perspective from the classic duality expressing any linear layer in a deep NN trained by gradient descent as linear attention (LA) over the training data points, replacing LA by more powerful attention functions, as they suggest, turns out to be non-trivial: we show that naively applying learning rules from the LA case to advanced kernels does not lead to principled optimization. Here we fill this gap and develop functional gradient-based learning rules for kernelized attention layers, based on radial basis function (RBF) and softmax-like kernels—establishing the principled “retrieval-centric deep learning” (RCDL) paradigm. Empirically, we demonstrate the promising performance and learning-efficiency of RCDL on image classifica-tion and synthetic teacher-student learning tasks. Moreover, we show that replacing LA in the dual form of NNs by advanced LA variants, namely MesaNet/DeltaNet, yields a formal connection to recently proposed optimizers for conventional fixed-size NNs, offering a novel perspective on deep learning optimization. 
+
+## 1 Introduction 
+
+Traditional deep learning uses gradient descent to compress arbitrary-size training datasets and/or experiences into fixed-size weight matrices of a deep neural network (NN). A classic but lesser-known mathematical property thereof is that any linear layer in such a gradient descent-trained deep NN admits a nonparametric dual form: Its exact input/output relation can also be achieved by an equivalent “key-value memory system” that stores all the training datapoints presented to the layer during training and the initial weights, and produces outputs through retrieval using “unnormalized dot-product attention” over the entire training experience stored in the form of “key/value pairs” [2, 1] (reviewed in Sec. 2). From a modern sequence modeling research perspective, however, such an unnormalized dot-product attention represents a form of “linear attention” [3, 4], which is well-known to be sub-optimal to pro-cess sequences, e.g., compared with the softmax attention [5] commonly used in the transformer [6].      
+
+> *All authors contributed equally. Correspondence: {schlegelm,rajainasser,jvoswald}@google.com, osieberl@mit.edu, kazuki.irie@yale.edu . Public code: https://github.com/paradigms-of-intelligence/rcdl 40th Conference on Neural Information Processing Systems (NeurIPS 2026). arXiv:2610.03858v1 [cs.LG] 2 Oct 2026
+
+Table 1: Comparison of parametric vs. retrieval-centric deep learning paradigms.                                                                     
+
+> Model Parametric neural networks Growing nonparametric networks
+> Building block Linear layer Attention layer Learnable state Fixed-size weight matrix Growing database of keys & values (for ttrain examples) W∈Rdout ×din D={K∈Rdin ×t,V∈Rdout ×t}
+> Inference y=W x y=sD(x) = Attention (K,V,x)
+> (x∈Rdin ,y∈Rdout )Illustration
+> Forming deep models Compose linear layers and nonlinearities, e.g., σ(W2σ(W1x))
+> Compose attention layers and nonlineari-ties, e.g., σ(sD2(σ(sD1(x))))
+> Learning objective Minimize a global loss L(e.g., via gradient descent) Learning update Update the fixed weight matrix Append a new key-value pair (e.g., gradient-based) (e.g., ∆W∝ −∇ WL=−∇ ytLx⊤
+> t)(e.g., kt=xt,vt∝ −∇ ytL)Key question How to update the weight matrix? What key-value vectors to append?
+
+This observation has raised a natural question: can we achieve more powerful deep learning systems by replacing the linear attention (LA) underlying deep NNs by a more powerful attention function [1, 7]? While this question has been left unanswered, the time is ripe to revisit it, especially given how recent research in sequence modeling has advanced LA and provided insights to interpret and improve LA through various angles, including its connection to fast weight programming and learning rules [8–15], the underlying local optimization perspectives [16–23], as well as traditional sequence processing tools such as gating [24, 25]. Here we pursue two approaches that aim to go beyond current deep learning by extending the LA mechanism underlying any modern deep NNs’ dual form. First, we advance the retrieval-centric view of the dual form by developing a theory for the “growing neural network” obtained by introducing a (non-linearizable) kernel to the dual form’s LA, and devise its learning algorithms (which prescribe the key and value representations to be stored for each data point) that optimize a given global objective function. We study the cases of positive definite kernels (e.g., the classic radial basis function (RBF) [26]) and the “weighted softmax” kernel we propose. In fact, while Irie et al. [1] have suggested to directly “insert” the softmax function in the corresponding linear attention to enhance retrieval from NNs’ training experience, devising a principled learning algorithm for such a system turns out to be highly non-trivial, as such an insertion invalidates the optimality of the key and value representations computed in the linear case. This is especially true for the softmax, for which we introduce a closely related “weighted softmax kernel” to formally derive a learning rule for the resulting retrieval-centric growing NN. We conduct experiments using classic image classification datasets and teacher-student learning tasks, and demonstrate promising results in performance and sample efficiency compared to the standard deep NNs with fixed-size weight matrices. The second extension we pursue is to leverage recent advances in linear attention, namely the weight updates of DeltaNet [9, 14], and MesaNet [18]. In contrast to the first direction above, this approach gives rise to optimizers that improve conventional weight-based learning. We derive a formal connection to a recently proposed optimizer and second-order optimization, and empirically demonstrate the efficiency of the resulting optimizers, with competitive performance to Muon [27]. Finally, as a new framework that represents a departure from standard deep learning (see comparison in Table 1), retrieval-centric deep learning (RCDL) still faces many challenges. Perhaps the most central one is that model size grows at every training step when a nonlinear kernel is chosen. We finish our paper by presenting first results on a hybrid learning algorithm which manages capacity allocation dynamically, by combining standard (parametric) gradient updates with model growing (non-parametric) steps, triggered only when the inputs to a given layer are sufficiently distinct from past ones. We show empirically that this hybrid algorithm is able to match the performance of the non-parametric learner at a small fraction of its size. 22 Background: Dual Form of a Linear Layer 
+
+Here we briefly review the dual form of a linear layer trained by gradient descent as a linear attention system [2, 1], which is our starting point. Let t, T , din , dout denote positive integers. Consider a linear layer inside an arbitrary complex/deep neural network, that transforms a layer input x ∈ Rdin into a layer output y ∈ Rdout as y = W x where W ∈ Rdout ×din is a weight matrix. Given an arbitrary differentiable loss function L and a sequence (x1, . . . , xT ) of T training inputs presented to the layer, with xt ∈ Rdin for 1 ≤ t ≤ T , we denote the corresponding (backpropagated) error signals as (v1, . . . , vT ) with vt ∈ Rdout defined by gradient descent, that is vt = −ηt∇yt L
+
+where ηt ∈ R>0 is the learning rate and ∇yt L is the gradient of the loss w.r.t. the layer output yt
+
+corresponding to input xt.At training step t, gradient descent updates the weight matrix (WM), initialized with W0, as Wt =
+
+Wt−1 −ηt(∇yt L)⊗xt = Wt−1 +vt ⊗xt, where ⊗ denotes the outer product, that is vt ⊗xt = vtx⊤ 
+
+> t
+
+.We can unfold this equation to express the WM at step T as: WT = W0 + PTt=1 vtx⊤ 
+
+> t
+
+.Thus, the layer output for an arbitrary input q ∈ Rdin can be expressed as: 
+
+y = WT q = W0q +
+
+> T
+
+X
+
+> t=1
+
+vtx⊤ 
+
+> t
+
+q = W0q +
+
+> T
+
+X
+
+> t=1
+
+vtϕ(xt, q) (1) where the last term is a weighted sum of vectors vt ∈ Rdout with weights x⊤ 
+
+> t
+
+q ∈ R, which can be interpreted as an (unnormalized) “attention mechanism” by identifying vt as values, xt as keys, and 
+
+q as the query; and ϕ(xt, q) = x⊤ 
+
+> t
+
+q as attention weights [28, 6, 5]. To be more specific, this is (a simple form of) linear attention [3, 4]. This implies that the input/output relation of the linear layer can also be realized by a “growing nonparametric neural network”: Instead of storing the fixed-size weight matrix W as the system’s training memory, the system maintains a growing database by storing a new pair (kt, vt) of key-value vectors for each training data point—the layer input kt = xt ∈ Rdin as the “key” and the corresponding error signal vt = −ηt∇yt L ∈ Rdout as the “value” vector (in addition to the initial weight matrix W0). Inference is performed through the linear attention mechanism above (Eq. 1). Given the ubiquity of linear layers in deep neural networks, this dual view suggests that a fundamental mechanism linking training and inference in virtually any deep learning systems is based on (a cascade of) this simple linear attention mechanism. However, recent research on linear attention in sequence modeling indicates that such “simple linear attention” mechanisms are highly suboptimal. This points to the potential for fundamentally improving deep learning by enhancing the underlying linear attention mechanism. 
+
+## 3 Growing Nets with Non-Linear Attention 
+
+With the goal of developing a general-purpose deep learning layer that can improve upon the conventional linear layer, we replace ϕ in Eq. 1 by a more powerful kernel that is not reducible to a finite-dimensional linear map. Consequently, the resulting layer can no longer be converted into a linear layer with a fixed-size weight matrix. Instead, we obtain a “growing layer” in which a new pair of key/value representations is added to the system for each training datapoint. This raises a fundamental question: how should these key and value representations be chosen to implement a 
+
+principled learning algorithm that minimizes a given loss function? Here we formally derive such algorithms in two classes of powerful attention functions. 
+
+3.1 Positive Definite Kernel Attention 
+
+We first investigate the case where ϕ in Eq. 1 is a positive definite kernel (PDK). By the Moore-Aronszajn theorem [29], any PDK admits a representation as an inner product of feature embeddings into a Hilbert space Hϕ. That is, there exists a map ψϕ : Rdin → H ϕ such that 
+
+ϕ(x, x′) = ⟨ψϕ(x), ψ ϕ(x′)⟩Hϕ .This allows us to view the nonparametric layer as a linear layer operating on the implicit feature space Hϕ with an infinite-dimensional weight matrix W ∈ Rdout ×∞ . In Sec. A, we rigorously 3show that performing standard gradient descent on this implicit weight matrix is mathematically equivalent to appending a new key-value pair to the database at every step. Analogously to the analysis of the linear kernel case in Sec. 2, the gradient update of the implicit weight matrix is 
+
+∆W ∝ (−ηt∇yt L) ψϕ(xt)⊤. This translates exactly to adding a new term (−ηt∇yt L) ϕ(xt, ·) to the layer’s output function. Consequently, to build a growing layer based on a PDK, we retain the exact key-value definitions from the linear case: setting the key kt = xt and the value vt = −ηt∇yt L implements a principled loss-minimizing learning rule in the RKHS. In our experiments, we use the radial basis function (RBF) kernel—a classic PDK [26]. 
+
+3.2 Softmax and Weighted Softmax Attention 
+
+While PDKs offer a robust theoretical foundation, modern deep learning relies heavily on softmax attention, which empirically outperforms unnormalized kernel attention in many sequence modeling tasks [6]. Here we study the case where we replace ϕ in Eq. 1 by the softmax function (more formally, ϕ(xt, q) becomes ϕ(xt, q; {xτ }1≤τ ≤T ) as it involves normalization). As it turns out, theoretically dealing with the standard softmax attention is highly non-trivial (as we discuss below; and in Appendix B.3). Instead, we introduce a “weighted softmax kernel” and derive a learning algorithm for the corresponding growing NN. Let D ⊂ Rdin × Rdout be a finite set of key-value pairs or “database”. This database in-duces the standard softmax attention function sD : Rdin → Rdout defined as: sD (q) =P 
+
+> (k,v)∈D
+
+e⟨k,q⟩v P  
+
+> (k,v)∈D
+
+e⟨k,q⟩ .
+
+Consider the objective of making a small “corrective” adjustment to D to move sD in a direction that minimizes a global loss. Ideally, we would achieve this by adding a new key-value pair to the database, analogous to the “growing layers” derived in Sec. 3.1. However, this is not possible in an infinitesimal manner for this softmax attention. Introducing any new key discontinuously alters the denominator, regardless of how small the associated value vector is. To enable the “smooth addition” of new key-value pairs, we introduce a scalar weight for each entry. This leads to the “weighted softmax attention” formulation, where the database D consists of a finite set of triples (w, k, v) ∈ R+ × Rdin × Rdout , and the retrieval function becomes: 
+
+sD (q) = 
+
+P 
+
+> (w, k,v)∈D
+
+we ⟨k,q⟩v
+
+P 
+
+> (w, k,v)∈D
+
+we ⟨k,q⟩ . (2) In the remainder of this section, we develop a theoretical framework that allows us to derive a “growing database” formulation which corresponds to performing a gradient descent in a space containing all weighted softmax functions. Now consider an infinite database containing a weight for every possible key-value pair. We formalize this by defining a weight function w : Rdin × Rdout → R+, which induces the continuous softmax function sw : Rdin → Rdout as: 
+
+sw(q) = 
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩v dk dv
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩ dk dv . (3) Appendix B.1 provides further remarks on the functional space of weighted softmax functions. 
+
+The case of Gaussian mixtures. We analyze the case where w : Rdin ×Rdout → R+ represents the den-sity of a Gaussian mixture. Let D = {(wi, ki, vi) : 1 ≤ i ≤ n} ⊂ R+ ×Rdin ×Rdout be a finite set of n
+
+weighted key-value pairs, and let σk, σ v > 0. We define the Gaussian mixture density wD as follows: 
+
+wD (k, v) = 
+
+> n
+
+X
+
+> i=1
+
+wi
+
+(2 π) din +dout  
+
+> 2
+
+σdin  
+
+> k
+
+σdout 
+
+> v
+
+e− ∥k−ki∥22σ2  
+
+> k
+> −∥v−vi∥22σ2
+> v
+
+.
+
+This formulation corresponds to mixing n Gaussian densities centered at (ki, vi)1≤i≤n with respective mixing weights (wi)1≤i≤n. The covariance matrix Σ for each of the n Gaussian components is a block diagonal matrix given by: 
+
+Σ = 
+
+Σk 00 Σv
+
+
+
+=
+
+σ2
+
+> k
+
+Idin 00 σ2 
+
+> v
+
+Idout 
+
+
+
+. (4) 4Now, let us compute the softmax function swD induced by this mixture density. Substituting wD into Eq. 3, we can show that (see the full derivation in Appendix B.2): 
+
+swD (q) = 
+
+R  
+
+> Rdin ×Rdout
+
+wD (k, v)e⟨k,q⟩v dk dv
+
+R  
+
+> Rdin ×Rdout
+
+wD (k, v)e⟨k,q⟩ dk dv
+
+=
+
+Pni=1 wie⟨ki,q⟩+ 12 σ2 
+
+> k∥q∥2
+
+vi
+
+Pni=1 wie⟨ki,q⟩+ 12 σ2  
+
+> k∥q∥2
+
+=
+
+Pni=1 wie⟨ki,q⟩vi
+
+Pni=1 wie⟨ki,q⟩ = sD (q) .
+
+This demonstrates that the continuous softmax function induced by the Gaussian mixture density wD
+
+is exactly equivalent to the discrete weighted softmax function sD defined by the database D. The shared variance-dependent term e 12 σ2 
+
+> k∥q∥2
+
+cancels out in the numerator and denominator, rendering the prediction independent of the specific variances σk and σv used in the mixture model. It is worth noting that the same cancellation holds for any general block-diagonal covariance matrix Σ (where k
+
+and v are independent), regardless of the specific correlations within the key or value dimensions. 
+
+The functional space of Gaussian-modulated softmax functions. Now observing that Gaussian mixtures with a fixed covariance matrix Σ are absolutely continuous with respect to the centered Gaussian measure μ = N (0, Σ) , we can analyze the system using this background measure. We define the Gaussian-modulated softmax function for a relative weight function w as: 
+
+sw(q) = 
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩v dμ (k, v)
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩ dμ (k, v) . (5) This formulation relates to the original Lebesgue-density formulation via a Radon-Nikodym derivative. If the physical density of the database is p(k, v), the corresponding functional weight is w(k, v) = dp dμ (k, v).This perspective reveals a crucial structural property: a Gaussian mixture in the physical space corresponds to a linear combination of exponential functions in the functional space. Specifically, the ratio of a shifted Gaussian N (x|u, Σ) to the base measure N (x|0, Σ) is proportional to e⟨x,Σ−1u⟩.Consequently, adding a key-value pair to the database is mathematically equivalent to adding an exponential basis function to the weight w(k, v). This justifies searching for updates in the span of exponential functions during gradient descent. Let Hσk ,σ v be the space of functions w : Rdin × Rdout → R such that 
+
+E(k,v)∼N (0,Σ) [w(k, v)2e⟨k,q⟩+⟨v,v′⟩] < ∞ , ∀q ∈ Rdin , ∀v′ ∈ Rdout .
+
+We endow Hσk ,σ v with the L2(μ) inner product: ⟨w, w ′⟩Hσk ,σv = E(k,v)∼N (0,Σ) [w(k, v)w′(k, v)] .
+
+Functional gradient descent update rule. We derive the update rule for the weight function 
+
+w ∈ H σk ,σ v by performing functional gradient descent on a loss function L(sw(q), y). For a single observation (qt, yt), we compute the Fréchet derivative of the loss functional J(w) = L(sw(qt), yt)
+
+and identify the functional gradient ∇wJ via the Riesz representation theorem in Hσk ,σ v . As detailed in Sec. C, the gradient ∇wJ takes a specific form involving the exponential kernel e⟨k,qt⟩ and the error signal: 
+
+∇wJ(k, v) = e⟨k,qt⟩
+
+D(w) ⟨∇ ˆy L, v − sw(qt)⟩ with D(w) = 
+
+Z 
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,qt⟩ dμ (k, v) . (6) 
+
+D(w) is the denominator of the softmax functional induced by w.The functional update wt+1 ← wt − η∇wJ corresponds to adding a new term to the weight function, which is constructively equivalent to appending a new key-value tuple to the database (cf. Sec. C.4). Specifically, this establishes the update rule that adds a tuple (wnew , knew , ˜vnew ) where the new key is a scaled version of the query, knew = Σ kqt = σ2
+
+> k
+
+qt, and the weight and value are determined by the prediction error and the local density. To ensure numerical stability, we store the weighted value vector ˜v = wv, leading to the robust update rules: 
+
+wnew ∝ η⟨st, gt⟩, ˜vnew ∝ − ηΣv gt ∝ − ησ 2 
+
+> v
+
+gt , (7) 5where gt = ∇ˆy L and st = swt (qt). Refer to Sec. C for more details. In the case of mini-batch stochastic gradient descent with a batch of size B, the linearity of the gradient operator implies that the total functional gradient is the sum of individual gradients centered at distinct queries. Consequently, a single step corresponds to adding B distinct tuples to the database simultaneously, reflecting the non-parametric nature of the approach where model complexity grows with data. 
+
+Remark 3.1 . Given that knew = σ2
+
+> k
+
+qt, one can interpret σ2 
+
+> k
+
+as the inverse temperature of the resulting softmax function. In practice, we can store knew = qt and instead use a temperature hyperparameter 
+
+T in the Softmax, as is typically done 1, i.e., the final weighted-softmax function becomes: 
+
+sD (q) = 
+
+P 
+
+> (w, k,˜v)∈D
+
+e 1 
+
+> T√din
+> ⟨k,q⟩
+
+˜v
+
+P 
+
+> (w, k,˜v)∈D
+
+e 1 
+
+> T√din
+> ⟨k,q⟩
+
+w. (8) In Appendix D, we provide further remarks regarding extensions of the learning algorithm above (corresponding to vanilla gradient descent) with weight decay and momentum. 
+
+3.2.1 Handling negative weights: clipping and gauge invariance 
+
+One challenge with the update rule of equation 7 is that when ⟨st, gt⟩ < 0 we get a negative weight 
+
+wnew < 0. This may cause denominator cancellation and numerical instability (cf. Sec. C.5). A simple heuristic to enforce non-negativity is via clipping, wnew ← max(0 , w new ).Another method for addressing the negative weights issue without clipping is via a translational symmetry of the softmax functional, which we call gauge-invariance (cf. Sec. C.7): If we shift all the value vectors in the database by +b, the output of the weighted softmax also shifts by +b.Hence, if we then subtract b from the output, we recover the original weighted softmax. Therefore, by equipping the softmax functional with an auxiliary global bias b, the model gains a translational symmetry between the values and the bias (cf. Proposition C.3). This means that the same function has a different representation for each offset (gauge). We can dynamically choose an offset frame— a “virtual gauge” bt along the gradient direction—that guarantees that the effective projection 
+
+⟨gt, st + bt⟩ is strictly positive, ensuring wnew > 0. Refer to Sec. C.7 for a detailed description of this method. 
+
+3.3 Sublinear Growth with Hybrid Non-Parametric and Parametric Learning 
+
+Appending a new key-value tuple at every training step incurs a linear memory growth O(T ) with respect to the number of training steps T . To achieve scalable, sublinear growth, we introduce a hybrid learning rule that dynamically balances non-parametric expansion with parametric refinement: We treat the existing key-value pairs in the database as learnable parameters optimized via standard optimizers (e.g., Adam or AdamW), while conditionally growing the database using functional gradient descent only when a newly encountered key x is sufficiently distinct from the existing keys kj in the database, based on a threshold parameter τ , i.e., min j ∥x − kj ∥2 > τ . By restricting memory growth to genuinely novel data while leveraging parametric optimization for representation tuning, this hybrid mechanism dramatically curbs memory footprint while preserving the performance advantages of the fully non-parametric model (see Figure 5). 
+
+## 4 Advanced Linear Attention Perspectives 
+
+Sec. 3 focused on improving the LA underlying the dual form of NNs (Eq. 1) by introducing nonlin-earity. Here we plug advanced LA models into it, and show how they lead to improved NN optimizers. We focus on the mesa-layer [17, 18], which replaces the linear attention of Eq. 1 by the best possible linear key-value map, in the sense that it achieves the lowest (regularized) squared error over the keys and values seen up to time t:
+
+Wt = arg min 
+
+> W
+
+12
+
+> t
+
+X 
+
+> τ=1
+
+∥vτ − W x τ ∥2 + λ
+
+2 ∥W ∥2 
+
+> F
+
+, (9)      
+
+> 1σ2
+> krelates to the temperature because increasing σ2
+> kscales the positions of new keys quadratically, causing them to spread apart faster than the linear expansion of the standard deviation of individual Gaussian components. Consequently, higher variance σ2
+> kacts as a separation parameter, reducing component overlap and sharpening the attention distribution.
+
+6where λ > 0 is a static (scalar) hyperparameter which controls the strength of regularization, given by the squared Frobenius norm ∥W ∥2 
+
+> F
+
+of the weights. Note that the mesa-layer considers the cumulative (in time) loss, and fully minimizes it. von Oswald et al. [18] empirically found that the mesa-layer outperforms both standard LA and the DeltaNet on various sequence modeling problems. Interestingly, as we show next, the dual view of a linear layer trained by gradient descent yields an approximate second-order optimizer once we replace linear attention (Eq. 1) by the mesa-layer (Eq. 9). The only remaining step is to determine what the values vt should be. In this section, we set them to be the gradient-corrected layer outputs: 
+
+vt = Wt−1xt − ηt∇yt L. (10) An important property of the objective of the mesa-layer (Eq. 9) is that it can be solved analytically. We use this property to obtain our optimization algorithm, which we develop for the mini-batch setting—the current standard in deep learning. Before proceeding, we introduce additional nota-tion to handle mini-batches. We denote by T the number of batches seen so far, each containing 
+
+B data points. In this setting, XT is the din × B matrix that holds the current batch inputs in its columns, and VT is the dout × B matrix that holds the corresponding gradient-corrected out-puts in its columns, following Eq. 10. Additionally, we define X<T and V<T as the history of all inputs and gradient-corrected outputs (resp.) observed thus far, excluding the current batch. Solving Eq. 9 analytically, we obtain a closed-form expression for the weights at iteration T i.e., 
+
+WT = ( V<T X⊤ 
+
+> <T
+
++ VT X⊤ 
+
+> T
+
+) · (X<T X⊤ 
+
+> <T
+
++ XT X⊤ 
+
+> T
+
++ λI)−1. It turns out that the resulting layer implements exactly a recently proposed optimizer [FOOF; 30], which has been shown to be highly efficient in deep learning. FOOF was derived as a simplification of KFAC [31], itself an approximate second-order optimization method. Intuitively, the optimization speed-up that FOOF (here, the mesa-layer) enjoys stems from the additional inverse matrix which is not present in linear attention. This ad-ditional factor applies a whitening transform to the inputs, which yields a full (second-order) Newton update for a shallow linear model, and an approximate second-order update for a deep neural network. We refer to Benzing [30] for an analysis of this optimizer, and to Appendix E for additional details. As an additional reference, we further consider the DeltaNet [9] case. As derived from the delta rule [32], this case corresponds to performing an online gradient descent step w.r.t. W on the layer-local, time-dependent loss penalizing the discrepancy between the prediction W x t and a target value 
+
+vt = −η∇yt L:
+
+ℓt(W ) := 12 ∥W x t − vt∥22 = 12 ∥W x t + η∇yt L∥ 22 (11) with learning rate λ (corresponding to an online version of the mesa-layer case). This yields the update Wt = Wt−1 + λ(−η∇yt L − Wt−1xt)x⊤ 
+
+> t
+
+. Appendix E provides additional details. 
+
+## 5 Experiments 
+
+Here we conduct experiments to empirically validate theories arising from the two extended views of linear layers above: the newly derived growing neural networks and their learning rules (Sec. 3) and advanced optimizers (Sec. 4). 
+
+Basic Settings. The baseline architecture is a residual MLP similar to the transformer’s MLP block [6]; the model has multiple layers with a block structure, where every block of the model updates the residual stream e ∈ Rde following 
+
+e ← e + W2σ(W1RMSNorm (e)) , (12) with nonlinearity σ(·) and RMSNorm prenormalization [33]. The first block is applied to the net input x ∈ Rdx . The output layer is the standard softmax layer for classification or a linear layer for regression, using the cross-entropy or mean-squared error loss, respectively. To find a strong baseline, we perform intensive search over the choice of activation σ(·), namely: ReLU [34, 35], GELU [36] and softmax [37]; as well as over the space of optimizers, including plain SGD, Adam [38], AdamW [39], RMSProp [40], and Muon [27]. These serve as the baselines for the MesaNet/DeltaNet-derived optimizers introduced in Sec. 4. We perform a fine-grained scan over hyperparameters, including model depth and nonlinearity type. All our results are averaged over 5 seeds, and shaded areas reflect stdev. unless noted otherwise (see Appendix F.1 for more details). Our nonlinear attention-based growing nets (Sec. 3) follow the same residual architecture, but perform: 
+
+e ← e + gD (RMSNorm (e)) , (13) 70 25 50                 
+
+> Epoch
+> 60% 65% 70%
+> Test Accuracy CIFAR-10 025 50
+> Epoch
+> 30% 35% 40%
+> Test Accuracy CIFAR-100 025 50
+> Epoch
+> 10 0
+> Training Loss CIFAR-10 020000 40000
+> Samples
+> 40% 50% 60%
+> Test Accuracy CIFAR-10 Weighted Softmax RBF Mesa Delta Muon AdamW Adam RMSprop SGD kNN SVM
+
+Figure 2: (Left Plots) Test set accuracy on CIFAR-10/100: Growing Weighted Softmax & RBF, while based on plain SGD, significantly outperform the SGD-trained MLP and Adam/RMSProp and are competitive with MLPs trained with Muon. The Mesa/FOOF optimizer achieves high accuracy on CIFAR-10 and performs best on CIFAR-100. (Middle Right) Training loss for Growing Weighted Softmax & RBF decreases much faster than that of the other models. (Right) Test set accuracy on CIFAR-10 after a single pass on the training data. Growing Weighted Softmax & RBF are the most efficient learning algorithms. To place our results, we include the test accuracy of two classical (not single pass) methods: k-nearest-neighbor (kNN) and SVM (starred; details in Appendix F.10). where gD (·) can either be the weighted-softmax layer (Eq. 2) or the RBF layer (Eq. 1, with ϕ an RBF). 0 50 100 150 200     
+
+> Training Steps 1e3
+> 10 4
+> 10 3
+> 10 2
+> Loss Reference MLP Parametric Softmax Weighted Softmax
+
+Figure 1: Teacher-student regression loss (mean ± s.e.m.) comparing: (blue, Weighted Softmax) our growing weighted softmax model; (red, Paramet-ric Softmax) a very wide MLP baseline with width matching the final number of training samples using the softmax ac-tivation; and (gray, Reference MLP) an overparameterized student with matched architecture providing a lower bound. The final output layer is similar but without the residual connection. Importantly, note that the formal learning rules we derived for these growing nets correspond to training them using plain SGD (Sec. 3); derivations for more sophisticated optimizers are left for future work. 
+
+Teacher-Student Experiments. We begin with exper-iments on a synthetic regression problem, where scalar target outputs y∗ ∈ R are generated by a held-out resid-ual MLP teacher y∗(x) from 100-dimensional inputs 
+
+x ∈ R100 [41]. The teacher NN has 1 hidden layer with ReLU non-linearity, residual-stream de = 100 , and ran-dom, fixed weights sampled from a LeCun normal distribu-tion (fan-in). The teacher then projects the residual stream activation to an output dimension of 1. The student y(x) is trained through online SGD on the expected squared error loss Ex∼p(x)[( y∗(x) − y(x)) 2], by drawing new data sam-ples at every training iteration. The inputs x are generated by first sampling from a standard normal distribution, and then projecting to the unit sphere. Appendix F provides further setup details. In this task, an overparameterized student—with the same architecture as the teacher, but larger width—is expected to perform very strongly [42]. In Fig. 1 we see that this is indeed the case; the MLP student (denoted by “Reference MLP” in the plot) outperforms all other models, and serves as the gold standard for this task. We then compare our Growing Weighted Softmax model (GWS; Sec. 3.2) with a fixed-size “paramet-ric softmax” baseline that uses softmax activation (Eq. 12) and dimensions matching the full database size—closely mirroring the GWS model by treating W1 and W2 as learnable keys and values [43]. We compare a single-layer GWS with a single-block parametric softmax baseline (with two trainable weight matrices; the best model trained with Adam). We find that GWS significantly outperforms the parametric baseline. Despite the architectural mismatch with the teacher, and despite only having one trainable layer (comprising values and respective weights), our growing weighted softmax model can reach significantly lower loss values. 
+
+CIFAR-10/100 Experiments. Next, we investigate the performance of the growing RCDL models on the classic CIFAR-10 and CIFAR-100 image classification tasks [44], using standard data aug-mentation and non-convolutional architectures. Fig. 2 reports the performance of several parametric baselines and the growing nonparametric models based on RBF and weighted softmax. 81.0 3.0 10.0 30.0    
+
+> Temperature
+> 0.4 0.6
+> Test Accuracy
+> Hidden Layers 2101.0 3.0 10.0 30.0
+> Temperature
+> Softmax Linearization
+
+Figure 3: (Left) The growing weighted softmax model trained on CIFAR-10 improves with depth, and displays a non-monotonic tempera-ture behavior w.r.t. test set acc. For the optimal value of T = 10 and din = 3072 , 1 
+
+> T√din
+
+⟨k, q⟩ ∈ 
+
+[−5.54 , 5.54] implying that the softmax layer is operating in the non-linear regime. (Right) This is further confirmed by linearizing post-training the “exp” nonlinearity of the layer, which results in a significant performance degradation. 0 20 40 60 80 100 
+
+> Training Progress (%)
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Accuracy  Parametric Softmax - Train Test Weighted Softmax - Train Test
+
+Figure 4: Comparison between parametric soft-max (very wide MLP with softmax nonlin.) and our growing non-parametric weighted softmax model. Despite sharing the same architecture, the models behave very differently, both in terms of optimization and generalization: The para-metric model displays a widening train-test gap, that is not present in its nonparametric weighted counterpart. We train the former for 2000, the latter for 50 epochs. Fig. 2/Left shows test accuracy on CIFAR-10/100. We observe that both the growing weighted softmax and RBF models (Sec. 3), whose learning rules are based on plain SGD, significantly outperform the baselines trained by plain SGD, as well as Adam, AdamW and RMSProp; and the GWS model slightly outperforms the RBF variant. Using more advanced optimizers, the parametric MLP eventually surpasses the SGD-based growing models: the MLP trained by the MesaNet-derived (FOOF) optimizer outperforms all methods on CIFAR-100 and performs on par with the growing variants on CIFAR-10 (see Appendix F.8 for further discussion on the DeltaNet-based one). Similarly, Muon proves to be a strong baseline on both datasets achieving top accuracy on CIFAR-10. These results highlight the importance of developing learning rules for growing models that correspond to these advanced optimizers. Fig. 2/Middle reports the evolution of training loss on CIFAR-10. Interestingly, the training loss decreases drastically faster for the two nonparametric models compared to all the other methods, while having good generalization performance as shown above; this may be a promising property for tasks that require both good generalization and strong memorization. Finally, Fig. 2/Right shows the learning efficiency of all methods when trained only on a single pass over non-augmented CIFAR-10 dataset. In this online regime, the growing methods outperform all parametric models including Muon and Mesa. We refer to Sec. G for further experimental results and Sec. G.2 for results using the gauge-invariance version of the GWS layer (described in Sec. 3.2.1). 0 20 40 60 80 100        
+
+> Final Capacity (%)
+> 35 45 55
+> Test Accuracy (%)
+> 35 40 45 50 55 60 65 70
+
+Figure 5: CIFAR-10 performance vs fi-nal capacity for various growth thresh-olds τ . The model retains high test acc. while exhibiting graceful performance degradation when compressing further. 
+
+Analysis. Here we analyze how the GWS model’s test performance varies as a function of the number of layers and its temperature (Sec. 3.2), and verify that the model effectively leverages the nonlinear kernel. Fig. 3 shows that adding hidden layers improves the perfor-mance on CIFAR-10 (though performance saturates with 2 hidden layers), and that there is a non-monotonic depen-dence on temperature. We also confirm that the model is in the nonlinear regime by ablating the trained model by linearizing the exponential function (i.e., using the ap-proximation exp( x) ≈ 1 + x) in the weighted softmax, post-training, which leads to a severe drop in performance. We further compare the training and generalization behaviors of the GWS model with that of the parametric softmax baseline. Figure 4 shows their training and test accuracy on CIFAR-10 as a function of the training progress. We observe that their behaviors are very different: despite being able to train a huge set of parameters at every iteration, the parametric baseline is slower to fit the training data, despite being highly prone to overfitting; we could not find a hyperparameter configuration that avoided a widening train-test performance gap. The GWS model has no such issues and reaches much higher test accuracy overall. 9Mixing retrieval-centric and parametric layers. It is also straightforward to mix RCDL layers and parametric layers within the same model. To illustrate this, we conduct a sanity check experiment on vision transformers (ViTs) [45] where we replace the feed-forward block in every ViT layer with an RCDL layer as a drop-in replacement, while keeping all other layers (e.g., self-attention) parametric and training them by gradient descent. Trained for a single epoch on CIFAR-10, the purely parametric ViT achieves 48 .4% while our mixed model achieves 54 .4% test set accuracy, a promising result opening up many avenues for future research. For more details, see Appendix F.11. 
+
+Sub-linear growing. Finally, to mitigate the prohibitive memory and compute growth of vanilla RCDL layers, we provide preliminary results of the hybrid layer described in Sec. 3.3 which combines parametric learning with (conditional) non-parametric growth, again when training CIFAR-10 for one epoch. As shown in Figure 5, the memory growth can be made sublinear while preserving strong performance. Further experimental details can be found in Appendix F.4. 
+
+## 6 Discussion, Related Work, and Conclusion 
+
+The RCDL concept has connections to many existing methods in machine learning, such as kernel machines [2, 46, 47, 26] (further related work can be found in Appendix H). In particular, the principled derivation of our update rules—particularly our novel rules for the weighted softmax kernel—closely parallels functional gradient boosting [48, 49]. While this perspective remains relatively underexplored in deep learning, prior work [50] derived an algorithm for constructing networks by iteratively adding differentiable modules trained to match the functional gradient of the loss; moreover, the same work presented a functional gradient-based rule for reproducing kernel Hilbert spaces, which essentially corresponds to our result of Sec. 3.1. We complement this early study with modern deep learning experiments, and with our novel (weighted) softmax attention. Furthermore, RCDL’s growing network is fundamentally a cascade of kernel machines [2, 46, 47, 26], with features in every layer trained in an end-to-end fashion through gradient descent—a core principle of deep learning. This has an interesting difference to Domingos [51]’s view on how an entire deep NN trained by gradient descent can be approximated by a kernel machine. In contrast, the development of RCDL builds on the exact layer-wise equivalence/duality between a linear layer trained by gradient descent and a kernel machine [2, 1]. This might open new avenues to study optimization in NNs. RCDL may also open up a new path for continual learning. Unlike conventional weight-based learning which involves possibly irreversible compression during training, RCDL preserves past activations; we may potentially augment RCDL with some algorithms that revive old memories (e.g., within the forward pass of the net). Loosely, this property also aligns with the neurobiological findings on “silent memory” [52–54] where forgetting occurs due to retrieval failures (not because the actual memory content is lost) and some (optogenetic) procedure can revive the apparently lost memory. 
+
+Limitations. RCDL has several open challenges. One of the biggest concerns is the memory and compute requirements that linearly grow with the number of training datapoints, which is generally prohibitive. While some of the key-value pruning methods from the transformer literature (e.g., sliding window or token merging [55]) may provide some insights, deriving a more principled solution for RCDL remains a future research topic. At the same time, the internet (and the corresponding data storage) itself continues to grow, and memory continues to be cheaper as hardware advances—ever growing RCDL may not be completely inconceivable in a distant future. Another notable limitation is the class of base optimization algorithms currently supported by our theory; while we covered some of the basic concepts such as weight decay and momentum to augment vanilla gradient descent, we do not know yet how to derive more advanced optimizers such as Adam [38] and Muon [27] for RCDL. 
+
+Conclusion. Retrieval-centric deep learning (RCDL) aims to improve upon conventional deep learning by replacing the “linear attention” (LA) underlying the classic linear layer trained via gradient descent—a fundamental building block of deep learning—with more powerful attention mechanisms. While replacing LA with MesaNet/DeltaNet-inspired update rules yields efficient optimizers for conventional weight-based neural nets, replacing it with kernelized and softmax attention leads to unconventional nonparametric networks that learn by growing a key-value memory database instead of a fixed-size weight matrix. Using techniques from functional analysis and functional gradient methods, we derived gradient-based learning rules to train deep networks composed of the latter, and we showed empirically that nonparametric deep networks perform strongly on standard benchmarks. Our findings open a number of avenues for future work, such as investigating how to compress the growing nonparametric layers or integrate such layers into language models. 10 References 
+
+[1] Kazuki Irie, Róbert Csordás, and Jürgen Schmidhuber. The dual form of neural networks revisited: Connecting test time predictions to training patterns via spotlights of attention. In 
+
+Proc. Int. Conf. on Machine Learning (ICML) , Baltimore, MD, USA, July 2022. [2] Mark A. Aizerman, Emmanuil M. Braverman, and Lev I. Rozonoer. Theoretical foundations of potential function method in pattern recognition. Automation and Remote Control , 25(6): 917–936, 1964. [3] Angelos Katharopoulos, Apoorv Vyas, Nikolaos Pappas, and François Fleuret. Transformers are RNNs: Fast autoregressive transformers with linear attention. In Proc. Int. Conf. on Machine Learning (ICML) , Virtual only, July 2020. [4] Zhuoran Shen, Mingyuan Zhang, Haiyu Zhao, Shuai Yi, and Hongsheng Li. Efficient attention: Attention with linear complexities. Preprint arXiv:1812.01243 , 2018. [5] Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio. Neural machine translation by jointly learning to align and translate. In Int. Conf. on Learning Representations (ICLR) , San Diego, CA, USA, May 2015. [6] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Proc. Advances in Neural Information Processing Systems (NIPS) , pages 5998–6008, Long Beach, CA, USA, December 2017. [7] Kazuki Irie. The dual form of the perceptron (1964) meets deep learning and what that enables. 
+
+Preprint , 2026. [8] Jürgen Schmidhuber. Learning to control fast-weight memories: An alternative to dynamic recurrent networks. Neural Computation , 4(1):131–139, 1992. [9] Imanol Schlag, Kazuki Irie, and Jürgen Schmidhuber. Linear Transformers are secretly fast weight programmers. In Proc. Int. Conf. on Machine Learning (ICML) , Virtual only, July 2021. [10] Kazuki Irie, Imanol Schlag, Róbert Csordás, and Jürgen Schmidhuber. Going beyond linear transformers with recurrent fast weight programmers. In Proc. Advances in Neural Information Processing Systems (NeurIPS) , Virtual only, December 2021. [11] Kazuki Irie, Francesco Faccio, and Jürgen Schmidhuber. Neural differential equations for learning to program neural nets through continuous learning rules. In Proc. Advances in Neural Information Processing Systems (NeurIPS) , New Orleans, LA, USA, December 2022. [12] Kazuki Irie, Imanol Schlag, Róbert Csordás, and Jürgen Schmidhuber. A modern self-referential weight matrix that learns to modify itself. In Proc. Int. Conf. on Machine Learning (ICML) ,pages 9660–9677, Baltimore, MA, USA, July 2022. [13] Songlin Yang, Bailin Wang, Yu Zhang, Yikang Shen, and Yoon Kim. Parallelizing linear transformers with the delta rule over sequence length. In Proc. Advances in Neural Information Processing Systems (NeurIPS) , Vancouver, Canada, December 2024. [14] Songlin Yang, Jan Kautz, and Ali Hatamizadeh. Gated delta networks: Improving Mamba2 with delta rule. In Int. Conf. on Learning Representations (ICLR) , Vancouver, Canada, April 2025. [15] Julien Siems, Timur Carstensen, Arber Zela, Frank Hutter, Massimiliano Pontil, and Riccardo Grazzi. Deltaproduct: Improving state-tracking in linear RNNs via householder products. In 
+
+Proc. Advances in Neural Information Processing Systems (NeurIPS) , San Diego, CA, USA, December 2025. [16] Johannes von Oswald, Eyvind Niklasson, Ettore Randazzo, João Sacramento, Alexander Mord-vintsev, Andrey Zhmoginov, and Max Vladymyrov. Transformers learn in-context by gradient descent. In Proc. Int. Conf. on Machine Learning (ICML) , Honolulu, HI, USA, July 2023. 11 [17] Johannes von Oswald, Eyvind Niklasson, Maximilian Schlegel, Seijin Kobayashi, Nicolas Zucchet, Nino Scherrer, Nolan Miller, Mark Sandler, Max Vladymyrov, Razvan Pascanu, et al. Uncovering mesa-optimization algorithms in Transformers. Preprint arXiv:2309.05858 , 2023. [18] Johannes von Oswald, Nino Scherrer, Seijin Kobayashi, Luca Versari, Songlin Yang, Maximilian Schlegel, Kaitlin Maile, Yanick Schimpf, Oliver Sieberling, Alexander Meulemans, et al. MesaNet: Sequence modeling by locally optimal test-time training. In Int. Conf. on Learning Representations (ICLR) , Rio de Janeiro, Brazil, 2026. [19] Yu Sun, Xinhao Li, Karan Dalal, Jiarui Xu, Arjun Vikram, Genghan Zhang, Yann Dubois, Xinlei Chen, Xiaolong Wang, Sanmi Koyejo, et al. Learning to (learn at test time): RNNs with expressive hidden states. In Proc. Int. Conf. on Machine Learning (ICML) , Vancouver, Canada, July 2025. [20] Ali Behrouz, Zeman Li, Praneeth Kacham, Majid Daliri, Yuan Deng, Peilin Zhong, Meisam Razaviyayn, and Vahab Mirrokni. Atlas: Learning to optimally memorize the context at test time. Preprint arXiv:2505.23735 , 2025. [21] Ali Behrouz, Peilin Zhong, and Vahab Mirrokni. Titans: Learning to memorize at test time. In 
+
+Proc. Advances in Neural Information Processing Systems (NeurIPS) , San Diego, CA, USA, 2025. [22] Ali Behrouz, Meisam Razaviyayn, Peilin Zhong, and Vahab Mirrokni. Nested learning: The illusion of deep learning architectures. In Proc. Advances in Neural Information Processing Systems (NeurIPS) , San Diego, CA, USA, December 2025. [23] Ke Alexander Wang, Jiaxin Shi, and Emily B Fox. Test-time regression: a unifying framework for designing sequence models with associative memory. Preprint arXiv:2501.12352 , 2025. [24] Hao Peng, Nikolaos Pappas, Dani Yogatama, Roy Schwartz, Noah A Smith, and Lingpeng Kong. Random feature attention. In Int. Conf. on Learning Representations (ICLR) , Virtual only, 2021. [25] Songlin Yang, Bailin Wang, Yikang Shen, Rameswar Panda, and Yoon Kim. Gated linear attention transformers with hardware-efficient training. In Proc. Int. Conf. on Machine Learning (ICML) , Vienna, Austria, July 2024. [26] Bernhard Schölkopf and Alexander J Smola. Learning with kernels: support vector machines, regularization, optimization, and beyond . MIT press, 2002. [27] Keller Jordan, Yuchen Jin, Vlado Boza, Jiacheng You, Franz Cesista, Laker Newhouse, and Jeremy Bernstein. Muon: An optimizer for hidden layers in neural networks, 2024. URL 
+
+https://kellerjordan.github.io/posts/muon/ .[28] Minh-Thang Luong, Hieu Pham, and Christopher D Manning. Effective approaches to attention-based neural machine translation. In Proc. Conf. on Empirical Methods in Natural Language Processing (EMNLP) , Lisbon, Portugal, September 2015. [29] Nachman Aronszajn. Theory of reproducing kernels. Transactions of the American mathemati-cal society , 68(3):337–404, 1950. [30] Frederik Benzing. Gradient descent on neurons and its link to approximate second-order optimization. In Kamalika Chaudhuri, Stefanie Jegelka, Le Song, Csaba Szepesvári, Gang Niu, and Sivan Sabato, editors, Proc. Int. Conf. on Machine Learning (ICML) , 2022. [31] James Martens and Roger B. Grosse. Optimizing neural networks with kronecker-factored approximate curvature. In Francis R. Bach and David M. Blei, editors, Proceedings of the 32nd International Conference on Machine Learning, ICML 2015, Lille, France, 6-11 July 2015 ,volume 37 of JMLR Workshop and Conference Proceedings , pages 2408–2417. JMLR.org, 2015. URL http://proceedings.mlr.press/v37/martens15.html .[32] Bernard Widrow and Marcian E Hoff. Adaptive switching circuits. In Proc. IRE WESCON Convention Record , pages 96–104, Los Angeles, CA, USA, August 1960. 12 [33] Biao Zhang and Rico Sennrich. Root mean square layer normalization. In Proc. Advances in Neural Information Processing Systems (NeurIPS) , Vancouver, Canada, 2019. [34] Kunihiko Fukushima. Visual feature extraction by a multilayered network of analog threshold elements. IEEE Transactions on Systems Science and Cybernetics , 5(4):322–333, 1969. [35] Vinod Nair and Geoffrey E. Hinton. Rectified linear units improve restricted boltzmann machines. In Proc. Int. Conf. on Machine Learning (ICML) , pages 807–814, Haifa, Israel, June 2010. [36] Dan Hendrycks. Gaussian error linear units (GELUs). Preprint arXiv:1606.08415 , 2016. [37] John S Bridle. Probabilistic interpretation of feedforward classification network outputs, with relationships to statistical pattern recognition. Neurocomputing: Algorithms, architectures and applications , pages 227–236, 1990. [38] Diederik P Kingma and Jimmy Ba. Adam: A method for stochastic optimization. In Int. Conf. on Learning Representations (ICLR) , San Diego, CA, USA, May 2015. [39] Ilya Loshchilov and Frank Hutter. Decoupled weight decay regularization. In Int. Conf. on Learning Representations (ICLR) , New Orleans, LA, USA, May 2019. [40] Geoffrey Hinton, Nitish Srivastava, and Kevin Swersky. Neural networks for machine learning (lecture 6e). Coursera, video lectures, 2012. [41] Elizabeth Gardner and Bernard Derrida. Three unfinished works on the optimal storage capacity of networks. Journal of Physics A: Mathematical and General , 22(12), 1989. [42] Berfin Simsek, François Ged, Arthur Jacot, Francesco Spadaro, Clément Hongler, Wulfram Gerstner, and Johanni Brea. Geometry of the loss landscape in overparameterized neural networks: Symmetries and invariances. In Proc. Int. Conf. on Machine Learning (ICML) ,Virtual only, July 2021. [43] Mor Geva, Roei Schuster, Jonathan Berant, and Omer Levy. Transformer feed-forward layers are key-value memories. In Proc. Conf. on Empirical Methods in Natural Language Processing (EMNLP) , pages 5484–5495, Punta Cana, Dominican Republic, November 2021. [44] Alex Krizhevsky. Learning multiple layers of features from tiny images. Master’s thesis, Computer Science Department, University of Toronto, 2009. [45] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, Jakob Uszkoreit, and Neil Houlsby. An image is worth 16x16 words: Transformers for image recognition at scale. In Int. Conf. on Learning Representations (ICLR) , Virtual only, May 2021. [46] Bernhard E. Boser, Isabelle Guyon, and Vladimir Vapnik. A training algorithm for optimal margin classifiers. In Proc. Annual ACM Conference on Computational Learning Theory (COLT) , pages 144–152, Pittsburgh, PA, USA, July 1992. ACM. [47] Christopher JC Burges. A tutorial on support vector machines for pattern recognition. Data mining and knowledge discovery , 2(2):121–167, 1998. [48] Llew Mason, Jonathan Baxter, Peter L. Bartlett, and Marcus R. Frean. Boosting algorithms as gradient descent. In Sara A. Solla, Todd K. Leen, and Klaus-Robert Müller, editors, Proc. Advances in Neural Information Processing Systems (NIPS) , 1999. [49] Jerome H. Friedman. Greedy function approximation: A gradient boosting machine. Annals of Statistics , 29:1189–1232, 2000. [50] Alexander Grubb and J. Andrew Bagnell. Boosted backpropagation learning for training deep modular networks. In Johannes Fürnkranz and Thorsten Joachims, editors, Proc. Int. Conf. on Machine Learning (ICML) , 2010. [51] Pedro Domingos. Every model learned by gradient descent is approximately a kernel machine. 
+
+Preprint arXiv:2012.00152 , 2020. 13 [52] Tomás J Ryan, Dheeraj S Roy, Michele Pignatelli, Autumn Arons, and Susumu Tonegawa. Engram cells retain memory under retrograde amnesia. Science , 348(6238):1007–1013, 2015. [53] Dheeraj S Roy, Shruti Muralidhar, Lillian M Smith, and Susumu Tonegawa. Silent memory engrams as the basis for retrograde amnesia. Proc. of National Academy of Sciences (PNAS) ,114(46):E9972–E9979, 2017. [54] Samuel J Gershman, Ila Fiete, and Kazuki Irie. Key-value memory in the brain. Neuron , 113, 2025. [55] Daniel Bolya, Cheng-Yang Fu, Xiaoliang Dai, Peizhao Zhang, Christoph Feichtenhofer, and Judy Hoffman. Token merging: Your vit but faster. In Int. Conf. on Learning Representations (ICLR) , Kigali, Rwanda, May 2023. [56] Dan Hendrycks and Kevin Gimpel. Gaussian Error Linear Units (GELUs). arXiv preprint arXiv:1606.08415 , 2016. [57] Jimmy Ba, Jamie Ryan Kiros, and Geoffrey E Hinton. Layer normalization. Preprint arXiv:1607.06450 , 2016. [58] Herbert Robbins and Sutton Monro. A stochastic approximation method. The Annals of Mathematical Statistics , 22(3):400–407, 1951. [59] Alex Graves, Greg Wayne, and Ivo Danihelka. Neural turing machines. Preprint arXiv:1410.5401 , 2014. [60] Alex Graves, Greg Wayne, Malcolm Reynolds, Tim Harley, Ivo Danihelka, Agnieszka Grabska-Barwi´ nska, Sergio Gómez Colmenarejo, Edward Grefenstette, Tiago Ramalho, John Agapiou, et al. Hybrid computing using a neural network with dynamic external memory. Nature , 538 (7626):471–476, 2016. [61] Jason Weston, Sumit Chopra, and Antoine Bordes. Memory networks. Preprint arXiv:1410.3916 , 2014. [62] Sainbayar Sukhbaatar, Arthur Szlam, Jason Weston, and Rob Fergus. End-to-end memory networks. In Proc. Advances in Neural Information Processing Systems (NIPS) , pages 2440– 2448, Montréal, Canada, December 2015. [63] Alexander Pritzel, Benigno Uria, Sriram Srinivasan, Adria Puigdomenech Badia, Oriol Vinyals, Demis Hassabis, Daan Wierstra, and Charles Blundell. Neural episodic control. In Proc. Int. Conf. on Machine Learning (ICML) , pages 2827–2836, Lille, France, August 2017. [64] Vincent-Pierre Berges, Barlas O˘ guz, Daniel Haziza, Wen-tau Yih, Luke Zettlemoyer, and Gargi Ghosh. Memory layers at scale. In Proc. Int. Conf. on Machine Learning (ICML) , Vancouver, Canada, July 2025. [65] Sabri Eyuboglu, Ryan Ehrlich, Simran Arora, Neel Guha, Dylan Zinsley, Emily Liu, Will Tennien, Atri Rudra, James Zou, Azalia Mirhoseini, et al. Cartridges: Lightweight and general-purpose long context representations via self-study. Preprint arXiv:2506.06266 , 2025. [66] Alan M. Turing. On computable numbers, with an application to the entscheidungsproblem. 
+
+Proc. of London Mathematical Society , 1936. [67] Ali Behrouz, Zeman Li, Yuan Deng, Peilin Zhong, Meisam Razaviyayn, and Vahab Mirrokni. Memory caching: RNNs with growing memory. In Proc. Int. Conf. on Machine Learning (ICML) , Seoul, South Korea, July 2026. [68] Andrew Gordon Wilson, Zhiting Hu, Ruslan Salakhutdinov, and Eric P Xing. Deep kernel learning. In Proc. Int. Conf. on Artificial Intelligence and Statistics (AISTATS) , pages 370–378, Cadiz, Spain, May 2016. [69] Hubert Ramsauer, Bernhard Schäfl, Johannes Lehner, Philipp Seidl, Michael Widrich, Lukas Gruber, Markus Holzleitner, Thomas Adler, David Kreil, Michael K Kopp, Günter Klambauer, Johannes Brandstetter, and Sepp Hochreiter. Hopfield networks is all you need. In Int. Conf. on Learning Representations (ICLR) , Virtual only, May 2021. 14 [70] Arthur Jacot, Franck Gabriel, and Clément Hongler. Neural tangent kernel: Convergence and generalization in neural networks. In Proc. Advances in Neural Information Processing Systems (NeurIPS) , Montréal, Canada, December 2018. [71] Jaehoon Lee, Lechao Xiao, Samuel Schoenholz, Yasaman Bahri, Roman Novak, Jascha Sohl-Dickstein, and Jeffrey Pennington. Wide neural networks of any depth evolve as linear models under gradient descent. In Proc. Advances in Neural Information Processing Systems (NeurIPS) ,Vancouver, Canada, December 2019. [72] Lenaic Chizat, Edouard Oyallon, and Francis Bach. On lazy training in differentiable program-ming. In Proc. Advances in Neural Information Processing Systems (NeurIPS) , Vancouver, Canada, December 2019. [73] Scott Fahlman and Christian Lebiere. The cascade-correlation learning architecture. In Proc. Advances in Neural Information Processing Systems (NIPS) , volume 2, 1989. [74] John Platt. A resource-allocating network for function interpolation. Neural Computation , 3(2): 213–225, 1991. [75] Andrei A Rusu, Neil C Rabinowitz, Guillaume Desjardins, Hubert Soyer, James Kirkpatrick, Koray Kavukcuoglu, Razvan Pascanu, and Raia Hadsell. Progressive neural networks. Preprint arXiv:1606.04671 , 2016. [76] Jaehong Yoon, Eunho Yang, Jeongtae Lee, and Sung Ju Hwang. Lifelong learning with dynamically expandable networks. In Int. Conf. on Learning Representations (ICLR) , Vancouver, Canada, April 2018. [77] Kenneth O Stanley and Risto Miikkulainen. Evolving neural networks through augmenting topologies. Evolutionary computation , 10(2):99–127, 2002. [78] Utku Evci, Bart van Merrienboer, Thomas Unterthiner, Fabian Pedregosa, and Max Vladymyrov. GradMax: Growing neural networks using gradient information. In Int. Conf. on Learning Representations (ICLR) , Virtual only, April 2022. [79] Eivinas Butkus, Kedar GarzÃ` gn Gupta, and Nikolaus Kriegeskorte. Growing a neural network in breadth, depth, and time. Preprint arXiv:2605.25174 , 2026. [80] Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih, Tim Rocktäschel, Sebastian Riedel, and Douwe Kiela. Retrieval-augmented generation for knowledge-intensive NLP tasks. In Proc. Advances in Neural Information Processing Systems (NeurIPS) , Virtual only, December 2020. [81] Sewon Min, Weijia Shi, Mike Lewis, Xilun Chen, Wen-tau Yih, Hannaneh Hajishirzi, and Luke Zettlemoyer. Nonparametric masked language modeling. In Findings of the Association for Computational Linguistics , pages 2097–2118, Toronto, Canada, July 2023. 15 A Derivation of the Growing Layer Algorithm for Positive Definite Kernels 
+
+In this appendix, we provide the formal derivation of the learning algorithms for the growing kernel networks introduced in Section 3.1. We establish the correspondence between the “growing database” update rules and stochastic gradient descent (SGD) performed on an implicit, infinite-dimensional weight matrix defined in a Reproducing Kernel Hilbert Space (RKHS). 
+
+A.1 The Growing Kernel Layer 
+
+A growing kernel layer with input dimension din and output dimension dout is defined by a tuple 
+
+(ϕ, D), where: • ϕ : Rdin × Rdin → R is a positive definite kernel. • D = {(ki, vi)}Mi=1 is a finite database of key-value pairs, where ki ∈ Rdin and vi ∈ Rdout .The layer implements a function fϕ, D : Rdin → Rdout defined as: 
+
+fϕ, D (q) = X
+
+> (k,v)∈D
+
+ϕ(k, q)v . (14) Unlike standard parametric layers with fixed dimensions, this layer “grows” by appending new key-value pairs to D. Deep growing kernel networks are constructed by composing such layers, inter-leaving them with element-wise non-linearities σ. For example, a two-layer network is represented as F (x) = σ(fϕ2,D2 (σ(fϕ1,D1 (x)))) .
+
+A.2 The Implicit Weight Matrix View 
+
+By the Moore-Aronszajn theorem, the positive definite kernel ϕ is associated with a Reproducing Kernel Hilbert Space (RKHS) Hϕ and a feature map ψϕ : Rdin → H ϕ such that ϕ(x, x′) = 
+
+⟨ψϕ(x), ψ ϕ(x′)⟩Hϕ . Since Hϕ is typically separable (e.g., for the RBF kernel), it is isomorphic to 
+
+ℓ2(N). We can thus view ψϕ(x) as an infinite-dimensional vector. Substituting this inner product structure into Eq. 14, we obtain: 
+
+fϕ, D (q) = X
+
+> (k,v)∈D
+
+v⟨ψϕ(k), ψ ϕ(q)⟩Hϕ
+
+=
+
+ X
+
+> (k,v)∈D
+
+vψϕ(k)⊤
+
+ ψϕ(q)= Wϕ, D ψϕ(q) , (15) where Wϕ, D = P 
+
+> (k,v)∈D
+
+vψϕ(k)⊤ is an implicit linear operator (or infinite matrix) mapping from 
+
+Hϕ to Rdout . This formulation reveals that a growing kernel layer is theoretically equivalent to a linear layer with a weight matrix W ∈ Rdout ×∞ acting on the feature space, where the weight matrix has a finite rank determined by the size of D.
+
+A.3 Derivation of the Learning Algorithm 
+
+We now derive the update rule for the database D by minimizing a global loss function L via Stochastic Gradient Descent (SGD) on the implicit weights W .Consider a deep kernel network F and a specific layer ℓ with implicit weight matrix W (ℓ), kernel ϕ(ℓ),and feature map ψ(ℓ). Let h(ℓ) 
+
+> in
+
+(x) denote the input to this layer and h(ℓ) 
+
+> out
+
+(x) = W (ℓ)ψ(ℓ)(h(ℓ) 
+
+> in
+
+(x)) 
+
+denote the output. Given a mini-batch of training data B = {(xb, yb)}|B|
+
+> b=1
+
+, the loss is J =
+
+P|B| 
+
+> b=1
+
+L(xb, yb; W (ℓ)).The gradient of the loss with respect to the implicit matrix W (ℓ) is computed via the chain rule. Let 
+
+e(ℓ) 
+
+> b
+
+be the error signal (gradient of the loss with respect to the layer output) for sample b:
+
+e(ℓ) 
+
+> b
+
+:= ∇h(ℓ)
+
+> out
+
+L(xb, yb) ∈ Rd(ℓ) 
+
+> out
+
+. (16) 16 The gradient with respect to W (ℓ) is the outer product of the error signal and the layer input features: 
+
+∇W (ℓ) J =
+
+> |B|
+
+X
+
+> b=1
+
+e(ℓ) 
+
+> b
+
+ψ(ℓ)(h(ℓ) 
+
+> in
+
+(xb)) ⊤ . (17) Applying the SGD update rule W (ℓ) 
+
+> t+1
+
+= W (ℓ) 
+
+> t
+
+− η∇W (ℓ) J yields: 
+
+W (ℓ) 
+
+> t+1
+
+= W (ℓ) 
+
+> t
+
+− η
+
+> |B|
+
+X
+
+> b=1
+
+e(ℓ) 
+
+> b
+
+ψ(ℓ)(h(ℓ) 
+
+> in
+
+(xb)) ⊤ . (18) We now examine the function computed by the layer at step t + 1 for an arbitrary query q:
+
+f (ℓ)
+
+> t+1
+
+(q) = W (ℓ)
+
+> t+1
+
+ψ(ℓ)(q)= W (ℓ) 
+
+> t
+
+ψ(ℓ)(q) + 
+
+> |B|
+
+X
+
+> b=1
+
+
+
+−ηe(ℓ)
+
+> b
+
+
+
+ψ(ℓ)(h(ℓ) 
+
+> in
+
+(xb)) ⊤ψ(ℓ)(q)= f (ℓ) 
+
+> t
+
+(q) + 
+
+> |B|
+
+X
+
+> b=1
+
+vnew ,b ϕ(ℓ)(knew ,b , q) , (19) where knew ,b = h(ℓ) 
+
+> in
+
+(xb) and vnew ,b = −ηe(ℓ) 
+
+> b
+
+. This confirms that performing SGD on the implicit infinite-dimensional weight matrix is exactly equivalent to appending the current batch inputs (as keys) and their scaled negative gradients (as values) to the database D.
+
+A.4 Optimization Dynamics: Weight Decay and Momentum 
+
+We extend the framework to include weight decay and momentum, deriving their dual forms in the growing database context. 
+
+A.4.1 Weight Decay and Database Pruning 
+
+Consider the L2-regularized objective Lreg (W ) = L(W ) + γ 
+
+> 2η
+
+∥W ∥2
+
+> HS
+
+, where ∥ · ∥ HS is the Hilbert-Schmidt (Frobenius) norm and γ ∈ (0 , 1) is the decay factor. The SGD update becomes: 
+
+Wt+1 = (1 − γ)Wt − η∇W L . (20) In the functional form f (q) = W ψ(q), the scaling factor (1 − γ) distributes linearly over the sum of key-value pairs. Thus, weight decay is implemented by scaling down the value vectors of all existing pairs in the database at each step: 
+
+Dt+1 = {(k, (1 − γ)v) | (k, v) ∈ D t} ∪ { (knew , vnew )} . (21) 
+
+Pruning: This update implies that the magnitude of a value vector stored at time t0 decays as 
+
+∥v(t)∥ = (1 − γ)t−t0 ∥v(t0)∥. This justifies a principled pruning strategy: once ∥v(t)∥ drops below a threshold ϵ, the pair’s contribution becomes negligible, and it can be removed from memory, bounding the database size. 
+
+A.4.2 Momentum 
+
+We adopt the standard momentum formulation where a velocity matrix Vt accumulates gradients. Let Gt = −η∇W Lt be the update term at step t. The velocity update is Vt+1 = μVt + Gt, and the weight update is Wt+1 = Wt + Vt+1 . Unrolling the recurrence, the weight matrix at time T is a linear combination of all past update terms Gτ (created at time τ < T ): 
+
+WT =
+
+> T
+
+X 
+
+> τ=1
+
+c(T, τ )Gτ , with c(T, τ ) =  
+
+> T−τ
+
+X
+
+> k=0
+
+μk = 1 − μT −τ +1 
+
+1 − μ . (22) Since each Gτ corresponds to the batch of key-value pairs created at time τ , we do not need to store explicit velocity vectors. Instead, we store the creation timestamp tcreate with each pair. During the forward pass at time T , we dynamically compute the coefficient c(T, t create ):
+
+fT (q) = X
+
+> (k,vinit ,t create )∈D
+
+ 1 − μT −tcreate +1 
+
+1 − μ
+
+
+
+ϕ(k, q)vinit . (23) 17 This allows exact momentum computation with no additional memory overhead per pair. Combining both techniques results in decaying the stored values for regularization while scaling the retrieval output for momentum. 
+
+## B Further Details and Remarks for the Softmax Case 
+
+B.1 Remark: the functional space of weighted softmax functions 
+
+In order to make the softmax function in Eq. 3 well-defined, we require that 
+
+Z 
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩+⟨v,v′⟩dk dv < ∞ ,
+
+∀q ∈ Rdin , ∀v′ ∈ Rdout .
+
+In other words, if we interpret w as the density of a measure μw on Rdin × Rdout , then we require that the moment-generating function of μw be well-defined and finite everywhere. 
+
+Remark B.1 . In the case of a finite database of weighted key-value pairs, if we have several tuples having the same key, then we can combine them into one tuple. For example, we can combine 
+
+(w1, k, v1) and (w2, k, v2) and replace them with 
+
+
+
+w1 + w2, k, w1v1+w2v2
+
+> w1+w2
+
+
+
+, and this will induce the same softmax function. Analogously, if we define the “marginalized” key-weight function 
+
+˜w : Rdin → R+ as 
+
+˜w(k) = 
+
+Z
+
+> Rdout
+
+w(k, v)dv ,
+
+and the marginalized value function ˜v : Rdin → Rdout which associates a unique value for every key as 
+
+˜v(k) := 1˜w(k)
+
+Z
+
+> Rdout
+
+w(k, v)vdv ,
+
+then we can write sw in terms of ˜w and ˜v as follows: 
+
+sw(q) = s ˜w, ˜v (q) := 
+
+R 
+
+> Rdin
+
+˜w(k)e⟨k,q⟩ ˜v(k) dk
+
+R 
+
+> Rdin
+
+˜w(k)e⟨k,q⟩ dk . (24) 
+
+B.2 Continuous softmax function induced by the Gaussian mixture density & Discrete weighted softmax function 
+
+Here we provide a full derivation demonstrating that the continuous softmax function induced by the Gaussian mixture density wD is exactly equivalent to the discrete weighted softmax function sD
+
+defined by the database D.
+
+swD (q) = 
+
+R  
+
+> Rdin ×Rdout
+
+wD (k, v)e⟨k,q⟩v dk dv
+
+R  
+
+> Rdin ×Rdout
+
+wD (k, v)e⟨k,q⟩ dk dv
+
+=
+
+Pni=1 wiE(k,v)∼N (( ki,vi),Σ) [e⟨k,q⟩v]
+
+Pni=1 wiE(k,v)∼N (( ki,vi),Σ) [e⟨k,q⟩]=
+
+Pni=1 wiEk∼N (ki,σ 2 
+
+> kI)
+
+[e⟨k,q⟩]Ev∼N (vi,σ 2 
+
+> vI)
+
+[v]
+
+Pni=1 wiEk∼N (ki,σ 2 
+
+> kI)
+
+[e⟨k,q⟩]=
+
+Pni=1 wie⟨ki,q⟩+ 12 σ2 
+
+> k∥q∥2
+
+vi
+
+Pni=1 wie⟨ki,q⟩+ 12 σ2 
+
+> k∥q∥2
+
+= e 12 σ2  
+
+> k∥q∥2
+
+Pni=1 wie⟨ki,q⟩vi
+
+e 12 σ2  
+
+> k∥q∥2
+
+Pni=1 wie⟨ki,q⟩
+
+=
+
+Pni=1 wie⟨ki,q⟩vi
+
+Pni=1 wie⟨ki,q⟩ = sD (q) .
+
+18 B.3 Further discussion on the standard (unweighted) softmax case 
+
+In Sec. 3.2 of the main text, we introduced the weighted softmax by noting that deriving a principled learning rule for the standard/unweighted softmax is non-trivial due to the discontinuous nature. Here we illustrate this difficulty by presenting an example of a naive derivation of a learning rule for the standard softmax case and showing where it breaks down. 
+
+Model description. Consider a growing softmax layer that, at every training step t, maintains a key-value memory state consisting of two matrices Kt−1 = [ k1, . . . , kt−1] ∈ Rdin ×(t−1) and 
+
+Vt−1 = [ v1, . . . , vt−1] ∈ Rdout ×(t−1) (both to be defined later), receives a layer input xt ∈ Rdin and produces a layer output yt ∈ Rdout through the softmax attention function: 
+
+qt = xt (25) 
+
+yt = Vt−1softmax( K⊤
+
+> t−1
+
+qt) = 
+
+> t−1
+
+X 
+
+> τ=1
+
+αt−1,τ vτ (26) where αt−1,τ ∈ R denotes the attention score for the key kτ using the query qt and the system’s key-value memory state from step t − 1 (i.e., before updating the system at step t). That is, xt is used as the query qt in the attention operation to retrieve from the key-value memory consisting of matrices Kt−1 and Vt−1.Then, the system’s memory state is updated as: 
+
+Kt = [ Kt−1, kt] ∈ Rdin ×t (27) 
+
+Vt = [ Vt−1, vt] ∈ Rdout ×t (28) where [] denotes concatenation along the time dimension. By following the linear case (Sec. 2), let us set the key to be the layer input, i.e., kt = xt. Now the question is how should we set vt ∈ Rdout so that this memory update corresponds to a principled learning algorithm for this system in a way that it optimizes a given objective function L?
+
+Direct Derivation. For that, we first set the new value vector vt ∈ Rdout as an arbitrary free parameter vector, and consider the virtually updated system with the newly added key-value pair (xt, v). After this update, the output of the system on the input qt = xt becomes: 
+
+ynew  
+
+> t
+
+= Vtsoftmax( K⊤ 
+
+> t
+
+qt) = 
+
+> t−1
+
+X 
+
+> τ=1
+
+αnew  
+
+> t,τ
+
+vτ + αnew  
+
+> t,t
+
+v (29) that is, compared to the old system of Eq. 26, one extra term (the last term in Eq. 29) is introduced in the sum as we now have one more value vector, with newly computed attention scores αnew 
+
+> t,τ
+
+normalized over the new set of keys, including the attention score αnew  
+
+> t,t
+
+for the newly added key xt.Our goal is to improve the loss on input qt by adding the new value token vt to the system. For that, we can apply a step of gradient descent on loss L w.r.t. vt with a learning rate ηt ∈ R>0, which yields: 
+
+vt = vold − ηt
+
+∂Lt(ynew  
+
+> t
+
+)
+
+∂v (30) where two more variables, vold and the gradient term, are still to be determined; as we see below, this raises difficulties we cannot trivially overcome. First, what should vold be? Essentially, vold is the value for newly added vt that preserves the old system (representing the initial system before applying a step of gradient descent). For this, we can express the output of the new system ynew  
+
+> t
+
+(Eq. 29) as a function of that of the old one yt (Eq. 26) and search for the value of vt that makes them equal. The apparently tricky difference between them is the modified attention scores: αnew  
+
+> t,τ
+
+(Eq. 29) vs. αt−1,τ (Eq. 26) for 1 ≤ τ ≤ t − 1. However, thankfully, we can notice a simple relation that connects the old attention scores before the update (αt−1,τ ) and the new ones ( αnew  
+
+> t,τ
+
+) after the update. By denoting Zold and Znew the denominators (normalizers) of the attention scores when the input is qt, before and after the update, respectively, i.e., 
+
+Zold =
+
+> t−1
+
+X 
+
+> τ=1
+
+ex⊤  
+
+> τqt
+
+; Znew =
+
+> t
+
+X 
+
+> τ=1
+
+ex⊤  
+
+> τqt
+
+= Zold + eq⊤  
+
+> tqt
+
+, (31) 19 we can express the new attention scores as a function of the old one: 
+
+αnew  
+
+> t,τ
+
+= ex⊤ 
+
+> τqt
+
+Znew = Zold 
+
+Znew × ex⊤ 
+
+> τqt
+
+Zold = Zold 
+
+Znew αt−1,τ , (32) and additionally, the normalizer ratio can also be simplified, since Znew = Zold + eq⊤  
+
+> tqt
+
+, as follows: 
+
+Zold 
+
+Znew = Zold + eq⊤  
+
+> tqt
+
+− eq⊤ 
+
+> tqt
+
+Znew = Znew − eq⊤ 
+
+> tqt
+
+Znew = 1 − eq⊤ 
+
+> tqt
+
+Znew = 1 − αnew  
+
+> t,t
+
+. (33) By inserting this ratio to Eq. 32, it yields: 
+
+αnew  
+
+> t,τ
+
+= (1 − αnew  
+
+> t,t
+
+)αt−1,τ , (34) that is, the new attention scores for the old keys shrink by factor (1 − αnew  
+
+> t,t
+
+). This allows us to express the new output ynew  
+
+> t
+
+as a function of the old one yt:
+
+ynew  
+
+> t
+
+=
+
+> t−1
+
+X 
+
+> τ=1
+
+αnew  
+
+> t,τ
+
+vτ + αnew  
+
+> t,t
+
+v (29) 
+
+=
+
+> t−1
+
+X 
+
+> τ=1
+
+(1 − αnew  
+
+> t,t
+
+)αt−1,τ vτ + αnew  
+
+> t,t
+
+v = (1 − αnew  
+
+> t,t
+
+)  t−1X 
+
+> τ=1
+
+αt−1,τ vτ
+
+ + αnew  
+
+> t,t
+
+v (35) 
+
+= (1 − αnew  
+
+> t,t
+
+)yt + αnew  
+
+> t,t
+
+v (36) 
+
+= yt + αnew  
+
+> t,t
+
+(v − yt) . (37) Here we can at least find vt = vold such that the updated system reproduces the old system’s output on input qt, that is, ynew  
+
+> t
+
+= yt, which, from Eq. 37 holds when vt = vold = yt, canceling the last term. However, this only preserves the mapping for the current query qt; as the new key kt alters the softmax denominator globally, the output for any other query will be modified, failing to achieve the global function preservation. Second, while the computation of the gradient term seems straightforward: 
+
+∂Lt(ynew  
+
+> t
+
+)
+
+∂v = ∂Lt(ynew  
+
+> t
+
+)
+
+∂ynew 
+
+> t
+
+× ∂ynew 
+
+> t
+
+∂v = ( ∇ynew  
+
+> t
+
+Lt)αnew  
+
+> t,t
+
+, (38) by differentiating Eq. 29 w.r.t. v, this requires access to the post-update gradient of the loss w.r.t. the 
+
+new output (∇ynew  
+
+> t
+
+Lt). While this creates a circular dependency in the general case, by setting 
+
+vt = yt as prescribed by the derivation above, ∇ynew  
+
+> t
+
+Lt can be essentially replaced by ∇yt Lt.Putting these together, we obtain the following update rule: 
+
+vt = vold − ηt
+
+∂Lt(ynew  
+
+> t
+
+)
+
+∂v = yt − ηtαnew  
+
+> t,t
+
+∇ynew  
+
+> t
+
+Lt , (39) where αnew  
+
+> t,t
+
+= ex⊤ 
+
+> txt
+
+Znew ∈ R can be computed simply as we have Znew = Zold + ex⊤  
+
+> txt
+
+for the normalizer, and Zold is computed to compute yt.However, this is not a satisfactory derivation as the choice of vold is limited to the local function preservation on one data point. This derivation illustrates that a naive approach that consists in parameterizing the value vector as a free parameter and applying gradient descent on it does not work out of the box. 
+
+## C Functional Gradient Descent in the Weighted Softmax Space 
+
+In this appendix, we rigorously derive the functional gradient of the loss with respect to the weight function w ∈ H σk ,σ v and show that the gradient descent update corresponds to adding a new key-value tuple to the database. 20 C.1 Setup and Definitions 
+
+Let H = Hσk ,σ v be the Hilbert space of weight functions w : Rdin × Rdout → R equipped with the inner product ⟨f, g ⟩H = R f (k, v)g(k, v)dμ (k, v) and norm ∥w∥H, where μ = N (0, Σ) is the centered Gaussian measure with block covariance Σ = diag (Σ k, Σv ) = diag (σ2
+
+> k
+
+I, σ 2 
+
+> v
+
+I). Recall the definition of the softmax functional 
+
+sw(q) = 
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩v dμ (k, v)
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩ dμ (k, v) = N (w)
+
+D(w) ,
+
+where we define the denominator functional D : H → R and the numerator operator N : H → Rdout 
+
+as follows: 
+
+D(w) = 
+
+Z 
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩ dμ (k, v) , (40) 
+
+N (w) = 
+
+Z 
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩v dμ (k, v) . (41) Let Nj (w) denote the j-th component of the vector N (w). It is a scalar linear functional: 
+
+Nj (w) = 
+
+Z
+
+w(k, v)e⟨k,q⟩vj dμ (k, v) .
+
+By defining the kernels 
+
+KD (k, v) = e⟨k,q⟩, KN,j (k, v) = e⟨k,q⟩vj ,
+
+we can rewrite D and Nj as 
+
+D(w) = 
+
+Z 
+
+> Rdin ×Rdout
+
+w(k, v)KD (k, v) dμ (k, v) , (42) 
+
+Nj (w) = 
+
+Z 
+
+> Rdin ×Rdout
+
+w(k, v)KN,j (k, v) dμ (k, v) . (43) By the Riesz Representation Theorem, if the functions representing these kernels belong to H, the functionals are bounded. We verify membership in H by checking the condition Eμ[f (k, v)2e⟨k,u⟩+⟨v,z⟩] < ∞ for all u, z.For KD , we have 
+
+∥KD ∥2 
+
+> H
+
+= E(k,v)∼μ
+
+h
+
+(e⟨k,q⟩)2e⟨k,u⟩+⟨v,z⟩i
+
+= Ek[e⟨k,2q+u⟩]Ev [e⟨v,z⟩] .
+
+These are moment generating functions of Gaussian variables, which are finite everywhere. For KN,j , we have 
+
+∥KN,j ∥2 
+
+> H
+
+= E(k,v)∼μ
+
+h
+
+(e⟨k,q⟩vj )2e⟨k,u⟩+⟨v,z⟩i
+
+= Ek[e⟨k,2q+u⟩]Ev [v2 
+
+> j
+
+e⟨v,z⟩] .
+
+The second term involves the second moment of a Gaussian under an exponential tilt, which is also finite. Thus, D(w) and N (w) are bounded linear operators. Specifically, there exist constants 
+
+CN , C D < ∞ such that for any δ ∈ H :
+
+∥N (δ)∥2 ≤ CN ∥δ∥H, |D(δ)| ≤ CD ∥δ∥H (44) 
+
+C.2 Fréchet Differentiability of sw
+
+We claim that the Fréchet derivative of sw at w, denoted ds w, is the linear operator acting on a perturbation δ ∈ H as: 
+
+ds w(δ) = N (δ)D(w) − N (w)D(δ)
+
+D(w)2 (45) To prove this, we must show that the remainder term R(δ) = sw+δ (q) − sw(q) − ds w(δ) satisfies 
+
+∥R(δ)∥ = o(∥δ∥H) as ∥δ∥H → 0.21 Proof. Let us expand the difference sw+δ − sw:
+
+sw+δ − sw = N (w) + N (δ)
+
+D(w) + D(δ) − N (w)
+
+D(w) (46) 
+
+= D(w)( N (w) + N (δ)) − N (w)( D(w) + D(δ)) 
+
+D(w)( D(w) + D(δ)) (47) 
+
+= D(w)N (δ) − N (w)D(δ)
+
+D(w)2 + D(w)D(δ) (48) Subtracting the candidate derivative ds w(δ):
+
+R(δ) = D(w)N (δ) − N (w)D(δ)
+
+D(w)( D(w) + D(δ)) − D(w)N (δ) − N (w)D(δ)
+
+D(w)2 (49) 
+
+= [ D(w)N (δ) − N (w)D(δ)] 
+
+ 1
+
+D(w)( D(w) + D(δ)) − 1
+
+D(w)2
+
+
+
+(50) 
+
+= [ D(w)N (δ) − N (w)D(δ)] 
+
+ D(w) − (D(w) + D(δ)) 
+
+D(w)2(D(w) + D(δ)) 
+
+
+
+(51) 
+
+= −[D(w)N (δ) − N (w)D(δ)] D(δ)
+
+D(w)2(D(w) + D(δ)) (52) Now we bound the norm of R(δ). Let w be fixed such that D(w)̸ = 0 . For sufficiently small δ
+
+(specifically ∥δ∥H < |D(w)|/(2 CD )), we have 
+
+|D(w) + D(δ)| ≥ | D(w)| − | D(δ)| ≥ | D(w)| − CD ∥δ∥H ≥ | D(w)|/2 .
+
+Furthermore, 
+
+∥D(w)N (δ) − N (w)D(δ)∥ ≤ | D(w)|∥ N (δ)∥ + ∥N (w)∥| D(δ)| (53) 
+
+≤ (|D(w)|CN + ∥N (w)∥CD )∥δ∥H (54) 
+
+= C1∥δ∥H . (55) Substituting these back into the expression for R(δ):
+
+∥R(δ)∥ ≤ C1∥δ∥H · | D(δ)||D(w)|2|D(w) + D(δ)| (56) 
+
+≤ C1∥δ∥H · CD ∥δ∥H
+
+|D(w)|2(|D(w)|/2) (57) 
+
+= 2C1CD
+
+|D(w)|3 ∥δ∥2 
+
+> H
+
+(58) 
+
+= O(∥δ∥2
+
+> H
+
+) . (59) Since ∥R(δ)∥ ≤ C∥δ∥2
+
+> H
+
+, it implies lim ∥δ∥→ 0 ∥R(δ)∥∥δ∥ = 0 . Thus, sw is Fréchet differentiable. 
+
+C.3 Derivation of the Functional Gradient 
+
+Let L( ˆ y, y) be a loss function that is differentiable with respect to the prediction ˆy. By the chain rule for Fréchet derivatives, the composition J(w) = L(sw(q), y) is differentiable with respect to w, and its differential is: 
+
+dJ (δ) = ⟨∇ ˆy L, ds w(δ)⟩ (60) Substituting ds w(δ):
+
+dJ (δ) = 
+
+
+
+∇ˆy L, N (δ)
+
+D(w) − sw(q) D(δ)
+
+D(w)
+
+
+
+(61) 
+
+= 1
+
+D(w) ⟨∇ ˆy L, N (δ)⟩ − ⟨∇ ˆy L, s w(q)⟩
+
+D(w) D(δ) . (62) 22 Using the integral definitions of N (δ) and D(δ) and the linearity of the inner product, we can rewrite this as an inner product in H:
+
+dJ (δ) = 
+
+Z
+
+δ(k, v)
+
+ 1
+
+D(w) ⟨∇ ˆy L, v⟩e⟨k,q⟩ − ⟨∇ ˆy L, s w(q)⟩
+
+D(w) e⟨k,q⟩
+
+
+
+dμ (63) 
+
+=
+
+Z
+
+δ(k, v) e⟨k,q⟩
+
+D(w) ⟨∇ ˆy L, v − sw(q)⟩dμ (64) 
+
+= ⟨δ, ∇wJ⟩H . (65) By the Riesz representation theorem, the function ∇wJ inside the inner product is the unique functional gradient: 
+
+∇wJ(k, v) = e⟨k,q⟩
+
+D(w) ⟨∇ ˆy L, v − sw(q)⟩ . (66) 
+
+C.4 Constructive Update Analysis 
+
+We now analyze the impact of the functional update wt+1 ← wt − η∇wJ on the softmax functional 
+
+swt+1 (q) and demonstrate that it is equivalent to adding a specific key-value tuple to the database. The impact of this update is determined by the changes to the numerator and denominator functionals. For the denominator, the update adds a term: 
+
+∆D(q) = −η
+
+Z
+
+∇wJ(k, v)e⟨k,q⟩dμ (k, v)= − ηD(wt)
+
+Z
+
+e⟨k,qt+q⟩⟨gt, v − st⟩dμ (k, v) ,
+
+where gt = ∇ˆy L and st = swt (qt). Since the measure μ is a centered Gaussian, Eμ[v] = 0.Consequently, the term involving v integrates to zero, leaving only the scalar part: 
+
+∆D(q) = η⟨gt, st⟩
+
+D(wt) Eμk [e⟨k,qt+q⟩] .
+
+The expectation is the moment generating function of N (0, Σk) evaluated at qt + q, which equals 
+
+e 12 ∥Σ1/2 
+
+> k(qt+q)∥2
+
+. Factoring this, we get a term proportional to e⟨Σk qt,q⟩. This corresponds precisely to the contribution of a new key knew = Σ kqt (or σ2
+
+> k
+
+qt in the isotropic case). Similarly, for the numerator, the update adds a term involving v:
+
+∆N (q) = − ηD(wt)
+
+Z
+
+e⟨k,qt+q⟩⟨gt, v − st⟩vdμ (k, v) .
+
+The term ⟨gt, −st⟩v integrates to zero (zero mean). The remaining term involves the second moment 
+
+Eμv [vv ⊤] = Σ v . Thus: 
+
+∆N (q) = − ηD(wt) Σv gtEμk [e⟨k,qt+q⟩] .
+
+Comparing ∆N and ∆D, we see they share the same key kernel e⟨knew ,q⟩. The equivalent added tuple (wnew , knew , vnew ) is thus: 
+
+knew = Σ kqt, wnew ∝ η⟨st, gt⟩, vnew ∝ − Σv gt
+
+⟨st, gt⟩ .
+
+This confirms that functional gradient descent in Hσk ,σ v is constructively equivalent to growing the database with specific, tractable update rules. In order to avoid dividing by ⟨st, gt⟩ which could be small and might introduce numerical instabilities, we can adopt a representation where we store the weighted value vector ˜v = wv instead of the value vector v, as in Eq. 8. In this case, the added tuple becomes 
+
+knew = Σ kqt, wnew ∝ η⟨st, gt⟩, ˜vnew ∝ − ηΣv gt .
+
+If Σv = σ2 
+
+> v
+
+I and β = ησ 2 
+
+> v
+
+, the weighted value vector becomes 
+
+˜vnew ∝ − βgt .
+
+23 C.5 Negative Weights and Numerical Stability 
+
+A critical inspection of the update rule for wnew reveals that its sign is determined by the inner product 
+
+δt = ⟨st, gt⟩. Since the learning rate η and normalization D(wt) are positive (assuming initialization with positive mass), wnew can be negative if the gradient of the loss forms an obtuse angle with the current prediction vector. This introduces the concept of “negative attention” or signed measures into the softmax mechanism. Negative weights act to reduce the denominator (partition function), effectively increasing the magnitude of the output vector s(q) in the direction of the value vectors. This occurs when the current prediction st is negatively correlated with the gradient gt, indicating that gradient descent is attempting to scale up the prediction to minimize the loss. While considering negative weights might increase the expressive power of our model, they might introduce numerical instabilities as the denominator might become close to 0 if the negative and positive terms cancel. To ensure robustness, we propose enforcing non-negativity by clipping the new weight: 
+
+wnew ← max(0 , w new ) . (67) This clipping strategy can be theoretically justified as performing a descent step in a larger, decou-pled function space H2  
+
+> σk,σ v
+
+, where the numerator and denominator weight functions are optimized independently. Refer to Sec. C.6 for further details. In Sec. C.7, we propose another method for solving the negative weights issue. We leave the investigation of deriving an update rule that benefits from the potential expressive power of the negative weights while ensuring numerical stability for future research. 
+
+C.6 Functional Gradient Descent in the Decoupled Weight Space 
+
+In this appendix, we consider the functional gradient descent on the decoupled softmax functional defined in Eq. 68 below. We define the product Hilbert space H2 = Hσk ,σ v ⊕ H σk ,σ v containing pairs of weight functions (wN , w D ). The decoupled softmax functional is: 
+
+swN ,w D (q) = N (wN )
+
+D(wD ) =
+
+R wN (k, v)e⟨k,q⟩v dμ 
+
+R wD (k, v)e⟨k,q⟩ dμ . (68) We compute the Fréchet derivatives with respect to wN and wD independently. For wN , the functional is linear in the numerator: 
+
+∇wN s = 1
+
+D(wD ) ∇wN N . 
+
+The gradient of the loss J(wN , w D ) with respect to wN is: 
+
+∇wN J = 1
+
+D(wD ) e⟨k,qt⟩⟨∇ ˆy L, v⟩ .
+
+For wD , the functional involves the inverse of the denominator: 
+
+∇wD s = − N (wN )
+
+D(wD )2 ∇wD D = − swN ,w D
+
+D(wD ) ∇wD D . 
+
+The gradient of the loss with respect to wD is: 
+
+∇wD J = − 1
+
+D(wD ) e⟨k,qt⟩⟨∇ ˆy L, s wN ,w D (qt)⟩ .
+
+We now map these updates to the growing database formulation. Updating wN adds a term ∆wN ∝− 1 
+
+> D
+
+⟨gt, v⟩e⟨k,qt⟩. In the “weighted value vector” representation (where we store ˜v instead of v), adding a tuple corresponds to adding a basis function to wN . Specifically, if we add (˜ vnew , knew ), we modify the numerator density by a term proportional to e⟨k,Σ−1 
+
+> kknew ⟩
+
+⟨v, Σ−1 
+
+> v
+
+˜vnew ⟩. Matching terms, we find knew = Σ kqt and ˜vnew ∝ − ηΣv gt. This matches the numerator update derived in the coupled case. 24 Updating wD adds a term ∆wD ∝ 1 
+
+> D
+
+⟨gt, st⟩e⟨k,qt⟩. This corresponds to adding a basis function to the denominator weight density wD. In the database, this means adding a tuple (wnew , knew ).Matching terms, we find knew = Σ kqt and wnew ∝ η⟨st, gt⟩. This matches the denominator update derived in the coupled case. Therefore, the coupled update rule derived in Appendix A is a special case of the decoupled update where we enforce wN = wD = w initially but allow them to evolve. Crucially, since the optimization of wD is independent of wN in this formulation, applying a constraint wD ≥ 0 (via clipping 
+
+wnew = max(0 , w new )) corresponds to a valid Descent step in Hσk ,σ v ⊕ H σk ,σ v which would be positively correlated with the gradient direction. This ensures numerical stability while maintaining the numerator’s ability to reduce error. 
+
+C.7 Gauge-Invariance: Another Method for Solving the Negative Weights Issue 
+
+As established in Sec. C.5, the constructive functional gradient update for the scalar weight of a newly added weighted key-value tuple is given by: 
+
+wnew ∝ η⟨st, gt⟩ , (69) where st = swt (qt) is the current prediction and gt = ∇ˆy L is the error signal. When the gradient forms an obtuse angle with the current prediction vector (i.e., ⟨st, gt⟩ < 0), this rule mandates appending a negative weight (wnew < 0). While the non-negativity constraint can be enforced heuristically via clipping wnew ← max(0 , w new ) (theoretically grounded in the decoupled weight space of Sec. C.6), clipping discards the denominator update entirely whenever ⟨st, gt⟩ < 0.In this appendix, we develop an alternative, geometrically principled resolution to the negative weight obstruction: an augmented representation with gauge invariance . By introducing a global bias degree of freedom, we show that the underlying function space possesses an exact translation symmetry in value space. By dynamically selecting an appropriate coordinate frame (a “virtual gauge”) at each training step, we guarantee that the required weight update is strictly positive 
+
+(wnew > 0) without clipping, while preserving the locality of the database update. 
+
+C.7.1 Augmented Functional and Gauge Symmetry 
+
+We introduce an auxiliary global bias degree of freedom b ∈ Rdout into both the continuous and discrete weighted softmax functionals. 
+
+Definition C.1 (Augmented Softmax Functionals) . Let b ∈ Rdout be a bias vector. 1. For a functional weight density w ∈ H σk ,σ v , the continuous augmented softmax output 
+
+sw, b : Rdin → Rdout is defined as: 
+
+sw, b(q) := sw(q) − b =
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩v dμ (k, v)
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩ dμ (k, v) − b . (70) 2. For a discrete database D = {(wi, ki, ˜vi)}Ni=1 of weighted key-value tuples with ˜vi = wivi,the discrete augmented retrieval functional is defined as: 
+
+sD,b(q) := sD (q) − b =
+
+PNi=1 e⟨ki,q⟩ ˜vi
+
+PNi=1 wie⟨ki,q⟩ − b . (71) The standard model corresponds to a bias that is set to zero: sD (q) = sD,0(q).We now define a transformation of the representation under a spatial translation in value space. 
+
+Definition C.2 (Shifted Density and Database) . Let ξ ∈ Rdout be an arbitrary shift vector. • We define the shifted weight density wξ by translating the value coordinate: 
+
+wξ(k, v) := w(k, v − ξ) · exp 
+
+ 2⟨ξ, v⟩ − ∥ ξ∥2
+
+2σ2
+
+> v
+
+
+
+. (72) 25 • In the discrete representation, we shift the value vectors as vi 7 → vi + ξ which implies that the stored weighted values shift as ˜vi 7 → wi(vi + ξ) = ˜ vi + wiξ. Hence, we define the shifted database Dξ as: 
+
+Dξ := {(wi, ki, ˜vi + wiξ)}Ni=1 . (73) 
+
+Proposition C.3 (Gauge Invariance) . For any density w ∈ H σk ,σ v , discrete database D, bias vector 
+
+b ∈ Rdout , and shift vector ξ ∈ Rdout , the augmented functional is invariant under simultaneous shifts of the values and the bias: 
+
+swξ,b+ξ(q) = sw, b(q) and sDξ,b+ξ(q) = sD,b(q) . (74) 
+
+In particular, any augmented state (D, b) is gauge-equivalent to a canonical zero-bias state: 
+
+sD,b(q) = sD−b,0(q) . (75) 
+
+Proof. For the continuous case, note that 
+
+swξ (q) = 
+
+R  
+
+> Rdin ×Rdout
+
+wξ(k, v)e⟨k,q⟩v dμ (k, v)
+
+R  
+
+> Rdin ×Rdout
+
+wξ(k, v)e⟨k,q⟩ dμ (k, v)=
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v − ξ) · exp 
+
+ 2⟨ξ,v⟩−∥ ξ∥2
+
+> 2σ2
+> v
+
+
+
+e⟨k,q⟩v exp 
+
+
+
+− ∥k∥2
+
+> 2σ2
+> k
+
+− ∥v∥2
+
+> 2σ2
+> v
+
+
+
+dkdv
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v − ξ) · exp 
+
+ 2⟨ξ,v⟩−∥ ξ∥2
+
+> 2σ2
+> v
+
+
+
+e⟨k,q⟩ exp 
+
+
+
+− ∥k∥2
+
+> 2σ2
+> k
+
+− ∥v∥2
+
+> 2σ2
+> v
+
+
+
+dkdv
+
+=
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v − ξ)e⟨k,q⟩v exp 
+
+
+
+− ∥k∥2
+
+> 2σ2
+> k
+
+− ∥v−ξ∥2
+
+> 2σ2
+> v
+
+
+
+dkdv
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v − ξ)e⟨k,q⟩ exp 
+
+
+
+− ∥k∥2
+
+> 2σ2
+> k
+
+− ∥v−ξ∥2
+
+> 2σ2
+> v
+
+
+
+dkdv
+
+=
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩(v + ξ) exp 
+
+
+
+− ∥k∥2
+
+> 2σ2
+> k
+
+− ∥v∥2
+
+> 2σ2
+> v
+
+
+
+dkdv
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩ exp 
+
+
+
+− ∥k∥2
+
+> 2σ2
+> k
+
+− ∥v∥2
+
+> 2σ2
+> v
+
+
+
+dkdv
+
+=
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩(v + ξ) dμ (k, v)
+
+R  
+
+> Rdin ×Rdout
+
+w(k, v)e⟨k,q⟩ dμ (k, v)= sw(q) + ξ .
+
+Evaluating the augmented functional with shifted bias b + ξ, we get 
+
+swξ,b+ξ(q) = swξ (q) − (b + ξ) = ( sw(q) + ξ) − (b + ξ) = sw(q) − b = sw, b(q) . (76) Similarly, for the discrete case, we have: 
+
+sDξ (q) = 
+
+PNi=1 e⟨ki,q⟩(˜ vi + wiξ)
+
+PNi=1 wie⟨ki,q⟩
+
+=
+
+PNi=1 e⟨ki,q⟩ ˜vi
+
+PNi=1 wie⟨ki,q⟩ + ξ
+
+PNi=1 wie⟨ki,q⟩
+
+PNi=1 wie⟨ki,q⟩
+
+= sD (q) + ξ . (77) Evaluating the augmented functional with shifted bias b + ξ, we get 
+
+sDξ,b+ξ(q) = sDξ (q) − (b + ξ) = ( sD (q) + ξ) − (b + ξ) = sD (q) − b = sD,b(q) . (78) Choosing ξ = −b yields sD,b(q) = sD−b,0(q), completing the proof. 
+
+C.7.2 Gauge Fixing for Strictly Positive Weight Updates 
+
+Suppose at step t the model is stored in the canonical zero-bias frame D(t) with b = 0, producing prediction st = sD(t) (qt) on query qt and loss gradient gt = ∇ˆy L(st, yt).Instead of computing the functional gradient in the canonical frame (which risks wnew < 0), we perform a gauge transformation to view the database in a virtual gauge with bias bt ∈ Rdout . By 26 Theorem C.3, mapping the canonical zero-bias state to a frame with bias bt requires shifting the values by ξ = bt, resulting in the shifted virtual database: 
+
+D(t) 
+
+> bt
+
+= {(wi, ki, ˜vi + wibt)}Ni=1 . (79) Recall that sD(t)  
+
+> bt,bt
+
+(qt) = sD(t)
+
+> bt
+
+(qt) − bt = sD(t) (qt) + bt − bt = sD(t) (qt).Now consider adding a tuple (wnew , knew , ˜v′
+
+> new
+
+) to D(t) 
+
+> bt
+
+in this frame. As derived in Sec. C.4, the functional gradient descent update on the weight density w yields a scalar mass update proportional to the projection of the gradient onto the effective prediction relative to the frame bias: 
+
+wnew = η
+
+
+
+gt, s D(t)
+
+> bt
+
+(qt)
+
+
+
+= η ⟨gt, s D(t) (qt) + bt⟩ = η⟨gt, st + bt⟩ . (80) Because the gauge choice bt is a free degree of freedom that leaves the function invariant, we can fix the gauge dynamically at each step to ensure that the inner product in equation 80 is strictly positive. Specifically, we choose: 
+
+bt =  −⟨ st, gt⟩/∥gt∥2 + αt
+
+ gt , (81) where αt > 0 is a scalar gauge parameter. Substituting equation 81 into equation 80 yields: 
+
+wnew = η gt, st +  −⟨ st, gt⟩/∥gt∥2 + αt
+
+ gt = ηα t∥gt∥2 > 0 . (82) Thus, for any non-zero error gradient gt, the new weight is guaranteed to be strictly positive .The target weighted value vector ˜v′ 
+
+> new
+
+in the virtual frame is directed along the negative error gradient, following standard functional descent on the numerator functional: 
+
+˜v′ 
+
+> new
+
+= −βgt , (83) where β > 0 is the value learning rate. The key is set as usual to knew = Σ kqt = σ2
+
+> k
+
+qt. Appending this tuple to D(t) 
+
+> bt
+
+yields the preliminary database Dprel ,(t+1) in the virtual frame: 
+
+Dprel ,(t+1) := D(t) 
+
+> bt
+
+∪ { (wnew , knew , ˜v′
+
+> new
+
+)} .
+
+C.7.3 Canonical Return and Locality of the Database Update 
+
+To maintain a standard, zero-bias database across training steps, we must transform Dprel ,(t+1) back to the canonical gauge ( b = 0). Shifting the bias from bt back to 0 corresponds to applying the shift 
+
+ξ = −bt to all values. A naive implementation might suggest that shifting values by −bt requires modifying every existing entry in the database. Remarkably, this is not the case: the gauge transformation yields a local update. 
+
+Theorem C.4 (Locality of the Gauge-Invariant Update) . The transition from the canonical database 
+
+D(t) to D(t+1) consists solely of appending a single new tuple: 
+
+D(t+1) = D(t) ∪ { (wnew , knew , ˜vfinal )} , (84) 
+
+where all previously stored tuples remain completely unaltered, and the canonical (weighted) value vector of the new tuple is given by: 
+
+˜vfinal = ( −wnew αt − β + ηα t⟨st, gt⟩) gt . (85) 
+
+Proof. Let (wi, ki, ˜vi) ∈ D (t) be an arbitrary pre-existing tuple. 1. Forward transformation to virtual gauge: Under shift ξ = + bt, the weighted value becomes ˜v′ 
+
+> i
+
+= ˜ vi + wibt.2. Atom insertion: The new atom (wnew , knew , ˜v′
+
+> new
+
+) is added. Existing tuples are unaffected. 3. Return transformation to canonical gauge: Shifting the bias by −bt transforms all weighted values via ˜v 7 → ˜v − wbt. For any existing tuple i:
+
+˜v′′  
+
+> i
+
+= ˜ v′ 
+
+> i
+
+− wibt = (˜ vi + wibt) − wibt = ˜ vi . (86) All previously stored tuples return identically to their initial values. 27 For the newly added atom, its weighted value in the virtual frame was ˜v′ 
+
+> new
+
+= −βgt. Shifting it to the canonical frame yields: 
+
+˜vfinal = ˜ v′ 
+
+> new
+
+− wnew bt
+
+= −βgt − wnew 
+
+ −⟨ st, gt⟩/∥gt∥2 + αt
+
+ gt
+
+=
+
+
+
+−wnew αt − β + wnew 
+
+⟨st, gt⟩∥gt∥2
+
+
+
+gt (87) 
+
+=
+
+
+
+−wnew αt − β + ηα t∥gt∥2 ⟨st, gt⟩∥gt∥2
+
+
+
+gt (88) 
+
+= ( −wnew αt − β + ηα t⟨st, gt⟩) gt . (89) Thus, no historical data points are modified, and the update is strictly local. 
+
+C.7.4 Algorithm Summary 
+
+The complete procedure is formalized in Algorithm 1. As mentioned in Remark 3.1, we store 
+
+knew ← qt in the database instead of knew ← σ2
+
+> k
+
+qt.
+
+Algorithm 1 Gauge-Invariant Weighted Softmax Growing Step  
+
+> 1:
+
+Input: Current database D(t), input query qt, loss gradient gt = ∇ˆy L(st, yt) 
+
+> 2:
+
+Hyperparameters: Weight learning rate η > 0, value learning rate β > 0, gauge parameter 
+
+αt > 0, temperature T 
+
+> 3:
+
+1. Compute prediction:  
+
+> 4:
+
+st ←       
+
+> P
+> (w, k,˜v)∈D (t)e
+> 1
+> T√din
+> ⟨k,qt⟩
+> ˜v
+> P
+> (w, k,˜v)∈D (t)e
+> 1
+> T√din
+> ⟨k,qt⟩
+> w
+> 5:
+
+2. Compute strictly positive weight update:  
+
+> 6:
+
+wnew ← ηα t∥gt∥2 
+
+> 7:
+
+3. Compute canonical weighted value:  
+
+> 8:
+
+˜vfinal ← (−wnew αt − β + ηα t⟨st, gt⟩) gt 
+
+> 9:
+
+4. Set new key:  
+
+> 10:
+
+knew ← qt 
+
+> 11:
+
+5. Append new tuple to database:  
+
+> 12:
+
+D(t+1) ← D (t) ∪ { (wnew , knew , ˜vfinal )}
+
+C.7.5 Hyperparameter Choice that Yields Changes in the Order of the Gradient Length 
+
+The weight of the added tuple is wnew = ηα t∥gt∥2 which is quadratic in the length of the gradient. In order to ensure that we add updates that are in the order of the gradient length, we can set αt := α 
+
+> ∥gt∥
+
+.In this case, we get 
+
+wnew = ηα ∥gt∥ ,
+
+and 
+
+˜vfinal = ( −wnew αt − β + ηα t⟨st, gt⟩) gt
+
+=  −ηα t∥gt∥2αt − β + ηα t⟨st, gt⟩ gt
+
+=
+
+
+
+−η α
+
+∥gt∥ ∥gt∥2 α
+
+∥gt∥ − β + η α
+
+∥gt∥ ⟨st, gt⟩
+
+
+
+gt
+
+=
+
+
+
+−ηα 2 − β + η α
+
+∥gt∥ ⟨st, gt⟩
+
+
+
+gt .
+
+This yields the following algorithm. 28 Algorithm 2 Gauge-Invariant Weighted Softmax Learning with Updates in the Order of the Gradient Length  
+
+> 1:
+
+Input: Current database D(t), input query qt, loss gradient gt = ∇ˆy L(st, yt) 
+
+> 2:
+
+Hyperparameters: Weight learning rate η > 0, value learning rate β > 0, gauge parameter 
+
+α > 0, temperature T 
+
+> 3:
+
+1. Compute prediction:  
+
+> 4:
+
+st ←       
+
+> P
+> (w, k,˜v)∈D (t)e
+> 1
+> T√din
+> ⟨k,qt⟩
+> ˜v
+> P
+> (w, k,˜v)∈D (t)e
+> 1
+> T√din
+> ⟨k,qt⟩
+> w
+> 5:
+
+2. Compute strictly positive weight update:  
+
+> 6:
+
+wnew ← ηα ∥gt∥ 
+
+> 7:
+
+3. Compute canonical weighted value:  
+
+> 8:
+
+˜vfinal ←
+
+
+
+−ηα 2 − β + η α
+
+∥gt∥ ⟨st, gt⟩
+
+
+
+gt 
+
+> 9:
+
+4. Set new key:  
+
+> 10:
+
+knew ← qt 
+
+> 11:
+
+5. Append new tuple to database:  
+
+> 12:
+
+D(t+1) ← D (t) ∪ { (wnew , knew , ˜vfinal )}
+
+## D Optimization Dynamics in the Growing Database 
+
+Standard deep learning optimization techniques such as weight decay and momentum can be nat-urally incorporated into the growing database framework. Weight decay, which corresponds to L2
+
+regularization in the functional space, translates to a simple uniform decay of the scalar weights w
+
+and weighted values ˜v of all stored key-value pairs at each step. This mechanism not only regularizes the model but also introduces a “forgetting” factor where older memories gradually fade in influence. As we show in Sec. D.1, weight-decay corresponds to the update rule 
+
+Dt ={((1 − γ)w, k, (1 − γ)˜ v) | (w, k, ˜v) ∈ D t−1}∪ { (wnew , knew , ˜vnew )} . (90) This means that the weights of old tuples decay exponentially with training steps, thereby providing a principled path towards “compression” of the database: Old tuples with negligible weights can be pruned with minimal impact on the function, potentially allowing the database to be maintained at a constant size. Momentum, typically implemented by maintaining a velocity vector, would naively require doubling the storage (storing a velocity database alongside the parameter database). However, we derive a more efficient formulation where momentum is realized analytically. By storing the creation timestamp ti
+
+of each key, we can compute the effective momentum contribution of a key during the forward pass via a time-dependent scaling coefficient: 
+
+c(t, t i) = 1 − μt−ti+1 
+
+1 − μ , (91) where μ is the momentum factor. As we show in Sec. D.2, this allows the growing network to benefit from accelerated convergence without the storage overhead of explicit velocity buffers. One can also combine both approaches. The resulting algorithm applies the geometric decay to the stored weights at every step to handle regularization, while applying the time-dependent momentum coefficient during the retrieval operation to simulate the accumulation of gradients. We provide detailed derivations of these dynamics in Sec. D.3. In this appendix, we derive the update rules for weight decay and momentum within the growing softmax framework. We assume the decoupled representation where the database stores (w, k, ˜v),and the functions are wD (k) = P wie⟨k,ki⟩ and wN (k) = P ˜vie⟨k,ki⟩. Note that here we use ˜v to denote the weighted value vector, consistent with the main text notation. 29 D.1 Weight Decay 
+
+Weight decay corresponds to minimizing a regularized objective: 
+
+Jreg (wN , w D ) = J(wN , w D ) + γ
+
+2η (∥wN ∥2 
+
+> H
+
++ ∥wD ∥2
+
+> H
+
+) .
+
+Here, we adopt the “decoupled weight” formulation of Sec. C.6. Nevertheless, following a “coupled weight” formulation as in equation 5 yields similar results. The functional gradient descent update for wD becomes: 
+
+wD,t ← wD,t −1 − η(∇wD J + γη wD,t −1) = (1 − γ)wD,t −1 − η∇wD J . 
+
+Similarly for the numerator function wN :
+
+wN,t ← (1 − γ)wN,t −1 − η∇wN J . 
+
+In the database representation, the function wD,t −1 is represented by the sum of existing kernels with weights wi. Multiplying the function by (1 − γ) is equivalent to multiplying every coefficient wi
+
+in the database by (1 − γ). The same logic applies to the numerator function and its coefficients ˜vi.Thus, the update rule for the database Dt−1 is: 
+
+Dt = {((1 − γ)w, k, (1 − γ)˜ v) | (w, k, ˜v) ∈ D t−1} ∪ { (wnew , knew , ˜vnew )} ,
+
+where the new tuple is derived from the gradients −η∇wD J and −η∇wN J as in Sec. C.4. This operation implies that the weight of a tuple added at time t0 decays geometrically as (1 − γ)t−t0
+
+at step t. Consequently, older tuples will eventually have weights strictly bounded by some small ϵ.This suggests a natural pruning strategy: removing tuples where |w| < ϵ and ∥˜v∥ < ϵ results in a negligible perturbation to the softmax function output. By setting a threshold, one can effectively bound the maximum size of the database, converting the growing nonparametric model into a fixed-capacity model with a dynamic memory. 
+
+D.2 Momentum 
+
+Momentum accelerates optimization by accumulating a velocity function ν ∈ H . We apply mo-mentum to the gradient updates for both wN and wD. Let’s focus on wD (the derivation for wN is identical). The update rules are: 
+
+νt = μν t−1 + ∇wD Jt, wD,t = wD,t −1 − ην t .
+
+Unrolling the recursion, the weight function at step t can be expressed as a linear combination of all past gradients: 
+
+wD,t = wD, 0 − η
+
+> t
+
+X
+
+> j=1
+> t−j
+
+X
+
+> k=0
+
+μk
+
+!
+
+∇wD Jj = wD, 0 − η
+
+> t
+
+X
+
+> j=1
+
+1 − μt−j+1 
+
+1 − μ ∇wD Jj .
+
+Recall that the gradient ∇wD Jj at step j corresponds to adding a new kernel centered at kj = σ2qj
+
+with a specific weight ∆wj . The unrolled equation implies that the accumulated weight for the kernel at kj at current time t is simply the initial update weight ∆wj scaled by the coefficient: 
+
+c(t, t j ) = 1 − μt−tj +1 
+
+1 − μ .
+
+Therefore, we can implement momentum without storing the velocity function νt explicitly. Instead, we store the creation time tj for each tuple. During the retrieval (forward pass) at current time t, the contribution of the j-th tuple to the denominator is scaled by c(t, t j ). The same scaling applies to the weighted value vector ˜vj in the numerator. 
+
+D.3 Combined Dynamics 
+
+In this section, we provide a rigorous derivation of the update rule when both weight decay and momentum are active. We adopt the decoupled weight decay formulation [39], which is the standard for modern deep learning optimizers like AdamW and SGDW. 30 D.3.1 Setup and Update Equations 
+
+Let wt ∈ H denote the function state at time t. Let ∇Jt denote the functional gradient of the loss at step t. The update dynamics are defined by the following system of recurrence relations: 
+
+νt = μν t−1 + ∇Jt , (92) 
+
+wt = (1 − γ)wt−1 − ην t . (93) where: • μ ∈ [0 , 1) is the momentum coefficient. • γ ∈ [0 , 1) is the weight decay factor per step. • η > 0 is the learning rate. • νt is the velocity function (initialized at ν0 = 0 ). • w0 is the initial function state. 
+
+D.3.2 Derivation of the Closed-Form State 
+
+We aim to express wt as a direct summation of the history of gradients {∇ Jj }tj=1 . For convenience, we define the effective momentum ˜μ and effective learning rate ˜η as: 
+
+˜μ = μ
+
+1 − γ , ˜η = η
+
+1 − γ .
+
+First, we unroll the velocity term νt using equation 92: 
+
+νk =
+
+> k
+
+X
+
+> j=1
+
+μk−j ∇Jj . (94) Next, we substitute this into the weight update equation 93. By unrolling the recurrence for wt, we obtain: 
+
+wt = (1 − γ)wt−1 − ην t
+
+= (1 − γ)tw0 − η
+
+> t
+
+X
+
+> k=1
+
+(1 − γ)t−kνk
+
+= (1 − γ)tw0 − ˜η
+
+> t
+
+X
+
+> k=1
+
+(1 − γ)t−k+1 νk . (95) Substituting the expression for νk and rearranging the summation order ( 1 ≤ j ≤ k ≤ t): 
+
+wt = (1 − γ)tw0 − ˜η
+
+> t
+
+X
+
+> j=1
+
+∇Jj
+
+
+
+> t
+
+X
+
+> k=j
+
+(1 − γ)t−k+1 μk−j
+
+ . (96) We simplify the inner summation C(t, j ) as follows: 
+
+C(t, j ) = 
+
+> t
+
+X
+
+> k=j
+
+(1 − γ)t−k+1 μk−j (97) 
+
+=
+
+> t−j
+
+X
+
+> m=0
+
+(1 − γ)(t−j+1) −mμm
+
+= (1 − γ)t−j+1 
+
+> t−j
+
+X
+
+> m=0
+
+ μ
+
+1 − γ
+
+m
+
+= (1 − γ)t−j+1 
+
+> t−j
+
+X
+
+> m=0
+
+˜μm (98) 
+
+= (1 − γ)t−j+1 1 − ˜μt−j+1 
+
+1 − ˜μ . (99) 31 Substituting this back into the expression for wt, we arrive directly at the compact closed-form solution: 
+
+wt = (1 − γ)tw0 − ˜η
+
+> t
+
+X
+
+> j=1
+
+
+
+(1 − γ)t−j+1 1 − ˜μt−j+1 
+
+1 − ˜μ
+
+
+
+∇Jj . (100) Similarly to the implementation of momentum, we can store the creation time tj for each tuple and then take it into account in the forward pass. 
+
+## E Additional technical details on advanced linear attention layers 
+
+E.1 DeltaNet 
+
+In (unnormalized) linear attention, each step writes a new key-value association into a fixed size state via an outer-product update. The delta rule instead updates the value associated with the current key by (partly) overwriting the previously stored value with write strength λ ∈ [0 , 1] , vnew  
+
+> t
+
+= λvt+(1 −λ)vold 
+
+> t
+
+and Wt = Wt−1 − vold  
+
+> t
+
+k⊤ 
+
+> t
+
++ vnew  
+
+> t
+
+k⊤ 
+
+> t
+
+. In our setting, we set the key to be the activation, i.e., kt := xt
+
+and define the previously stored value for that key as the current prediction Wt−1xt. To compress a mapping from activations to (negative) gradients into a fixed size state as in vanilla gradient descent we set the target value to be the negative output-gradient scaled by a step size η, i.e., vt := −η∇yt L,which gives vnew  
+
+> t
+
+= −λη ∇yt L + (1 − λ)Wt−1xt.
+
+This yields the recurrent update 
+
+Wt = Wt−1(I − λxtx⊤ 
+
+> t
+
+) + ( −λη ∇yt L)x⊤ 
+
+> t
+
+, (101) which shows that a DeltaNet-like update can be interpreted as gradient descent preceded by a targeted forgetting mechanism along the current activation direction. Notably, the update itself corresponds to performing a gradient descent step w.r.t. W on the layer-local, time-dependent loss 
+
+ℓt(W ) := 12 ∥W k t − vt∥22 = 12 ∥W x t + η∇yt L∥ 22 (102) with learning rate λ [13, 19], meaning the Delta-rule-based update implicitly performs gradient descent within the gradient descent weight update. In practice, the update can be implemented with little computational overhead by rewriting Eq. 101 to 
+
+Wt = Wt−1 + λ(−η∇yt L − Wt−1xt)x⊤ 
+
+> t
+
+, (103) caching the activation Wt−1xt from the forward pass and using it to form the corrected term 
+
+−η∇yt L − Wt−1xt before computing the outer-product update. 
+
+E.2 MesaNet: Problem formulation and connection to FOOF 
+
+Next, we show the connection between FOOF and Mesa layer when applied to the database. We present a slightly modified formulation of the Mesa layer, with decay factor and an additional regularization center. We present the case of batch size 1, but the result can easily be extended to the general case. Consider the online estimation of a parameter matrix W ∈ Rk×d from a stream of observations 
+
+(xt, yt) (key and value of the database) for t = 1 , . . . , T . The mesa layer seeks to minimize the following time-discounted objective function JT (W ) at each step T :
+
+JT (W ) = 
+
+> T
+
+X
+
+> t=1
+
+γT −t∥yt − W x t∥2 + Λ T ∥W − CT ∥2 
+
+> F
+
+(104) where: • γ ∈ [0 , 1] is the forgetting factor. • ΛT > 0 is the regularization strength at time T .32 • CT ∈ Rk×d is the regularization center (prior mean) at time T , taken as the exponential moving average of past weights, defined as CT = γ ΛT −1 
+
+> ΛT
+
+CT −1 + (1 − γ ΛT −1 
+
+> ΛT
+
+)WT −1, and 
+
+C0 = 0.The loss in the main text is recovered by choosing γ = 1 and Λt = λ∀t.It can be shown that the optimal solution WT satisfies the normal equation: 
+
+WT ΦT = PT (105) where ΦT and PT are the regularized correlation matrix and cross-correlation vector, defined respec-tively as: 
+
+ΦT =
+
+> T
+
+X
+
+> t=1
+
+γT −txtx⊤ 
+
+> t
+
++ Λ T I (106) 
+
+PT =
+
+> T
+
+X
+
+> t=1
+
+γT −tytx⊤ 
+
+> t
+
++ Λ T CT (107) 
+
+E.3 Derivation of the Recursive Update 
+
+We seek to express WT as a function of WT −1 and the current observation (xT , yT ). First, we expand the recursive definitions of the sufficient statistics. 
+
+E.3.1 Recursive Matrix Update 
+
+Separating the term at t = T and substituting ΦT −1:
+
+ΦT = γ 
+
+> T−1
+
+X
+
+> t=1
+
+γT −1−txtx⊤
+
+> t
+
+!
+
++ xT x⊤ 
+
+> T
+
++ Λ T I
+
+= γ(Φ T −1 − ΛT −1I) + xT x⊤ 
+
+> T
+
++ Λ T I
+
+= γΦT −1 + xT x⊤ 
+
+> T
+
++ (Λ T − γΛT −1)I
+
+(108) 
+
+E.3.2 Recursive Vector Update 
+
+Similarly for PT :
+
+PT = γ(PT −1 − ΛT −1CT −1) + yT x⊤ 
+
+> T
+
++ Λ T CT
+
+= γPT −1 + yT x⊤ 
+
+> T
+
++ (Λ T CT − γΛT −1CT −1) (109) 
+
+E.3.3 Sufficient Condition for the Delta Rule 
+
+Assuming WT −1 = PT −1Φ−1 
+
+> T−1
+
+, we substitute PT −1 = WT −1ΦT −1 into the expression for PT :
+
+PT = WT −1(γΦT −1) + yT x⊤ 
+
+> T
+
++ (Λ T CT − γΛT −1CT −1) (110) From the matrix update step, we substitute γΦT −1 = Φ T − xT x⊤ 
+
+> T
+
+− (Λ T − γΛT −1)I:
+
+PT = WT −1
+
+ ΦT − xT x⊤ 
+
+> T
+
+− (Λ T − γΛT −1)I + yT x⊤ 
+
+> T
+
++ (Λ T CT − γΛT −1CT −1) (111) Rearranging terms to isolate the prediction error: 
+
+PT = WT −1ΦT + ( yT − WT −1xT )x⊤ 
+
+> T
+
++ R (112) where the residual term R is defined as: 
+
+R = (Λ T CT − γΛT −1CT −1) − WT −1(Λ T − γΛT −1) (113) Multiplying by Φ−1 
+
+> T
+
+from the right yields the update for WT :
+
+WT = WT −1 + ( yT − WT −1xT )x⊤ 
+
+> T
+
+Φ−1 
+
+> T
+
++ RΦ−1 
+
+> T
+
+(114) 33 For the residual term R to vanish, it is necessary and sufficient to impose the following consistency condition on the update of the regularization center CT :
+
+ΛT CT = γΛT −1CT −1 + (Λ T − γΛT −1)WT −1, (115) which is satisfied by definition. Under the above condition, and using as target at every timestep yT = WT −1xT − η∇yT L, applying the loss in Equation 104 to the database would correspond to having a state, W , Φ, which is updated following: 
+
+ΦT = γΦT −1 + xT x⊤ 
+
+> T
+
++ (Λ T − γΛT −1)I (116) 
+
+WT = WT −1 − η∇WT −1 L · Φ−1 
+
+> T
+
+(117) It now only remains to define a meaningful ΛT .
+
+E.4 Proposed Algorithms 
+
+We identify two distinct regimes satisfying the consistency condition equation 115. 
+
+E.4.1 Algorithm A: Static Regularization 
+
+We assume a constant regularization strength ΛT = λ for all T .
+
+Matrix Update: 
+
+ΦT = γΦT −1 + xT x⊤ 
+
+> T
+
++ λ(1 − γ)I
+
+Which corresponds exactly to the FOOF optimizer. 
+
+E.4.2 Algorithm B: Cumulative Regularization 
+
+The previous algorithm causes growing norm of Φ and a decrease in the importance of the prior, which may incur numerical and hyperparameter instabilities. We therefore propose the next algorithm, which we use in practice. We assume the regularization strength accumulates over time according to ΛT = λ + γΛT −1. This is equivalent to optimizing the weighted averaged loss 
+
+JT (W ) = 1
+
+PTt=1 γT −tTX
+
+> t=1
+
+γT −t∥yt − W x t∥2 + λ∥W − CT ∥2 
+
+> F
+
+(118) 
+
+Matrix Update: 
+
+ΦT = γΦT −1 + xT x⊤ 
+
+> T
+
++ λI
+
+While keeping the above objective, we introduce additional tricks to stabilize numeric and hyperpa-rameter across different layer widths, resulting in the following recursive update for a batch of B
+
+inputs XT ∈ Rd×B :
+
+ΓT = γΓT −1 + 1 (119) 
+
+ΨT = γΓT −1
+
+ΓT
+
+ΨT −1 + 1
+
+Bd ΓT
+
+XT X⊤ 
+
+> T
+
+(120) 
+
+WT = WT −1 − η∇WT −1 L · (Ψ T + λI)−1, (121) while initializing Ψ0 = 0, W0 to a standard weight initialization, and Γ0 = 0 .34 F Experimental Setup 
+
+F.1 Tasks and Model Selection 
+
+We run experiments on image classification and teacher-student regression tasks. For all experiments, we report the mean and standard deviation over 5 seeds. To produce the results in Figure 2, we run each model/optimizer with a comparable set of hyperparameters where they are shared and for each method add the needed, additional hyperparameters. For Figures 1, 3, and 4, we select a subset of the hyperparameters relevant to the produced result and again detail the selection in the respective model subsection. The considered ranges of hyperparameters are reported beneath in the respective model subsections. Generally, for each plot and for each method displayed in the respective plot, we select those hyperparameters that maximize/minimize the metric displayed in the plot. The only place where we share the selection across multiple plots is Fig. 2. There, the runs visualized in Fig. 2/Left and Fig. 2/Middle are tied in that the two metrics (Test Accuracy and Training Loss) are displayed for the same selection of runs that maximize the final test accuracy. In particular, looking for the hyperparameter that minimizes the training loss would yield a different selection of runs achieving even smaller training loss (but potentially worse generalization). In the following two subsections, we first briefly describe the data processing/generation pipeline used for classification and regression experiments. 
+
+F.1.1 Image Classification 
+
+CIFAR-10 and CIFAR-100 [44] are image classification datasets on 32 × 32 × 3 dimensional RGB images from 10 and 100 classes, respectively. Before handing these images to the network, we first apply standard normalization by subtracting the mean and dividing by the standard deviation per channel. Then, to increase the effective size of the training dataset, we apply standard image transformations, randomly sampled during training. These include reflect-padding ( ±4 pixels) followed by a random 32 × 32 crop applied to all 3 channels and an epoch-wise horizontal flip. Test data is only normalized without applying augmentation. Before handing the images to our MLP network, we flatten them into a 3072 -dimensional vector. The notion of epoch in the respective experiments refers to the following: take the 50000 training samples from the respective dataset, apply a randomly chosen augmentation (following the above rules) to each sample, and ultimately shuffle the samples. Only for Fig. 2/Right, where only a single pass on the training data is performed, we use the non-augmented standard version of CIFAR-10. 
+
+F.1.2 Teacher-Student Regression 
+
+We generate synthetic regression tasks using a random teacher network. The inputs x ∈ Rdin are sampled from a standard normal distribution and projected onto the unit sphere. The targets for the randomly sampled inputs are generated by a randomly initialized MLP teacher with L residual hidden blocks adding to a residual stream of width de. Crucially, this teacher has nonlinearities thereby, upon initialization, implementing some nonlinear input-output(target) mapping. Particularly, the teacher first projects the input data to the hidden dimension by applying a linear layer and followed by a ReLU activation. Subsequently, L − 1 residual blocks, where each block consists of a linear layer and a ReLU activation, are applied to the initial residual stream activation. A final linear projection maps the last residual stream activation mapping to the output feature (the target for the regression task) of dimension dout . All weights are randomly initialized (standard variance scaling init). In our experiments, we set din = 100 , de = 100 , L = 2 , and dout = 1 .
+
+F.2 Model Architecture 
+
+Throughout the entire paper, and importantly shared across all methods, all experiments (unless explicitly stated otherwise) are run with a ResNet-MLP architecture. The inputs act as the initial residual stream activation, thereby governing the residual stream dimension de = din . The network backbone consists of L residual blocks arranged in a pre-normalization configuration. Specifically, each block applies layer normalization, followed by a trainable module (a standard dense layer or one of the proposed alternatives: Delta, Mesa, RBF, or Weighted Softmax). In the case of a standard dense layer, Delta, or Mesa, a non-linear activation function is applied to the output of the block and 35 Table 2: Hyperparameters Nonparametric Growing Weighted Softmax for Teacher-Student experi-ments. 
+
+Hyperparameter Value 
+
+Model Single Weighted Softmax layer Data normalization RMSNorm (on input) Value learning rate β [0 .1, 0.3, 1.0] 
+
+Weight learning rate η [10 .0, 30 .0, 100 .0] 
+
+Softmax temperature T [0 .1, 1.0, 3.0, 10 .0] 
+
+Momentum [0 .6, 0.9] 
+
+Batch size 64 
+
+Epochs 200000 
+
+the norm rescaling parameters are trained. Note that for RBF and Weighted Softmax, nonlinearities are by design included in the block. Also, for those we do not train the scale parameters of the norm but fix them to be unit. In all cases, the block’s output is added back to the residual stream. The final residual stream activation is processed by a final normalization (again scale parameters not trained for RBF and Softmax and trained for all others) before being mapped to the C class logits via a final output block (again, either a dense layer or one of the proposed methods). In the following subsections, we detail the various instantiations of the residual blocks with the methods described in this work. 
+
+F.3 Weighted Softmax 
+
+We evaluate Weighted Softmax kernel-based RCDL models on both synthetic teacher-student regres-sion and image classification tasks, using the classic CIFAR-10 and CIFAR-100 benchmarks. For these experiments, we instantiate the blocks of the ResNet-MLP backbone architecture, described in Appendix F.2, with Weighted Softmax RCDL modules. 
+
+Algorithm 3 Growing Weighted Softmax Attention  
+
+> 1:
+
+Input: Stream of query batches {qt,n }Bn=1 , temperature T , value-learning rate β > 0, weight-learning rate η > 0, W0 = 1 
+
+> B
+
+, K0 ∼ N (0 , 1√din 
+
+I), V0 ∼ N (0 , 1√dout 
+
+I) 
+
+> 2:
+
+Initialize: D0 ← { (W0, K0, V0)} 
+
+> 3:
+
+for t = 1 , 2, . . . do  
+
+> 4:
+
+for n = 1 , . . . , B do  
+
+> 5:
+
+Compute prediction: st,n ←       
+
+> P
+> (w, k,˜v)∈D t−1e
+> 1
+> T√din
+> ⟨k,qt,n ⟩
+> ˜v
+> P
+> (w, k,˜v)∈D t−1w e
+> 1
+> T√din
+> ⟨k,qt,n ⟩
+> 6:
+
+Compute gradient: gt,n ← ∇L (st,n ) 
+
+> 7:
+
+Compute inner product: δt,n ← ⟨ st,n , gt,n ⟩ 
+
+> 8:
+
+end for  
+
+> 9:
+
+Update database: Dt ← D t−1 ∪ { (max {0, η δ t,n }, qt,n , −β gt,n ) : n = 1 , . . . , B } 
+
+> 10:
+
+end for 
+
+A Weighted Softmax module maintains a growing database of key, value, weight tuples Dt =(Kt, Vt, Wt) = ( {ki, vi, w i}ti=0 ) of size (t + 1) B at time step t, where B is the batch size. For numerical stability, we initialize this database with a randomly sampled batch at t = 0 . Particularly, we set D0 = ( K0, V0, W0). Here, K0 ∈ RB×de and V0 ∈ RB×dout (dout = de for the residual blocks) are sampled from a standard normal distribution and subsequently normalized along the feature dimension by root mean squared normalization. All entries of W0 ∈ RB are set to a constant weight w0 = 1 
+
+> B
+
+, where B is the batch size. At timestep t > 0, the database is grown following the steps outlined in Algorithm 3. Briefly, we apply the Weighted Softmax update rule but clip negative weights to 0 (cf. Appendix C.5). Moreover, for numerical stability, we drop the division by the normalization Dt−1 for both the weight and the value update. Ultimately, we introduce learning rates 
+
+η and β to scale weights and values independently. 36 Table 3: Hyperparameters Growing Weighted Softmax for experiments on CIFAR-10 and CIFAR-100. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10, CIFAR-100 Input 32 × 32 × 3 images flattened to 3072 
+
+Model Residual MLP Residual stream size ( de) 3072 
+
+# residual blocks ( L) [0 , 1, 2] 
+
+Normalization in blocks RMSNorm (pre-norm, per block) Final normalization RMSNorm before head Classifier head Weighted softmax-kernel RCDL layer Weight learning rate η [0 .3, 1.0, 1.5, 3.0] 
+
+Value learning rate β [20 .0, 30 .0, 40 .0, 60 .0] 
+
+Softmax temperature T [1 .0, 3.0, 10 .0, 15 .0, 30 .0] 
+
+Momentum [0 .0, 0.1, 0.9, 0.999] 
+
+Batch size 64 
+
+Epochs 50 
+
+We report the hyperparameters considered to produce the Weighted Softmax numbers in Figure 1 in Table 2. Additionally, the dimensionality of the inputs and thus of the keys in the synthetic regression task is de = 100 , Input = 100 .The hyperparameters considered to produce the Weighted Softmax numbers in Figure 2 and 3 are reported in Table 3. Both Figures display data from the same set of experiments. On top, for Figure 2/Right we also include the batch size in the sweeps and consider the values 4, 16 , 32 and 64 . For the Weighted Softmax numbers reported in Figure 4 we again follow Table 3 but only consider models with L = 0 residual blocks. 
+
+F.3.1 Gauge-Invariant Weighted Softmax 
+
+The Gauge-Invariant Weighted Softmax module uses the same database, initialization and prediction as the Weighted Softmax module (Appendix F.3). Only the weight and value of each new tuple differ (Algorithm 2). As explained in Appendix C.7, we can choose the gauge offset bt so that the added weight wt = ηα ∥gt∥ ≥ 0 is non-negative by construction, so the clipping max {0, ·} of Algorithm 3 is no longer needed. As before, we drop the division by Dt−1 in both updates. In practice we add 
+
+ϵ = 10 −8 to ∥gt∥ in the denominator for numerical stability. 
+
+F.4 Hybrid Weighted Softmax 
+
+The Hybrid Weighted Softmax layer keeps the database D of the Weighted Softmax (Appendix F.3), but differs in two ways (Algorithm 4). First, all stored tuples are treated as parameters and trained by backpropagation with standard gradient descent optimization. Second, a query is only added if its Euclidean distance to the nearest stored key exceeds the growth threshold τ . The new tuple follows the Weighted Softmax rule of Algorithm 3, with δt,n clipped to [0 , ∞) for stability. D0
+
+consists of B tuples with zero keys and values and weight 1 
+
+> B
+
+. Because queries are RMS-normalized, 
+
+∥q∥2 = √din ≈ 55 .4, which sets the scale of τ . We define capacity as the total number of stored tuples after training, summed over all layers and divided by the maximum 4N .Table 4 lists the hyperparameters for Figure 5. 
+
+F.5 Parametric Softmax 
+
+Here we describe the Parametric Softmax baseline that is referenced in Figures 1 and 4. The motivation for this baseline is to compare growing a (weighted) softmax kernel-based module with learning a fixed size key-value parameterization for a softmax kernel where all keys and values are treated as parameters i.e., are optimized jointly to minimize the loss. 37 Algorithm 4 Hybrid Weighted Softmax Attention  
+
+> 1:
+
+Input: Stream of query batches {qt,n }Bn=1 , temperature T , growth threshold τ , maximal size 
+
+N , value-learning rate β > 0, weight-learning rate η > 0, Adam learning rate α, W0 = 1 
+
+> B
+
+,
+
+K0 ∼ N (0 , 1√din 
+
+I), V0 ∼ N (0 , 1√dout 
+
+I) 
+
+> 2:
+
+Initialize: D0 ← { (W0, K0, V0)} 
+
+> 3:
+
+for t = 1 , 2, . . . do  
+
+> 4:
+
+for n = 1 , . . . , B do  
+
+> 5:
+
+Compute prediction: st,n ←       
+
+> P
+> (w, k,˜v)∈D t−1e
+> 1
+> T√din
+> ⟨k,qt,n ⟩
+> ˜v
+> P
+> (w, k,˜v)∈D t−1w e
+> 1
+> T√din
+> ⟨k,qt,n ⟩
+> 6:
+
+Compute gradient: gt,n ← ∇L (st,n ) 
+
+> 7:
+
+Compute inner product: δt,n ← ⟨ st,n , gt,n ⟩ 
+
+> 8:
+
+end for  
+
+> 9:
+
+Select novel queries: St ← { n : min (·,k,˜v)∈D t−1 ∥qt,n − k∥2 > τ }, keeping only the first 
+
+N − |D t−1| elements if necessary  
+
+> 10:
+
+Parametric update: update all (w, k, ˜v) ∈ D t−1 with one Adam step (learning rate α) on 
+
+> 1
+> B
+
+P 
+
+> n
+
+L(st,n ) 
+
+> 11:
+
+Update database: Dt ← D t−1 ∪ { (max {0, η δ t,n }, qt,n , −β gt,n ) : n ∈ S t} 
+
+> 12:
+
+end for 
+
+Table 4: Hyperparameters for the Hybrid Growing Weighted Softmax on CIFAR-10 (Figure 5). 
+
+Hyperparameter Value 
+
+Model L = 3 residual blocks + readout layer, no nonlinearity Embedding dimension de 3072 (flattened image, no input embedding) Normalization RMSNorm (no learned scale) before each layer and the readout Maximal width per layer N 50016 
+
+Growth threshold τ [35 , 40 , 45 , 50 , 55 , 60] 
+
+Value learning rate β [10 , 30 , 60] 
+
+Weight learning rate η 1.0
+
+Softmax temperature T [1 .0, 5.0, 10 .0] 
+
+Adam learning rate α [0 .0003 , 0.001 , 0.003] 
+
+Batch size 16 
+
+Epochs 1
+
+Unlike the growing module, this baseline uses a static architecture with fixed size parameters (keys, values and weights), pre-allocated with enough capacity to match the size of a fully grown database from the RCDL case from the beginning. We obtain predictions st−1 applying a softmax to this huge database, but instead of growing the database step-wise, update the entire key-value parameterization by gradient descent at every timestep. Essentially, this baseline can be seen as wide MLP with a softmax nonlinearity. We report the hyperparameters considered to produce Parametric Softmax numbers in CIFAR-10 experiments (cf. Figure 4) in Table 5. For the synthetic Teacher-Student regression task presented in Figure 1, we adapt the "database size" of our fixed parametric representations to shapes (10240000 , d in ) for WKey and (10240000 , d out ) for 
+
+WValue . We report the remaining hyperparameters for this result in Table 6. We find that training the weights for a weighted version of softmax leads to severe training instabilities in this parametric setup and hence report the numbers for an unweighted softmax variant. 
+
+F.6 RBF 
+
+We evaluate RBF kernel-based RCDL models on image classification tasks, using the classic CIFAR-10 and CIFAR-100 benchmarks. For these experiments, we instantiate the blocks of the ResNet-MLP backbone architecture, described in Appendix F.2, with RBF RCDL modules. In all RBF kernel-based RCDL modules, we predict and grow the database according to Algorithm 5. 38 Table 5: Hyperparameters Parametric Softmax for experiments on CIFAR-10. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10 Input 32 × 32 × 3 images flattened to 3072 
+
+Model MLP Normalization in blocks RMSNorm (pre-norm, per block) 
+
+WKey shape (2560000, 3072) 
+
+WValue shape (2560000, 10) Nonlinear Activation Softmax Learning rate α [0 .003 , 0.01 , 0.03 , 0.1] 
+
+Softmax temperature T [0 .001 , 0.03 , 0.1, 0.3, 1.0, 3.0, 10 .0] 
+
+Batch size 64 
+
+Epochs 2000 
+
+Table 6: Hyperparameters Parametric Softmax for Teacher-Student experiments. 
+
+Hyperparameter Value 
+
+Model Single Parametric Softmax layer Hidden size 10240000 
+
+Data normalization RMSNorm (on input) Learning rate η [0 .0003 , 0.001 , 0.003 , 0.01 , 0.03] 
+
+Temperature T [0 .001 , 0.01 , 0.1, 0.3, 1.0, 3.0, 10 .0, 30 .0, 100 .0] 
+
+Optimizer Adam Momentum 0.85 
+
+Batch size 64 
+
+Training steps 200000 
+
+We report the hyperparameters considered to produce the RBF numbers in Figure 2 in Table 7. On top, for Figure 2/Right we also include the batch size in the sweeps and consider the values 4, 16 , 32 
+
+and 64 .
+
+F.7 Mesa (FOOF) 
+
+We evaluate the performance of the Mesa update rule introduced in Section 4 on CIFAR-10 and CIFAR-100 benchmarks. For these experiments, we instantiate the blocks of the ResNet-MLP backbone architecture, described in Appendix F.2, with vanilla dense linear layers. We train the parameters of the resulting network by applying the Mesa weight update detailed in Section 4. We report the hyperparameters used to produce the numbers for the Mesa update rule in Figure 2 in Table 9. We implement the computation of the matrix inverse (cf. Appendix E) using the Newton-Schulz Iteration. We report the effect of iterations for this algorithm in Table 8. 
+
+Algorithm 5 Growing RBF  
+
+> 1:
+
+Input: Stream of query batches {qt,n }Bn=1 , temperature T , value-learning rate η > 0 
+
+> 2:
+
+Initialize: D0 ← ∅  
+
+> 3:
+
+for t = 1 , 2, . . . do  
+
+> 4:
+
+for n = 1 , . . . , B do  
+
+> 5:
+
+Compute prediction: st,n ← P 
+
+> (k,v)∈D t−1
+
+exp 
+
+
+
+− ∥qt,n −k∥22 
+
+> 2T√din
+
+
+
+v 
+
+> 6:
+
+Compute gradient: gt,n ← ∇L (st,n ) 
+
+> 7:
+
+end for  
+
+> 8:
+
+Update database: Dt ← D t−1 ∪ { (qt,n , −η gt,n ) : n = 1 , . . . , B } 
+
+> 9:
+
+end for 
+
+39 Table 7: Hyperparameters RBF for experiments on CIFAR-10 and CIFAR-100. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10, CIFAR-100 Input 32 × 32 × 3 images flattened to 3072 
+
+Model Residual MLP Residual stream size ( de) 3072 
+
+# residual blocks ( L) [0 , 1, 2] 
+
+Normalization in blocks RMSNorm (pre-norm, per block) Final normalization RMSNorm before head Classifier head Weighted RBF-kernel RCDL layer Value learning rate η [0 .3, 1.0, 3.0] 
+
+Temperature T [0 .5, 1.0, 1.5, 5.0, 15 .0] 
+
+Momentum [0 .0, 0.1, 0.9, 0.999] 
+
+Batch size 64 
+
+Epochs 50 
+
+Table 8: Best Average Accuracy on CIFAR-10 and CIFAR-100 across different numbers of steps for the newton iteration algorithm for approximating the inverse. We find that generalization performance on CIFAR saturates with 10 iterations. 
+
+Mesa newton-approximation steps Dataset 5 10 Inf. 
+
+CIFAR-10 0.6914 0.7130 0.7124 CIFAR-100 0.4149 0.4323 0.4319 
+
+F.8 Delta 
+
+Lastly, we evaluate the performance of the Delta rule variant introduced in Section 4 on the CIFAR-10 and CIFAR-100 benchmark. For these experiments, we instantiate the blocks of the ResNet-MLP backbone architecture, described in Appendix F.2, with vanilla dense linear layers. We train the parameters of the resulting network by applying the Delta weight update detailed in Section 4. We report the hyperparameters used to produce the numbers for the Delta update rule in Figure 2 in Table 10. On top, for Figure 2/Right we also include the batch size in the sweeps and consider the values 4, 16 , 32 and 64 .
+
+F.8.1 Additional Experimental Results: Extended training for deep networks with Delta regularization 
+
+Here, we present additional experimental results to evaluate the DeltaNet-like gradient descent update, which were obtained in a different experimental setting compared to the results in Section 5, to better assess the regularizing effect for deep neural networks. Specifically, we train a 10-layer ResNet MLP on Cifar-10 for 2000 epochs. Our architecture downprojects the preprocessed and flattened input to a hidden size of 512, and uses 2-layer MLPs with 4x expansion ratio, GELU activation [56] and a pre-block Layer norm [57]. We train with a batch size of 64 and implement the DeltaNet update in the batch setting by applying all decays within a batch simultaneously, that is, multiplying the linear layer by I − λXtX⊤ 
+
+> t
+
+before applying the gradient update, where Xt ∈ Rdin ×B denotes the stacked input activations from batch t. In contrast to the derivation in Section 4, we reparametrize the update rule to align the decay rate with the learning rate scheduling (analogous to standard weight decay). Specifically, we update the weights as 
+
+Wt = Wt−1(I − λη tXtX⊤ 
+
+> t
+
+) − ηtGYt X⊤ 
+
+> t
+
+, (122) where GYt contains the stacked output gradients, λ is the Delta rule decay rate and ηt is the learning rate, for which we use cosine annealing with linear warmup. A more detailed description of the experimental setup can be found in Table 11. 40 Table 9: Hyperparameters Mesa for experiments on CIFAR-10 and CIFAR-100. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10, CIFAR-100 Input 32 × 32 × 3 images flattened to 3072 
+
+Model Residual MLP Residual stream size ( de) 3072 
+
+# residual blocks ( L) [2 , 4] 
+
+Normalization in blocks RMSNorm (pre-norm, per block) Final normalization RMSNorm before head MLP activation GELU Classifier head Linear (3072 → 10) 
+
+Mesa-γ [0 .9, 0.99 , 1.0] 
+
+Mesa-λ [0 .001 , 0.01 , 0.1] 
+
+Optimizer Adam Learning rate α [0 .0001 , 0.0003 , 0.001 , 0.003 , 0.01] 
+
+Momentum 0.85 
+
+Batch size 64 
+
+Epochs 50 
+
+Table 10: Hyperparameters Delta for experiments on CIFAR-10 and CIFAR-100. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10, CIFAR-100 Input 32 × 32 × 3 images flattened to 3072 
+
+Model Residual MLP Residual stream size ( de) 3072 
+
+# residual ( L) [2 , 4] 
+
+Normalization in blocks RMSNorm (pre-norm, per block) Final normalization RMSNorm before head MLP activation GELU Decay rate λ [0 .0000003 , 0.000001 , 0.000003 , 0.00001 , 0.0001 , 0.0003] 
+
+Classifier head Linear (3072 → 10) 
+
+Learning rate α [0 .0001 , 0.0003 , 0.001 , 0.003 , 0.01] 
+
+Batch size 64 
+
+Epochs 50 
+
+We compare plain SGD, SGD with weight decay, and SGD with Delta rule decay when training for 
+
+2000 epochs. Note that this is significantly longer than in other experiments (with a significantly deeper model), as it is computationally feasible and allows us to better understand the effect of regularization. As shown in Fig. 6, adding a DeltaNet-like decay mechanism significantly improves the final test accuracy (74% vs. 67%), far exceeding that of multiplicative weight decay (Fig. 7). While both mechanisms lead to a much slower increase in train accuracy, only the DeltaNet-like decay achieves superior generalization. We also tested combining both decay mechanisms (as in Gated DeltaNet), but this yielded no additional improvement. Additionally, we experimented with normalized DeltaNet updates as is standard for sequence mod-eling, i.e., using an input-dependent write strength of λη/ ∥x∥22. However, this slightly degraded performance. A likely explanation is that faithfully following the DeltaNet derivation would require scaling the learning rate accordingly; doing so, however, leads to highly unstable optimization, since it makes the (effective) per-sample learning rate dependent on the activation norm. 
+
+F.9 MLP Baselines 
+
+We complement the RCDL modules discussed in this work with strong MLP baselines on image classification tasks, using the classic CIFAR-10 and CIFAR-100 benchmarks. For these experiments, we instantiate the blocks of the ResNet-MLP backbone architecture, described in Appendix F.2, with 41 0 500 1000 1500 2000 
+
+Epoch         
+
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Train Accuracy
+> = 0.0
+> = 7 e06
+> = 1 e05
+> = 2 e05
+> = 3 e05
+> 0500 1000 1500 2000
+
+Epoch     
+
+> 0.55 0.60 0.65 0.70 0.75
+> Test Accuracy
+> = 0.0
+> = 7 e06
+> = 1 e05
+> = 2 e05
+> = 3 e05
+
+Figure 6: Training and test accuracy for a 10-layer residual MLP trained with SGD under varying DeltaNet decay rate λ. While λ = 0 achieves near-perfect training accuracy quickly, test accuracy plateaus at around 67%. Modest DeltaNet-like decay rates significantly improve generalization, as indicated by the reduced train-test gap, which demonstrates the regularizing effect of the update rule. Curves are smoothed using a running average. 0 500 1000 1500 2000 
+
+Epoch     
+
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Train Accuracy
+> = 0.0
+> = 0.0001
+> = 0.0002
+> = 0.0003
+> = 0.0005
+> 0500 1000 1500 2000
+
+Epoch 
+
+> 0.61 0.62 0.63 0.64 0.65 0.66 0.67
+> Test Accuracy
+> = 0.0
+> = 0.0001
+> = 0.0002
+> = 0.0003
+> = 0.0005
+
+Figure 7: Training and test accuracy for a 10-layer residual MLP trained with SGD under varying multiplicative decay rate β. Similarly to DeltaNet-like decay the training accuracy increases much slower, however, generalization improves only marginally. Curves are smoothed using a running average. vanilla dense linear layers. We train the parameters of the resulting network with either SGD [58], RMSProp [40], Adam [38], AdamW [39], and Muon [27]. We report the hyperparameters used to produce the numbers for the respective optimizer in Figure 2 in Table 12. On top, for Figure 2/Right we also include the batch size in the sweeps and consider the values 4, 16 , 32 and 64 .We report the hyperparameters used to produce the numbers for the reference MLP in the Teacher-Student setup in Figure 1 in Table 13. 
+
+F.10 Nonparametric Baselines 
+
+In Figure 2/Right we complement the RCDL methods with two nonparametric baselines: A kernel ridge regression (least squares (LS-)SVM) on the 10-dimensional one-hot targets and a k-Nearest Neighbour (kNN) implementation. 42 Table 11: Hyperparameters used for DeltaNet-GD experiments on extended training on Cifar-10 with deep nets. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10 Input 32 × 32 × 3 images flattened to 3072 
+
+Model Residual MLP Input projection Linear (3072 → 512) 
+
+Residual stream size ( de) 512 
+
+# residual blocks 10 
+
+Normalization in blocks LayerNorm (pre-norm, per block) Final normalization LayerNorm before head MLP expansion 4×
+
+MLP hidden dimension 2048 
+
+MLP activation GELU Dropout 0.1
+
+Classifier head Linear (512 → 10) 
+
+Optimizer SGD Learning rate α 1 × 10 −2
+
+Momentum 0.0
+
+LR schedule Step-wise: 5 epoch linear warmup + cosine annealing Cosine schedule CosineAnnealingLR over remaining steps Batch size 64 
+
+Epochs 2000 
+
+Table 12: Hyperparameters MLP Baselines for experiments on CIFAR-10 and CIFAR-100. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10, CIFAR-100 Input 32 × 32 × 3 images flattened to 3072 
+
+Model Residual MLP Residual stream size ( de) 3072 
+
+# residual ( L) [2 , 4] 
+
+Normalization in blocks RMSNorm (pre-norm, per block) Final normalization RMSNorm before head MLP activation GELU Classifier head Linear (3072 → 10) 
+
+Optimizer [SGD , RMSProp , Adam , AdamW , Muon ]
+
+Learning rate α [0 .0001 , 0.0003 , 0.001 , 0.003 , 0.01] 
+
+Weight decay (for AdamW) [0 .0001 , 0.01] 
+
+Momentum 0.0
+
+Batch size [16 , 64] 
+
+Epochs 50 
+
+F.10.1 Kernel ridge regression (least squares (LS-)SVM) 
+
+For the LS-SVM we chose the RBF-kernel k(x, x′) = exp( −γ∥x − x′∥22) inducing the Gram matrix 
+
+K ∈ Rn×n, with Ki,j = k(xi, xj ), where xi, xj are the channel-wise normalized RGB images, flattened into 3072 dimensional vectors. We parametrize the bandwidth parameter following the median heuristic γ = γmult   
+
+> median i,j ∥xi−xj∥22
+
+and approximate the sample median on all pairwise distances of a subsample of 2048 images. With the one-hot targets Y ∈ Rn×10 we invoke a standard solver to compute α = ( K + λIn)−1Y ∈ Rn×10 and evaluate f (x) = Pni=1 αik(x, xi) ∈ R10 on the test samples x (predicting the argmax class). We report the considered hyperparameter ranges for producing the data-point displayed in Figure 2/Right in Table 14. 43 Table 13: Hyperparameters MLP Baseline for Teacher-Student setup. 
+
+Hyperparameter Value 
+
+Model Residual MLP Residual stream size ( de) [256 , 512 , 1024 , 4096 , 8192] 
+
+# residual ( L) 2
+
+Normalization None MLP activation ReLU Optimizer SGD Learning rate [0 .0003 , 0.001 , 0.003 , 0.01 , 0.03 , 0.1, 0.3, 1.0, 3.0] 
+
+Momentum [0 .0, 0.9, 0.999] 
+
+Batch size [64 , 256 , 1024] 
+
+Training steps 200000 
+
+Table 14: Hyperparameters RBF kernel regression for experiments on CIFAR-10. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10 Input 32 × 32 × 3 images flattened to 3072 
+
+Model RBF kernel Classification arg max on predicted output Optimizer Exact solver Bandwidth γmult [0 .25 , 0.5, 1.0, 2.0, 3.0, 5.0] 
+
+Ridge regulariser λ [0 .001 , 0.01 , 0.1, 0.3, 1.0] 
+
+F.10.2 k-Nearest Neighbors (kNN) 
+
+We implement a kNN search using similarity score s(x, xi) on the channel-wise normalized and flattened test image and respective database entry x, xi ∈ R3072 . We consider two similarity scores 
+
+s(x, xi) = 
+
+−∥ x − xi∥22 euclidean 
+
+x⊤xi unnormalised dot product. Denoting Nk(x) as the indices of the top-k neighbors (according to the similarity score) we then weight the labels of these entries either uniformly or proportional to the respective similarity score leading to one of the following weights 
+
+wi =
+
+
+
+1 uniform (regardless of similarity score)  
+
+> 1
+> ∥x−xi∥2+10 −5
+
+proportional, euclidean (inverse distance)    
+
+> exp( x⊤xi)P
+> j∈Nkexp( x⊤xj)
+
+proportional, dot (softmax over top-k), for i ∈ N k(x). Using these weights, the prediction for an input x is given by taking the argmax over 
+
+P  
+
+> i∈N k(x)
+
+wi1[ yi = c]
+
+P  
+
+> i∈N k(x)
+
+wi
+
+.
+
+To obtain the number reported in Figure 2/Right we sweep the grid of the two similarity metrics, the two weighting mechanisms, and k ∈ { 5, 10 , 15 , 20 , 25 }.
+
+F.11 Vision Transformer Experiments 
+
+We investigate the performance of RCDL modules beyond ResNet architectures in classic vision Transformers (ViTs). We employ pre-LayerNorm transformer blocks consisting of standard softmax-attention and feed-forward networks (FFNs) and a linear readout on the CLS token. In the Weighted Softmax ViT, we replace each block’s FFN with a single Growing Weighted Softmax Module (Algorithm 3), all other components of the model are trained with standard parametric learning. Both are trained for a single epoch on CIFAR-10 (Appendix F.1.1), with hyperparameters in Tables 15 and 16. 44 Table 15: Hyperparameters Standard ViT for single-epoch experiments on CIFAR-10. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10 Input 32 × 32 × 3 images, 4 × 4 patches ( 64 patch tokens + CLS token) Model ViT, 2 transformer blocks Embedding dimension de 128 
+
+Attention heads 8
+
+Positional embedding learned Normalization in blocks LayerNorm (pre-norm, per block) + final LayerNorm FFN Dense ( 128 → 512 ) → GELU → Dense ( 512 → 128 )FFN blowup factor [1 , 2, 4, 8, 16 , 32] 
+
+Readout Linear layer on CLS token Optimizer Adam Learning rate α [0 .0003 , 0.001 , 0.003] 
+
+Batch size 64 
+
+Epochs 1
+
+Seeds 5
+
+Table 16: Hyperparameters Weighted Softmax ViT for single-epoch experiments on CIFAR-10. 
+
+Hyperparameter Value 
+
+Dataset CIFAR-10 Input 32 × 32 × 3 images, 4 × 4 patches ( 64 patch tokens + CLS token) Model ViT, 2 transformer blocks, FFN replaced by growing GWS Embedding dimension de 128 
+
+Attention heads 8
+
+Positional embedding learned Normalization in blocks LayerNorm (pre-norm, per block) + final LayerNorm Readout Linear layer on CLS token Optimizer (non-growing params.) Adam Learning rate (Adam) α [0 .0003 , 0.001 , 0.003] 
+
+Weight learning rate η [0 .1, 0.3, 1.0] 
+
+Value learning rate β [10 , 30] 
+
+Softmax temperature T [0 .1, 0.3, 1.0, 3.0] 
+
+Value momentum [0 .0, 0.999] 
+
+Batch size 64 
+
+Epochs 1
+
+Seeds 5
+
+F.12 Computational considerations 
+
+Growing Weighted Softmax, RBF-kernel based RCDL, and Parametric Weighted Softmax modules have a significant memory footprint. In the reported CIFAR-{10,100} experiments, where each epoch consists of 5 × 10 4 training examples, we add 2.5 × 10 6 tuples (w, v, k) (or (v, k), respectively, for RBF-kernel based modules) to D in growing modules. For a hidden layer with din = dout = 3072 ,implemented in float 32 , as used in CIFAR experiments, this results in a total memory footprint of 
+
+61 .5GB (sum of memory footprint for both keys, values and weights). To realize the training we rely on parallelization and shard this database across 4 TPUs for 50 -epoch CIFAR experiments. For the teacher-student regression experiments, training for 200 epochs adds 10 7 tuples to D in growing modules. For a hidden layer with din = dout = 100 , this results in a minimal memory footprint of approximately 8GB. As a result, this task does not require parallelization or database sharding and can be efficiently trained on a single device. However, note that the update is relatively cheap in growing as we do not have to compute gradients for these large databases. This is in contrast to Parametric Weighted Softmax modules, where we furthermore have to consider the additional footprint of the equally sized gradients, and if using 45 0 25 50         
+
+> Epoch
+> 10 0
+> Training Loss CIFAR-100 Weighted Softmax RBF Mesa Delta Muon AdamW Adam RMSprop SGD
+
+Figure 8: Training loss for Weighted Softmax & RBF decreases much faster than that of the other models. 0 10000 20000 30000 40000 50000 
+
+> Samples
+> 40% 50% 60%
+> Test Accuracy
+> CIFAR-10
+> Methods
+> Gauge-Invariant WSM Weighted Softmax RBF
+
+Figure 9: Test accuracy of non-parametric methods (Weighted Softmax, Gauge-Invariant WSM & RBF) as a function of the number of samples seen during training. advanced optimizers such as Adam [38], first and second moments, making training significantly more expensive and slower than by learning the Weighted Softmax module by growing. 
+
+## G Further Experimental Results 
+
+G.1 Training loss on CIFAR-100 
+
+Complementary to Figure 2/Middle where we report the train loss on CIFAR-10, we here report the respective numbers for CIFAR-100 in Figure 8. 
+
+G.2 Gauge-Invariant Weighted Softmax 
+
+We compare the Gauge-Invariant Weighted Softmax (Algorithm 2) with the standard Weighted Softmax and RBF in the single-epoch setting of Fig. 2/Right: non-augmented CIFAR-10, batch size 
+
+16 , L = 2 residual blocks, de = 3072 , and RMSNorm without learned scale. For Weighted Softmax and RBF we use the best configurations from the respective sweeps: Weighted Softmax with T = 6 ,
+
+η = 0 .003 , β = 3 ; RBF with temperature 20 and learning rate 10 . For the Gauge-Invariant variant we use T = 5 , α = 10 , η = 0 .03 , β = 100 . Fig. 9 shows mean and standard deviation over seeds. All three methods reach similar final test accuracy (Weighted Softmax 59 .4 ± 0.4% , RBF 58 .8 ± 0.2% ,Gauge-Invariant 58 .4 ± 0.4% ). Guaranteeing non-negative weights by the choice of gauge, rather than by clipping, therefore performs comparably and removes the need for the clipping heuristic. Given this similar behavior, we decided for the results in the main text of the paper to only analyze standard weighted softmax RCDL layers. 
+
+## H Further Related Work and Discussions 
+
+Here we provide further related work and discussions. At a high-level, retrieval-centric deep learning (RCDL) also shares conceptual similarities with existing “differentiable memory models” such as Differentiable Neural Computer [59, 60], Memory Networks [61, 62] and Neural Episodic Control [63] (see also more recent work in the context of language models, such as Berges et al. [64], Eyuboglu 46 et al. [65]); with a crucial difference that RCDL’s memory retrieval operates on the training datapoints. Its growing behavior, recruiting “resources” (new key/value allocations) as the system processes increasingly more training data (conceptually to infinity, with practical hardware limitations) is somewhat also reminiscent of Turing machines [66] as is the case for the transformer at runtime [6] (see also how Behrouz et al. [67] adopt a similar principle to recurrent nets). RCDL also differs from “deep kernel learning” [68] which uses a deep NN as a learnable pre-processor to produce features for a single-layer Gaussian Process (GP); as well as from a special variant of modern Hopfield-lookup layers [69] that stores the static training data and retrieves their labels via softmax attention. This comparison also provides an interesting contrast to infinite-width deep learning theories, where NNs asymptotically reduce to a kernel machine, such as the neural tangent kernel (NTK; Jacot et al. [70], Lee et al. [71]); in that regime, a central question is whether deep NNs meaningfully learn representations or operate in a lazy training regime with fixed random features [72]. In contrast, RCDL learns representations in an NN that is explicitly structured as a (deep) kernel machine—an intriguing future work may be to study RCDL through the lens of NTK/GP. The challenge of expanding model capacity has antecedents in early constructive algorithms [73, 74], which dynamically allocate new units to reduce error. In modern deep learning, this concept evolved into architectures like “progressive NNs” [75], which instantiate new columns for novel tasks to prevent forgetting. In fact, the idea of growing networks is rather common in continual learning (see, e.g., Yoon et al. [76]), as well as in architecture search/optimization (see, e.g., Stanley and Miikkulainen [77], Evci et al. [78], Butkus et al. [79]). RCDL offers a distinct path: unlike heuristics that add coarse-grained parametric modules, RCDL grows by accumulating fine-grained nonparametric key-value pairs, resulting in capacity that scales linearly with training data. Crucially, while this growth rate is fixed, the update rule itself is strictly principled: we do not add units arbitrarily, but rather derive the addition of each new key-value pair as a precise step of functional gradient descent on the global loss. “Retrieval” has also received recent popularity in the context of large language models (LLMs) [80, 81] as a method to complement the deficiency of LLMs’ knowledge stored in their fixed-size weight matrices. In a sense, RCDL integrates such a process within the network itself; store the entire internet in the NN itself, and “compression” occurs at inference time through attention that recombines features—a slogan here is “ store the entire internet in a growing neural net, compression can wait! ”. 47

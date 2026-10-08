@@ -1,0 +1,1686 @@
+Title: OVAL: Output-Aware Local Page Bases for KV Cache Retrieval
+
+URL Source: https://arxiv.org/pdf/2610.06686v1
+
+Published Time: Tue, 06 Oct 2026 03:25:22 GMT
+
+Number of Pages: 27
+
+Markdown Content:
+# OVAL: O UTPUT -A WARE LOCAL PAGE BASES FOR KV C ACHE 
+
+# RETRIEVAL 
+
+Ashkan Shahbazi, Chayne Thrash, Soheil Kolouri 
+
+College of Connected Computing Vanderbilt University Nashville, TN, USA 
+
+{ashkan.shahbazi,chayne.thrash, soheil.kolouri}@vanderbilt.edu 
+
+## ABSTRACT 
+
+Long context inference with large language models becomes increasingly expensive as attention must operate over an ever growing KV cache. Page sparse attention reduces this cost by representing each KV page compactly and retrieving only a subset for each query. Existing retrieval methods are designed to estimate attention scores or page relevance, but their objectives do not directly account for how approximation errors affect the resulting value weighted attention output. We introduce OVAL, an output aware page encoding derived from the joint structure of keys and values while preserving the key information needed for accurate retrieval. OVAL is training free and requires no additional value dependent statistics at inference time. Once constructed, its stored representation has the same size and decode time scoring cost as a key only spectral representation. Across long reasoning, long context understanding, and long generation benchmarks, OVAL consistently improves over the key only spectral baseline and performs competitively with recent KV cache compression and retrieval methods. On long reasoning benchmarks, it achieves strong avg@ k performance across model benchmark pairs, while matching or surpassing leading baselines on several long context understanding and generation settings with modest decoding overhead. Code is available at 
+
+https://github.com/Ashkan13776/oval-kv .
+
+## 1 Introduction 
+
+Large language models rely on self attention to retrieve information from increasingly long sequences, enabling applications from long document understanding and multi turn dialogue to code generation and extended reasoning [1–4]. This flexibility comes at substantial computational cost. For a sequence of length n, standard self attention compares every query with every key, giving quadratic complexity during full sequence processing [1, 5]. For contexts spanning tens or hundreds of thousands of tokens, attention therefore incurs substantial storage and bandwidth costs [3, 6]. Autoregressive inference avoids recomputing previous representations by maintaining a key value cache, or KV cache. At each layer, keys and values from previous tokens are stored and reused during generation. For a new query q,the model scores the cached keys, normalizes the logits into attention weights, and forms the output as a weighted combination of the corresponding values. Although this removes redundant computation, the KV cache grows linearly with sequence length, number of layers, batch size, and number of KV heads [7, 8]. Each decoding step must also read and score the cached history, making long context inference increasingly dominated by KV access costs [9–11]. In practice, this history is not managed as an unstructured collection of tokens. Modern inference systems group consecutive KV entries into fixed size blocks, or pages , which form the natural unit of cache management and sparse retrieval [12]. Page retrieval methods first identify a small subset of relevant pages and then perform exact attention over the tokens they contain. To do so efficiently, they maintain a compact summary for each page and use it to estimate relevance to the current query [9, 10]. The effectiveness of this pipeline therefore depends critically on what information the page summary preserves. arXiv:2610.06686v1 [cs.LG] 5 Oct 2026 October 6, 2026 
+
+Existing methods answer this question primarily through the keys. They estimate page importance using extrema, low dimensional key representations, geometric statistics, or spectral summaries [9–11, 13–15]. This is natural because keys determine the attention logits. However, preserving logits is not the final objective of an attention layer. What is propagated to the rest of the network is the attention output. Let o(q) = P 
+
+> i
+
+αi(q)vi, where α(q) = softmax( Kq/ √d).The effect of an error in the attention distribution therefore depends on the associated values. A large logit error may have little effect when attention is redistributed among tokens with similar values, while a small error along a weak key direction may substantially change the output if it shifts probability between very different values. Thus, a high variance key direction can be unimportant to the output, while a lower variance direction can be critical. Any criterion based only on key geometry cannot distinguish these cases. This motivates the central question: what information should a page preserve to maintain the attention output? 
+
+Our key observation is that not all attention score errors matter equally. An error matters only when it redistributes attention between tokens whose values are meaningfully different. Therefore, the importance of a key direction cannot be determined from the keys alone; it depends on how keys and values vary together within the page. Guided by this observation, we construct each page summary jointly from its keys and values, prioritizing the directions that matter most to the resulting attention output rather than simply preserving the dominant variation in key space. Output fidelity, however, is only one role of a page summary. Before a page can contribute to the output, it must first be retrieved, which requires an accurate estimate of its attention mass. We show that these two objectives have different local sensitivities: conditional attention output error is generically first order in discarded logit directions, while page log mass error is locally second order. This motivates a hybrid objective that combines output sensitivity with the conventional key covariance. The resulting basis is obtained through a small page local eigenproblem. At one endpoint, it reduces to ordinary page local key PCA; moving away from this endpoint introduces value information according to its effect on the attention output. We call the resulting method OVAL. OVAL uses both keys and values when constructing each page basis, but stores no value statistics and requires no value dependent computation during retrieval. Values are accessed only when a completed page summary is constructed. At decode time, the summary has the same dimensionality and scoring complexity as a key only spectral page summary. Across long reasoning, long context understanding, long generation, and efficiency benchmarks [3, 4, 11, 16], the output aware component consistently improves over the key PCA endpoint on long reasoning tasks and yields strong performance against contemporary KV cache compression and retrieval methods. 
+
+Our main contributions are: 
+
+• We identify a mismatch between key driven page retrieval objectives and the attention output that ultimately matters, and derive the exact sensitivity of the conditional attention output to within page logit perturbations. • We derive a query free output aware rank r page basis governed by centered key value coupling, and combine it with key fidelity through a single normalized parameter η, yielding a closed form spectral construction. • With the best evaluated η, OVAL achieves the highest avg@k among compressed methods in all long reasoning settings (+3.7–3.9 points) and the best LongBench v2 Overall score on two of three models. • We study practical selection of η using a disjoint calibration set and evaluate how well a single calibrated value transfers across tasks relative to the per setting η⋆.
+
+## 2 Related Work 
+
+KV cache compression. Several complementary approaches reduce the KV cache footprint. Grouped query attention shares KV heads across queries [7], quantization lowers the precision of cached entries [17], and low-rank methods such as STAR-KV project the cache onto an adaptively ranked subspace [18]. Eviction methods keep only part of the history based on attention importance, recency, or prompt observations [8, 19–21]. CriticalKV grounds eviction in attention output perturbation and shows that value states matter beyond attention weights [22]. In all of these, evicted information cannot be recovered if its relevance changes later in generation. 
+
+Sparse attention and KV retrieval. Retrieval methods instead estimate which cached regions matter for the current query and attend only to the selected subset [9, 10, 13, 21, 23]. At page granularity, Quest bounds page scores with coordinatewise key minima and maxima [9], ArkVale summarizes pages with compact geometric representations [13], and UNIQUE uses key mean and dispersion statistics [9]. At token granularity, several methods score keys cheaply in a reduced space. SparQ uses a subset of query components [24], Loki uses a PCA basis of keys [25], ShadowKV reconstructs selected entries from a low-rank key cache [10], and InfiniGen prefetches entries predicted from partial key information [21]. Other methods borrow from vector search. PQCache retrieves tokens by maximum inner product search over product-quantized keys [26], RaBitQCache estimates attention weights with rotated binary quantization 2October 6, 2026 (a)  Key-only summaries 
+
+> Quest · ArkVale · ClusterKV · InfLLM · NSA
+> B U I L D PAG E R E P R E S E N TAT I O N S
+
+Kp
+
+Vp
+
+Sp
+
+K1
+
+V1
+
+S1
+
+p1
+
+K2
+
+V2
+
+S2
+
+×
+
+K3
+
+V3
+
+S3
+
+p3 
+
+> p3missed
+
+K4
+
+V4
+
+S4
+
+p4    
+
+> key energy output sensitivity
+> d1d2d3d4
+> S C O R E PAG E S
+
+q PAGE RANKING · TOP-2 
+
+> R E T R I E V E
+
+(q; S ) ≈ β
+
+~p p β (q)p
+
+(b)  Key approximations 
+
+> LOCKS · Loki · SparQ · PQCache · MagicPIG
+> B U I L D PAG E R E P R E S E N TAT I O N S
+
+Kp
+
+Vp
+
+K̃ p
+
+K1
+
+V1
+
+K̃ 1
+
+p1
+
+K2
+
+V2
+
+K̃ 2
+
+×
+
+K3
+
+V3
+
+K̃ 3
+
+p3 
+
+> p3missed
+
+K4
+
+V4
+
+K̃ 4
+
+p4    
+
+> key energy output sensitivity
+> d1d2d3d4
+> S C O R E PAG E S
+
+q PAGE RANKING · TOP-2 
+
+> R E T R I E V E
+
+(q; ) ≈ β
+
+~p X
+
+~p β (q)p
+
+(c)  OVAL:  Output-aware basis   
+
+> Vused once, to build B
+> B U I L D PAG E R E P R E S E N TAT I O N S
+
+Kp
+
+Vp
+
+Bp
+
+K1
+
+V1
+
+B1
+
+p1
+
+K2
+
+V2
+
+B2
+
+×
+
+K3
+
+V3
+
+B3
+
+p3 
+
+> p3recovered
+
+K4
+
+V4
+
+B4
+
+×    
+
+> key energy output sensitivity
+> d1d2d3d4
+> S C O R E PAG E S
+
+q PAGE RANKING · TOP-2 
+
+> R E T R I E V E
+
+V (q; B ) ≈ p⊤ β
+
+~p p,η V β (q)p⊤ p
+
+estimated (bar) · exact (tick) score  top-2 cutoff  key energy · output sensitivity  β (q) := p softmax( X q/ )p d
+
+Figure 1: Overview of page representations for sparse KV retrieval. (a) Key only summaries and (b) key approximations construct retrieval representations from key information alone and therefore do not explicitly account for output sensitivity. Consequently, an output important page such as p3 can fall below the top 2 retrieval cutoff. (c) OVAL instead uses keys and values when constructing an output aware basis, preserving directions important to both key fidelity and output sensitivity. to enable adaptive top-p selection [27], and ParisKV combines collision-based candidate selection with quantized inner-product reranking [28]. MagicPIG argues that top-k selection degrades when attention is not sparse and instead samples keys with locality-sensitive hashing [29]. Still other methods predict important tokens or blocks using learned predictors, clustering, or structured sparsity [30–36]. 
+
+Page level spectral retrieval. Closest to our setting, LOCKS builds a page-local spectral basis from keys to approximate within-page logits and estimate page attention mass [14]. We keep this spectral summary structure but change the basis objective. Rather than preserving directions by key energy alone, we use paired key–value geometry to prioritize the directions that matter to the attention output. This choice is consistent with evidence that value states help identify critical entries [22]. 
+
+## 3 Method 
+
+Key PCA retains directions with the most key energy. OVAL combines key energy with the sensitivity of the conditional attention output to choose the basis. Its retrieval summary has the same format as key PCA. Throughout, keys and queries include the model’s positional transformations, including RoPE. Proofs, remainder bounds, and extensions to nonisotropic queries and nonuniform reference attention are given in Appendix A. 3October 6, 2026 
+
+3.1 Setup and objectives 
+
+Consider one attention head and a completed page of m ≥ 1 key–value pairs. Let K ∈ Rm×d and V ∈ Rm×dv have rows k⊤ 
+
+> i
+
+and v⊤ 
+
+> i
+
+. With 1 ∈ Rm the all-ones vector, define the page means and centered matrices by 
+
+μ = 1
+
+m K⊤1, X = K − 1μ⊤, ν = 1
+
+m V ⊤1, Y = V − 1ν⊤.
+
+Thus 1⊤X = 0 and 1⊤Y = 0 . For a query q ∈ Rd, set z(q) = Xq/ √d and define lse( z) = log  P  
+
+> i
+
+ezi
+
+. The log of the page’s unnormalized attention mass is 
+
+ℓ(q) = log 
+
+> m
+
+X
+
+> i=1
+
+ek⊤ 
+
+> iq/ √d
+
+!
+
+= μ⊤q
+
+√d + lse( z(q)) .
+
+For a fixed query, the global attention denominator is shared by all pages, so ranking by ℓ(q) ranks their total attention probability. Let In denote the n × n identity matrix and define St( d, r ) = {B ∈ Rd×r : B⊤B = Ir } for 1 ≤ r < d .An orthonormal basis B ∈ St( d, r ) of an r-dimensional subspace defines the projector PB = BB ⊤. We retain μ
+
+exactly and approximate the centered keys by XP B , giving 
+
+bzB (q) = XP B q
+
+√d , eB (q) = z(q) − bzB (q) = X(Id − PB )q
+
+√d , bℓB (q) = μ⊤q
+
+√d + lse( bzB (q)) . (1) The same logit residual eB (q) drives both objectives below. 
+
+Retrieval error. Since log-sum-exp is 1-Lipschitz in the infinity norm, 
+
+|ℓ(q) − bℓB (q)| ≤ ∥ eB (q)∥∞ ≤ ∥ eB (q)∥2 .
+
+Thus the expected squared logit residual bounds the expected squared page log-mass error. 
+
+Output error. The output conditional on attending within the page is 
+
+β(z) = softmax( z), f (z) = V ⊤β(z) = ν + Y ⊤β(z).
+
+The common mean key logit cancels in this within-page normalization. Redistributing attention among identical values leaves f (z) unchanged; its dependence on the logits is governed by value differences. At uniform attention, z = 0 and 
+
+β(0) = 1/m . For any logit perturbation h ∈ Rm,
+
+ddt f (th )
+
+> t=0
+
+= 1
+
+m Y ⊤h. 
+
+Linearizing both f (z(q)) and f (bzB (q)) at zero therefore gives the linearized output error Y ⊤eB (q)/m . We measure it using the seminorm ∥a∥G = ( a⊤Ga )1/2, with G ∈ Rdv ×dv symmetric positive semidefinite. For example, 
+
+G = W ⊤ 
+
+> O
+
+WO measures the perturbation after applying the current head’s output projection block WO .
+
+Assumption 3.1 (Query second moment) . The queries satisfy Eq [qq ⊤] = Id.Under Assumption 3.1, the two risks are 
+
+Rkey (B) = Eq ∥eB (q)∥22 = 1
+
+d tr  (Id − PB )X⊤X(Id − PB ) , (2) 
+
+Rout (B) = Eq
+
+1
+
+m Y ⊤eB (q)
+
+> 2
+> G
+
+= 1
+
+m2d tr(( Id − PB )Mout (Id − PB )) , (3) where Mout = X⊤Y GY ⊤X ⪰ 0. The output risk measures the linearized conditional error at uniform attention. Both risks measure the energy of a positive semidefinite matrix outside the retained subspace, so both can be minimized by the following spectral rule. 
+
+Lemma 3.2 (Optimal subspace for a quadratic risk) . Let M ∈ Rd×d be symmetric positive semidefinite. The minimizers of tr(( Id − PB )M (Id − PB )) over B ∈ St( d, r ) are exactly the orthonormal bases of leading r-dimensional invariant subspaces of M .
+
+Applied to X⊤X, Lemma 3.2 gives page local key PCA [14]. Applied to Mout , it gives the leading right singular subspaces of G1/2Y ⊤X, where G1/2 is the symmetric positive semidefinite square root. The latter weights key directions by their coupling to value differences, rather than by key energy alone. 4October 6, 2026 
+
+3.2 Hybrid objective 
+
+To combine the risks, scale each component by its total energy, with a stabilizer ε > 0:
+
+ckey = (tr( X⊤X) + ε)−1, cout = (tr( Mout ) + ε)−1.
+
+For η ∈ [0 , 1] , define 
+
+Rη (B) = (1 − η)ckey Rkey (B) + ηm 2cout Rout (B).
+
+The factor m2 cancels the 1/m 2 in the output risk. Substituting (2) and (3) gives Rη (B) = d−1 tr(( Id − PB )Mη (Id −
+
+PB )) , where 
+
+Mη = (1 − η)ckey X⊤X + ηc out Mout . (4) 
+
+Corollary 3.3 (Output aware local page basis) . The minimizers of Rη (B) over B ∈ St( d, r ) are exactly the orthonormal bases of leading r-dimensional invariant subspaces of Mη .
+
+This follows from Lemma 3.2 because Mη ⪰ 0. The endpoint η = 0 recovers key PCA, while η = 1 minimizes the conditional output surrogate; intermediate values combine the two scaled risks. At uniform within-page attention, the linearized full-cache response to eB (q) is p0(q) times the conditional response, where p0(q) is the page’s attention probability at that reference. We omit the resulting squared-error weight p0(q)2, which depends on the rest of the cache, so the basis can be constructed from (K, V ) alone. 
+
+3.3 Computation and summary 
+
+For short pages ( m < d ), we reduce the eigenproblem from d × d to m × m. The normalizers also use only m × m
+
+matrices, since tr( X⊤X) = tr( XX ⊤) and tr( Mout ) = tr( Y GY ⊤XX ⊤). Define 
+
+Aη = (1 − η)ckey Im + ηc out Y GY ⊤ ⪰ 0, C = A1/2 
+
+> η
+
+X, 
+
+using the symmetric positive semidefinite square root. Since Mη = C⊤C, its positive eigendirections can be recovered from the m × m matrix CC ⊤. Let s = min {r, rank( C)} and, for s > 0, let Us ∈ Rm×s hold orthonormal eigenvectors of CC ⊤ for its s largest positive eigenvalues, collected in Λs. Then 
+
+CC ⊤Us = UsΛs, B+ = C⊤UsΛ−1/2 
+
+> s
+
+. (5) Thus B⊤ 
+
+> +
+
+B+ = Is and Mη B+ = B+Λs. Algorithm 1 constructs Bη from B+, handling s = 0 and completing the basis when s < r . It uses the remaining directions to minimize key reconstruction error without changing the minimum hybrid risk. The stored summary is 
+
+summary( K, V ) = ( μ, B η , R η ), Rη = XB η ∈ Rm×r .
+
+Scoring uses (1) with B = Bη and evaluates XP B q as Rη (B⊤ 
+
+> η
+
+q). At decode time, scoring one page costs O(d + dr +
+
+mr + m) operations. Values are used only during summary construction and do not enter page scoring. 
+
+## 4 Experiments 
+
+We evaluate four questions. First, we test whether the proposed output aware page representation improves sparse KV retrieval across long reasoning, long context understanding, and long generation tasks (Sections 4.1 and 4.2). Unless stated otherwise, we use rank r = 8 , set G = W ⊤ 
+
+> O
+
+WO, and report η⋆, the best value in the evaluated grid at a fixed sparse KV budget. We then study selecting η from a held out calibration set (Section 4.3), sensitivity to η (Section 4.4), and end to end efficiency (Section 4.5). Implementation and reproducibility details are given in Appendix D, with additional rank and page budget ablations in Appendix B. 
+
+4.1 Long reasoning Tasks Setup. We evaluate MATH500[16], AIME24[37, 38], and GPQA[39] on DeepSeek R1 Llama 8B, DeepSeek R1 Qwen 7B, and DeepSeek R1 Qwen 14B [40–44], using k = 8 generations per problem. We report pass@ k and avg@ k, using avg@ k as the primary metric because it captures correctness across all sampled reasoning trajectories. 
+
+Results. Table 1 shows the largest gains on avg@ k. OVAL is the best compressed method in all nine model and benchmark settings, tying FreeKV only on Qwen 14B GPQA. Averaged across tasks, avg@ k improves over FreeKV from 51 .83 to 55 .69 on Llama 8B, 54 .14 to 57 .83 on Qwen 7B, and 62 .56 to 66 .42 on Qwen 14B. The largest gains occur on AIME24, reaching 5.8 to 7.1 points across models. Pass@ k is more mixed, with OVAL slightly below FreeKV on Llama 8B and Qwen 7B but above it on Qwen 14B. Overall, the gains primarily reflect higher accuracy across sampled trajectories rather than only a higher chance of obtaining one correct solution. 5October 6, 2026 
+
+Algorithm 1 OVAL: output aware page summary 
+
+Require: K ∈ Rm×d, V ∈ Rm×dv , rank r < d , η ∈ [0 , 1] , G ⪰ 0, ε > 0 
+
+> 1:
+
+μ ← 1 
+
+> m
+
+K⊤1, ν ← 1 
+
+> m
+
+V ⊤1, X ← K − 1μ⊤, Y ← V − 1ν⊤ 
+
+> 2:
+
+T ← XX ⊤, W ← Y GY ⊤, ck ← (tr( T ) + ε)−1, co ← (tr( W T ) + ε)−1 
+
+> 3:
+
+Aη ← (1 − η)ckIm + ηc oW , C ← A1/2 
+
+> η
+
+X, s ← min {r, rank( C)} 
+
+> 4:
+
+Bη ← [ ]  
+
+> 5:
+
+if s > 0 then  
+
+> 6:
+
+compute the s leading positive eigenpairs (Us, Λs) of CC ⊤ 
+
+> 7:
+
+Bη ← C⊤UsΛ−1/2 
+
+> s
+> 8:
+
+end if  
+
+> 9:
+
+if s < r then  
+
+> 10:
+
+X⊥ ← X − (XB η )B⊤ 
+
+> η
+
+; append up to r − s leading right singular directions of X⊥ 
+
+> 11:
+
+fill remaining columns with orthonormal directions in span( Bη )⊥ 
+
+> 12:
+
+end if  
+
+> 13:
+
+Rη ← XB η
+
+Ensure: summary( K, V ) = ( μ, B η , R η )
+
+4.2 Long context understanding and generation Setup. We next evaluate the representation under long input and long generation workloads. Following the baseline protocol, LongBench v2[3] inputs are truncated to 64 K tokens and evaluated using Overall accuracy together with Short, Medium, and Long context buckets. LongGenBench[4] stresses the cache during 16 K token generations and reports completion rate (CR) and CR ×Acc. For both benchmarks, we evaluate Llama 3.1 8B Instruct and Qwen 2.5 7B and 14B Instruct [41, 42, 44] with a KV budget of 2048 .
+
+Results. On LongBench v2, Table 2 shows that OVAL achieves the highest Overall score among compressed methods on Llama 8B and Qwen 7B, reaching 29 .82 and 28 .03 , respectively, and exceeding FullKV on both. On Qwen 14B, it reaches 33 .00 , below the strongest compressed baseline at 34 .79 . Across the context length buckets, OVAL remains competitive at longer inputs, obtaining the best or second best Long score for all three models. LongGenBench presents a less uniform picture. OVAL obtains the highest CR on Qwen 7B and remains close to the strongest methods on Qwen 14B, while Llama 8B favors other retrieval methods. CR ×Acc follows a similarly model dependent pattern. Thus the strongest transfer beyond reasoning appears on long input understanding, while long generation is more sensitive to the model and workload. Figure 2(b) and Appendix C additionally report InfiniteBench LongQA accuracy at contexts exceeding 100 K tokens. 
+
+4.3 Selecting η in practice 
+
+The results above report η⋆, the best value in the evaluated grid for each task. Because this value is selected using evaluation scores, these results characterize the attainable performance of the representation rather than a practical parameter selection procedure. We therefore select one ˆη per model using a disjoint calibration pool of 40 problems, with 20 from MATH500 and 20 
+
+from GPQA. We evaluate η ∈ { 0, 0.25 , 0.5, 0.75 , 1} on this pool, select the value with the highest mean calibration performance, and freeze it across MATH500, AIME24, and GPQA. Calibration problems are excluded from all scores in Table 3; AIME24 contains no calibration problems, so its evaluation set is unchanged. On these matched held out examples, frozen OVAL averages 53 .69 versus 50 .42 for FreeKV on Llama 8B, improving on all three tasks, including AIME24, which was absent from the calibration pool. On Qwen 7B, calibration selects ˆη = 0 .25 and frozen OVAL averages 54 .28 versus 54 .72 for FreeKV: it improves AIME24 slightly but trails on MATH500 and GPQA. Task specific sweeping reaches 55 .75 and 57 .78 , leaving gaps of 2.05 and 3.50 points. Calibration therefore transfers well on Llama 8B, while on Qwen 7B the 40-problem pool does not identify the best setting; more robust selection of η is an important direction for future work. 
+
+4.4 Sensitivity to η
+
+We next examine sensitivity to η, with η = 0 recovering page local key PCA and larger values increasing output sensi-tivity. Table 4 shows no universally optimal setting: long reasoning generally benefits from nonzero η, LongBench v2 [3] is relatively stable across interior values, and LongGenBench [4] is more model dependent. 6October 6, 2026 
+
+Table 1: Long reasoning performance with k = 8 generations per problem. η⋆ denotes the best evaluated mixing parameter for each setting. Each Average row averages MATH500, AIME24, and GPQA for that model. Gold and silver denote the best and second best compressed methods; FullKV is excluded from ranking. 
+
+Benchmark Metric Full Razor RaaS Quest ArkVale ShadowKV InfiniGen FreeKV η⋆
+
+DeepSeek R1 Llama 8B 
+
+MATH500 pass@ k 78.00 72.00 74.00 72.00 72.00 76.00 74.00 78.00 80.00 
+
+avg@ k 67.25 60.50 62.50 62.00 62.50 60.25 66.50 66.75 69.75 
+
+AIME24 pass@ k 80.00 46.67 66.67 73.33 80.00 63.33 70.00 76.67 76.67 
+
+avg@ k 47.08 30.00 36.25 44.17 46.67 36.50 45.83 47.50 53.33 
+
+GPQA pass@ k 82.00 60.00 64.00 76.00 72.00 78.00 46.00 86.00 74.00 avg@ k 39.75 34.25 33.50 37.25 39.75 36.25 27.50 41.25 44.00 
+
+Average pass@ k 80.00 59.56 68.22 73.78 74.67 72.44 63.33 80.22 76.89 
+
+avg@ k 51.36 41.58 44.08 47.81 49.64 44.33 46.61 51.83 55.69 
+
+DeepSeek R1 Qwen 7B 
+
+MATH500 pass@ k 78.00 72.00 74.00 76.00 76.00 74.00 74.00 78.00 80.00 
+
+avg@ k 71.75 66.75 67.00 68.00 68.25 64.75 70.00 70.00 73.75 
+
+AIME24 pass@ k 83.33 65.33 73.33 76.67 73.33 73.33 63.33 83.33 80.00 
+
+avg@ k 56.66 35.42 42.92 47.50 47.92 43.75 43.34 52.92 60.00 
+
+GPQA pass@ k 72.00 60.00 58.00 72.00 72.00 70.00 58.00 74.00 72.00 
+
+avg@ k 35.75 32.50 33.25 38.75 34.25 33.50 35.50 39.50 39.75 
+
+Average pass@ k 77.78 65.78 68.44 74.89 73.78 72.44 65.11 78.44 77.33 
+
+avg@ k 54.72 44.89 47.72 51.42 50.14 47.33 49.61 54.14 57.83 
+
+DeepSeek R1 Qwen 14B 
+
+MATH500 pass@ k 74.00 70.00 68.00 76.00 72.00 76.00 72.00 78.00 80.00 
+
+avg@ k 70.25 59.75 64.75 67.25 66.25 65.00 67.00 67.50 72.00 
+
+AIME24 pass@ k 86.67 46.67 73.33 83.33 76.67 83.33 76.67 83.33 86.67 
+
+avg@ k 66.25 32.50 48.75 58.33 61.25 57.25 60.00 64.17 71.25 
+
+GPQA pass@ k 82.00 68.00 80.00 80.00 86.00 86.00 58.00 86.00 86.00 
+
+avg@ k 53.25 38.50 44.25 51.25 53.75 51.75 38.00 56.00 56.00 
+
+Average pass@ k 80.89 61.56 73.78 79.78 78.22 81.78 68.89 82.44 84.22 
+
+avg@ k 63.25 43.58 52.58 58.94 60.42 58.00 55.00 62.56 66.42 
+
+4.5 Efficiency Accuracy Runtime Tradeoff. Figure 2(a) shows that OVAL incurs about 10% decode overhead over FreeKV on LongBench v2 while improving accuracy most on long inputs. Panel (b) extends the comparison to RaaS and ArkVale on InfiniteBench LongQA, where OVAL achieves higher accuracy at modest latency and is substantially faster than ArkVale. 
+
+## 5 Conclusion 
+
+We introduced OVAL, an output aware page representation for sparse KV retrieval that combines key fidelity with value dependent output sensitivity. It preserves the summary format and decode time scoring complexity of key only spectral retrieval while better aligning retrieval with the attention output. Across long reasoning, long context understanding, and long generation, OVAL improves over the key only endpoint and performs strongly against recent sparse KV baselines with modest decoding overhead. We further show that η can be selected from held out calibration data, which transfers well on Llama 8B and leaves substantial headroom on Qwen 7B. Overall, the results support incorporating output sensitivity into compact retrieval representations and designing sparse attention summaries around downstream approximation error rather than key geometry alone. 7October 6, 2026 
+
+Table 2: LongBench v2 accuracy by context length and LongGenBench generation metrics. LongBench v2 Overall is the task aggregate for each model. 
+
+Benchmark Metric Full Razor RaaS Quest ArkVale ShadowKV InfiniGen FreeKV η⋆
+
+Llama 3.1 8B Instruct 
+
+LongBench v2 Overall 29.22 27.44 28.23 28.43 28.63 25.45 28.56 29.22 29.82 
+
+Short 34.44 33.89 33.89 33.33 33.89 32.78 32.28 35.00 35.00 
+
+Medium 27.91 25.12 26.51 27.44 26.98 22.79 26.05 27.44 28.84 
+
+Long 23.15 21.30 22.02 22.22 23.15 18.52 24.07 23.15 25.93 
+
+LongGenBench CR 80.03 35.90 76.63 78.03 39.36 79.28 76.68 78.03 74.71 CR ×Acc 26.82 12.20 26.00 27.71 10.36 30.66 26.21 27.62 28.50 
+
+Qwen 2.5 7B Instruct 
+
+LongBench v2 Overall 27.44 25.25 26.24 27.63 26.84 25.84 26.44 26.84 28.03 
+
+Short 36.11 32.78 35.56 36.67 36.11 32.22 32.22 34.44 36.11 
+
+Medium 23.72 21.86 21.86 22.79 22.33 20.00 23.26 22.33 22.79 
+
+Long 20.37 19.44 19.44 22.22 20.37 26.85 23.15 23.15 25.93 
+
+LongGenBench CR 79.56 42.13 77.65 62.89 75.91 35.49 72.96 76.93 78.54 
+
+CR ×Acc 31.09 21.48 34.40 25.96 31.79 11.43 27.67 32.81 32.38 
+
+Qwen 2.5 14B Instruct 
+
+LongBench v2 Overall 33.40 34.19 32.60 33.80 34.19 34.79 32.31 34.19 33.00 Short 41.11 43.33 40.56 40.00 41.11 40.56 40.56 41.11 41.11 
+
+Medium 31.16 30.70 32.09 33.49 33.49 34.88 29.89 33.49 30.23 Long 25.00 25.93 20.37 24.07 24.07 25.00 23.95 24.07 25.93 
+
+LongGenBench CR 65.84 26.48 62.29 45.49 45.31 21.25 63.02 65.46 63.92 
+
+CR ×Acc 29.35 13.89 29.79 19.76 19.65 8.25 26.08 29.39 28.64 Table 3: Calibration based selection of η for long reasoning. ˆη is selected per model on a disjoint calibration pool and frozen across tasks. All methods are scored on the same held out examples. AIME24 contains no calibration problems and is therefore identical to the evaluation set in Table 1. Gap is Sweep best minus Frozen.                                     
+
+> Model Task ˆηFreeKV Frozen Sweep best Gap Llama 8B MATH500
+> 0.50
+> 63.25 66.00 69.74 3.74 AIME24 47.50 53.33 53.33 0.00 GPQA 40.50 41.75 44.17 2.42
+> Avg. 50.42 53.69 55.75 2.05
+> Qwen 7B MATH500
+> 0.25
+> 72.50 72.00 73.75 1.75 AIME24 52.92 53.33 60.00 6.67 GPQA 38.75 37.50 39.58 2.08
+> Avg. 54.72 54.28 57.78 3.50
+
+Acknowledgments 
+
+This work was supported in part by the National Center on Generative AI for Uplifting STEM+C Education (GENIUS Center) and by the NSF CAREER Award #233989. The authors also gratefully acknowledge the computing resources provided by the NVIDIA Academic Grant Program and Lambda Cloud 
+
+Reproducibility statement 
+
+We provide implementation details, model checkpoints, benchmark protocols, hyperparameters, evaluation settings, memory and latency configurations, and corrections to the reference harness in Appendix D. Code, patches, and per experiment scripts are released through the anonymized repository linked there. All reported comparisons use matched effective KV budgets, and the appendix documents deviations from upstream defaults and implementation details required to reproduce the reported results. 8October 6, 2026 
+
+Table 4: Effect of η across long reasoning, LongBench v2 (LBv2), and LongGenBench (LGB). Long reasoning results are avg@ k.
+
+Long reasoning LongBench v2 LongGenBench 
+
+η MATH500 AIME24 GPQA Overall Short Medium Long CR CR ×Acc 
+
+Llama 8B 
+
+0 68.00 42.08 39.00 29.42 34.44 27.44 25.00 73.12 27.24 0.25 69.75 47.08 39.00 29.42 35.00 26.98 25.00 72.64 27.26 0.5 62.25 53.33 40.25 29.82 35.00 27.44 25.93 71.82 27.23 0.75 65.75 33.75 44.00 29.82 33.89 28.84 25.00 72.61 27.28 1 63.75 33.75 39.00 29.82 35.00 27.91 25.00 74.71 28.50 
+
+Qwen 7B 
+
+0 70.00 53.33 30.00 27.63 35.56 21.86 25.93 78.54 32.38 
+
+0.25 73.75 53.33 39.75 28.03 35.56 22.79 25.93 77.64 31.91 0.5 70.25 60.00 36.25 27.63 35.56 21.86 25.93 77.93 31.86 0.75 71.75 50.42 37.75 28.03 36.11 22.33 25.93 78.29 31.57 1 72.25 60.00 36.75 28.03 36.11 22.33 25.93 78.00 32.28 
+
+Qwen 14B 
+
+0 71.75 63.75 51.75 32.41 40.56 29.30 25.00 63.78 28.61 0.25 68.00 71.25 48.75 32.21 40.56 28.84 25.00 63.74 27.68 0.5 72.00 66.25 56.00 32.60 41.11 28.84 25.93 61.08 26.94 0.75 71.50 60.42 50.25 33.00 41.11 30.23 25.00 63.92 28.64 
+
+1 71.00 66.25 48.25 32.60 41.11 29.77 24.07 61.34 27.30                        
+
+> 0246810
+> −4
+> −3
+> −2
+> −10123
+> FreeKV (baseline)
+> short (+0 .0)
+> medium (−3.3)
+> long (+1 .9)
+> better
+> Latency overhead vs. FreeKV (%) ↓
+> LongBench v2 acc. gain (pts)  ↑
+> 16 18 20 22 24 26 28 30 32 34 36 38 40 42 44 FullKV (dense) 42.9
+> FreeKV
+> 36.0 @ 23.0
+> RaaS
+> 35.5 @ 27.4
+> OVAL (ours)
+> 37.4 @ 24.7
+> +1 .7ms ( +7 .4%)
+> +1 .4pts better
+> LongQA accuracy  ↑
+> 76 78
+> 80% 85% 90% 95% 100%
+> ArkVale
+> 35.9 @ 76.9
+> dominated Pareto frontier
+> Fraction of FullKV Decode latency (ms / token) ↓
+
+(a) OVAL vs. FreeKV (b) Accuracy–latency tradeoff 
+
+Figure 2: Efficiency of sparse retrieval. (a) Accuracy gain versus decode overhead relative to FreeKV on Qwen2.5-14B LongBench v2. (b) Broader accuracy runtime comparison on InfiniteBench LongQA with Llama-3.1-8B, including RaaS and ArkVale. 
+
+## References 
+
+[1] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Ł ukasz Kaiser, and Illia Polosukhin. Attention is all you need. In I. Guyon, U. Von Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, and R. Garnett, editors, Advances in Neural Information Processing Systems , volume 30. Cur-ran Associates, Inc., 2017. URL https://proceedings.neurips.cc/paper_files/paper/2017/file/ 3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf .[2] Yushi Bai, Xin Lv, Jiajie Zhang, Hongchang Lyu, Jiankai Tang, Zhidian Huang, Zhengxiao Du, Xiao Liu, Aohan Zeng, Lei Hou, Yuxiao Dong, Jie Tang, and Juanzi Li. LongBench: A bilingual, multitask benchmark for long context understanding. In Lun-Wei Ku, Andre Martins, and Vivek Srikumar, editors, Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 3119–3137, Bangkok, Thailand, August 2024. Association for Computational Linguistics. doi: 10.18653/v1/2024.acl-long.172. URL https://aclanthology.org/2024.acl-long.172/ .[3] Yushi Bai, Shangqing Tu, Jiajie Zhang, Hao Peng, Xiaozhi Wang, Xin Lv, Shulin Cao, Jiazheng Xu, Lei Hou, Yuxiao Dong, Jie Tang, and Juanzi Li. LongBench v2: Towards deeper understanding and reasoning on realistic long-context multitasks. In Wanxiang Che, Joyce Nabende, Ekaterina Shutova, and Mohammad Taher Pilehvar, editors, Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 3639–3664, Vienna, Austria, July 2025. Association for Computational Linguistics. 9October 6, 2026 
+
+ISBN 979-8-89176-251-0. doi: 10.18653/v1/2025.acl-long.183. URL https://aclanthology.org/2025. acl-long.183/ .[4] Yuhao Wu, Ming Shan Hee, Zhiqiang Hu, and Roy Ka-Wei Lee. Longgenbench: Benchmarking long-form generation in long context llms. In Y. Yue, A. Garg, N. Peng, F. Sha, and R. Yu, editors, International Conference on Learning Representations , volume 2025, pages 6851–6872, 2025. URL https://proceedings.iclr.cc/ paper_files/paper/2025/file/141304a37d59ec7f116f3535f1b74bde-Paper-Conference.pdf .[5] Tri Dao. Flashattention-2: Faster attention with better parallelism and work partitioning. In The Twelfth International Conference on Learning Representations , 2024. URL https://openreview.net/forum?id= mZn2Xyh9Ec .[6] Yao Fu. Challenges in deploying long-context transformers: A theoretical peak performance analysis, 2024. URL 
+
+https://arxiv.org/abs/2405.08944 .[7] Joshua Ainslie, James Lee-Thorp, Michiel de Jong, Yury Zemlyanskiy, Federico Lebron, and Sumit Sanghai. GQA: Training generalized multi-query transformer models from multi-head checkpoints. In Houda Bouamor, Juan Pino, and Kalika Bali, editors, Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing , pages 4895–4901, Singapore, December 2023. Association for Computational Linguistics. doi: 10.18653/v1/2023.emnlp-main.298. URL https://aclanthology.org/2023.emnlp-main.298/ .[8] Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai, Zhao Song, Yuandong Tian, Christopher Ré, Clark Barrett, Zhangyang "Atlas" Wang, and Beidi Chen. H2o: Heavy-hitter oracle for efficient generative inference of large language models. In A. Oh, T. Naumann, A. Globerson, K. Saenko, M. Hardt, and S. Levine, editors, Advances in Neural Information Processing Systems , volume 36, pages 34661–34710. Curran Associates, Inc., 2023. doi: 10.52202/075280-1506. URL https://proceedings.neurips.cc/ paper_files/paper/2023/file/6ceefa7b15572587b78ecfcebb2827f8-Paper-Conference.pdf .[9] Jiaming Tang, Yilong Zhao, Kan Zhu, Guangxuan Xiao, Baris Kasikci, and Song Han. QUEST: Query-aware sparsity for efficient long-context LLM inference. In Ruslan Salakhutdinov, Zico Kolter, Katherine Heller, Adrian Weller, Nuria Oliver, Jonathan Scarlett, and Felix Berkenkamp, editors, Proceedings of the 41st International Conference on Machine Learning , volume 235 of Proceedings of Machine Learning Research , pages 47901–47911. PMLR, 21–27 Jul 2024. URL https://proceedings.mlr.press/v235/tang24l.html .[10] Hanshi Sun, Li-Wen Chang, Wenlei Bao, Size Zheng, Ningxin Zheng, Xin Liu, Harry Dong, Yuejie Chi, and Beidi Chen. ShadowKV: KV cache in shadows for high-throughput long-context LLM inference. In Aarti Singh, Maryam Fazel, Daniel Hsu, Simon Lacoste-Julien, Felix Berkenkamp, Tegan Maharaj, Kiri Wagstaff, and Jerry Zhu, editors, Proceedings of the 42nd International Conference on Machine Learning , volume 267 of Proceedings of Machine Learning Research , pages 57355–57373. PMLR, 13–19 Jul 2025. URL https: //proceedings.mlr.press/v267/sun25b.html .[11] Wonbeom Lee, Jungi Lee, Junghwan Seo, and Jaewoong Sim. InfiniGen: Efficient generative inference of large language models with dynamic KV cache management. In 18th USENIX Symposium on Operating Systems Design and Implementation (OSDI 24) , pages 155–172, Santa Clara, CA, July 2024. USENIX Association. ISBN 978-1-939133-40-3. URL https://www.usenix.org/conference/osdi24/presentation/lee .[12] Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, Lianmin Zheng, Cody Hao Yu, Joseph E. Gonzalez, Hao Zhang, and Ion Stoica. Efficient memory management for large language model serving with PagedAttention. In 
+
+Proceedings of the 29th Symposium on Operating Systems Principles , pages 611–626. Association for Computing Machinery, 2023. doi: 10.1145/3600006.3613165. [13] Renze Chen, Zhuofeng Wang, Beiquan Cao, Tong Wu, Size Zheng, Xiuhong Li, Xuechao Wei, Shengen Yan, Meng Li, and Yun Liang. Arkvale: Efficient generative LLM inference with recallable key-value eviction. In The Thirty-eighth Annual Conference on Neural Information Processing Systems , 2024. URL https://openreview. net/forum?id=4oAt5L4lYe .[14] Junsung Hwang. Locks: Page-local compact key summaries for efficient long-context decoding, 2026. URL 
+
+https://arxiv.org/abs/2607.24555 .[15] Keqi Deng, Shaoshi Ling, Ruchao Fan, and Jinyu Li. Unique: Universal top-k sparse attention for training-free inference and sparsity-aware training, 2026. URL https://arxiv.org/abs/2605.27740 .[16] Dan Hendrycks, Collin Burns, Saurav Kadavath, Akul Arora, Steven Basart, Eric Tang, Dawn Song, and Jacob Steinhardt. Measuring mathematical problem solving with the MATH dataset. In Proceedings of the Neural Information Processing Systems Track on Datasets and Benchmarks , volume 1, 2021. [17] Coleman Hooper, Sehoon Kim, Hiva Mohammadzadeh, Michael W Mahoney, Yakun Sophia Shao, Kurt Keutzer, and Amir Gholami. KVQuant: Towards 10 million context length LLM inference with KV cache quantization. In 
+
+Advances in Neural Information Processing Systems , volume 37, 2024. 10 October 6, 2026 
+
+[18] Priyansh Bhatnagar, Ashkan Moradifirouzabadi, Se-Hyun Yang, SeungJae Lee, Jungwook Choi, and Mingu Kang. STAR-KV: Low-rank KV cache compression via soft thresholding for adaptive rank control. In Forty-third International Conference on Machine Learning , 2026. URL https://openreview.net/forum?id= lJjH1q6RwY .[19] Yuhong Li, Yingbing Huang, Bowen Yang, Bharat Venkitesh, Acyr Locatelli, Hanchen Ye, Tianle Cai, Patrick Lewis, and Deming Chen. Snapkv: Llm knows what you are looking for before generation. In A. Globerson, L. Mackey, D. Belgrave, A. Fan, U. Paquet, J. Tomczak, and C. Zhang, editors, Advances in Neural Information Processing Systems , volume 37, pages 22947–22970. Curran Associates, Inc., 2024. doi: 10.52202/079017-0722. URL https://proceedings.neurips.cc/paper_files/paper/2024/file/ 28ab418242603e0f7323e54185d19bde-Paper-Conference.pdf .[20] Hanlin Tang, Yang Lin, Jing Lin, Qingsen Han, Danning Ke, Shikuan Hong, Yiwu Yao, and Gongyi Wang. Razorattention: Efficient KV cache compression through retrieval heads. In The Thirteenth International Conference on Learning Representations , 2025. URL https://openreview.net/forum?id=tkiZQlL04w .[21] Guangxuan Xiao, Jiaming Tang, Jingwei Zuo, Junxian Guo, Shang Yang, Haotian Tang, Yao Fu, and Song Han. DuoAttention: Efficient long-context LLM inference with retrieval and streaming heads. In The Thirteenth International Conference on Learning Representations , 2025. URL https://arxiv.org/abs/2410.10819 .[22] Yuan Feng, Junlin Lv, Haoyu Guo, Yukun Cao, S Kevin Zhou, and Xike Xie. CriticalKV: Optimizing KV cache eviction from an output perturbation perspective. In Forty-third International Conference on Machine Learning ,volume 306 of Proceedings of Machine Learning Research . PMLR, 2026. URL https://openreview.net/ forum?id=vMwlcLyI4b .[23] Guangda Liu, Chengwei Li, Zhenyu Ning, Jing Lin, Yiwu Yao, Danning Ke, Minyi Guo, and Jieru Zhao. Freekv: Boosting kv cache retrieval for efficient llm inference, 2026. URL https://arxiv.org/abs/2505.13109 .[24] Luka Ribar, Ivan Chelombiev, Luke Hudlass-Galley, Charlie Blake, Carlo Luschi, and Douglas Orr. SparQ attention: Bandwidth-efficient LLM inference. In Ruslan Salakhutdinov, Zico Kolter, Katherine Heller, Adrian Weller, Nuria Oliver, Jonathan Scarlett, and Felix Berkenkamp, editors, Proceedings of the 41st International Conference on Machine Learning , volume 235 of Proceedings of Machine Learning Research , pages 42558–42583. PMLR, 21–27 Jul 2024. URL https://proceedings.mlr.press/v235/ribar24a.html .[25] Prajwal Singhania, Siddharth Singh, Shwai He, Soheil Feizi, and Abhinav Bhatele. Loki: Low-rank keys for efficient sparse attention. In The Thirty-eighth Annual Conference on Neural Information Processing Systems ,2024. URL https://openreview.net/forum?id=raABeiV71j .[26] Hailin Zhang, Xiaodong Ji, Yilin Chen, Fangcheng Fu, Xupeng Miao, Xiaonan Nie, Weipeng Chen, and Bin Cui. PQCache: Product quantization-based KVCache for long context LLM inference. Proc. ACM Manag. Data , 3(3), June 2025. doi: 10.1145/3725338. URL https://doi.org/10.1145/3725338 .[27] Wenhao Li, Jinhao Dong, Hailin Zhang, Wenhang Shi, Wei Lu, and Xiaoyong Du. RabitQCache: Rotated binary quantization for KVCache in long context LLM inference. In Forty-third International Conference on Machine Learning , 2026. URL https://openreview.net/forum?id=zc8ZDMJmKB .[28] Yanlin Qi, Xinhang Chen, Huiqiang Jiang, Qitong Wang, Botao Peng, and Themis Palpanas. ParisKV: Fast and drift-robust KV-cache retrieval for long-context LLMs. In Forty-third International Conference on Machine Learning , 2026. URL https://openreview.net/forum?id=wxD4wTYQXt .[29] Zhuoming Chen, Ranajoy Sadhukhan, Zihao Ye, Yang Zhou, Jianyu Zhang, Niklas Nolte, Yuandong Tian, Matthijs Douze, Leon Bottou, Zhihao Jia, and Beidi Chen. MagicPIG: LSH sampling for efficient LLM generation. In The Thirteenth International Conference on Learning Representations , 2025. URL https: //openreview.net/forum?id=ALzTQUgW8a .[30] Yash Akhauri, Ahmed F AbouElhamayed, Yifei Gao, Chi-Chih Chang, Sameh Gobriel, Nilesh Jain, and Mo-hamed S. Abdelfattah. Tokenbutler: Token importance is predictable, 2026. URL https://arxiv.org/abs/ 2503.07518 .[31] Qingyue Yang, Jie Wang, Xing Li, Zhihai Wang, Chen Chen, Lei Chen, Xianzhi Yu, Wulong Liu, Jianye Hao, Mingxuan Yuan, and Bin Li. Attentionpredictor: Temporal patterns matter for KV cache compression. In 
+
+Advances in Neural Information Processing Systems , volume 38, 2025. [32] Guangda Liu, Chengwei Li, Jieru Zhao, Chenqi Zhang, and Minyi Guo. ClusterKV: Manipulating LLM KV cache in semantic space for recallable compression. In Proceedings of the 62nd ACM/IEEE Design Automation Conference (DAC) , pages 1–7, San Francisco, CA, USA, 2025. IEEE. [33] Yizhao Gao, Zhichen Zeng, Dayou Du, Shijie Cao, Peiyuan Zhou, Jiaxing Qi, Junjie Lai, Hayden Kwok-Hay So, Ting Cao, Fan Yang, and Mao Yang. Seerattention: Learning intrinsic sparse attention in your LLMs, 2025. URL 
+
+https://arxiv.org/abs/2410.13276 .11 October 6, 2026 
+
+[34] Jingyang Yuan, Huazuo Gao, Damai Dai, Junyu Luo, Liang Zhao, Zhengyan Zhang, Zhenda Xie, Yuxing Wei, Lean Wang, Zhiping Xiao, Yuqing Wang, Chong Ruan, Ming Zhang, Wenfeng Liang, and Wangding Zeng. Native sparse attention: Hardware-aligned and natively trainable sparse attention. In Wanxiang Che, Joyce Nabende, Ekaterina Shutova, and Mohammad Taher Pilehvar, editors, Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 23078–23097, Vienna, Austria, July 2025. Association for Computational Linguistics. ISBN 979-8-89176-251-0. doi: 10.18653/v1/2025.acl-long.1126. URL https://aclanthology.org/2025.acl-long.1126/ .[35] Enzhe Lu, Zhejun Jiang, Jingyuan Liu, Yulun Du, Tao Jiang, Chao Hong, Shaowei Liu, Weiran He, Enming Yuan, Yuzhi Wang, Zhiqi Huang, Huan Yuan, Suting Xu, Xinran Xu, Guokun Lai, Yanru Chen, Huabin Zheng, Junjie Yan, Jianlin Su, Yuxin Wu, Yutao Zhang, Zhilin Yang, Xinyu Zhou, Mingxing Zhang, and Jiezhong Qiu. Moba: Mixture of block attention for long-context llms. In D. Belgrave, C. Zhang, H. Lin, R. Pascanu, P. Koniusz, M. Ghassemi, and N. Chen, editors, Advances in Neural Information Processing Systems , volume 38, pages 17790– 17815. Curran Associates, Inc., 2025. doi: 10.52202/085713-0602. URL https://proceedings.neurips. cc/paper_files/paper/2025/file/19eae75beed66321d62272e794a9c2ac-Paper-Conference.pdf .[36] Qiang Wan, Zilong Huang, Jiachen Lu, Gang Yu, and Li Zhang. Seaformer: Squeeze-enhanced axial transformer for mobile semantic segmentation. In The Eleventh International Conference on Learning Representations , 2023. URL https://openreview.net/forum?id=-qg8MQNrxZw .[37] Di Zhang, Jiatong Li, Xiaoshui Huang, Dongzhan Zhou, Yuqiang Li, and Wanli Ouyang. Accessing GPT-4 level mathematical olympiad solutions via monte carlo tree self-refine with LLaMa-3 8B. arXiv preprint arXiv:2406.07394 , 2024. [38] Di Zhang, Jianbo Wu, Jingdi Lei, Tong Che, Jiatong Li, Tong Xie, Xiaoshui Huang, Shufei Zhang, Marco Pavone, Yuqiang Li, et al. LLaMA-Berry: Pairwise optimization for O1-like olympiad-level mathematical reasoning. 
+
+arXiv preprint arXiv:2410.02884 , 2024. [39] David Rein, Betty Li Hou, Asa Cooper Stickland, Jackson Petty, Richard Yuanzhe Pang, Julien Dirani, Julian Michael, and Samuel R. Bowman. GPQA: A graduate-level google-proof q&a benchmark. In First Conference on Language Modeling , 2024. URL https://openreview.net/forum?id=Ti67584b98 .[40] Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song, Peiyi Wang, Qihao Zhu, Runxin Xu, Ruoyu Zhang, Shirong Ma, Xiao Bi, Xiaokang Zhang, Xingkai Yu, Yu Wu, Z. F. Wu, Zhibin Gou, Zhihong Shao, Zhuoshu Li, Ziyi Gao, Aixin Liu, Bing Xue, Bingxuan Wang, Bochao Wu, Bei Feng, Chengda Lu, Chenggang Zhao, Chengqi Deng, Chong Ruan, Damai Dai, Deli Chen, Dongjie Ji, Erhang Li, Fangyun Lin, Fucong Dai, Fuli Luo, Guangbo Hao, Guanting Chen, Guowei Li, H. Zhang, Hanwei Xu, Honghui Ding, Huazuo Gao, Hui Qu, Hui Li, Jianzhong Guo, Jiashi Li, Jingchang Chen, Jingyang Yuan, Jinhao Tu, Junjie Qiu, Junlong Li, J. L. Cai, Jiaqi Ni, Jian Liang, Jin Chen, Kai Dong, Kai Hu, Kaichao You, Kaige Gao, Kang Guan, Kexin Huang, Kuai Yu, Lean Wang, Lecong Zhang, Liang Zhao, Litong Wang, Liyue Zhang, Lei Xu, Leyi Xia, Mingchuan Zhang, Minghua Zhang, Minghui Tang, Mingxu Zhou, Meng Li, Miaojun Wang, Mingming Li, Ning Tian, Panpan Huang, Peng Zhang, Qiancheng Wang, Qinyu Chen, Qiushi Du, Ruiqi Ge, Ruisong Zhang, Ruizhe Pan, Runji Wang, R. J. Chen, R. L. Jin, Ruyi Chen, Shanghao Lu, Shangyan Zhou, Shanhuang Chen, Shengfeng Ye, Shiyu Wang, Shuiping Yu, Shunfeng Zhou, Shuting Pan, S. S. Li, Shuang Zhou, Shaoqing Wu, Tao Yun, Tian Pei, Tianyu Sun, T. Wang, Wangding Zeng, Wen Liu, Wenfeng Liang, Wenjun Gao, Wenqin Yu, Wentao Zhang, W. L. Xiao, Wei An, Xiaodong Liu, Xiaohan Wang, Xiaokang Chen, Xiaotao Nie, Xin Cheng, Xin Liu, Xin Xie, Xingchao Liu, Xinyu Yang, Xinyuan Li, Xuecheng Su, Xuheng Lin, X. Q. Li, Xiangyue Jin, Xiaojin Shen, Xiaosha Chen, Xiaowen Sun, Xiaoxiang Wang, Xinnan Song, Xinyi Zhou, Xianzu Wang, Xinxia Shan, Y. K. Li, Y. Q. Wang, Y. X. Wei, Yang Zhang, Yanhong Xu, Yao Li, Yao Zhao, Yaofeng Sun, Yaohui Wang, Yi Yu, Yichao Zhang, Yifan Shi, Yiliang Xiong, Ying He, Yishi Piao, Yisong Wang, Yixuan Tan, Yiyang Ma, Yiyuan Liu, Yongqiang Guo, Yuan Ou, Yuduan Wang, Yue Gong, Yuheng Zou, Yujia He, Yunfan Xiong, Yuxiang Luo, Yuxiang You, Yuxuan Liu, Yuyang Zhou, Y. X. Zhu, Yanping Huang, Yaohui Li, Yi Zheng, Yuchen Zhu, Yunxian Ma, Ying Tang, Yukun Zha, Yuting Yan, Z. Z. Ren, Zehui Ren, Zhangli Sha, Zhe Fu, Zhean Xu, Zhenda Xie, Zhengyan Zhang, Zhewen Hao, Zhicheng Ma, Zhigang Yan, Zhiyu Wu, Zihui Gu, Zijia Zhu, Zijun Liu, Zilin Li, Ziwei Xie, Ziyang Song, Zizheng Pan, Zhen Huang, Zhipeng Xu, Zhongyu Zhang, and Zhen Zhang. DeepSeek-R1 incentivizes reasoning in LLMs through reinforcement learning. Nature , 645(8081):633–638, Sep 2025. ISSN 1476-4687. doi: 10.1038/s41586-025-09422-z. URL 
+
+https://doi.org/10.1038/s41586-025-09422-z .[41] Qwen Team. Qwen2.5: A party of foundation models, September 2024. URL https://qwenlm.github.io/ blog/qwen2.5/ .[42] Qwen, An Yang, Baosong Yang, Beichen Zhang, Binyuan Hui, Bo Zheng, Bowen Yu, Chengyuan Li, Dayiheng Liu, Fei Huang, Haoran Wei, Huan Lin, Jian Yang, Jianhong Tu, Jianwei Zhang, Jianxin Yang, Jiaxi Yang, Jingren Zhou, Junyang Lin, Kai Dang, Keming Lu, Keqin Bao, Kexin Yang, Le Yu, Mei Li, Mingfeng Xue, Pei Zhang, 12 October 6, 2026 
+
+Qin Zhu, Rui Men, Runji Lin, Tianhao Li, Tianyi Tang, Tingyu Xia, Xingzhang Ren, Xuancheng Ren, Yang Fan, Yang Su, Yichang Zhang, Yu Wan, Yuqiong Liu, Zeyu Cui, Zhenru Zhang, and Zihan Qiu. Qwen2.5 technical report, 2025. URL https://arxiv.org/abs/2412.15115 .[43] An Yang, Beichen Zhang, Binyuan Hui, Bofei Gao, Bowen Yu, Chengpeng Li, Dayiheng Liu, Jianhong Tu, Jingren Zhou, Junyang Lin, Keming Lu, Mingfeng Xue, Runji Lin, Tianyu Liu, Xingzhang Ren, and Zhenru Zhang. Qwen2.5-math technical report: Toward mathematical expert model via self-improvement. arXiv preprint arXiv:2409.12122 , 2024. [44] Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey, Abhishek Kadian, Ahmad Al-Dahle, Aiesha Letman, Akhil Mathur, Alan Schelten, Alex Vaughan, Amy Yang, Angela Fan, Anirudh Goyal, Anthony Hartshorn, Aobo Yang, Archi Mitra, Archie Sravankumar, Artem Korenev, Arthur Hinsvark, Arun Rao, Aston Zhang, Aurelien Rodriguez, Austen Gregerson, Ava Spataru, Baptiste Roziere, Bethany Biron, Binh Tang, Bobbie Chern, Charlotte Caucheteux, Chaya Nayak, Chloe Bi, Chris Marra, Chris McConnell, Christian Keller, Christophe Touret, Chunyang Wu, Corinne Wong, Cristian Canton Ferrer, Cyrus Nikolaidis, Damien Allonsius, Daniel Song, Danielle Pintz, Danny Livshits, Danny Wyatt, David Esiobu, Dhruv Choudhary, Dhruv Mahajan, Diego Garcia-Olano, Diego Perino, Dieuwke Hupkes, Egor Lakomkin, Ehab AlBadawy, Elina Lobanova, Emily Dinan, Eric Michael Smith, Filip Radenovic, Francisco Guzmán, Frank Zhang, Gabriel Synnaeve, Gabrielle Lee, Georgia Lewis Anderson, Govind Thattai, Graeme Nail, Gregoire Mialon, Guan Pang, Guillem Cucurell, Hailey Nguyen, Hannah Korevaar, Hu Xu, Hugo Touvron, Iliyan Zarov, Imanol Arrieta Ibarra, Isabel Kloumann, Ishan Misra, Ivan Evtimov, Jack Zhang, Jade Copet, Jaewon Lee, Jan Geffert, Jana Vranes, Jason Park, Jay Mahadeokar, Jeet Shah, Jelmer van der Linde, Jennifer Billock, Jenny Hong, Jenya Lee, Jeremy Fu, Jianfeng Chi, Jianyu Huang, Jiawen Liu, Jie Wang, Jiecao Yu, Joanna Bitton, Joe Spisak, Jongsoo Park, Joseph Rocca, Joshua Johnstun, Joshua Saxe, Junteng Jia, Kalyan Vasuden Alwala, Karthik Prasad, Kartikeya Upasani, Kate Plawiak, Ke Li, Kenneth Heafield, Kevin Stone, Khalid El-Arini, Krithika Iyer, Kshitiz Malik, Kuenley Chiu, Kunal Bhalla, Kushal Lakhotia, Lauren Rantala-Yeary, Laurens van der Maaten, Lawrence Chen, Liang Tan, Liz Jenkins, Louis Martin, Lovish Madaan, Lubo Malo, Lukas Blecher, Lukas Landzaat, Luke de Oliveira, Madeline Muzzi, Mahesh Pasupuleti, Mannat Singh, Manohar Paluri, Marcin Kardas, Maria Tsimpoukelli, Mathew Oldham, Mathieu Rita, Maya Pavlova, Melanie Kambadur, Mike Lewis, Min Si, Mitesh Kumar Singh, Mona Hassan, Naman Goyal, Narjes Torabi, Nikolay Bashlykov, Nikolay Bogoychev, Niladri Chatterji, Ning Zhang, Olivier Duchenne, Onur Çelebi, Patrick Alrassy, Pengchuan Zhang, Pengwei Li, Petar Vasic, Peter Weng, Prajjwal Bhargava, Pratik Dubal, Praveen Krishnan, Punit Singh Koura, Puxin Xu, Qing He, Qingxiao Dong, Ragavan Srinivasan, Raj Ganapathy, Ramon Calderer, Ricardo Silveira Cabral, Robert Stojnic, Roberta Raileanu, Rohan Maheswari, Rohit Girdhar, Rohit Patel, Romain Sauvestre, Ronnie Polidoro, Roshan Sumbaly, Ross Taylor, Ruan Silva, Rui Hou, Rui Wang, Saghar Hosseini, Sahana Chennabasappa, Sanjay Singh, Sean Bell, Seohyun Sonia Kim, Sergey Edunov, Shaoliang Nie, Sharan Narang, Sharath Raparthy, Sheng Shen, Shengye Wan, Shruti Bhosale, Shun Zhang, Simon Vandenhende, Soumya Batra, Spencer Whitman, Sten Sootla, Stephane Collot, Suchin Gururangan, Sydney Borodinsky, Tamar Herman, Tara Fowler, Tarek Sheasha, Thomas Georgiou, Thomas Scialom, Tobias Speckbacher, Todor Mihaylov, Tong Xiao, Ujjwal Karn, Vedanuj Goswami, Vibhor Gupta, Vignesh Ramanathan, Viktor Kerkez, Vincent Gonguet, Virginie Do, Vish Vogeti, Vítor Albiero, Vladan Petrovic, Weiwei Chu, Wenhan Xiong, Wenyin Fu, Whitney Meers, Xavier Martinet, Xiaodong Wang, Xiaofang Wang, Xiaoqing Ellen Tan, Xide Xia, Xinfeng Xie, Xuchao Jia, Xuewei Wang, Yaelle Goldschlag, Yashesh Gaur, Yasmine Babaei, Yi Wen, Yiwen Song, Yuchen Zhang, Yue Li, Yuning Mao, Zacharie Delpierre Coudert, Zheng Yan, Zhengxing Chen, Zoe Papakipos, Aaditya Singh, Aayushi Srivastava, Abha Jain, Adam Kelsey, Adam Shajnfeld, Adithya Gangidi, Adolfo Victoria, Ahuva Goldstand, Ajay Menon, Ajay Sharma, Alex Boesenberg, Alexei Baevski, Allie Feinstein, Amanda Kallet, Amit Sangani, Amos Teo, Anam Yunus, Andrei Lupu, Andres Alvarado, Andrew Caples, Andrew Gu, Andrew Ho, Andrew Poulton, Andrew Ryan, Ankit Ramchandani, Annie Dong, Annie Franco, Anuj Goyal, Aparajita Saraf, Arkabandhu Chowdhury, Ashley Gabriel, Ashwin Bharambe, Assaf Eisenman, Azadeh Yazdan, Beau James, Ben Maurer, Benjamin Leonhardi, Bernie Huang, Beth Loyd, Beto De Paola, Bhargavi Paranjape, Bing Liu, Bo Wu, Boyu Ni, Braden Hancock, Bram Wasti, Brandon Spence, Brani Stojkovic, Brian Gamido, Britt Montalvo, Carl Parker, Carly Burton, Catalina Mejia, Ce Liu, Changhan Wang, Changkyu Kim, Chao Zhou, Chester Hu, Ching-Hsiang Chu, Chris Cai, Chris Tindal, Christoph Feichtenhofer, Cynthia Gao, Damon Civin, Dana Beaty, Daniel Kreymer, Daniel Li, David Adkins, David Xu, Davide Testuggine, Delia David, Devi Parikh, Diana Liskovich, Didem Foss, Dingkang Wang, Duc Le, Dustin Holland, Edward Dowling, Eissa Jamil, Elaine Montgomery, Eleonora Presani, Emily Hahn, Emily Wood, Eric-Tuan Le, Erik Brinkman, Esteban Arcaute, Evan Dunbar, Evan Smothers, Fei Sun, Felix Kreuk, Feng Tian, Filippos Kokkinos, Firat Ozgenel, Francesco Caggioni, Frank Kanayet, Frank Seide, Gabriela Medina Florez, Gabriella Schwarz, Gada Badeer, Georgia Swee, Gil Halpern, Grant Herman, Grigory Sizov, Guangyi Zhang, Guna Lakshminarayanan, Hakan Inan, Hamid Shojanazeri, Han Zou, Hannah Wang, Hanwen Zha, Haroun Habeeb, Harrison Rudolph, Helen Suk, Henry Aspegren, Hunter Goldman, Hongyuan Zhan, Ibrahim Damlaj, Igor Molybog, Igor Tufanov, Ilias Leontiadis, Irina-Elena Veliche, 13 October 6, 2026 
+
+Itai Gat, Jake Weissman, James Geboski, James Kohli, Janice Lam, Japhet Asher, Jean-Baptiste Gaya, Jeff Marcus, Jeff Tang, Jennifer Chan, Jenny Zhen, Jeremy Reizenstein, Jeremy Teboul, Jessica Zhong, Jian Jin, Jingyi Yang, Joe Cummings, Jon Carvill, Jon Shepard, Jonathan McPhie, Jonathan Torres, Josh Ginsburg, Junjie Wang, Kai Wu, Kam Hou U, Karan Saxena, Kartikay Khandelwal, Katayoun Zand, Kathy Matosich, Kaushik Veeraraghavan, Kelly Michelena, Keqian Li, Kiran Jagadeesh, Kun Huang, Kunal Chawla, Kyle Huang, Lailin Chen, Lakshya Garg, Lavender A, Leandro Silva, Lee Bell, Lei Zhang, Liangpeng Guo, Licheng Yu, Liron Moshkovich, Luca Wehrstedt, Madian Khabsa, Manav Avalani, Manish Bhatt, Martynas Mankus, Matan Hasson, Matthew Lennie, Matthias Reso, Maxim Groshev, Maxim Naumov, Maya Lathi, Meghan Keneally, Miao Liu, Michael L. Seltzer, Michal Valko, Michelle Restrepo, Mihir Patel, Mik Vyatskov, Mikayel Samvelyan, Mike Clark, Mike Macey, Mike Wang, Miquel Jubert Hermoso, Mo Metanat, Mohammad Rastegari, Munish Bansal, Nandhini Santhanam, Natascha Parks, Natasha White, Navyata Bawa, Nayan Singhal, Nick Egebo, Nicolas Usunier, Nikhil Mehta, Nikolay Pavlovich Laptev, Ning Dong, Norman Cheng, Oleg Chernoguz, Olivia Hart, Omkar Salpekar, Ozlem Kalinli, Parkin Kent, Parth Parekh, Paul Saab, Pavan Balaji, Pedro Rittner, Philip Bontrager, Pierre Roux, Piotr Dollar, Polina Zvyagina, Prashant Ratanchandani, Pritish Yuvraj, Qian Liang, Rachad Alao, Rachel Rodriguez, Rafi Ayub, Raghotham Murthy, Raghu Nayani, Rahul Mitra, Rangaprabhu Parthasarathy, Raymond Li, Rebekkah Hogan, Robin Battey, Rocky Wang, Russ Howes, Ruty Rinott, Sachin Mehta, Sachin Siby, Sai Jayesh Bondu, Samyak Datta, Sara Chugh, Sara Hunt, Sargun Dhillon, Sasha Sidorov, Satadru Pan, Saurabh Mahajan, Saurabh Verma, Seiji Yamamoto, Sharadh Ramaswamy, Shaun Lindsay, Sheng Feng, Shenghao Lin, Shengxin Cindy Zha, Shishir Patil, Shiva Shankar, Shuqiang Zhang, Sinong Wang, Sneha Agarwal, Soji Sajuyigbe, Soumith Chintala, Stephanie Max, Stephen Chen, Steve Kehoe, Steve Satterfield, Sudarshan Govindaprasad, Sumit Gupta, Summer Deng, Sungmin Cho, Sunny Virk, Suraj Subramanian, Sy Choudhury, Sydney Goldman, Tal Remez, Tamar Glaser, Tamara Best, Thilo Koehler, Thomas Robinson, Tianhe Li, Tianjun Zhang, Tim Matthews, Timothy Chou, Tzook Shaked, Varun Vontimitta, Victoria Ajayi, Victoria Montanez, Vijai Mohan, Vinay Satish Kumar, Vishal Mangla, Vlad Ionescu, Vlad Poenaru, Vlad Tiberiu Mihailescu, Vladimir Ivanov, Wei Li, Wenchen Wang, Wenwen Jiang, Wes Bouaziz, Will Constable, Xiaocheng Tang, Xiaojian Wu, Xiaolan Wang, Xilun Wu, Xinbo Gao, Yaniv Kleinman, Yanjun Chen, Ye Hu, Ye Jia, Ye Qi, Yenda Li, Yilin Zhang, Ying Zhang, Yossi Adi, Youngjin Nam, Yu Wang, Yu Zhao, Yuchen Hao, Yundi Qian, Yunlu Li, Yuzi He, Zach Rait, Zachary DeVito, Zef Rosnbrick, Zhaoduo Wen, Zhenyu Yang, Zhiwei Zhao, and Zhiyu Ma. The llama 3 herd of models, 2024. URL 
+
+https://arxiv.org/abs/2407.21783 .14 October 6, 2026 
+
+## A Proofs and extensions 
+
+Appendix A.1 collects the softmax and spectral facts used throughout. Appendix A.2 proves the output sensitivity results in Section 3.1. Appendix A.3 proves the first order output expansion and gives additional results separating key fidelity from output sensitivity. Appendix A.4 derives the page mass surrogate and proves Corollary 3.3. Appendix A.5 gives extensions beyond the isotropic query and uniform attention assumptions. 
+
+A.1 Preliminaries 
+
+Throughout, β(z) = softmax( z) and f (z) = V ⊤β(z). For a probability vector b ∈ Rm, define S(b) = Diag( b) − bb ⊤,where Diag( b) places b on the diagonal. Let H = Im − 1 
+
+> m
+
+11 ⊤, so X = HK and Y = HV . We write Df (z)[ h] =  
+
+> ddt
+
+f (z + th ) t=0 for the directional derivative. All functions below are smooth on Rm.
+
+Lemma A.1 (Softmax calculus) . For every z, h ∈ Rm:1. Dβ (z)[ h] = S(β(z)) h;2. S(β(z)) 1 = 0 and S(β(z)) ⪰ 0;3. D lse( z) = β(z)⊤ and D2 lse( z) = S(β(z)) .In particular, D lse(0) = 1⊤/m and D2 lse(0) = H/m .Proof. For βi(z) = ezi / P 
+
+> j
+
+ezj ,
+
+∂β i
+
+∂z j
+
+= βi(δij − βj ),
+
+which gives the first claim. For the second, 
+
+S(β)1 = β − β(1⊤β) = 0 .
+
+Moreover, for any x ∈ Rm,
+
+x⊤S(β)x = X
+
+> i
+
+βix2 
+
+> i
+
+− X
+
+> i
+
+βixi
+
+!2
+
+= Var i∼β (xi) ≥ 0.
+
+Finally, ∇ lse( z) = β(z), so D2 lse( z) = S(β(z)) . At z = 0 , β(0) = 1/m , hence S(1/m ) = H/m .
+
+Proof of Lemma 3.2. Let λ1 ≥ · · · ≥ λd ≥ 0 be the eigenvalues of M . Since Id − PB is an orthogonal projector, 
+
+tr(( Id − PB )M (Id − PB )) = tr( M ) − tr( B⊤M B ).
+
+Thus minimizing the residual is equivalent to maximizing tr( B⊤M B ).Write M = P 
+
+> j
+
+λj uj u⊤ 
+
+> j
+
+and define cj = B⊤uj
+
+> 22
+
+. Then 0 ≤ cj ≤ 1 and P 
+
+> j
+
+cj = r, so 
+
+tr( B⊤M B ) = X
+
+> j
+
+λj cj ≤ X
+
+> j≤r
+
+λj .
+
+Equality is attained by B = [ u1, . . . , u r ], giving minimum residual P 
+
+> j>r
+
+λj .Equality holds exactly when cj = 1 for λj > λ r and cj = 0 for λj < λ r. Thus the retained subspace contains all eigendirections above λr , with its remaining dimensions in the λr eigenspace. These are precisely the leading invariant subspaces; the subspace is unique when λr > λ r+1 .Finally, if M = C⊤C, its positive eigenvectors are the right singular vectors of C.15 October 6, 2026 
+
+A.2 Output sensitivity Lemma A.2 (Conditional output sensitivity) . For any logits z ∈ Rm and perturbation h ∈ Rm,
+
+Df (z)[ h] = V ⊤S(β(z)) h =
+
+> m
+
+X
+
+> i=1
+
+βi(z) vi − f (z)hi. (6) 
+
+Moreover, V ⊤S(β) = Y ⊤S(β), since S(β) is symmetric and S(β)1 = 0 .Proof of Lemma A.2. By Lemma A.1, 
+
+Df (z)[ h] = V ⊤Dβ (z)[ h] = V ⊤S(β(z)) h. 
+
+Writing β = β(z),
+
+V ⊤S(β)h = V ⊤ Diag( β)h − V ⊤β β ⊤h
+
+=
+
+> m
+
+X
+
+> i=1
+
+βivihi − f (z)
+
+> m
+
+X
+
+> i=1
+
+βihi
+
+=
+
+> m
+
+X
+
+> i=1
+
+βi
+
+ vi − f (z)hi.
+
+Since S(β)1 = 0 and S(β) is symmetric, 1⊤S(β) = 0 . Using V = 1ν⊤ + Y ,
+
+V ⊤S(β) = ν 1⊤S(β) + Y ⊤S(β) = Y ⊤S(β).
+
+Proposition A.3 (Exact path identity) . Let z, bz ∈ Rm, e = z − bz, zt = bz + te , and βt = softmax( zt). Then 
+
+f (z) − f (bz) = 
+
+Z 10
+
+V ⊤S(βt) dt 
+
+
+
+e, (7) 
+
+and 
+
+∥f (z) − f (bz)∥2 
+
+> G
+
+≤
+
+Z 10
+
+e⊤S(βt)V GV ⊤S(βt)e dt. 
+
+Proof. Let g(t) = f (zt). By Lemma A.2, 
+
+g′(t) = Df (zt)[ e] = V ⊤S(βt)e. 
+
+The fundamental theorem of calculus gives (7). For the second claim, define at = G1/2V ⊤S(βt)e. Jensen’s inequality yields 
+
+Z 10
+
+at dt 
+
+> 22
+
+≤
+
+Z 10
+
+∥at∥22 dt, 
+
+and 
+
+∥at∥22 = e⊤S(βt)V GV ⊤S(βt)e. 
+
+Proposition A.4 (Deterministic value diameter bound) . Define 
+
+diam G(V ) = max  
+
+> i,j
+
+∥vi − vj ∥G .
+
+Then for all z, bz ∈ Rm,
+
+∥f (z) − f (bz)∥G ≤ diam G(V ) ∥z − bz∥∞ . (8) 16 October 6, 2026 Proof. For any probability vector b, V ⊤b lies in the convex hull of {v1, . . . , v m}. Hence 
+
+vi − V ⊤b G ≤ diam G(V ).
+
+Using Lemma A.2, 
+
+∥Df (z)[ h]∥G ≤
+
+> m
+
+X
+
+> i=1
+
+βi(z) ∥vi − f (z)∥G |hi|≤ diam G(V ) ∥h∥∞ .
+
+Integrating along the segment between bz and z proves (8). 
+
+Proposition A.5 (Global sensitivity of centered page perturbations) . Fix the query, the page values, and the background cache. Let the background contribute denominator Z0 > 0 and value numerator n0 ∈ Rdv . Hold the mean key factor 
+
+c = exp( μ⊤q/ √d) > 0 fixed, and define the full output and page attention probability by 
+
+oglob (z) = n0 + cV ⊤ exp( z)
+
+Z0 + c1⊤ exp( z) , p(z) = c1⊤ exp( z)
+
+Z0 + c1⊤ exp( z) ,
+
+where exp acts componentwise. For any z, h ∈ Rm,
+
+Do glob (z)[ h] = p(z)Df (z)[ h] + p(z) f (z) − oglob (z)β(z)⊤h, 
+
+and 
+
+Dp (z)[ h] = p(z)(1 − p(z)) β(z)⊤h. 
+
+Let T0 = Z0 + cm and p0 = p(0) = cm/T 0. For every centered perturbation h with 1⊤h = 0 , Dp (0)[ h] = 0 and 
+
+Do glob (0)[ h] = p0Df (0)[ h] = p0
+
+m Y ⊤h = cT0
+
+Y ⊤h. (9) 
+
+Proof. Write oglob (z) = N (z)/T (z) with N (z) = n0 + cV ⊤ exp( z) and T (z) = Z0 + c1⊤ exp( z). Their derivatives are 
+
+DN (z)[ h] = cV ⊤ Diag(exp( z)) h, DT (z)[ h] = c exp( z)⊤h. 
+
+Since c exp( z)/T (z) = p(z)β(z), the quotient rule gives 
+
+Do glob (z)[ h] = p(z)  V ⊤ Diag( β(z)) h − oglob (z)β(z)⊤h
+
+= p(z)Df (z)[ h] + p(z) f (z) − oglob (z)β(z)⊤h. 
+
+The second equality uses Lemma A.2 and f (z) = V ⊤β(z). Applying the quotient rule to p(z) = ( T (z) − Z0)/T (z)
+
+also yields 
+
+Dp (z)[ h] = Z0
+
+T (z)
+
+DT (z)[ h]
+
+T (z) = (1 − p(z)) p(z)β(z)⊤h. 
+
+At uniform attention, β(0) = 1/m , so a centered h satisfies β(0) ⊤h = 0 . Hence the page mass derivative and the additional term in Do glob (0)[ h] both vanish. Finally, S(β(0)) = H/m and V ⊤H = Y ⊤, so Df (0)[ h] = Y ⊤h/m .Substituting p0 = cm/T 0 proves (9). 
+
+A.3 Output aware page basis Proposition A.6 (First order conditional output error) . For any q ∈ Rd and B ∈ St( d, r ),
+
+f (z(q)) − f (bzB (q)) = 1
+
+m√d Y ⊤X(Id − PB )q + rB (q). (10) 
+
+Let ρ = max {∥ z(q)∥2 , ∥bzB (q)∥2} and define 
+
+LV,G (ρ) = sup  
+
+> u,a,b ∈Rm
+> ∥u∥2≤ρ, ∥a∥2=∥b∥2=1
+
+D2f (u)[ a, b ] G ,
+
+where D2f (u)[ a, b ] is the second derivative applied to directions a, b . This quantity is finite, and the remainder satisfies 
+
+∥rB (q)∥G ≤ LV,G (ρ)ρ ∥eB (q)∥2 .
+
+17 October 6, 2026 Proof of Proposition A.6. Fix q and B, and write z = z(q), bz = bzB (q), e = eB (q) = z−bz, and ρ = max {∥ z∥2 , ∥bz∥2}.The quantity LV,G (ρ) is finite because D2f is continuous on the compact product of the closed ball and the two unit spheres in its definition. At uniform attention, S(β(0)) = H/m , so 
+
+Df (0)[ e] = 1
+
+m V ⊤He = 1
+
+m Y ⊤e = 1
+
+m√d Y ⊤X(Id − PB )q. 
+
+Let zt = bz + te for 0 ≤ t ≤ 1. The exact path identity gives 
+
+f (z) − f (bz) = Df (0)[ e] + rB (q), rB (q) = 
+
+Z 10
+
+ Df (zt) − Df (0) [e] dt. 
+
+This defines the remainder as a vector in Rdv and establishes (10) independently of whether G is invertible. Since 
+
+∥zt∥2 ≤ ρ,
+
+ Df (zt) − Df (0) [e] = 
+
+Z 10
+
+D2f (sz t)[ zt, e ] ds. 
+
+Taking the G-seminorm, applying the triangle inequality, and using the definition of LV,G (ρ) yields 
+
+∥rB (q)∥G ≤ LV,G (ρ)ρ ∥eB (q)∥2 . (11) The triangle inequality remains valid for singular G, since ∥a∥G = G1/2a 2.For completeness, Taylor expansion at zero also gives 
+
+f (a) = f (0) + Df (0)[ a] + R(a), R(a) = 
+
+Z 10
+
+(1 − t)D2f (ta )[ a, a ] dt. 
+
+For ∥a∥2 ≤ ρ, ∥R(a)∥G ≤ LV,G (ρ) ∥a∥22 /2. Since rB (q) = R(z) − R(bz), this implies 
+
+∥rB (q)∥G ≤ 12 LV,G (ρ)
+
+
+
+∥z(q)∥22 + ∥bzB (q)∥22
+
+
+
+. (12) 
+
+Derivation and local meaning of the output surrogate. The expected squared linearized conditional error is 
+
+Rout (B) = Eq
+
+Y ⊤X(Id − PB )qm√d
+
+> 2
+> G
+
+= 1
+
+m2d Eq
+
+q⊤(Id − PB )Mout (Id − PB )q
+
+= 1
+
+m2d tr(( Id − PB )Mout (Id − PB )) ,
+
+where the last equality uses Eq [qq ⊤] = Id and Mout = X⊤Y GY ⊤X. This proves (3). The Gram factorization 
+
+Mout = ( G1/2Y ⊤X)⊤(G1/2Y ⊤X) shows it is positive semidefinite. Lemma 3.2 therefore gives the stated eigenspace and singular subspace minimizers, including the freedom to choose within tied eigenspaces. If its rank is below r, all positive eigendirections must be retained and the remaining directions can be chosen orthonormally in its nullspace. This includes Mout = 0 , for which every B ∈ St( d, r ) has zero surrogate risk. To relate the surrogate to the exact conditional error, scale queries by t > 0 while keeping X, V, G , and B fixed. Differentiability at zero gives 
+
+f (z(tq )) − f (bzB (tq )) 
+
+t −→ 1
+
+m Y ⊤eB (q) as t → 0.
+
+By Proposition A.4 and eB (tq ) = te B (q),
+
+f (z(tq )) − f (bzB (tq )) 
+
+t
+
+> 2
+> G
+
+≤ diam G(V )2 ∥eB (q)∥22 .
+
+The right side is integrable under Assumption 3.1. Dominated convergence therefore proves 
+
+Eq ∥f (z(tq )) − f (bzB (tq )) ∥2 
+
+> G
+
+= t2Rout (B) + o(t2) as t → 0.
+
+18 October 6, 2026 
+
+Thus the surrogate is the leading coefficient of the expected squared conditional error in this local limit. No higher query moment is needed for this statement, and it does not assert optimality for finite-logit nonlinear error. The full cache derivative gives a different weighting when averaged over queries. For each query, fix its background and mean key factor as in Proposition A.5, and let p0(q) be the page probability at uniform within page attention. Applied to eB (q), the expected squared first order full cache response is 
+
+1
+
+m2d Eq
+
+p0(q)2q⊤(Id − PB )Mout (Id − PB )q .
+
+The condition Eq [qq ⊤] = Id alone does not remove the additional query-dependent weight p0(q)2. The objective in (3) deliberately uses the conditional response, allowing construction from the page alone. 
+
+Why output sensitivity differs from key fidelity. Proposition A.7 (Marginal value covariance does not identify output sensitivity) . For every token permutation matrix 
+
+Π and Y ′ = Π Y ,
+
+(Y ′)⊤Y ′ = Y ⊤Y. 
+
+However, there exist X, Y, Π, and G such that 
+
+X⊤Y ′G(Y ′)⊤X̸ = X⊤Y GY ⊤X. 
+
+Consequently, the marginal value covariance Y ⊤Y does not determine Mout .Proof. Since every permutation matrix is orthogonal, 
+
+(Y ′)⊤Y ′ = Y ⊤Π⊤ΠY = Y ⊤Y. 
+
+For a separation example, take m = 3 , d = dv = 1 , G = 1 , and 
+
+X = Y =
+
+10
+
+−1
+
+!
+
+.
+
+Let Π exchange the first two tokens, so 
+
+Y ′ =
+
+01
+
+−1
+
+!
+
+.
+
+Then 
+
+X⊤Y Y ⊤X = ( X⊤Y )2 = 4 , X⊤Y ′(Y ′)⊤X = ( X⊤Y ′)2 = 1 .
+
+Since X is unchanged, the pages have identical X⊤X and Y ⊤Y but different output sensitivity matrices. 
+
+Proposition A.8 (Key PCA versus the output aware basis) . Let m ≥ 3, d = 2 , dv = 1 , and choose orthonormal 
+
+a, b ∈ 1⊥. Set 
+
+X = [ σ1a σ2b] , Y = b, G = 1 ,
+
+with σ1 > σ 2 > 0. For rank r = 1 , key PCA uniquely selects the first feature direction, whereas the output aware basis uniquely selects the second. The leading output risk of the latter is zero, while that of key PCA is σ22 /(m2d).Proof. By orthonormality, 
+
+X⊤X =
+
+σ21 00 σ22
+
+
+
+, Y ⊤X = (0 σ2) .
+
+Therefore 
+
+Mout = X⊤Y Y ⊤X =
+
+0 00 σ22
+
+
+
+.
+
+Since σ21 > σ 22 , key PCA selects the first direction, whereas Lemma 3.2 gives the second direction for the output objective. Using (3), the second direction discards only the zero eigenvalue and therefore incurs zero leading output risk. The first direction discards σ22 , yielding σ22 /(m2d).19 October 6, 2026 
+
+A.4 Page mass fidelity and the hybrid basis Lemma A.9 (Log sum exponential expansion with explicit remainder) . For every h ∈ 1⊥,
+
+lse( h) − log m − 12m ∥h∥22 ≤ 13 ∥h∥∞ ∥h∥22 . (13) 
+
+Proof. Let g(t) = lse( th ) and β(t) = softmax( th ). By Lemma A.1, 
+
+g′(t) = β(t)⊤h, g′′ (t) = h⊤S(β(t))h. 
+
+Writing mt = β(t)⊤h, differentiating once more gives 
+
+g′′′ (t) = X
+
+> i
+
+β(t) 
+
+> i
+
+(hi − mt)3.
+
+Therefore 
+
+|g′′′ (t)| ≤ max  
+
+> i
+
+|hi − mt| X
+
+> i
+
+β(t) 
+
+> i
+
+(hi − mt)2
+
+≤ 2 ∥h∥∞
+
+X
+
+> i
+
+β(t) 
+
+> i
+
+h2
+
+> i
+
+≤ 2 ∥h∥∞ ∥h∥22 .
+
+Since h ∈ 1⊥,
+
+g(0) = log m, g′(0) = 0 , g′′ (0) = 1
+
+m ∥h∥22 .
+
+Taylor’s theorem gives 
+
+lse( h) = log m + 12m ∥h∥22 + 16 g′′′ (τ )
+
+for some τ ∈ (0 , 1) . Applying the bound above proves (13). 
+
+Derivation of the key fidelity surrogate. Applying Lemma A.9 to the centered vectors z(q) and bzB (q), and canceling the preserved mean key term, gives 
+
+ℓ(q) − bℓB (q) = ∥z(q)∥22 − ∥ bzB (q)∥22
+
+2m + ∆ B (q),
+
+where 
+
+|∆B (q)| ≤ 13
+
+
+
+∥z(q)∥∞ ∥z(q)∥22 + ∥bzB (q)∥∞ ∥bzB (q)∥22
+
+
+
+.
+
+Since z(q) = bzB (q) + eB (q),
+
+∥z(q)∥22 − ∥ bzB (q)∥22 = ∥eB (q)∥22 + 2 bzB (q)⊤eB (q).
+
+Although PB q and (Id − PB )q are orthogonal, multiplication by X need not preserve their orthogonality. Under 
+
+Eq [qq ⊤] = Id, however, cyclicity of the trace and (Id − PB )PB = 0 give 
+
+Eq [bzB (q)⊤eB (q)] = 1
+
+d tr  PB X⊤X(Id − PB )
+
+= 1
+
+d tr  (Id − PB )PB X⊤X = 0 .
+
+Moreover, the same second moment assumption yields the exact identity 
+
+Rkey (B) = Eq ∥eB (q)∥22 = 1
+
+d tr  (Id − PB )X⊤X(Id − PB ) , (14) which is (2) and holds without a small-logit assumption. There is also a global bound on squared log-mass error. If a = ∥eB (q)∥∞, then componentwise bzB (q) − a1 ≤ z(q) ≤
+
+bzB (q) + a1. Monotonicity and the identity lse( u + c1) = lse( u) + c imply 
+
+|ℓ(q) − bℓB (q)| ≤ ∥ eB (q)∥∞ ≤ ∥ eB (q)∥2 .
+
+20 October 6, 2026 
+
+Squaring and taking expectations therefore gives 
+
+Eq [( ℓ(q) − bℓB (q)) 2] ≤ R key (B).
+
+This bound requires only the finite second moment, with no restriction on the logit magnitudes. To state the local approximation in expectation, additionally assume Eq ∥q∥32 < ∞. For fixed X and B, the remainder bound is integrable, and 
+
+Eq [ℓ(q) − bℓB (q)] = 12m Rkey (B) + Eq ∆B (q).
+
+In particular, scaling queries by t ≥ 0 gives the precise local statement 
+
+Eq [ℓ(tq ) − bℓB (tq )] = t2
+
+2m Rkey (B) + O(t3) as t → 0,
+
+because both centered logit vectors scale linearly with t and the remainder bound scales cubically. Here q retains the assumed second moment Eq [qq ⊤] = Id; t only parameterizes the local expansion. Thus the local expansion identifies the leading expected signed log-mass error; the squared-error relationship above is an upper bound. By Lemma 3.2 with M = X⊤X, the risk minimizers are exactly the bases of leading rank r eigenspaces of X⊤X.
+
+Interpretation of the trace scaling. For either component matrix M ∈ { X⊤X, M out } and J = Id − PB , positive semidefiniteness gives 
+
+0 ≤ tr( JM J )tr( M ) + ε ≤ tr( M )tr( M ) + ε < 1.
+
+Without the stabilizer, this ratio is the fraction of the component’s energy discarded by the basis whenever tr( M ) > 0.With ε > 0, a zero component contributes zero and all denominators remain positive. The scaled component has trace 
+
+tr( M )/(tr( M ) + ε), which approaches one when tr( M ) is large relative to ε. The combined risk is a weighted sum of these stabilized ratios divided by d.
+
+Proof of Corollary 3.3. Let J = Id − PB . Under Eq [qq ⊤] = Id, substituting (2) and (3) gives 
+
+Rη (B) = 1 − ηd ckey tr( JX ⊤XJ ) + ηd cout tr( JM out J)= 1
+
+d tr( JM η J).
+
+The factors m2 and 1/m 2 cancel in the second term, giving exactly the matrix Mη in (4). Both component matrices are positive semidefinite, and their coefficients are nonnegative, so Mη ⪰ 0. Equivalently, define 
+
+Aη = (1 − η)ckey Im + ηc out Y GY ⊤ ⪰ 0.
+
+Then 
+
+Mη = X⊤Aη X = ( A1/2 
+
+> η
+
+X)⊤(A1/2 
+
+> η
+
+X).
+
+Lemma 3.2 now gives the leading r-dimensional invariant subspaces of Mη as the minimizers. If its eigenvalues are 
+
+λ1 ≥ · · · ≥ λd ≥ 0, the minimum risk is d−1 P 
+
+> j>r
+
+λj . The Gram factorization also identifies the minimizers as leading right singular subspaces of A1/2 
+
+> η
+
+X, consistent with the construction in Section 3.3. 
+
+Recovery from the token space Gram matrix. The token space matrices T = XX ⊤ and W = Y GY ⊤ used in Algorithm 1 satisfy tr( T ) = tr( X⊤X) and tr( W T ) = tr( X⊤Y GY ⊤X) by cyclicity of the trace. Thus the algorithm computes the same normalization constants without forming d × d matrices. For the positive eigenpairs in (5), 
+
+B⊤ 
+
+> +
+
+B+ = Λ −1/2 
+
+> s
+
+U ⊤ 
+
+> s
+
+CC ⊤UsΛ−1/2 
+
+> s
+
+= Is,Mη B+ = C⊤(CC ⊤Us)Λ −1/2 
+
+> s
+
+= B+Λs.
+
+The positive eigenvalues of C⊤C and CC ⊤ coincide, so B+ contains leading orthonormal eigenvectors of Mη . If 
+
+s = r, it is already an optimal rank r basis. 21 October 6, 2026 
+
+If s < r , then s = rank( C) and B+ spans range( Mη ). Thus every column added by an orthonormal completion lies in ker( Mη ) and preserves the minimum hybrid risk. To select among these completions, let D ∈ Rd×(r−s) satisfy 
+
+D⊤D = Ir−s and B⊤ 
+
+> +
+
+D = 0 . With Bη = [ B+, D ], the retained key energy is 
+
+tr( B⊤ 
+
+> η
+
+X⊤XB η ) = ∥XB +∥2 
+
+> F
+
++ ∥XD ∥2 
+
+> F
+
+= ∥XB +∥2 
+
+> F
+
++ ∥X⊥D∥2 
+
+> F
+
+.
+
+The first term is fixed. The second is maximized by the leading right singular directions of X⊥, restricted to the orthogonal complement of B+. Every positive right singular direction already lies in this complement because 
+
+X⊥B+ = 0 . After all positive directions are retained, any further orthonormal columns in the complement contribute zero key energy. This proves that the completion used in Algorithm 1 minimizes Rkey among all completions of B+
+
+while remaining optimal for Rη .
+
+A.5 Extensions A.5.1 Nonisotropic query distributions 
+
+The main construction assumes Eq [qq ⊤] = Id. A general positive definite query second moment can be incorporated by whitening. 
+
+Corollary A.10 (Query whitened output aware basis) . Let Σq = Eq [qq ⊤] ≻ 0, ξ = Σ −1/2 
+
+> q
+
+q, and eX = XΣ1/2 
+
+> q
+
+. Then 
+
+E[ξξ ⊤] = Id.Define 
+
+fMout = eX⊤Y GY ⊤ eX, 
+
+together with 
+
+eckey = 1tr( eX⊤ eX) + ε , ecout = 1tr( fMout ) + ε .
+
+The normalized page matrix in whitened coordinates is 
+
+fMη = (1 − η)eckey eX⊤ eX + ηecout fMout . (15) 
+
+Its leading rank r eigenspace minimizes the corresponding normalized risk in the whitened query coordinates. Proof. Since q = Σ 1/2 
+
+> q
+
+ξ,
+
+z(q) = Xq 
+
+√d = eXξ 
+
+√d ,
+
+and 
+
+E[ξξ ⊤] = Σ −1/2 
+
+> q
+
+Σq Σ−1/2 
+
+> q
+
+= Id.
+
+The derivations of (2) and (3) therefore apply directly with eX in place of X. Applying Corollary 3.3 in the whitened coordinates gives (15). At runtime, the corresponding query code is eB⊤Σ−1/2 
+
+> q
+
+q, with stored coefficients eX eB. If Σq is singular, whitening can be performed on its support or using Σq + εI d for numerical stability. 
+
+A.5.2 Nonuniform within page attention 
+
+The main method evaluates output sensitivity at uniform within page attention. For a general reference point z, define 
+
+Aout (z) = S(β(z)) V GV ⊤S(β(z)) ⪰ 0.
+
+By Lemma A.2, for a small logit perturbation e,
+
+∥f (z) − f (z − e)∥2 
+
+> G
+
+= e⊤Aout (z)e + O(∥e∥32).
+
+This yields the Gauss Newton risk 
+
+RGN (B) = 1
+
+d Eq∼D 
+
+q⊤(Id − PB )X⊤Aout (z(q)) X(Id − PB )q . (16) This gives a hierarchy of increasingly query dependent constructions. The main method evaluates sensitivity at uniform attention and retains a single query free eigensolution. A fixed nonuniform reference can instead define a frozen local metric, while (16) can be estimated using sampled queries at the cost of losing the single closed form eigenproblem. 22 October 6, 2026 
+
+Table 5: Rank and sparse KV budget ablations on GPQA with DeepSeek R1 Qwen 7B. The rank study fixes the budget at 2048 tokens, while the budget study fixes r = 8 . Higher is better.               
+
+> Ablation Setting GPQA
+> Rank
+> r= 1 36.67
+> r= 4 38.75
+> r= 8 39.58
+> r= 16 39.58 KV budget
+> 512 32.50
+> 1024 36.25
+> 2048 39.58
+> 4096 41.25
+
+Table 6: InfiniteBench LongQA at contexts exceeding 100 K tokens with Llama-3.1-8B. LongQA averages En.MC, En.QA, Zh.QA, En.Sum, and En.Dia. All compressed methods use a KV budget of 2048 ; OVAL uses η = 0 .25 .Overhead is decode latency relative to FreeKV. Gold and silver rank compressed methods by accuracy; FullKV is a reference and is excluded from ranking.                          
+
+> Metric FullKV ArkVale RaaS FreeKV OVAL LongQA accuracy 42.9 35.9 35.5 36.0 37.4
+> Fraction of FullKV (%) 100.0 83.7 82.8 83.9 87.2 Decode latency (ms/token) –76.9 27.4 23.0 24.7 Overhead vs. FreeKV –+234.3% +19.1% 0.0% +7.4%
+
+## B Rank and Page Budget Ablations 
+
+We further evaluate sensitivity to the representation rank and sparse KV budget on GPQA using DeepSeek R1 Qwen 7B. For the rank ablation, we fix the budget to 2048 tokens and vary r ∈ { 1, 4, 8, 16 }. For the budget ablation, we fix r = 8 
+
+and vary the retrieved KV budget over {512 , 1024 , 2048 , 4096 } tokens. All other settings follow the main experiments. The rank ablation measures the sensitivity of retrieval quality to the capacity of the page representation, while the budget ablation measures the effect of increasing the number of retrieved KV tokens. Together, these experiments test the robustness of the default configuration r = 8 with a 2048 token budget used in the main evaluation. 
+
+## C InfiniteBench Results 
+
+We additionally evaluate on InfiniteBench to test a longer context regime than the 64 K LongBench v2 setup. Table 6 reports the LongQA results underlying Figure 2(b), which average En.MC, En.QA, Zh.QA, En.Sum, and En.Dia with 
+
+50 examples per task. OVAL reaches 37 .4 LongQA accuracy, compared with 36 .0 for FreeKV, 35 .9 for ArkVale, and 35 .5 for RaaS, recovering 
+
+87 .2% of FullKV accuracy versus 83 .9% for FreeKV. This gain costs 1.7 ms per token, a 7.4% decode overhead relative to FreeKV. OVAL is also faster than both RaaS ( 27 .4 ms) and ArkVale ( 76 .9 ms), placing it on the accuracy–latency Pareto frontier among the evaluated retrieval methods. A gap of 5.5 points to FullKV remains at this budget, indicating that contexts beyond 100 K tokens remain challenging for all compressed methods. 
+
+## D Implementation details and reproducibility     
+
+> Artifact. Code, the FreeKV patch, and per experiment scripts are available at https://anonymous.4open.science/r/ oval-kv-4424 . The implementation patches FreeKV commit 2c8a7d2 rather than vendoring the upstream repository.
+
+23 October 6, 2026 
+
+D.1 Software, hardware, and build 
+
+Inference Python 3.10, torch 2.5.1+cu121, transformers 4.45.2, flash-attn 2.7.4.post1 
+
+Judge Python 3.11, vLLM 0.9.2, transform-ers 4.53.2 
+
+GPU RTX A6000, 48 GB, sm_86 Driver CUDA 12.2 
+
+Build CMake + Ninja, target freekv_cpp Arch. TORCH_CUDA_ARCH_LIST=8.6 
+
+Patch patches/freekv.patch Size 989 lines, 19 files 
+
+The CUDA extension is built from source/freekv_cpp . CUDA_HOME points to the active conda environment and its nvcc . Sources are discovered through file(GLOB "src/*.cu" "src/*.cpp") , so adding a CUDA source file requires no CMake modification. 
+
+Environment constraints. flash_attn is imported at module load and is therefore a hard dependency. The judge requires transformers < 4.54 because later versions register an aimv2 configuration that conflicts with vLLM 0.9.2. We support cu121 through cu128; cu130 does not load with the CUDA 12.2 driver. 
+
+D.2 Models 
+
+Tag Checkpoint Used for 
+
+llama-3.1-chat-8b NousResearch/Meta-Llama-3.1-8B-Instruct LBv2, LGB, latency 
+
+qwen-2.5-chat-7b Qwen/Qwen2.5-7B-Instruct LBv2, LGB, latency, mem-ory 
+
+qwen-2.5-chat-14b Qwen/Qwen2.5-14B-Instruct LBv2, LGB 
+
+ds-r1-llama-8b deepseek-ai/DeepSeek-R1-Distill-Llama-8B reasoning 
+
+ds-r1-qwen-7b deepseek-ai/DeepSeek-R1-Distill-Qwen-7B reasoning 
+
+ds-r1-qwen-14b deepseek-ai/DeepSeek-R1-Distill-Qwen-14B reasoning 
+
+Shared loading configuration. Precision bfloat16 Attention eager 
+
+Device mapping auto CPU loading low_cpu_mem_usage=True 
+
+Tokenizer slow, use_fast=False Context limit 65 ,536 tokens 
+
+Stop ids are taken from each checkpoint’s GenerationConfig . For Qwen2.5 14B, the default device_map="auto" 
+
+headroom can place layers on meta tensors and cause the attention patch to fail. We therefore increase the per device allowance through KVC_MAX_MEMORY , using 45GiB when required. 
+
+D.3 Method configuration 
+
+Core method configuration. We use page size 32 , rank r = 8 , and η ∈ { 0, 0.25 , 0.5, 0.75 , 1} throughout. 
+
+Rank cap min( r, page − 1, d )
+
+Record dtype bfloat16 
+
+GQA aggregation avgSM 
+
+Spectral retrieval 2 steps 
+
+Correction group avg 
+
+Correction threshold τ = 0 .8 or 0.9, depending on the benchmark 
+
+Dense layers layer 0 remains dense 
+
+Last layer budget 0
+
+Numerical construction. Summaries are constructed in float32 and cast back to the cache dtype. Aη is formed in the page × page Gram domain. We clamp traces at 10 −30 and normalize each matrix to unit mean diagonal before eigendecomposition. Eigenvalues are clamped at 0 before the square root and singular values at 10 −10 before basis construction. Because centering removes one degree of freedom, a page of size 32 supports rank at most 31 .24 October 6, 2026 
+
+D.4 Benchmark protocols                                                                   
+
+> Reasoning LongBench v2 LongGenBench InfiniteBench Data AIME 30 , MATH 50 , GPQA 50 503 :180 /215 /108 400 ,100 /type 11 ×50
+> B2048 2048 2048 2048
+> S=W512 128 512 128
+> CLI budget 2048 + 512 + 512 1792 + 128 + 128 1024 + 512 + 512 1792 + 128 + 128
+> τ0.90.80.90.8
+> Decoding T=.6, p =.95 greedy T=.95 , p =.95 greedy
+> Max gen. 16 ,384 128 16 ,000 task specific
+> Input unchanged middle truncate 65 ,536 unchanged middle truncate 65 ,536
+> Stop EOS EOS *** finished EOS
+> Seed 42 42 42 42
+> Metric pass@ k, avg@ kOverall/S/M/L CR, CR ×Acc official scorers
+
+Shared sparse retrieval settings. 
+
+–method spec_ret –page_rep oval –oval_rank 8 –eta η –GQA_policy avgSM –spec_ret_steps 2 –page_size 32 –sparsity 1 –skip_layer 1 –last_layer_budget 0 –corr_group avg –batch_size 1 .
+
+Baseline arms differ only in –page_rep (quest , arkv ) or –method (raas , full ). 
+
+Budget matching. Every method uses the same effective KV budget, B = 2048 . The accuracy and performance harnesses express this budget through different combinations of selectable, sink, and recent regions; differences in the raw CLI fields therefore do not imply different effective budgets. 
+
+Released code Reported experiments 
+
+120 ,000 token truncation 65 ,536 
+
+LongGenBench p = 1 .0 p = 0 .95 
+
+authors’ absolute judge path local judge path 
+
+page_rep=quest page_rep=oval GQA_policy=avgS GQA_policy=avgSM 
+
+LongBench v2. We use 0shot.txt without chain of thought or retrieval. Inputs exceeding 65 ,536 tokens retain the first and last 32 ,768 . Decoding is greedy argmax ; although the harness exposes a temperature argument, it is unused. A prediction is valid only if "The correct answer is (X)" is produced within 128 tokens. Consequently, 6 to 13% 
+
+of examples remain unparsable because generation is still in the reasoning phase at the limit; this behavior is shared across methods. KVC_MAX_TOKENS=65536 fixes the summary slab size. 
+
+Reasoning. We sample k = 8 generations per problem with T = 0 .6 and p = 0 .95 . Independent generations use separate –seed values, encoded by the harness using a -seed n suffix for nondefault seeds. MATH500 and GPQA use the 50 problem subsets distributed with the harness. 
+
+InfiniteBench. Because InfiniteBench is absent from upstream FreeKV, we add its evaluator and execute both OVAL and all baseline arms through the same harness. Each task uses 50 examples sampled with seed 42 rather than the first 
+
+50 records. This avoids bias from the presorted distributed files, including kv_retrieval , which is ordered by needle position. Prompt templates, task specific generation limits, and official scorers come from the InfiniteBench reference implementation. We omit math_calc , leaving 11 tasks. 
+
+LongGenBench judge. The evaluator is Qwen3 32B with tensor parallelism 2, T = 0 .95 , p = 0 .95 , maximum generation 50 , seed 42 , max_model_len=20480 , max_num_seqs=8 , and gpu_memory_utilization=0.82 . On systems without NVLink, NCCL_P2P_DISABLE=1 avoids initialization deadlock. Because prediction files append rather than overwrite, the judge evaluates the final 400 records and requires the file length to be a multiple of 400 .25 October 6, 2026 
+
+D.5 Latency Evaluation 
+
+Long input Long generation Dataset gov_report lgbench 
+
+Input repeated and truncated to 32 ,000 620 to 660 tokens 
+
+Generated tokens 512 16 ,384 
+
+τ 0.8 0.9
+
+Batch 1, 2, 4 1, 2, 4
+
+Timing. Measurements use source/pred.py . One complete generation is used as warmup and all of its per step measurements are discarded. We report the mean interval between subsequent generated tokens. Every method uses 
+
+B = 2048 .The performance harness uses –budget 2048 –sink 512 –recent 512 –page_size 32 . Sink and recent regions are accounted for internally when constructing the selectable budget. 
+
+Fixed offload configuration. 6 GiB GPU page pool · 20 GiB host pool · HND · 2 recall threads · 2 recall streams · FREEKV_WORKSPACE_MIB=512 .
+
+The measured arms are ArkVale ( –recall_impl arkvale ), RaaS ( –method raas , drop only, α = 0.02 ), FreeKV ( –spec_ret –corr τ ), and OVAL with the same FreeKV configuration plus –page_rep oval –eta 
+
+η. OVAL_QUANT selects bfloat16 or packed records. LongBench v2 latency uses –dataset longbench2 , –lb2_length {short,medium,long} , items 148 /190 /39 ,
+
+–max_length 65536 , and –max_gen 128 .
+
+D.6 Decoding released output paths 
+
+⟨model ⟩-spec_ret-s128-r128-1.00-manual-p32-b1792-avgSM-oval_r8_eta0.25_q0-pQ2-llb0-pQcs0.8-skl1 
+
+The fields decode as follows: s/r = sink/recent; 1.00 = sparsity; manual = attention pattern; p32/b1792 = page size/budget field; avgSM = GQA policy; oval_r8 = representation and rank; _eta = η; _q = packed record indicator; 
+
+pQ2 = retrieval steps; llb0 = last layer budget; pQcs0.8 = τ ; and skl1 = number of initially dense layers. The optional 
+
+-t , -topp , and -Mg fields appear only when they differ from their defaults. 
+
+D.7 Corrections to the reference harness 
+
+1. Index range selection does not slice metadata. 
+
+Prompts are sliced but the associated metadata is not, so generations from a selected subrange are evaluated against another example’s expected structure. We correct the metadata indexing together with the prompt range. 
+
+2. Head reordering can duplicate columns. 
+
+When full and dynamic attention masks overlap, the reconstructed output projection can exceed nheads d. On Qwen2.5 14B we observe width 5151 rather than 5120 . The issue occurs only under multi GPU sharding. We therefore derive the GQA group size from the reordered projection instead of q_proj /k_proj , validate the resulting width, and fail explicitly on mismatch. 
+
+D.8 Scope and reported quantities 
+
+What OVAL changes. Only the page representation used for retrieval . After top k selection, attention is computed using the original keys of the selected pages, exactly as in the compared retrieval baselines. 
+
+In the accuracy harness, the full KV cache remains resident and page summaries are additional state. These experiments therefore quantify sparse retrieval rather than compressed key attention. 
+
+Best over η. For each reported metric, 
+
+η⋆ = arg max  
+
+> η∈{ 0,0.25 ,0.5,0.75 ,1}
+
+metric( η).
+
+26 October 6, 2026 
+
+The maximizing value may differ across metrics for the same model. Accordingly, entries within a complete table row do not necessarily arise from one common η. Section 4.4 reports the corresponding sensitivity. 27

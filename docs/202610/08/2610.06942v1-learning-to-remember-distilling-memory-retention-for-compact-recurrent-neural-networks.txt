@@ -1,0 +1,439 @@
+Title: Learning to Remember: Distilling Memory Retention for Compact Recurrent Neural Networks
+
+URL Source: https://arxiv.org/pdf/2610.06942v1
+
+Published Time: Wed, 07 Oct 2026 00:03:17 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+## Learning to Remember: Distilling Memory Retention for Compact Recurrent Neural Networks 
+
+Nilushika Udayangani a, Kishor Nandakishor a, Marimuthu Palaniswami a
+
+> aDepartment of Electrical and Electronic Engineering, University of Melbourne, Parkville, 3052, VIC, Australia
+
+Abstract 
+
+Deep learning models, particularly recurrent neural networks and their variants, such as long short-term memory, have significantly advanced time series analysis. These models capture complex, sequential patterns in time series, enabling real-time assessments. However, their high computational complexity and large model sizes pose challenges for deployment in resource-constrained environments, such as wearable devices and edge computing platforms. Knowledge Distillation (KD) o ff ers a solution by transferring knowledge from a large, complex model (teacher) to a smaller, more e ffi cient model (student), thereby retaining high performance while reducing computational demands. Current KD methods, originally designed for computer vision tasks, neglect the unique temporal dependencies and memory retention characteristics of time series models. To bridge this gap, we propose a novel KD framework termed Mem ory-Discrepancy Knowledge Distillation ( MemKD ). MemKD leverages a specialized loss function to capture memory retention discrepancies between the teacher and student models across subsequences within time series data, ensuring that the student model e ff ectively mimics the teacher’s behaviour. This approach facilitates the development of compact, high-performing recurrent neural networks suitable for real-time, time series analysis tasks. We provide additional experiments, in-depth theoretical analysis, and insights into the proposed framework across extended time series benchmarks. Our experiments demonstrate that MemKD significantly outperforms state-of-the-art KD methods. Additionally, we demonstrate that it can match the teacher model’s performance across a wide range of compression levels, achieving notable reductions in parameter count and memory usage without a significant loss in accuracy. 
+
+Keywords: knowledge distillation, Time series analysis, Recurrent neural networks 
+
+1. Introduction 
+
+Time series analysis has become fundamental to modern decision-making systems, enabling critical applications from patient health monitoring to industrial fault detection and envi-ronmental sensing. These applications require a careful balance between achieving high performance in handling complex time series data and delivering real-time predictions, while ensuring the solutions remain lightweight and suitable for deployment on edge devices such as smartphones and wearable sensors. Re-current neural networks (RNNs) and their variants, particularly long Short-Term memory networks (LSTMs) and gated recur-rent units (GRUs), are excel at time series analysis due to their adeptness in sequence modeling. RNNs maintain memory-like arrays known as hidden states, enabling them to retain and re-call long-term dynamics within sequential data. However, as input sequences are processed, hundreds of thousands of hidden states need to be updated with nonlinear functions specified by millions of parameters. Consequently, RNNs share common drawbacks inherent to deep neural networks (DNNs), such as high computational complexity, large parameter spaces, and high inference latency. These limitations pose challenges for real-world time series applications, which demand low power and space requirements. Knowledge distillation (KD) transfers knowledge from a large teacher model to a smaller student model, maintaining perfor-mance while improving e ffi ciency. Introduced by Ba and Caru-ana [1] and extended by Hinton et al. [2], Romero et al. [3] for image classification, KD showed that smaller models could match or outperform deeper ones by matching the teacher’s out-puts or intermediate features. Despite its broad applicability, KD remains understudied in time series analysis. Ay et al. [4] conducted the first study on KD for time series classification using fully convolutional networks, following Hinton et al. [2] to align the teacher and student output probability distributions. Subsequently, Ouyang et al. [5] introduced a KD framework for TSC, extracting knowledge in both time and frequency domains by aligning output distributions in separate domains. Ma et al. [6] specifically explored KD using an RNN teacher, yet similarly relied on directly matching the teacher and student outputs. However, these studies primarily adapt KD frameworks orig-inally developed for computer vision tasks, without tailoring their loss functions to exploit the unique characteristics of time series data. Time series values, as opposed to visual data, are unidirectionally correlated, and during classification, short con-tiguous subsequences often contain much of the discriminative information [7, 8]. Therefore, adaptions of image approaches for time series may disrupt knowledge of those discriminative subsequences and their correlations. Considering that the ability to maintain memory is crucial to the success of RNNs, this raises a natural question: why not leverage knowledge of how the teacher learns to retain mem-ory? This is a problem that none of the aforementioned studies have investigated. This brings us to the main topic of this paper: arXiv:2610.06942v1 [cs.LG] 3 Oct 2026 LSTM 100      
+
+> LSTM 100
+> LSTM 100
+> Linear
+> LSTM 16
+> Linear
+> Teacher Student
+> MemKD
+> Loss
+> Classification
+> Loss
+> Total
+> Loss
+> +
+> Ground
+> Truth Teacher's memory-maps Student's memory-maps
+> ht(t-1)
+> ht(t+1)
+> ftfshs(t-1)
+> hs(t+1)
+> ht(t) hs(t) Figure 1: An overview of the proposed knowledge distillation framework. The student network learns target task by minimizing the classification loss while mimicking the memory retention of the teacher network using intermediate memory-maps.
+
+can a teacher network improve the performance of a student network by providing it with information about what it remem-bers? To this end, we propose a novel KD framework, termed 
+
+Memory-Discrepancy Knowledge Distillation (MemKD) , which eff ectively transfers knowledge from RNNs based on their mem-ory maintenance over input sequences, as shown in Figure 1. Within this framework, we design a novel loss function to force the student network to mimic expected changes in the teacher’s memory retention over short contiguous subsequences. We em-pirically validate its e ff ectiveness for TSC tasks across various application domains, demonstrating that MemKD successfully distills knowledge from a large LSTM-RNN model to a com-pact LSTM-RNN model, notably reducing parameter count and memory usage while maintaining performance comparable to the teacher. The main contributions of our work include: 
+
+• a novel KD framework to distill knowledge from a larger LSTM-RNN model to a much smaller LSTM-RNN model, enhancing e ffi ciency in TSC across various application domains. 
+
+• a novel loss function designed to capture knowledge on how RNNs restore and retain memory for di ff erent shapes of subsequences within a time series sequence. 
+
+• an indirect feature-level knowledge transfer method be-tween RNN models, seamlessly transferring knowledge across varying dimensional intermediate representations without needing to match sizes. 
+
+• extensive experiments to demonstrate that our proposed MemKD significantly outperforms the baseline KD meth-ods. The rest of the paper is organized as follows: Section 2 reviews related works on KD and time series analysis. Section 3 presents the details of our proposed MemKD framework. Section 4 intro-duces our experimental setup, followed by experimental results and comparisons with baseline methods. Section 6 provides an in-depth discussion of the results and their implications for future research. 
+
+2. Background and Related Works 
+
+2.1. Time Series Analysis 
+
+Many real-world phenomena evolve over time, resulting in data that are naturally collected as sequential observations. Con-sequently, time series data typically manifest various systematic patterns, including trends, seasonalities, cyclic variations and irregular movements [9]. However, analyzing time series data poses challenges as it provides only two primary features: the point in time and the observed value itself. Analyzing them as sets of subsequences has been the most intuitive approach for extracting discriminative and interpretable features for further processing. Therefore, most traditional machine learning ap-proaches, including shapelets [8], motif discovery [10], discord discovery [11], and time series chains [12], relied on subse-quence analysis for their success. The enduring success of these methods as stable approaches over decades highlights the im-portance of preserving subsequence-level knowledge, which we account for in designing our knowledge transfer function. 
+
+2.2. Recurrent Neural Networks 
+
+Time series analysis has drastically advanced with the rapid development of deep learning. Among these developments, RNNs are a widely adopted type of neural network that allow for the modelling of the sequential nature of time series data by storing past context [13, 14]. LSTM [15] and GRU [16] were introduced as extensions to vanilla RNNs, addressing common drawbacks such as the vanishing gradient problem and the di ffi -culty in learning long-term dependencies. These variants have been extensively studied for time series analysis, across various application domains [17, 18]. However, these models exhibit higher computational complexities and significantly slower pro-cessing times due to their cascaded connections [19, 20]. This limits their applicability in edge deployment and necessitates the need for model compression techniques. 
+
+2.3. Semantics from Hidden States 
+
+The core mechanism of RNNs and their variants is a self-connected hidden state layer that captures complex relationships between observations within a sequence. Several studies in NLP have attempted to interpret how RNNs work internally with their memory and whether their hidden states encode meaningful semantic information [21, 22]; however, such interpretations of hidden states remain largely unexplored in the context of time series analysis. For example, Karpathy et al. [23] found that when RNNs are applied to a sequence of words, some hidden states can be interpreted as language context, such as quotes or punctuation, while others cannot. Ming et al. [24] explored how information stored in hidden states correlates with certain word clouds. Despite these findings, limited work has exploited such hidden-state semantics for downstream learning, and, to the best of our knowledge, no prior method has explicitly utilized them as a source of knowledge in a KD framework. 22.4. Knowledge Distillation 
+
+The essence of KD lies in two primary objectives: firstly, ex-tracting rich knowledge from the teacher network, and secondly, transferring this knowledge to guide the training of a student network. To ensure the quality of knowledge, various methodolo-gies have been proposed. The most commonly utilized methods are logit-level KD techniques, which extract knowledge from softened output distributions [2]. DKD [25] improves perfor-mance by decoupling logit-level knowledge from target and non-target class distributions. Beyond the logits from the last layer, Fitnets [3] proposed directly matching features from intermedi-ate layers. Transferring feature-level knowledge using attention maps has also been studied [26, 27]. VID [28] aims to maximize mutual information between the student and teacher networks by variational information maximization, while RKD [29] pro-posed extracting relationships among input data samples. These methods are considered state-of-the-art in KD; however, they were originally developed and tested in the context of computer vision tasks. Consequently, the loss functions employed in most of the aforementioned methods were specifically designed to capture visual features and may not have direct analogies for time series data. Recent works have only begun addressing this gap by adapting these image approaches for time series. For example, the work in [4, 5] studied logit-level KD for time se-ries, and DT2W [30] extends Fitnets [3] by replacing Euclidean distance with soft-dynamic time warping distance. Xu et al. [31] utilized adversarial learning to compress RNN models into CNNs in their studies focusing on disparate architecture KD methods [31, 20]. However, possibility of knowledge extraction from RNN memory states has received limited research attention. A closely related study by Murata et al. [32] considers hidden states for time series forecasting by directly aligning the final hidden states of the teacher and student. However, this approach essentially treats hidden states as intermediate features for direct feature matching, without interpreting or exploiting how the informa-tion encoded in these states evolves as memory over the input sequence. In contrast, we propose a new method for compress-ing RNN models that extracts meaningful knowledge from how memory states evolve, rather than simply matching the states directly. This approach enables seamless knowledge transfer from a larger RNN-based model to a significantly smaller one without requiring the teacher and student hidden states to have matching dimensions. 
+
+3. Methodology 
+
+3.1. Knowledge Distillation for Time Series Classification 
+
+A time series can be represented as X = nx(1) , x(2) , · · · , x(T )o,where x(i) ∈ Rn, i = 1, · · · , T and X ∈ RT ×n. A time series dataset D, which includes M samples, is a collection of pairs (Xi, Yi), i = 1, · · · , M, where Yi ∈ RC is a one-hot vector repre-senting the class label c ∈ [1 , C] corresponds to Xi. Therefore, the TSC problem involves training a classifier F , mapping input 
+
+Xi to their corresponding label Yi. The goal of the KD is to train a student model (a shallow model) as F on our time series dataset D by leveraging the knowledge acquired by a pre-trained teacher model (a deep model). This is achieved by minimizing a distillation loss function that can be typically represented as: 
+
+LKD =
+
+X
+
+> Xi
+
+ℓ ( ft(Xi), fs(Xi)) (1) where ft and fs represent functions for teacher and student mod-els respectively and ℓ represents a similarity measure used to match the metrics of the teacher and student models. 
+
+3.2. Memory-Discrepancy Knowledge Distillation y(t-1)     
+
+> f(.)
+> h(t-1)
+> x(t-1)
+> y(t)
+> f(.)
+> h(t)
+> x(t)
+> y(t+1)
+> f(.)
+> h(t+1)
+> x(t+1)
+> to next
+> inputs
+> WhWhWh
+> WiWiWi
+> Past hidden
+> states
+> Figure 2: An overview illustration of a vanilla RNN. The figure depicts the basic structure and flow of information in an RNN that consists of an input layer, hidden layer and an output layer
+
+3.2.1. Formulating Knowledge from Hidden States. 
+
+Given an input time series sequence Xi = nx(1) , x(2) , · · · , x(T )o,the vanilla RNN depicted in Figure 2 processes each input time step x(t) ∈ Rn to maintain a time-varying memory state known as the hidden state h(t) ∈ Rm. At time step t, the RNN updates hidden state h(t−1) to h(t) using both x(t) and h(t−1) as: 
+
+h(t) = f (Wh h(t−1) + Wi x(t)) (2) where Wh and Wi are weight matrices and f is a non-linear activation function which constrains the range of h(t). After processing the entire sequence at time step T , a linear layer can be trained upon last hidden state h(T ) to derive the output probability distribution for classification tasks. By unrolling past hidden states in Equation (2), each hidden state h(t) at time step t can be expressed as a function of past input values up to time step t, nx(1) , x(2) , · · · , x(t)o and the initial hidden state value h(0) . In other words, each hidden state vector represents the state of the RNN’s memory at a particular time step, incorporating information about the input sequence up to that point. It represents a compact representation of the input sequence’s temporal dynamics up to that time step. Therefore, the hidden state can be seen as evolving over time as the RNN processes the input sequence, capturing the temporal dependen-cies and patterns present in the data. Thus patterns induced from memory hold the potential to serve as a rich source of knowledge in a KD framework. Let us consider the hidden state h(t+z) at time step t + z, z ∈ Z
+
+. By unrolling each hidden state in Equation (2) up to h(t), it can be written as h(t+z) = f (h(t), x(t+1) , x(t+2) , · · · , x(t+z)) where f is a nonlinear function. Now consider the di ff erence between any two hidden states h(t+z) and h(t) :
+
+∆ht,z = (h(t+z) − h(t)) (3) 3This can be regarded as response of memory to input values in subsequence, nx(t+1) , x(t+2) , · · · , x(t+z−1) , x(t+z)o, denoted Xt:( t+z) here. Although 
+
+h(t+z) is calculated by a non-linear transformation of h(t) and values in Xt:( t+z), ∆ht,z can be regarded as deterministic to the input values in subsequence Xt:( t+z) when the previous history h(t)
+
+is given. Thus ∆ht,z can reflect to what degree the model’s hidden state (memory) is influenced by the input values in subsequence 
+
+Xt:( t+z).
+
+3.2.2. Knowledge Distillation Objective. 
+
+We hypothesize that, after the occurrence of certain patterns in time series data, the model’s tendency to memorize subsequent smaller occurrences or data patterns provides a valuable source of knowledge to extract. Thus we define a novel distillation loss function based on the metric defined in Equation (3) i.e. , the measure of the degree to which an input subsequence influences the model’s memory. The suggested loss function tries to min-imize the di ff erence between these metrics among teacher and student. Explicitly we define ft and fs in Equation (1) as follow: 
+
+ft =
+
+
+
+∆ht,zt
+
+∥ h(t) 
+
+> t
+
+∥
+
+ t, z ∈ [T − 1] , t + z ≤ T (4) 
+
+fs =
+
+( ∆ht,zs
+
+∥ h(t) 
+
+> s
+
+∥
+
+)
+
+t, z ∈ [T − 1] , t + z ≤ T (5) where ht and hs represent hidden state vectors of teacher and student respectively. To mitigate any significant scale di ff erences between the teacher’s and student’s hidden states and thereby ensure the stability of the loss function, we normalize each di ff erence by ∥ h(t) ∥ in Equation (4) and Equation (5). As for the metric ℓ to measure the di ff erence between Equation (4) and Equation (5), we utilize Smooth L1 loss :
+
+LMemKD =
+
+X
+
+> Xi
+
+ℓsmoothL1 ( ft(Xi), fs(Xi)) (6) where LMemKD represents the proposed memory-discrepancy dis-tillation loss. Smooth L1 loss incorporates a quadratic loss term for small di ff erences and a linear loss term otherwise, making it smoother than L1 loss. It is less sensitive to outliers than L2 loss and helps prevent exploding gradients [33]. In our study, we analyze the impact of the memory-discrepancy distillation loss formed by shorter and longer subse-quences separately to understand their individual contributions more e ff ectively. In the first stage, we fix z = 1 and consider all ∆ht,z formed by every pair of consecutive hidden states, i.e. n∆ht,1o  
+
+> t=1,··· ,(T−1)
+
+. Thus, each ∆ht,1 now represents how much the memory state is a ff ected by current input value x(t) at time step t ∈ { 1, · · · , T }, given the X0:( t−1) has occurred. We refer to this as the memory-discrepancy distillation loss for shorter sub-sequences ( z = 1), denoted as LMemKD −Short . In the subsequent stage, we analyze the e ff ects of longer subsequences by selecting larger values of z (where z > 1). Since it is impractical to form all possible subsequences corresponding to every t ∈ [T − 1] and 
+
+z ∈ [T − 1] \ { 1}, we select random subset for t and z, so that 
+
+n∆ht,zo captures the impact from a diverse set of randomly se-lected longer subsequences that span the entire input time series. We refer to this as the memory-discrepancy distillation loss for longer subsequences, denoted as LMemKD −Long . We examined the eff ects of these two terms separately and found that combining them yields the best performance (see section 5.4). 
+
+3.2.3. Seamless Feature Distillation. 
+
+While hidden states in RNNs capture temporal dependencies and information flow across time steps, they are internal repre-sentations of the data that serve a similar purpose to intermediate feature maps in temporal direction. Feature distillation refers to providing hints from intermediate representations to improve the training of the student, besides directly matching output dis-tributions. Initially introduced in Fitnets [3], feature distillation loss is typically formulated as: 
+
+LFea_KD = ℓf (ϕt(ψt(X)) , ϕ s(ψs(X))) (7) where ψt(X) and ψt(X) are feature maps of teacher and student respectively. Moreover, ϕt, ϕs are some transformation functions to match the shape of teacher and student feature maps and ℓf (.)is a similarity measure to match feature maps. When we consider the hidden state matrices Ht ∈ R(T ×mt ) and Hs ∈ R(T ×ms) across all temporal steps as ψt(X) and ψs(X), respectively, and ft and fs
+
+(in Equation (4) and Equation (5)) as ϕt and ϕs, respectively, our proposed method can be seen as a feature distillation method. Generally it is common for the student’s intermediate feature dimensionality to be smaller than that of the teacher’s. To bridge this gap, many methods [3, 27] introduce an intermediate fully connected layer to connect hint (feature layer of teacher) and guided (feature layer of student) layers. However, this additional layer introduces numerous auxiliary parameters, which signif-icantly increase the space and computational demands while training, sometimes even surpassing the size of both teacher and student models [34]. In contrast, our proposed method does not necessitate such a regressor, even when the shapes of our feature maps di ff er. We calculate the feature distillation loss in an indirect yet semantic manner, thereby avoiding the need for explicit alignment of feature map dimensions. Therefore, our method stands out as an e ffi cient feature distillation method that imposes no additional computational burden to align features. 
+
+4. Experiments 
+
+4.1. Teacher and Student Models 
+
+In our experiments, we primarily focus on LSTM, a vari-ant of RNN that incorporates a modified hidden state update mechanism, making it more e ff ective in capturing long-term de-pendencies. These models are extensively employed in practical applications. We selected a three-layer LSTM model, with each layer having a hidden size of 100, as our teacher model. For our primary experiments, we used a single-layer LSTM model with a hidden size of 8 (denoted SL1_8) as our student model. Unless otherwise specified, we refer to this model as the student. To evaluate the performance of our method under various levels of compression, we constructed additional versions of student 4models by varying the number of layers and hidden sizes. The total number of parameters, model sizes, and compression ratios with respect to the teacher model for all constructed models are summarized in Table 1. Our primary student model achieves a compression factor of approximately 550 compared to the teacher model. 
+
+Table 1: Configurations of teacher and student networks 
+
+Model Layer1 (hidden size) Layer2 (hidden size) Layer3 (hidden size) Total param. Model size(MB) Compression ratio SL1_4 4 - - 488 0.0005 0.0006 SL1_8 8 - - 1480 0.0014 0.0018 SL1_16 16 - - 5000 0.0048 0.0062 SL2_16 16 16 - 13704 0.0131 0.0169 SL1_32 32 - - 18184 0.0173 0.0224 SL2_32 32 32 - 51976 0.0496 0.064 SL1_64 64 - - 69128 0.0659 0.0851 SL2_64 64 64 - 202248 0.1929 0.2491 SL3_64 64 64 64 335368 0.3198 0.413 Teacher 100 100 100 812008 0.7744 1
+
+4.2. Datasets 
+
+We used 56 datasets from UCR-2015 archive [35], which consists of an extensive catalog of time series from various do-mains. We selected datasets representing three categories based on time series length: ’short’, ’medium’, and ’long’ [36, 37, 38]. The length of a ’short’ dataset is no more than 150, a ’medium’ dataset varies from 150 to 500, and a ’long’ dataset has a length of over 500. Additionally, following [38], we prioritized datasets with a large number of output classes, as these are considered the most challenging and have significant real-world applications. Our final set includes 23 short, 17 medium, and 16 long datasets, of which 18 have five or more output classes. The datasets ensure a comprehensive evaluation of TSC methods across various domains, encompassing di ff erent recording durations, sensor configurations, and data collection methods. An overview of these datasets is provided in Table 2. To ensure a fair evaluation, we maintained the original train /test split and allocated 20% of the training set as a validation set. As a preprocessing step, we standardized all time series to a length of 100 using linear interpolation, followed by z-normalization. 
+
+4.3. Experiment Setup 
+
+For each dataset, we first train a teacher model across five random initializations and select the best-performing model for distilling knowledge to student models. The best teacher model is chosen based on the area under the precision-recall curve (AUC-PRC) evaluated on the validation set, ensuring reproducibility in real-world settings [4]. Next, we train the student models by distilling knowledge from the selected teacher model. In addition to MemKD, we implement state-of-the-art distillation methods for comparison, including Base-KD [2], FitNet [3], RKD [29], Att [26], DKD [25], and DT2W [30]. To serve as a baseline, we also train identical student models ( Base )from scratch without knowledge distillation. For all student models involving KD, we trained them using a combination 
+
+Table 2: Summary of dataset characteristics. Datasets are categorized as short 
+
+(L < 150), medium (150 ≤ L ≤ 500), and long (L > 500) according to their original time-series length L. Challenging datasets with a large number of output classes are highlighted in bold.                                                                                                                                                                                                                                                                                               
+
+> Scale Dataset Train Test Class Length Type Short ItalyPowerDemand 67 1029 224 Sensor
+> SyntheticControl 300 300 660 Simulated
+> SonyAIBORobotSurface2 27 953 265 Sensor SonyAIBORobotSurface1 20 601 270 Sensor MiddlePhalanxOutlineCorrect 600 291 280 Image MiddlePhalanxOutlineAgeGroup 400 154 380 Image DistalPhalanxOutlineCorrect 600 276 280 Image DistalPhalanxOutlineAgeGroup 400 139 380 Image ProximalPhalanxOutlineAgeGroup 400 205 380 Image ProximalPhalanxOutlineCorrect 600 291 280 Image PhalangesOutlinesCorrect 1800 858 280 Image TwoLeadECG 23 1139 282 ECG MoteStrain 20 1252 284 Sensor ECG200 100 100 296 ECG
+> ElectricDevices 8926 7711 796 Device MedicalImages 381 760 10 99 Image
+> CBF 30 900 3128 Simulated TwoPatterns 1000 4000 4128 Simulated
+> SwedishLeaf 500 625 15 128 Image FaceAll 560 1690 14 131 Image FacesUCR 200 2050 14 131 Image
+> ECGFiveDays 23 861 2136 ECG
+> Plane 105 105 7144 Sensor
+> Medium GunPoint 50 150 2150 Motion Wafer 1000 6164 2152 Sensor
+> Adiac 390 391 37 176 Image
+> Strawberry 613 370 2235 Spectro Trace 100 100 4275 Sensor Co ff ee 28 28 2286 Spectro
+> uWaveGestureLibraryX 896 3582 8315 Motion uWaveGestureLibraryY 896 3582 8315 Motion uWaveGestureLibraryZ 896 3582 8315 Motion Lightning7 70 73 7319 Sensor
+> ToeSegmentation2 36 130 2343 Sensor Yoga 300 3000 2426 Image
+> OSULeaf 200 242 6427 Image
+> Ham 109 105 2431 Spectro
+> Beef 30 30 5470 Spectro
+> FordA 1320 3601 2500 Sensor FordB 810 3636 2500 Sensor Long
+> ShapesAll 600 600 60 512 Image
+> Herring 64 64 2512 Image BeetleFly 20 20 2512 Image BirdChicken 20 20 2512 Image Earthquakes 322 139 2512 Sensor OliveOil 30 30 4570 Spectro Lightning2 60 61 2637 Sensor Computers 250 250 2720 Device SmallKitchenAppliances 375 375 3720 Device LargeKitchenAppliances 375 375 3720 Device
+> NonInvasiveFetalECGThorax1 1800 1965 42 750 ECG NonInvasiveFetalECGThorax2 1800 1965 42 750 ECG
+> WormsTwoClass 181 77 2900 Motion
+> UWaveGestureLibraryAll 896 3582 8945 Motion
+> StarLightCurves 1000 8236 31024 Sensor HandOutlines 1000 370 22709 Image
+
+of the distillation loss and the classification loss (cross-entropy loss) as: 
+
+Ltrain = α × LCE + β × LKD (8) where α and β decide the contribution of classification loss 
+
+LCE and distillation loss LKD for the total train loss Ltrain ,respectively. For all experiments, α is fixed at 1, while the optimal value of β is selected via grid search over 0.01 , 0.1, 0.5, 1, 10 , 100 , 150 , 200 , 300. Each student model is trained for five random initializations, and evaluation metrics are reported as the average across these five runs. All models are implemented in Python using the PyTorch framework [39] fol-lowing the same setting. Training is performed with the Adam optimizer, a batch size of 32, and a maximum of 500 epochs, with early stopping based on validation-loss and a patience of 50 epochs. A learning rate decay factor of 0.5 is applied at epochs 25, 30, and 35 for all models. For SL1_4, SL1_8, and SL1_16 models, the initial learning rate is set to 0.1, while for the teacher and other student variants, it is set to 0.01. We evaluated the performance of each model using three widely adopted metrics: area under the receiver operating char-acteristic curve (AUC-ROC), average AUC-PRC, and accuracy on the test set. The decision threshold for calculating accuracy was set at 0.5. For comparison, we employed a win /tie /loss calculation, where a model is considered to ’win’ on a particular dataset if it achieves a higher AUC-PRC than the other models. We prioritized AUC-PRC over AUC-ROC and accuracy because AUC-PRC is more robust to class imbalance, a common char-5acteristic among UCR datasets. Additionally, we calculated the average rank across datasets for each model. Since we used av-eraged values for the student models, comparisons with teacher models were also made using their averaged values over five runs (instead of top-1) where necessary. 
+
+5. Results and Discussion 
+
+5.1. Comparison with baseline methods 
+
+Table 3: Performance comparison of our method with baseline methods across 56 UCR datasets. 
+
+(a) Comparison with student-base and base-KD Base Base-KD Ours Avg. AUC-PRC 63.89 68.65 74.05 
+
+Avg. AUC-ROC 77 80.36 84.65 
+
+Avg. Acc. 62.94 67.23 71.41 
+
+Win 0 7 49 
+
+Tie 0 0 0
+
+Lose 56 49 7
+
+Avg. Rank 2.89 1.98 1.13 
+
+(b) Comparison with Fitnets Fitnet Ours Avg. AUC-PRC 68.39 74.05 
+
+Avg. AUC-ROC 80.23 84.65 
+
+Avg. Acc. 66.85 71.41 
+
+Win 5 51 
+
+Tie 0 0
+
+Lose 51 5
+
+Avg. Rank 1.91 1.09 
+
+We first evaluated how the proposed MemKD performs compared to baseline approaches. Specifically, we compared MemKD’s performance with that of a student trained from scratch (Base) and vanilla knowledge distillation (Base-KD). The results of the comparison across all 56 datasets are summa-rized in table 3a. It is evident that our method outperforms the Base model on all 56 datasets, establishing our proposed method as an e ffi cient knowledge distillation framework. Additionally, the average performance metrics improved by approximately 10% compared to the Base model. This is further illustrated in fig. 3a, which plots the AUC-PRC of MemKD against that of the Base model. MemKD also outperforms vanilla knowledge distillation on approximately 90% of the datasets, as further depicted in fig. 3b. Since MemKD is also a feature distilla-tion method (see section 3.2.3), we compared it with vanilla feature distillation (Fitnets), and the summarized results are pre-sented in table 3b. MemKD outperforms Fitnets on 51 out of 56 datasets, achieving a 5% improvement in the average perfor-mance metrics compared to Fitnets. This is further illustrated in fig. 3c, where MemKD demonstrates superior performance in over 90% of the cases. These results demonstrate that our loss function better exploits the knowledge from the teacher’s feature layers, rather than providing direct hints from feature layers, while also eliminating the need for additional regression layers. 
+
+5.2. Comparison with state-of-the-art methods 
+
+Table 4 presents the evaluation results of di ff erent KD variants across the 56 datasets. We included win /tie /loss calculations both with and without the teacher model. The proposed method, MemKD, consistently outperforms all other distillation objec-tives on nearly 50% of the datasets. The average rank of MemKD is 2.29, which is significantly lower than that of other methods, indicating that MemKD delivers competitive performance across the remaining datasets as well. None of the other methods were able to win more than 20% of the datasets, nor did they achieve ranks close to 2. Additionally, our method shows at least a 2% improvement over other methods in terms of average AUC-PRC. All KD methods report lower ranks compared to the Base model, indicating that they all benefit from knowledge distillation. Fur-thermore, MemKD achieves the lowest average rank even in the calculations that include the teacher model. It is the only method to exceed the teacher in terms of average AUC-PRC and number of wins, as none of the other methods were able to do so. 
+
+Table 4: Comparison of results with state-of-the-art methods. 
+
+Dataset Teacher Base Base -KD DKD Att. RKD -D RKD -A RKD -DA Fitnet DT2W Ours Computers 59.58 57.16 64 63.78 63.72 62.66 64.12 62.76 58.9 62.17 63.22 UWaveGestureLib.All 91.72 77.15 79.07 80.58 79.31 78.34 78.99 77.51 81.96 81.35 85.88 
+
+Strawberry 87.91 70.68 73.06 71.13 89.09 90.05 91.53 92.08 87.1 59.54 90.48 BeetleFly 81.64 81.17 86.15 84.16 88.06 90.98 93.57 90.03 79.78 76.99 91.5 wafer 81.19 98.68 98.55 98.83 98.98 98.7 98.81 98.72 98.95 89.35 99.03 
+
+CBF 72.44 69.1 75.23 90.07 76.6 89.74 96.29 93 99.19 51.29 93.87 Adiac 65.79 37.5 45.75 46.36 49.21 41.93 43.3 39.94 37.67 43.66 45.07 Lighting2 61.84 65.59 69.03 68.24 69.65 68.29 70.01 68.81 65.24 66.73 68.88 ItalyPowerDemand 98.21 94.22 98.63 97.68 97.55 98.37 99.07 98.78 97.23 97.94 98.66 yoga 73.04 57.97 67.41 66.06 70.61 68.36 67.78 69.33 60.1 52.12 74.01 
+
+Trace 54.39 64.76 69.25 68.21 61.61 72.71 72.94 72.48 74.11 53.14 78.76 
+
+ShapesAll 71.04 29.82 35.34 44.46 35.11 30.27 30.98 31.98 35.97 33.55 40.69 Beef 50.56 37.41 46.86 44.03 49.53 44.71 48.95 50.65 44.97 37.35 48.99 Herring 55.6 50.28 54.62 57.06 61.01 56.36 55.25 55.77 57.77 58 61.85 
+
+MiddlePhalanx.Correct 62.03 60.37 65.49 67.18 65.54 66.48 68.21 66.79 63.24 63.17 68.74 
+
+FordA 65.66 90.33 93.96 93.2 95.58 96.34 96.29 96.12 86.9 49.73 96.54 
+
+SwedishLeaf 89.65 70.75 71.47 72.95 76.39 70.87 72.94 71.11 71.72 73.14 77.37 
+
+FaceAll 82.77 46.22 54.38 59.82 58.21 52.68 54.6 57.88 56.08 55.92 62.26 
+
+StarLightCurves 96.8 93.11 96.09 95.59 95.54 95.08 93.63 94.37 91.75 92.19 97.22 
+
+ECG200 69.84 67.55 68.39 68.5 70.35 73.09 73.79 73.07 71.85 66.1 72.66 ECGFiveDays 83.32 81.67 82.28 83.33 91.57 85.32 89.02 85.96 91.45 76.7 92.4 
+
+OliveOil 36.15 25.37 25.32 25.06 32 34.38 37.76 35 44.67 37.93 39.85 MoteStrain 80.75 82.74 81.87 81.39 82.58 83.02 83.53 82.76 78.16 84.21 84.13 SonyAIBORobotSurface 67.2 62.96 63.57 63.23 65.55 66.74 70.76 69.49 68.14 56.35 64.98 SonyAIBORobotSurfaceII 71.96 70.02 72.06 72.78 73.48 72.6 75.61 75.15 72.47 72.85 77.98 
+
+Ham 69.17 62.17 65.78 65.5 70.4 68.16 69.34 68.65 64.13 57.06 72.12 
+
+NonInvasiveFatalECG1 82.29 58.08 57.92 56.96 64.21 61.02 58.4 55.09 65.4 55.01 69.18 
+
+NonInvasiveFatalECG2 86.7 71.2 74.5 66.69 73.26 73.25 73.51 73.41 71.13 72.64 77.47 
+
+WormsTwoClass 51.44 52.9 53.78 53.55 55.69 56.1 56.18 56.53 55.41 54.16 55.85 OSULeaf 47.4 42.48 42.19 48.59 46.51 48.46 43.67 44.72 45.94 39.62 50.6 
+
+uWaveGestureLibrary_Z 68.56 61.58 64.82 61.98 64.08 63.61 61.65 63.57 65.72 65.54 65.07 SmallKitchenAppliances 66.88 59.66 68.16 65.38 64.65 66.52 70.08 65.89 56.34 59.36 65.07 synthetic_control 99.51 97.65 98.16 98.3 98.83 98.7 98.69 98.69 96.86 99.22 99 TwoLeadECG 68.24 62.98 67.15 67.28 66.79 70.31 72.62 68.52 70.18 52.9 70.56 Two_Patterns 100 75.57 99.34 99.16 99.97 99.96 99.93 99.99 99.97 76.04 99.95 MiddlePhalanx.AgeGroup 62.98 63.37 63.65 63.98 63.7 64.63 65.38 64.26 63.73 62.25 66.28 
+
+DistalPhalanx.Correct 69.12 59.09 68.29 69.11 63.96 70.98 68.41 66.68 57.46 59.42 73.32 
+
+FacesUCR 70.73 37.64 48.48 55.38 46.72 46.96 46.09 49.36 49.53 32.24 55.99 
+
+HandOutlines 62.69 60.04 61.45 63.31 60.94 72.84 71.64 69.43 58.44 60.3 65.19 Co ff ee 81.18 59.17 66.23 66.23 76.15 73.71 81.42 77.99 73.7 63.37 99.7 
+
+Gun_Point 75.91 60.55 60.52 61 69.15 73.7 79.31 77.35 68.16 59.52 90.2 
+
+FordB 75.45 56.04 92.01 91.75 91.27 91 91.88 93.03 67.65 51.19 92.63 MedicalImages 40.87 29.32 35.69 31.91 41.09 29.84 33.73 31.33 32.24 27.49 42.49 
+
+ProximalPhalanx.AgeGroup 80.92 79.27 82.51 80.94 82.6 83.05 81.87 81.86 78.51 78.76 81.54 Plane 73.75 82.65 91.17 97.44 97.07 96.38 97.91 95.89 81.69 84.16 93.97 Lighting7 57.43 54.65 60.46 57.98 60.21 62.82 59.82 58.87 57.02 52.38 61.94 Phalanges.Correct 75.51 72.97 74.59 75.07 76.99 76.19 75.83 75.19 71.64 69.73 77.74 
+
+DistalPhalanx.AgeGroup 82.39 78.05 81.95 81.09 82.11 80.09 80.1 82.04 75.79 69.43 82.81 
+
+uWaveGestureLibrary_X 76.68 62.46 66.07 71.96 67.79 65.08 64.95 64.54 71.5 69.85 73.11 
+
+ToeSegmentation2 72.04 52.64 56.3 58.14 56.88 64.54 69.51 62.96 56.16 57.87 60.94 BirdChicken 52.51 56.81 57.54 57.54 61.13 66.75 60.8 65.68 58.6 55.19 67.32 
+
+LargeKitchenApp 75.51 61.03 73.91 80.45 77.43 82.14 84.21 81.09 79.44 65.98 80.78 uWaveGestureLibrary_Y 66.94 59.31 63.4 64.42 62.37 59.65 60.35 60.79 59.57 61.48 62.63 ProximalPhalanx.Correct 85.51 81.93 82.78 82.5 89.85 88.25 85.58 86.72 78.22 78.6 90.18 
+
+ElectricDevices 66.48 62.59 66.5 63.91 65.64 64.63 65.27 65.78 65.69 65.9 66.12 Earthquakes 55.25 61.25 61.32 61.92 61.82 62.05 62.11 61.41 58.73 61.86 61.98 Avg. AUC-PRC 71.63 63.89 68.65 69.34 70.64 70.88 71.75 71.02 68.39 62.68 74.05 
+
+Avg. AUC-ROC 77.00 80.36 80.83 82.04 82.82 83.65 82.78 80.23 75.30 84.65 
+
+Avg. Acc. 62.94 67.23 67.55 69.25 68.80 70.19 69.25 66.85 62.12 71.41 
+
+Wins __ 0 1 2 1 3 12 5 3 2 27 
+
+Lose __ 56 55 54 55 53 44 51 53 54 29 
+
+Avg. rank __ 8.98 5.95 5.68 4.52 4.8 3.89 4.59 6.5 7.73 2.29 
+
+Wins(with teacher) 14 0 1 0 0 3 11 4 2 1 20 
+
+Lose(with teacher) 42 56 55 56 56 53 45 52 54 55 36 
+
+Avg. rank(with teacher) 5.34 9.8 6.57 6.27 5.04 5.27 4.3 5.05 7.16 8.52 2.61 
+
+5.3. Comparison with Teacher model 
+
+We analyze the performance of MemKD across various com-pression levels compared to the teacher model. The primary goal of knowledge distillation is to achieve substantial compres-sion while maintaining performance close to that of the teacher. There is always a trade-o ff between performance and compres-sion, and the appropriate balance depends on the application. Table 5 summarizes the results, comparing the teacher model to 60 20 40 60 80 100 Student_Base 020 40 60 80 100 Ours 
+
+> Ours is better here
+
+(a) MemKD vs baseline model trained from scratch without knowledge distillation. 0 20 40 60 80 100 Base_KD 020 40 60 80 100 Ours 
+
+> Ours is better here
+
+(b) MemKD vs vanilla knowledge distillation (base-KD). 0 20 40 60 80 100 Fitnets 020 40 60 80 100 Ours  
+
+> Ours is better here
+
+(c) MemKD vs vanilla feature distillation (Fitnets) 
+
+Figure 3: AUC-PRC plot showing how the student-MemKD is performing better than baseline model 
+
+9 di ff erent MemKD-student variants, with compression factors ranging from 2.5x up to 1600x. For each variant, we also include results from the Base model, which has the same compression but is trained without knowledge distillation. The findings show that MemKD delivers performance comparable to the teacher across all 9 student variants. For the smallest student model, SL1_4, wins between MemKD and the teacher are split roughly evenly. However, starting from SL_8, MemKD surpasses the teacher in over 60% of the datasets, and this percentage increases to nearly 90% towards the larger student models. MemKD also exceeds the teacher’s average AUC-PRC in all student variants except for the smallest one. In contrast, none of the Base model variants outperform the teacher, consistently losing in over 90% of the datasets. This demonstrates that MemKD enables signifi-cant performance improvements across a range of compression levels that the scratch model cannot achieve. 
+
+Table 5: Performance comparison of the teacher, student-base, and student-MemKD models across various student architecture settings on 28 datasets. 
+
+Model Win Avg. rank Avg. AUC-PRC Teacher Base Ours Teacher Base Ours Teacher Base Ours SL1_4 13 3 12 1.86 2.57 1.57 73.19 61.52 69.34 SL1_8 9 0 19 1.86 2.82 1.32 73.19 65.5 74.78 
+
+SL1_16 7 0 21 2 2.75 1.25 73.19 67.66 76.19 
+
+SL2_16 8 1 19 2.11 2.57 1.32 73.19 70.62 76.43 
+
+SL1_32 10 2 16 2.07 2.5 1.43 73.19 70.65 76.15 
+
+SL2_32 3 0 25 2.25 2.64 1.11 73.19 70.18 78.59 
+
+SL1_64 5 1 22 2.32 2.43 1.25 73.19 72.42 77.89 
+
+SL2_64 2 0 26 2.36 2.57 1.07 73.19 72.69 79.57 
+
+SL3_64 1 1 26 2.43 2.46 1.07 73.19 72.27 80.48 
+
+5.4. Ablation study 
+
+We conducted an ablation study using 28 datasets to evaluate the e ff ectiveness of MemKD-Short and MemKD-Long, which are induced by memory retention over shorter and longer subse-quences, respectively. To generate MemKD-Long, we selected 100 di ff erent pairs of values for z and t, producing 100 distinct subsequences spanning the input time series. The ablation re-sults, which highlight the importance of each component, are summarized in table 6. We observed that MemKD-Long showed a slight improvement over MemKD-Short, with an increase of 1-2% in average performance metrics. Moreover, the combination of both components outperforms the individual components, im-proving performance on over 50% (15 out of 28) of the datasets, and achieving an average rank of 1.54 across the individual components and the baseline without any components. We also tested the impact of varying the number of subsequences and found no significant benefit in increasing it beyond 100 (see table 7). 
+
+Table 6: Ablation study on MemKD loss terms 
+
+Componenets Metrics MemKD-Long MemKD-Short Avg. AUC-PRC Avg. AUC-ROC Avg. Acc. Wins Tie Lose Avg. Rank 65.5 78.01 62.67 0 0 28 3.96 x 72.24 83.22 67.4 6 0 22 2.43 x 74.04 84.24 68.6 7 0 21 2.07 x x 74.78 84.89 70.06 15 0 13 1.54 
+
+Table 7: Sensitivity analysis of the number of chosen subsequences on MemKD-Long 
+
+Num. of subseq. Avg. AUC-PRC Avg. AUC-ROC Avg. ACC 50 73.52 83.71 69.37 100 74.04 84.24 68.6 150 73.83 84.18 68.87 200 74.21 84.46 69.38 300 74 84.59 69 0 0.01 0.1 0.5 1 10 100 150 200 300 
+
+> 60 70 80 90 100 AUC-PRC
+> FordB Lighting7 Two_Patterns Distal.Correct uWaveGestureX StarLightCurves
+
+Figure 4: Sensitivity analysis on β for six di ff erent datasets. The AUC-PRC values are shown for di ff erent β values ( α = 1). 
+
+75.5. Sensitivity Analysis on β.
+
+We also conducted an ablation study on β, which controls the importance of the memory-discrepancy distillation loss term relative to the task loss for six di ff erent datasets. The results are shown in Figure 4. AUC-PRC scores improved for almost all non-zero values of β compared to when β = 0 (i.e. when our loss term is totally absent). The performance of our model remains stable across moderate values of β and is significantly better than when β = 0. For very large values of β, the performance improvement over β = 0 diminishes. This is expected because when β is too large, the distillation loss dominates the total loss, which can lead to over-regularization. In other words, the student model focuses excessively on mimicking the teacher model, potentially at the expense of learning the task-specific features necessary for optimal performance on the target task. Class 1 Class 2 Class 3 Class 4 Class 5 Class 6 Class 7 Class 8   
+
+> (a) Teacher. (b) Base.
+> (c) Base-KD. (d) MemKD.
+> Figure 5: Feature space representations of the test set for the UWaveGestureLi-braryAll dataset using t-SNE. The last five hidden states from all models were included as candidate features. SL2_16 models were used as the student models.
+
+5.6. Evidence for Hidden-State Alignment with the Teacher 
+
+Figure 5 visualizes the last five hidden-state representations of the teacher, Base, Base-KD, and MemKD models on UWaveGes-tureLibraryAll using t-SNE. The Base student exhibits scattered and substantially overlapping hidden-state representations, in-dicating less discriminative placement of samples in the latent space. Conventional KD (Base-KD) improves this organization to some extent, but considerable inter-class overlap remains. In contrast, MemKD produces more compact and distinctly placed class-specific regions, more closely resembling the well-organized structure observed in the teacher. Since the visualiza-tion incorporates the last five hidden states rather than only the final representation, this result suggests that MemKD improves the placement and organization of representations across the stu-dent’s overall hidden states, progressively forming more class-discriminative feature structures. This supports the intended role of MemKD in transferring teacher knowledge throughout the student’s hidden-state learning process rather than constraining supervision only to the final representation. 
+
+6. Conclusion 
+
+Most prior work on feature distillation has explicitly focused on computer vision tasks, with loss functions assumed to cap-ture knowledge solely about visual features. These methods often lack clear analogies for time series. We identified and addressed this limitation by introducing a novel KD framework tailored for deep time series recurrent networks. Specifically, we investigated how memory di ff ers and evolves within RNNs and whether we can use information about memory retention over short contiguous subsequences to improve the performance of a student model. By leveraging a unique loss function that captures memory retention discrepancies across subsequences, MemKD e ff ectively transfers knowledge from a large, complex LSTM model to a significantly smaller LSTM model. The ex-tensive experiments, using fifty-six time series datasets, demon-strate that MemKD significantly outperforms logit-level and feature-level state-of-the-art KD methods, achieving substantial reductions in parameter size and memory usage while maintain-ing comparable performance. Future work will focus on further optimizing the MemKD framework and studying the knowl-edge of memory retention on longer subsequences, providing comprehensive coverage over the whole time series instance. 
+
+Acknowledgments 
+
+This research was supported by The University of Mel-bourne’s Research Computing Services and the Petascale Cam-pus Initiative. We also gratefully acknowledge the authors and maintainers of the UCR time series repositories for making their datasets publicly available. 
+
+Declaration of generative AI and AI-assisted technologies in the manuscript preparation process 
+
+In preparing this manuscript, we used OpenAI’s ChatGPT (GPT-4) as a writing assistance tool. Its role was limited to pol-ishing language for improved clarity, grammar, and readability in certain sections of the paper. The model did not contribute to research ideation, methodological design, experimental exe-cution, data analysis, or interpretation of results. All scientific content, technical contributions, and conclusions are solely the work of the authors. We take full responsibility for the accuracy and integrity of the paper. 
+
+Data Availability Statement 
+
+The datasets used in this study are publicly available from the repositories cited and linked in the manuscript. No new datasets were generated as part of this study. 
+
+References 
+
+[1] J. Ba, R. Caruana, Do deep nets really need to be deep?, Advances in Neural Information Processing Systems 27 (2014). 8[2] G. Hinton, O. Vinyals, J. Dean, Distilling the knowledge in a neural network, arXiv preprint arXiv:1503.02531 (2015). [3] A. Romero, N. Ballas, S. E. Kahou, A. Chassang, C. Gatta, Y. Bengio, Fitnets: Hints for thin deep nets, 2015. 
+
+arXiv:1412.6550 .[4] E. Ay, M. Devanne, J. Weber, G. Forestier, A study of knowledge distillation in fully convolutional network for time series classification, in: International Joint Confer-ence on Neural Networks (IJCNN), IEEE, 2022, pp. 1–8. [5] K. Ouyang, Y. Hou, Y. Zhang, C. Ma, S. Zhou, Knowledge transfer via distillation from time and frequency domain for time series classification, Applied Intelligence 53 (2023) 1505–1516. [6] H. Ma, S. Yang, R. Wu, X. Hao, H. Long, G. He, Knowl-edge distillation-based performance transferring for lstm-rnn model acceleration, Signal, Image and Video Process-ing 16 (2022) 1541–1548. [7] P. S. Parvatharaju, R. Doddaiah, T. Hartvigsen, E. A. Run-densteiner, Learning saliency maps to explain deep time series classifiers, in: ACM International Conference on Information & Knowledge Management, 2021, pp. 1406– 1415. [8] L. Ye, E. Keogh, Time series shapelets: a new primitive for data mining, in: ACM international conference on Knowledge discovery and data mining, 2009, pp. 947–956. [9] C. Bock, M. Moor, C. R. Jutzeler, K. Borgwardt, Machine learning for biomedical time series classification: from shapelets to deep learning, Artificial Neural Networks (2021) 33–71. [10] P. Patel, E. Keogh, J. Lin, S. Lonardi, Mining motifs in massive time series databases, in: ICDM, IEEE, 2002, pp. 370–377. [11] V. Chandola, D. Cheboli, V. Kumar, Detecting anomalies in a time series database (2009). [12] Y. Zhu, M. Imamura, D. Nikovski, E. J. Keogh, Time series chains: A novel tool for time series data mining., in: IJCAI, 2018, pp. 5414–5418. [13] J. L. Elman, Finding structure in time, Cognitive science 14 (1990) 179–211. [14] M. Hüsken, P. Stagge, Recurrent neural networks for time series classification, Neurocomputing 50 (2003) 223–235. [15] S. Hochreiter, J. Schmidhuber, Long short-term memory, Neural computation 9 (1997) 1735–1780. [16] K. Cho, B. Van Merriënboer, C. Gulcehre, D. Bahdanau, F. Bougares, H. Schwenk, Y. Bengio, Learning phrase rep-resentations using rnn encoder-decoder for statistical ma-chine translation, arXiv preprint arXiv:1406.1078 (2014). [17] M. A. Morid, O. R. L. Sheng, J. Dunbar, Time series pre-diction using deep learning methods in healthcare, ACM Transactions on Management Information Systems 14 (2023) 1–29. [18] B. Lindemann, T. Müller, H. Vietz, N. Jazdi, M. Weyrich, A survey on long short-term memory networks for time series prediction, Procedia Cirp 99 (2021) 650–655. [19] T. Lei, Y. Zhang, S. I. Wang, H. Dai, Y. Artzi, Simple recurrent units for highly parallelizable recurrence, arXiv preprint arXiv:1709.02755 (2017). [20] Q. Xu, Z. Chen, M. Ragab, C. Wang, M. Wu, X. Li, Con-trastive adversarial knowledge distillation for deep model compression in time-series regression tasks, Neurocom-puting 485 (2022) 242–251. [21] H. Strobelt, S. Gehrmann, B. Huber, H. Pfister, A. Rush, Visual analysis of hidden state dynamics in recurrent neural networks, IEEE Trans. Vis. Comput. Graph. PP (2016). doi:10.1109 /TVCG.2017.2744158. [22] H. Strobelt, S. Gehrmann, H. Pfister, A. M. Rush, Lstmvis: A tool for visual analysis of hidden state dynamics in re-current neural networks, IEEE Trans. Vis. Comput. Graph. 24 (2017) 667–676. [23] A. Karpathy, J. Johnson, L. Fei-Fei, Visualizing and understanding recurrent networks, arXiv preprint arXiv:1506.02078 (2015). [24] Y. Ming, S. Cao, R. Zhang, Z. Li, Y. Chen, Y. Song, H. Qu, Understanding hidden memories of recurrent neural net-works, in: IEEE conference on visual analytics science and technology, IEEE, 2017, pp. 13–24. [25] B. Zhao, Q. Cui, R. Song, Y. Qiu, J. Liang, Decoupled knowledge distillation, in: IEEE Conf. Comput. Vis. Pat-tern Recog., 2022, pp. 11953–11962. [26] S. Zagoruyko, N. Komodakis, Paying more attention to attention: Improving the performance of convolutional neural networks via attention transfer, arXiv preprint arXiv:1612.03928 (2016). [27] Z. Huang, N. Wang, Like what you like: Knowledge distill via neuron selectivity transfer, arXiv preprint arXiv:1707.01219 (2017). [28] S. Ahn, S. X. Hu, A. Damianou, N. D. Lawrence, Z. Dai, Variational information distillation for knowledge transfer, in: IEEE Conf. Comput. Vis. Pattern Recog., 2019, pp. 9163–9171. [29] W. Park, D. Kim, Y. Lu, M. Cho, Relational knowledge distillation, in: IEEE Conf. Comput. Vis. Pattern Recog., 2019, pp. 3967–3976. 9[30] Z. Qiao, M. Hu, X. Jiang, P. N. Suganthan, R. Savitha, Class-incremental learning on multivariate time series via shape-aligned temporal distillation, in: ICASSP, IEEE, 2023, pp. 1–5. [31] Q. Xu, Z. Chen, K. Wu, C. Wang, M. Wu, X. Li, Kdnet-rul: A knowledge distillation framework to compress deep neural networks for machine remaining useful life predic-tion, IEEE Transactions on Industrial Electronics 69 (2021) 2022–2032. [32] R. Murata, F. Okubo, T. Minematsu, Y. Taniguchi, A. Shi-mada, Recurrent neural network-fitnets: improving early prediction of student performanceby time-series knowl-edge distillation, Journal of Educational Computing Re-search 61 (2023) 639–670. [33] R. Girshick, Fast r-cnn, in: Int. Conf. Comput. Vis., 2015, pp. 1440–1448. [34] H. Chen, Y. Wang, C. Xu, C. Xu, D. Tao, Learning student networks via feature embedding, IEEE Transactions on Neural Networks and Learning Systems 32 (2020) 25–35. [35] H. A. Dau, A. Bagnall, K. Kamgar, C.-C. M. Yeh, Y. Zhu, S. Gharghabi, C. A. Ratanamahatana, E. Keogh, The ucr time series archive, IEEE /CAA Journal of Automatica Sinica 6 (2019) 1293–1305. [36] Z. Xiao, X. Xu, H. Zhang, E. Szczerbicki, A new multi-process collaborative architecture for time series classifica-tion, Knowledge-Based Systems 220 (2021) 106934. URL: 
+
+https://www.sciencedirect.com/science/article/pii/S0950705121001970 .doi:https: // doi.org /10.1016 /j.knosys.2021.106934. [37] H. Xing, Z. Xiao, R. Qu, Z. Zhu, B. Zhao, An e ffi cient federated distillation learning system for multitask time series classification, IEEE Transactions on Instrumentation and Measurement 71 (2022) 1–12. [38] D. Campos, M. Zhang, B. Yang, T. Kieu, C. Guo, C. S. Jensen, Lightts: Lightweight time series classification with adaptive ensemble distillation, Proceedings of the ACM on Management of Data 1 (2023) 1–27. [39] A. Paszke, S. Gross, F. Massa, A. Lerer, J. Bradbury, G. Chanan, T. Killeen, Z. Lin, N. Gimelshein, L. Antiga, et al., Pytorch: An imperative style, high-performance deep learning library, Advances in Neural Information Processing Systems 32 (2019). 10

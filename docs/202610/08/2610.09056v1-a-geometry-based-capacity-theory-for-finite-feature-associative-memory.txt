@@ -1,0 +1,1317 @@
+Title: A Geometry-Based Capacity Theory for Finite-Feature Associative Memory
+
+URL Source: https://arxiv.org/pdf/2610.09056v1
+
+Published Time: Thu, 08 Oct 2026 00:15:13 GMT
+
+Number of Pages: 19
+
+Markdown Content:
+> 1
+
+# A Geometry-Based Capacity Theory for Finite-Feature Associative Memory 
+
+## Jianhai Zhang *, Donghao Zhang, Pattarawut Charatpangoon, Bijoy Menon, M. Ethan MacDonald, Wu Qiu, and Aravind Ganesh *
+
+## ✦
+
+Abstract —We develop a geometry-based capacity theory for exact-key retrieval in compressed finite-feature Hebbian associative memory. For random or approximately isotropic values, retrieval interference separates into finite-feature noise, which decreases with feature dimension, and structural interference, which is determined by squared kernel overlap among stored keys and persists in the infinite-feature limit. This yields a fit-free prediction of retrieval quality, reveals a geometry-dependent capacity ceiling, and predicts the feature budget required for a target retrieval quality. When stored values are correlated, we show that retrieval depends jointly on the key kernel and value Gram matrix, and derive finite-feature approximations that account for this interaction. We validate the theory on synthetic, visual, and medical-image representations. Overall, the framework links representation geometry directly to memory capacity and distinguishes when performance can be improved by increasing the feature budget and when the representation itself must be changed. Across these settings, the predicted retrieval curves closely match empirical behavior and correctly identify changes in the preferred memory design. 
+
+Index Terms —Associative memory, Hebbian memory, random features, representation geometry, kernel methods, memory capacity, visual representations, medical imaging. 
+
+## 1 INTRODUCTION 
+
+# ASSOCIATIVE memory retrieves stored information from a content-based query rather than from a fixed address. Classical distributed and recurrent memories characterize storage limits through interference among stored patterns [1]–[8]. Dense and modern Hopfield models change the interaction or separation function and therefore operate in different storage regimes, while attention-based variants retain explicit key–value items [9]–[13]. In this work, capacity refers to how much distinct feature information can be represented and retained before interference substantially 
+
+• J. Zhang, P. Charatpangoon, B. Menon, and A. Ganesh are with the Department of Clinical Neurosciences, Cumming School of Medicine, University of Calgary, and the Ron and Rene Ward Centre for Healthy Brain Aging Research, Hotchkiss Brain Institute, University of Calgary. 
+
+> *
+
+Corresponding authors: Jianhai Zhang and Aravind Ganesh. 
+
+• D. Zhang and W. Qiu are with the Department of Biomedical Engineering, School of Life Science and Technology, Huazhong University of Science and Technology, and the Advanced Biomedical Imaging Facility, Huazhong University of Science and Technology. 
+
+• M. E. MacDonald is with the Department of Biomedical Engineering, Schulich School of Engineering, University of Calgary, and the Ron and Rene Ward Centre for Healthy Brain Aging Research, Hotchkiss Brain Institute, University of Calgary. 
+
+degrades retrieval or discrimination. Rather than treating capacity as an abstract storage quantity, we define it op-erationally through how many separable feature patterns can be preserved while maintaining acceptable retrieval or classification quality. In practical AI systems, this asks whether increasingly diverse image, patient, or other sample representations can be compressed into a fixed memory without losing the information that distinguishes them. This paper focuses on a compressed finite-feature regime. A collection of key–value pairs is aggregated into a fixed Hebbian matrix through additive outer products of nonlinear random-feature addresses. This storage rule is closely related to classical correlation-matrix memories and to fast-weight or linear-attention memories [14]–[19]. Prior work has already shown that finite-dimensional fast-weight memories degrade as many nonorthogonal keys are accumulated. Recent and concurrent work studies related aspects of this problem through self-recall diagnostics and sparse caching in linear attention, spherical-packing and Welch-bound analyses of linear-attention capacity, sharp pattern-count thresholds for linear associative memories, and Hebbian fact-storage models that allow arbitrary input/output geometry [20]–[24]. We therefore do not claim that nonorthogonality, geometry dependence, or capacity limits in linear memories are new phenomena. Our focus is narrower: we derive a quantitative item-wise law that uses the measured kernel geometry of the stored representations, separates deterministic overlap from finite-feature approximation noise, and remains applicable when stored values are correlated. We study exact-key retrieval, q = ki, so that the analysis isolates cross-talk caused by compressed storage. Throughout, capacity is operational: for a fixed set of N stored keys, it refers to the feature budget R/N required to reach a specified retrieval cosine, or equivalently the retrieval cosine attainable at a fixed budget. In practical terms, this asks: for a given representation and target retrieval quality, how large must the compressed memory be, and when does increasing the feature budget stop helping because the remaining interference is caused by the representation geometry itself? This is not an asymptotic pattern-count capacity claim for recurrent or explicit-storage memories. Robustness to corrupted, partial, or shifted queries is outside the scope of the present analysis. Random Fourier features (RFFs) provide a convenient finite-dimensional approximation to shift-invariant kernels arXiv:2610.09056v1 [cs.LG] 6 Oct 2026 2
+
+[25]. Their approximation error has been studied extensively through structured constructions, variance reduction, and statistical guarantees [26]–[29]. In a compressed associative memory, however, accurate kernel approximation does not remove all cross-talk. If stored keys remain similar under the kernel, off-target values still contribute to retrieval even in the infinite-feature limit. This motivates separating two sources of error: finite-feature noise and structural interfer-ence caused by the geometry of the stored representations. This distinction is practically useful because the two failure modes require different remedies. Finite-feature noise can be reduced by increasing the feature budget, whereas structural interference requires changing the representation, kernel, or storage organization. This structural term is especially relevant for learned visual representations, whose pairwise geometry can vary substantially with architecture, training objective, centering, whitening, and kernel scale [30]–[34]. Effective rank summa-rizes spectral concentration [35], [36], but it does not describe the pairwise similarities seen by a particular memory kernel. We therefore work directly with the kernel matrix of the stored keys. For random or approximately isotropic values, the leading approximation separates retrieval interference into a finite-feature term, approximately (N − 1) /R , and a structural term P  
+
+> j̸=i
+
+K2 
+
+> ij
+
+. Intuitively, the structural term measures how strongly the other stored items overlap with item i under the chosen kernel. Once the kernel, stored keys, number of items N , and feature budget R are specified, no coefficient is fitted to the measured retrieval curve. This matters because two representations with the same nominal dimension, or even a similar effective rank, can require very different memory budgets if their pairwise kernel geometry differs. We first test this law on i.i.d., clustered, low-rank, and anisotropic synthetic keys, and then on learned visual representations. ResNet50 and ViT-B/16 embeddings [37], [38] are evaluated under RAW, CENTERED, and PCA-WHITENED geometry interventions and across multiple kernel scales. CIFAR-10 and STL-10 provide additional data and background conditions for fit-free boundary prediction, while DINOv2 ViT-B/14 [39] and CLIP ViT-B/16 [40] extend the analysis to self-supervised and vision-language repre-sentations. As a public structured-domain stress test, we use the SynthRAD2023 Task-1 MRI–CT training data [41], comprising 180 brain and 180 pelvis pairs. We then use 445 spatially aligned brain NCCT–CTA pairs as an independent clinical cohort. These experiments test whether the same analytic dependence on measured kernel geometry holds across substantially different representation regimes. The medical settings are especially informative because anatomi-cally similar observations, adjacent slices, or patient-derived representations may coexist in the same finite memory. Their structured similarity can increase interference even when the nominal feature dimension is large. Real learned values require an additional step. When values are correlated, the infinite-feature retrieval vector becomes a kernel-weighted mixture of stored values, so its target cosine depends jointly on the key kernel and the value Gram matrix. We characterize this deterministic joint key–value geometry exactly and approximate only the finite-R perturbation. Aligned, permuted, and random-value controls then test whether value similarity is consistent with the neighborhoods defined by the key kernel. Repeated permutations are used to measure the stability of this effect rather than relying on a single random shuffle. Finally, we ask whether the theory can guide memory design rather than only explain observed retrieval behavior. Candidate preprocessing and kernel choices are ranked using their predicted capacity curves, and the predicted RAW-to-WHITENED transition is compared with the empirical crossover. More broadly, the framework separates two different remedies for poor retrieval: increasing the finite feature budget when approximation noise dominates, or changing the representation when structural interference sets the limiting ceiling. A covariance-aware finite-R term is not uniformly better for absolute-capacity prediction, but in our aligned real-value experiments it improves crossover prediction. The main contribution is therefore analytical rather than architectural: a geometry-dependent capacity law for compressed finite-feature memory, an extension to correlated values through joint key–value geometry, and a test of whether the same quantities can guide memory sizing and representation selection. Figure 1 summarizes this progression. 
+
+## 2 RELATED WORK 
+
+2.1 Classical associative and correlation-matrix memo-ries 
+
+Associative memory predates modern deep learning, with early distributed memories [1], persistent-state models [2], and Hebbian learning [3]. Particularly close to the stor-age rule studied here are early linear heteroassociative or correlation-matrix memories, which store key–value asso-ciations by additive outer products and retrieve a value by multiplying the resulting matrix by a cue [14], [15]. Hopfield networks introduced recurrent attractor dynamics [4], and classical statistical-mechanical and coding-theoretic analyses quantified storage transitions for random patterns [5]–[7]. Sparse coding can substantially alter capacity scaling [8], while sparse distributed memory provides a high-dimensional alternative [42]. Dense associative memories increase capacity by modifying the interaction or energy function [9], [10], with later work relating large-capacity models to hidden-unit constructions [11]. Our setting is clos-est to correlation-matrix memory, but replaces the original address vectors with a finite random-feature map and asks how the resulting kernel geometry controls cross-talk and exact-key retrieval quality. 
+
+2.2 Fast-weight memories and linear attention 
+
+Fast-weight models use rapidly changing matrices to store recent associations without retaining an explicit list of all past activations [16], [17]. This viewpoint is especially relevant to linear attention: kernelized linear Transformers rewrite attention as a feature-map outer-product memory that can be updated recurrently [18], and Schlag et al. showed the formal equivalence between such linearized attention and fast-weight programmers [19]. Their analysis also identifies a capacity limitation when too many nonorthogonal key features are accumulated in a finite-dimensional fast-weight 3
+
+> Fig. 1. Overview of the analysis. (a) In a finite random-feature Hebbian memory, retrieval error separates into a finite-feature term that can be reduced by increasing the memory budget and a structural-interference term imposed by representation geometry. (b) With correlated values, the relevant deterministic quantities are the kernel-weighted value mixture and the associated value Gram geometry. (c) The resulting predicted capacity curves can be compared across preprocessing and kernel choices to estimate the required memory size, rank designs, or predict a crossover.
+
+matrix. Our analysis refines this dimension/orthogonality picture into a graded prediction based on the measured over-lap P  
+
+> j̸=i
+
+K2 
+
+> ij
+
+, while separately accounting for finite-feature approximation noise. Performer [43] and Random Feature Attention [44] further use random features to approximate attention kernels efficiently. Their primary goal is efficient approximation of normalized attention, whereas we study exact-key retrieval quality of a fixed compressed Hebbian matrix. More recent work makes the memory-collision issue still more explicit. LoLA uses self-recall error to identify key– value pairs that a recurrent linear-attention state remembers poorly and protects them with a sparse cache [20]. KATA formulates associative recall as a spherical-packing problem and characterizes a capacity–interference trade-off through a Welch interference floor while designing new feature maps [21]. Complementary capacity analyses derive sharp pattern-count thresholds for linear associative memories under winner-take-all or strict-separation criteria [22], [23]. Concurrent Hebbian constructions for Transformer MLPs analyze decoding-margin storage scaling under arbitrary key and value geometries [24]. These results are closely related in mechanism or terminology, but address different observables and capacity notions. To our knowledge, they do not provide an item-wise, kernel-conditional normalized retrieval-cosine law for compressed finite-random-feature Hebbian memory that separates finite-feature approximation noise from deterministic key overlap, extends quantitatively to correlated values, and predicts finite-memory design choices directly from measured representation geometry. Our narrower question is therefore how measured key geometry determines exact-key retrieval cross-talk in this compressed storage rule, how finite-feature noise enters separately, and how the analysis changes for correlated values. 
+
+2.3 Explicit neural memories and modern Hopfield net-works 
+
+Memory Networks and end-to-end variants introduced learned read/write mechanisms over explicit external memo-ries [45], [46]; product-key memories provide efficient access to very large learned tables [47]. Transformer attention [48] and modern continuous Hopfield networks are closely related mathematically [12], while Universal Hopfield Net-works cast several memory models as similarity–separation– projection systems [13]; sparse distributed memory has also been connected to attention [49]. These methods typically retain, address, or parameterize individual memory items and therefore differ from the fixed-size compressed matrix analyzed here. We use them as contextual baselines rather than as storage-equivalent comparators. 
+
+2.4 Random features and scalable kernel approximation 
+
+Kernel methods provide a natural language for nonlinear similarity [50]. Low-rank Nystr ¨ om approximations [51] and random Fourier features (RFFs) [25] are canonical routes to scalable kernel learning. Subsequent work developed structured fast transforms [26], quasi-Monte Carlo maps [52], orthogonal random features [27], sharper approximation-error analyses [28], [53], kernel-ridge guarantees [54], general-ization bounds [55], quadrature connections [56], unified risk analyses [57], and random-matrix characterizations of high-dimensional random-feature models [58]. A TPAMI survey reviews this broader area [29]. Recent data-aware random-feature attention further adapts the projection distribution to anisotropic pretrained queries and keys to reduce Monte Carlo variance [59]. Our finite-feature term is related to this RFF approximation-noise problem. The structural term is distinct: it is determined by off-target kernel overlap among stored keys and remains even when the kernel itself is evaluated exactly. 
+
+2.5 Representation geometry, whitening, and similarity structure 
+
+Learned representations can differ substantially in anisotropy, spectral concentration, and pairwise similarity structure [60]. Decorrelation has been used as an explicit regularizer in supervised networks [30] and as a central ingredient of self-supervised methods, including whitening-based learn-ing [31], Barlow Twins [32], VICReg [33], and feature-decorrelation analyses [61]. Contrastive and non-contrastive 4
+
+objectives such as SimCLR and BYOL provide distinct representation-learning regimes [62], [63]; subsequent work has explicitly analyzed alignment, uniformity, whitening, and dimensional collapse [31], [34], [64]. DINOv2 [39] and CLIP [40] provide additional self-supervised and vision-language representation families used in our evaluation. Neural and dimensional collapse give further examples of geometry changing independently of nominal dimension [34], [65]. Effective rank formalizes continuous dimensionality [35] and has been used to assess self-supervised representations [36]. Representation-comparison methods such as SVCCA [66] and centered kernel alignment (CKA) [67] use subspace or Gram/kernel structure rather than ambient dimension alone; spectral analyses of self-supervised learning likewise emphasize pairwise relations and task alignment [68]. In our setting, these geometric descriptors motivate the analysis but do not substitute for the memory-specific quantity P  
+
+> j̸=i
+
+K2
+
+> ij
+
+or, with correlated values, the joint key–value geometry entering the retrieval equation. 
+
+## 3 THEORY 
+
+3.1 Finite-feature Hebbian memory 
+
+Given stored key–value pairs {(ki, v i)}Ni=1 with vi ∈ Rdv , let 
+
+ϕR(k) ∈ RR be a unit-normalized random feature map and define 
+
+ˆKij = ϕR(ki)⊤ϕR(kj ).
+
+For the idealized unbiased construction used in the deriva-tion, 
+
+E[ ˆKij ] = K(ki, k j ),
+
+for a chosen normalized positive-definite kernel K with 
+
+K(k, k ) = 1 ; we write Kij = K(ki, k j ). We additionally assume fixed-pair consistency, ˆKij → Kij in probability as 
+
+R → ∞ ; for the i.i.d. RFF constructions considered here, the convergence is almost sure. Section 4.4 states how the separately row-normalized random-phase implementation differs from exact unbiasedness at finite R while retaining the same large-R limit. Treating ϕR(kj ) and vj as column vectors, the Hebbian memory is 
+
+M =
+
+> N
+
+X
+
+> j=1
+
+ϕR(kj )v⊤ 
+
+> j
+
+∈ RR×dv .
+
+For the exact-key query q = ki, the retrieved value is therefore 
+
+ˆvi = M ⊤ϕR(ki) = 
+
+> N
+
+X
+
+> j=1
+
+ˆKij vj ∈ Rdv .
+
+We evaluate the normalized retrieval cosine 
+
+Ci(R) = ⟨ˆvi, v i⟩∥ˆvi∥ ∥ vi∥ .
+
+3.2 Random-value capacity law 
+
+A convenient random-value reference model is vj
+
+> i.i.d.
+
+∼
+
+Unif( Sdv −1), for which E[v⊤ 
+
+> j
+
+vℓ] = 0 for j̸ = ℓ and off-diagonal inner products concentrate around zero as dv
+
+grows. The mutually orthogonal unit-value model gives the corresponding exact algebraic idealization. In either regime, the deterministic key-overlap term is 
+
+Istruct ,i = X 
+
+> j̸=i
+
+K2 
+
+> ij
+
+.
+
+Intuitively, this term measures how strongly the other stored items resemble item i under the chosen kernel. For an unbiased finite-feature estimator, 
+
+E[ ˆK2 
+
+> ij
+
+] = K2 
+
+> ij
+
++ Var( ˆKij ).
+
+Before the weak-overlap simplification, the concentrated cross-talk approximation therefore has the more general form 
+
+Ci(R) ≈
+
+1 + Istruct ,i + X 
+
+> j̸=i
+
+Var( ˆKij )
+
+
+
+> −1/2
+
+. (1) For paired sine/cosine RFFs with total feature dimension R
+
+and a normalized shift-invariant kernel K(x, z ) = κ(x − z),the exact pairwise variance is 
+
+Var( ˆKij ) = 1 + κ(2∆ ij ) − 2K2
+
+> ij
+
+R , ∆ij = ki − kj ,
+
+and for the RBF kernel this becomes (1 − K2 
+
+> ij
+
+)2/R [28]. In the weak-overlap regime used to obtain the simple closed form, most off-target K2 
+
+> ij
+
+are small, so the summed variance is approximately (N − 1) /R . This yields 
+
+Ci(R) ≈
+
+1 + N − 1
+
+R + X 
+
+> j̸=i
+
+K2
+
+> ij
+
+
+
+> −1/2
+
+. (2) Thus the simple law separates the leading finite-feature and structural terms, 
+
+Itotal ,i ≈ N − 1
+
+R| {z }
+
+> finite-feature
+
++ X 
+
+> j̸=i
+
+K2
+
+> ij
+
+| {z }
+
+> structural
+
+.
+
+As R → ∞ , consistency removes the finite-feature term and gives the key-only mean-field ceiling 
+
+Ci, ∞ ≈
+
+1 + X 
+
+> j̸=i
+
+K2
+
+> ij
+
+
+
+> −1/2
+
+. (3) This expression is exact for mutually orthogonal unit values (Appendix B) and is the corresponding concentration ap-proximation for finite-dimensional isotropic random values. Increasing R reduces finite-feature interference but cannot remove the structural ceiling set by key geometry. 
+
+3.3 Target-cosine capacity-boundary prediction 
+
+For a target cosine C⋆, a memory-design boundary is obtained by solving 
+
+C(R/N ) = C⋆
+
+for R/N , where the overline denotes the average over stored items. When structural interference is negligible, Eq. (2) gives the finite-N relation 
+
+RN ≈ 1 − 1/N 
+
+1/(C⋆)2 − 1 ,5
+
+which approaches [1 /(C⋆)2−1] −1 as N → ∞ . For C⋆ = 0 .95 ,the large-N prediction is R/N ≈ 9.26 . With heterogeneous nonzero structural interference, we solve the mean item-wise theoretical cosine numerically (Appendix B). In design terms, this boundary converts a measured representation geometry into an explicit memory-sizing estimate for a requested retrieval fidelity, while the infinite-R ceiling identifies targets that cannot be reached by increasing R alone. 
+
+3.4 Joint key–value geometry 
+
+For correlated values, the random-value approximation no longer captures the deterministic retrieval geometry. Define 
+
+y∞,i =
+
+> N
+
+X
+
+> j=1
+
+Kij vj , ai = ⟨y∞,i , v i⟩, bi = ∥y∞,i ∥2.
+
+Let Gjℓ = ⟨vj , v ℓ⟩ denote the value Gram matrix. Then 
+
+ai = X
+
+> j
+
+Kij Gji , bi = X
+
+> j,ℓ
+
+Kij Kiℓ Gjℓ .
+
+The infinite-feature retrieval cosine is exactly 
+
+Ci, ∞ = ⟨y∞,i , v i⟩∥y∞,i ∥ ∥ vi∥ = ai
+
+√bi
+
+for unit values and bi > 0.
+
+(4) Writing ˆvi = y∞,i +ϵi, the finite-R cosine contains numerator noise and numerator–denominator coupling. Equation (5) therefore uses a ratio-of-leading-moments/concentration approximation; it is not an identity for E[Ci(R)] . Under the simple finite-feature reference, 
+
+Ci(R) ≈ ai
+
+pbi + ( N − 1) /R . (5) Equation (5) reduces to the key-only law when values are effectively isotropic and the value Gram cross terms vanish. 
+
+3.5 Covariance-aware finite-R correction 
+
+For paired sine/cosine RFFs with R = 2 m, define Di through the exact second-moment identity 
+
+E∥ϵi∥2 = Di
+
+m = 2Di
+
+R .
+
+Using this exact noise energy inside the same mean-cosine approximation gives 
+
+Ccov  
+
+> i
+
+(R) ≈ ai
+
+pbi + 2 Di/R . (6) For approximately orthogonal random values under the RBF kernel, 
+
+Di ≈ 12
+
+X 
+
+> j̸=i
+
+(1 − K2 
+
+> ij
+
+)2 ≈ N − 12 ,
+
+only when off-target overlaps are predominantly small, re-covering Eq. (5). With strongly correlated aligned real values, off-diagonal covariance terms can make Di substantially larger. Equation (6) is not a universal replacement for Eq. (5). In the controls, it improves aligned real-value predictions but can overcorrect permuted values. We therefore use it only for close design comparisons where candidates have similar absolute performance but different finite-R noise. 
+
+## 4 EXPERIMENTAL SETUP 
+
+4.1 Synthetic key geometries 
+
+We evaluate i.i.d./isotropic keys and controlled departures from isotropy:  
+
+> •
+
+clustered keys, with within-cluster correlation con-trolled by ρ; 
+
+> •
+
+exact low-rank keys;  
+
+> •
+
+anisotropic keys with decaying spectrum. These experiments isolate structural interference while vary-ing R/N .
+
+4.2 Real visual representations 
+
+We use the test splits of CIFAR-100 and CIFAR-10 [69] and the STL-10 test split [70]. The original validation uses ImageNet-pretrained ResNet50 [37] and ViT-B/16 [38]. Images are resized to 256 pixels, center-cropped to 224 × 224 , and normalized with ImageNet statistics before feature extraction. The CIFAR-100 geometry intervention uses N = 4096 im-ages. Capacity-boundary experiments use at most N = 2048 
+
+images per CIFAR-10/STL-10 dataset/backbone condition, selected using subset seed 5207. Throughout the paper, “unfitted-condition” prediction means that no empirical coefficient or retrieval curve from that condition is fitted; the condition’s key geometry (and, for the joint theory, its value geometry) is measured and supplied to the analytic prediction. To evaluate the same analytic law across additional pretraining paradigms, we extract DINOv2 ViT-B/14 features [39] and CLIP ViT-B/16 features with OpenAI-pretrained weights [40] on CIFAR-10 and STL-10. DINOv2 uses resize-256/center-crop-224 with ImageNet normalization; CLIP uses its standard 224-pixel preprocessing and CLIP normal-ization. The resulting DINOv2 and CLIP embeddings have dimensions 768 and 512, respectively, and are ℓ2-normalized before memory analysis. The key-only DINOv2/CLIP ex-tension uses N = 2048 images per dataset/representation condition; the joint key–value controls use N = 1024 aligned image pairs in each direction. For each embedding matrix we consider: 1) RAW : row-normalized original embeddings; 2) CENTERED : dataset-mean subtraction followed by row normalization; 3) WHITENED : PCA whitening followed by row nor-malization, using 256 retained components where specified. These transformations act on the representation while leaving the underlying image set unchanged. These geometry inter-ventions can change how distinctly cases are represented in memory, with potential consequences for cross-modal retrieval and case-based reasoning. Centering and whiten-ing statistics are estimated separately for each sampled dataset/backbone representation. Whitening uses explicit mean subtraction followed by torch.pca_lowrank with 
+
+q = min(256 , N −1, d ), four power iterations, and no internal recentering. PCA scores are scaled by √N − 1/ max( S, 10 −8)
+
+and then row-normalized; the same sampled observations are used to estimate the transform and to evaluate their memory geometry because the experiment is an intervention 6
+
+on the representation itself rather than a learned downstream predictor. 
+
+4.3 Public and independent paired medical stress tests 
+
+Our primary medical stress test uses the public Syn-thRAD2023 Task-1 MRI-to-CT training data [41]. The released training split contains 180 brain and 180 pelvis MRI–CT pairs. We use the released paired data directly, without any additional learned or external registration step. The dataset provides paired planning CT and registered MRI volumes; masks supplied with the challenge are not used here. We load each pair in canonical orientation and, when the voxel grid or affine differs, resample MRI onto the CT grid for slice-wise paired analysis. Foreground-valid CT slices contain at least 3% finite pixels above −300 HU; the middle valid axial index defines the center, and the nearest valid slices at offsets {− 4, −2, 0, +2 , +4 } are used. The same indices are used for MRI. CT slices are represented with the three fixed Hounsfield-unit windows (40 , 80) , (100 , 400) ,and (600 , 2800) (center, width). MRI slices are independently normalized between their 1st and 99th intensity percentiles and repeated as three grayscale channels. DINOv2 and CLIP embeddings are then extracted with the encoder-specific preprocessing described above. The primary SynthRAD2023 geometry test is matched-
+
+N within each anatomical cohort. For each of 100 random constructions, the dispersed condition stores one center slice from 120 distinct patients, whereas the clustered condition stores five adjacent slices from 24 patients selected from that same 120-patient pool; both memories therefore contain exactly N = 120 items. The RBF scale is estimated only from the dispersed reference set and then held fixed for its paired clustered condition. Across the 100 random memory constructions, we summarize paired changes in mean struc-tural interference and mean item-wise C∞ using their mean, median, empirical construction quantiles, and fraction in the expected direction. We additionally report 95% bootstrap intervals for the mean construction-level contrast using 100,000 bootstrap resamples of these 100 construction ef-fects. These intervals quantify construction-level uncertainty conditional on the observed cohort and are not interpreted as patient-population confidence intervals. A separate finite-
+
+R validation uses five matched-N constructions per cohort under RAW, CENTERED, and WHITENED preprocessing, 
+
+R/N ∈ { 2, 4, 8, 16 }, and RFF seeds 0 and 1. The public cross-modal correlated-value test uses five patient-level subsets of 
+
+N = 120 in both MRI →CT and CT →MRI directions with aligned, permuted, and random values. As an independent NCCT–CTA cohort evaluation, we evaluate 445 paired brain NCCT and CTA examinations obtained from the AcT (Alteplase compared to Tenecteplase) randomized controlled trial. The study was approved by the Conjoint Health Research Ethics Board of the University of Calgary (REB18-1101) and by the local ethics boards of participating sites, with written informed consent provided by patients or authorized surrogates as applicable. All analyses were performed on de-identified data in accordance with institutional data-governance requirements. Because of participant privacy and data-use agreements, the clinical imaging data cannot be publicly released. The paired NCCT and CTA volumes share the same image grid and affine. Five axial slices are selected with the same foreground-valid, cen-ter, and two-slice-spacing rule used for SynthRAD2023 and encoded with the same three CT windows. The final matched-
+
+N construction experiment uses 100 random constructions with N = 400 : 400 examination-level center slices versus five adjacent slices from 80 examinations selected from the same pool. The finite-R confirmation uses five constructions spanning RAW/CENTERED/WHITENED geometry and 
+
+R/N ∈ { 2, 4, 8, 16 }, while the correlated-value confirmation uses five N = 256 subsets in both NCCT →CTA and CTA →NCCT directions. Patient-level clinical images and identifiers are not redistributed. 
+
+4.4 Kernel and random features 
+
+All key analyses use the RBF kernel 
+
+K(x, z ) = exp 
+
+
+
+− γ2
+
+2 ∥x − z∥22
+
+
+
+(7) on row-normalized representations. The automatic scale uses the same median-distance rule throughout. For the CIFAR-100 geometry intervention we use 200,000 sampled off-diagonal pairs; the broad ResNet/ViT and DINOv2/CLIP validations use 150,000 sampled pairs; and the subset crossover calculation uses 100,000. Sampling uses seed 5207. In the 100-construction medical matched-N analyses, all off-diagonal pairs of the dispersed reference subset are used (N = 120 for each SynthRAD2023 cohort and N = 400 for the independent NCCT–CTA cohort). In each case, 
+
+γ0 =
+
+s
+
+2 log 100 median ∥xi − xj ∥22
+
+, (8) so the median sampled kernel similarity is approximately 0.01. In the RAW/CENTERED/WHITENED intervention of Sec. 4.2, γ0 is estimated from RAW features and held fixed across the three transformations. In the broader representa-tion/kernel sweeps and capacity-boundary experiments, γ0
+
+is estimated separately for each representation mode and evaluated at multipliers 0.7, 1.0, and 1.4. The broad capacity validations use random-phase cosine RFFs, 
+
+z(x) = 
+
+q
+
+2/R cos( x⊤W + b), (9) with columns of W sampled from N (0 , γ 2I) and br ∼
+
+Unif[0 , 2π), followed by row normalization of z(x). Row normalization enforces unit self-inner-products but makes 
+
+E[z(x)⊤z(z)] = K(x, z ) only approximate at finite R. Before row normalization, the random-phase Monte Carlo inner product and both feature norms satisfy a strong-law limit; hence the row-normalized inner product remains consistent for every fixed pair as R → ∞ . Accordingly, the exact paired-RFF variance formula in Sec. 3.2 is not asserted for this separately normalized feature map: Eq. (2) is used as a leading-order prediction and is evaluated empirically. The paired construction used for the covariance analysis has the explicit second moments derived in the Appendix. Unless otherwise stated, R/N ∈ { 2, 4, 8, 16 } and empirical results are averaged over RFF seeds 0 and 1. The headline boundary evaluation is an explicit exception: it uses discovery seeds 100 and 101 to locate fixed-grid brackets and confirmation 7
+
+seeds 0–19 for the final estimates. Random/isotropic values have dimension 128 and are independently sampled and row-normalized for each seed. The DINOv2/CLIP extension uses the default ratios, seeds, preprocessing modes, and kernel-scale multipliers. The covariance-aware crossover experiment uses a differ-ent but explicitly controlled feature map: paired sine/cosine RFFs with R = 2 m. This paired construction is used because its finite-R second moments yield the coefficient Di in Sec. 3.5. The paper therefore distinguishes the random-phase normalized RFF used for the broad capacity validation from the paired RFF used for the covariance-sensitive crossover analysis; the latter is not treated as an interchangeable baseline. 
+
+4.5 Real correlated values and alignment controls 
+
+For paired visual memories, one backbone provides keys and the other provides values for the same image. We compare:  
+
+> •
+
+aligned real values : the original image-wise pairing;  
+
+> •
+
+permuted real values : value marginals and corre-lations preserved, image-wise key–value alignment disrupted;  
+
+> •
+
+random values : isotropic random values. The permutation control preserves the multiset of values and its marginal Gram geometry while disrupting image-wise alignment with key-kernel neighborhoods. The finite-R
+
+theory-agreement experiments use one fixed permutation per key–value pair, generated from seed 5207 + 31091 and shared across preprocessing, kernel scales, and memory budgets; random-value controls use seed 5207 + 72113 .To assess sensitivity to the particular permutation, we additionally repeat the infinite-R DINOv2–CLIP alignment control with 200 independent permutations for each of the 24 dataset ×direction ×preprocessing ×kernel-scale conditions. For pair index p, permutations are generated with NumPy 
+
+default_rng seed 832019+100003 p; the same permutation bank is shared across preprocessing and γ within a pair. We report the mean and central 95% empirical permutation interval of ∆C∞ = Caligned  
+
+> ∞
+
+− Cpermuted  
+
+> ∞
+
+, the fraction of permutations with ∆C∞ > 0, and the one-sided Monte Carlo permutation p-value (1 + nperm ≥aligned )/(B + 1) with 
+
+B = 200 .
+
+4.6 Evaluation 
+
+We report exact-key retrieval cosine, theory–empirical MAE/RMSE/correlation, target-cosine residual error, inter-polated boundary-location error in R/N , empirical-oracle regret for design selection, RAW-to-WHITENED crossover error, repeated-permutation uncertainty for the alignment control, and paired matched-N changes in Istruct and mean item-wise C∞ for the public and independent medical clustering stress tests. Top-1 recall, where shown in auxiliary outputs, is the fraction of queries for which the retrieved normalized vector has maximum cosine similarity with its own stored value among all N values. For the headline capacity-boundary evaluation, empirical retrieval is evalu-ated on a fixed R/N grid shared across conditions rather than at theory-centered probes. Two discovery RFF seeds are used only to identify empirical bracketing intervals on this fixed grid, and 20 independent confirmation seeds are then used to estimate the final boundary by linear interpolation within the discovered brackets. The grid is extended below R/N = 2 for the low-budget region, while retaining the same grid for all conditions in that region. The final headline summary contains 38 CIFAR-10/STL-10 conditions whose target crossings are bracketed within the evaluated budget; one additional condition lies beyond that budget and is excluded. For the complementary target-cosine residual, empirical retrieval is evaluated at the theory-predicted boundary using the same 20 confirmation seeds. For the crossover analysis, each dataset ×direction group contains five independently sampled subsets of size 1024. Subset s uses sampling seed 5207+1009 s, yielding 20 subset-level crossovers in total. Uncertainty in the absolute-error reduction is estimated by a block bootstrap that resamples subset IDs within each dataset while preserving the paired forward/reverse directions in each dataset–subset block. 
+
+## 5 RESULTS 
+
+5.1 Controlled key geometries 
+
+Across clustered, low-rank, and anisotropic keys, Eq. (2) gives small prediction errors relative to the observed re-trieval cosine. Clustered-key experiments achieved MAE 
+
+0.000626 , RMSE 0.000885 , and r = 0 .999992 . Exact low-rank experiments achieved MAE 0.000683 and r = 0 .999777 ,while anisotropic experiments achieved MAE 0.000445 and 
+
+r = 0 .999930 .The controlled geometries separate finite-feature and structural interference. For example, sufficiently correlated clustered keys retain a low infinite-R ceiling even as R grows, whereas geometries with small kernel overlap approach the finite-feature prediction [1 + ( N − 1) /R ]−1/2. Likewise, rank-8 keys exhibit a lower structural ceiling, while rank-32 and higher approach the isotropic reference. 
+
+5.2 Geometry interventions on real embeddings 
+
+Raw ResNet50 CIFAR-100 embeddings have nominal dimen-sion 2048 but effective rank about 6.5, with RMS cosine 0.392. The mean item-wise structural interference is 1.658, while the separately averaged item-wise infinite-R ceiling is 0.652. Centering increases effective rank to about 66.5, reduces mean structural interference to 0.0498, and increases the mean item-wise ceiling to 0.979. PCA whitening to 256 dimen-sions increases effective rank to about 252.7, reduces mean structural interference to 0.00835, and increases the mean item-wise ceiling to 0.996. Because Ci, ∞ = (1 + Istruct ,i )−1/2
+
+is nonlinear, the reported mean ceiling is not obtained by substituting the mean structural interference into Eq. (3). In this intervention, reducing the nominal dimension from 2048 to 256 is accompanied by higher capacity because the kernelized geometry is improved; ambient dimension alone does not account for the change. Practically, this example shows that increasing representation size is not necessarily the effective response to memory interference: a lower-dimensional but better-separated representation can require less memory to achieve higher retrieval fidelity. Effective rank is also insufficient to identify the capacity ceiling. Both whitened representations have effective rank 8                                                                                                                    
+
+> TABLE 1 Summary of theory–empirical agreement across the main validation stages. The boundary-location row is measured in units of R/N ; the other prediction-error rows are cosine errors.
+> Experiment MAE RMSE r
+> Clustered synthetic keys 0.000626 0.000885 0.999992 Low-rank synthetic keys 0.000683 0.001126 0.999777 Anisotropic synthetic keys 0.000445 0.000612 0.999930 ResNet/ViT multi-condition validation 0.003879 0.004838 0.999969 DINOv2/CLIP extension 0.000878 0.001308 0.999992 Public SynthRAD2023 finite-Rvalidation 0.002132 0.002868 0.999274 Independent NCCT/CTA finite-Rvalidation 0.002031 0.002659 0.999923 CIFAR-100 target-cosine residual 0.001183 0.002095 0.999577 CIFAR-10/STL-10 target-cosine residual (20 seeds) 0.000495 0.000531 0.999997 CIFAR-10/STL-10 fixed-grid boundary ( R/N , 20 seeds) 0.099807 0.199290 0.999894 Real correlated values, key-only theory 0.113460 0.152437 0.865286 Real correlated values, joint theory 0.004209 0.007842 0.999500 Joint controls, joint key–value theory 0.001828 –0.999863 DINOv2/CLIP joint controls 0.002926 0.006346 0.999712
+> TABLE 2 Representative real-embedding geometry statistics. DINOv2/CLIP rows use CIFAR-10 at the base kernel scale ( γ×1.0). Structural interference and the infinite-Rceiling are reported as separate item-wise averages; because the ceiling is nonlinear in Istruct ,i , mean Ci, ∞is not obtained by substituting mean Istruct ,i into Eq. (3) .
+> Backbone / mode Dim. Eff. rank RMS cos. mean Istruct ,imean Ci, ∞
+> ResNet50 RAW 2048 6.52 0.392 1.658 0.652 ResNet50 CENTERED 2048 66.50 0.122 0.0498 0.979 ResNet50 WHITENED 256 252.68 0.061 0.00835 0.996 ViT-B/16 RAW 768 32.98 0.173 1.354 0.680 ViT-B/16 CENTERED 768 98.74 0.099 0.436 0.850 ViT-B/16 WHITENED 256 253.70 0.061 0.187 0.920 DINOv2 RAW 768 61.42 0.126 0.732 0.779 DINOv2 WHITENED 256 252.43 0.059 0.268 0.889 CLIP RAW 512 1.44 0.834 3.858 0.567 CLIP WHITENED 256 246.77 0.060 0.252 0.894
+
+near 253, yet their structural interference and capacity ceilings differ. 
+
+5.3 Prediction across real representations and kernel scales 
+
+Across backbone, preprocessing, kernel scale, and R/N , the key-only theory achieves MAE 0.003879 , RMSE 0.004838 ,and r = 0 .999969 on the seed-averaged conditions. A fitted diagnostic line has slope 1.0065 and intercept −0.00765 ; these coefficients are descriptive only and are not used by the theory. As a direct control, we remove the structural term and retain only the finite-feature prediction [1 + ( N − 1) /R ]−1/2.Across the same 72 seed-averaged real-representation con-ditions, this finite-feature-only baseline has MAE 0.289832 ,compared with 0.003879 for the geometry-aware law, corre-sponding to a 98.66% reduction in MAE. Within this model, including the structural term is necessary to account for the variation across these real-representation conditions. Changing the kernel scale provides a counterexample to a rank-only explanation. ResNet50 RAW at γ × 1.4 retains effective rank about 6.5 but has structural interference of only 0.00589 and C∞ ≈ 0.997 . Conversely, whitened representations at γ × 0.7 have effective rank near 253 but structural interference around 23–24 and C∞ ≈ 0.20 .These comparisons show that effective rank alone does not determine retrieval; the kernel-transformed pairwise geometry is required by the capacity law. The DINOv2/CLIP representation-family extension ap-plies the same law to additional representation geome-tries without refitting empirical coefficients. Across 144 seed-averaged conditions spanning CIFAR-10/STL-10, DI-NOv2/CLIP, RAW/CENTERED/WHITENED preprocessing, three kernel scales, and four memory ratios, the geometry-aware law achieves MAE 0.000878, RMSE 0.001308, and 
+
+r = 0 .999992 . The finite-feature-only baseline has MAE 0.319933 on the same conditions. The agreement holds separately for CIFAR-10 CLIP (MAE 0.000825), CIFAR-10 DINOv2 (0.000790), STL-10 CLIP (0.001265), and STL-10 DINOv2 (0.000631). For example, CIFAR-10 CLIP RAW features have effective rank 1.44 at the base kernel scale, whereas whitening raises effective rank to 246.77 and lowers structural interference from 3.858 to 0.252; the same capacity law remains accurate across this change. 
+
+5.4 Public paired MRI–CT and independent NCCT–CTA cohort evaluation 
+
+The key-only capacity law remains accurate on the public SynthRAD2023 Task-1 training data. Across five matched-N constructions per anatomical cohort, 960 seed-averaged finite-R conditions span brain/pelvis, CT/MRI, DINOv2/CLIP, dispersed/clustered sampling, RAW/CENTERED/WHITENED preprocessing, and four 90.4 0.5 0.6 0.7 0.8 0.9 1.0      
+
+> Predicted retrieval cosine
+> 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+> Empirical retrieval cosine
+> (a)
+> i.i.d. Clustered Low-rank Anisotropic Identity
+> 0.4 0.5 0.6 0.7 0.8 0.9
+> Predicted retrieval cosine
+> −0.005 0.000 0.005
+> Empirical − predicted  (b)
+
+Fig. 2. Synthetic theory validation over 448 i.i.d., clustered, low-rank, and anisotropic conditions. (a) Predicted versus empirical retrieval cosine; the dashed line is the identity line. (b) Residual Cempirical − Cpredicted on an expanded vertical scale. The overall MAE is 5.79 × 10 −4; the residual range is [−0.00460 , 0.00708] .
+
+memory ratios. Overall, the agreement has an MAE of 0.002132 and an RMSE of 0.002868, and r = 0 .999274 . Thus the same fit-free law remains accurate on a public multi-center paired medical dataset with strong shared anatomy and cross-modal structure. The 100-construction matched-N experiment compares outcomes after concentrating a fixed-size memory into repeated same-patient anatomical neighborhoods. With N =120 in both conditions for each cohort, replacing 120 distinct-patient center slices with 24 patients with five adjacent slices lowers the mean item-wise infinite-feature ceiling in all eight cohort/modality/encoder conditions (Table 3). The conditional bootstrap interval for the mean construction-level contrast ∆C∞ = Cclustered  
+
+> ∞
+
+− Cdispersed  
+
+> ∞
+
+lies strictly below zero in every condition. Seven of eight conditions show the expected C∞ decrease in all 100 constructions; pelvis CT–CLIP shows the same direction in 96/100. Mean structural interference also increases in all eight conditions, with conditional bootstrap intervals for the mean effect above zero; pelvis CT–CLIP again shows the expected direction in 96/100 constructions. These results mirror the synthetic clustered-key pattern on a fully public anatomical dataset while holding N fixed, although patient diversity and within-patient slice clustering change together in this design. The independent 445-pair NCCT–CTA cohort gives a Raw rank=6.5 
+
+> C∞=0.652 Centered rank=66.5
+> C∞=0.979 Whitened rank=252.7
+> C∞=0.996 10 −2
+> 10 −1
+> 10 0
+> Structural interference  Istruct  1.66 0.0498 0.00835
+
+(a) Real-embedding geometry     
+
+> 21222324
+> Memory ratio R/N
+> 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95
+> Retrieval cosine
+
+(b) Capacity after geometry intervention   
+
+> Raw Centered Whitened Target C= 0.95
+
+Fig. 3. Geometry intervention on real CIFAR-100 ResNet50 embeddings. (a) Mean structural interference decreases from 1.658 (RAW) to 0.0498 (CENTERED) and 0.00835 (WHITENED), while the separately averaged item-wise infinite-R ceiling increases; whitening retains 256 components. (b) Lines show theoretical predictions, and markers show empirical retrieval for the same images under the three preprocessing choices. 
+
+closely matching result. Across 480 seed-averaged finite-
+
+R conditions, the law achieves MAE 0.002031, RMSE 0.002659, and r = 0.999923 . In its separate N = 400 ,100-construction matched-N test, mean ∆C∞ is negative for all four NCCT/CTA × DINOv2/CLIP conditions, with conditional bootstrap intervals for the mean construction contrast strictly below zero and the expected direction in 97–100 of 100 constructions. Mean ∆Istruct is positive in all four conditions; construction-level consistency is weaker for CTA–CLIP, where ∆Istruct > 0 in 60/100 constructions despite a positive conditional interval for the mean. The public and independent cohorts therefore support the same geometry-to-capacity relationship under different paired medical modalities and sampling designs. 
+
+5.5 Capacity-boundary prediction on unfitted condi-tions 
+
+We solve Eq. (2) for the ratio λth = R/N required to reach a requested mean retrieval cosine C⋆. This converts the theory from a retrospective description of interference into a 10 
+
+TABLE 3 SynthRAD2023 matched-N same-patient clustering over 100 random constructions. Entries are differences between clustered and dispersed means; brackets give 95% bootstrap intervals for the mean construction-level contrast conditional on the observed cohort. Both conditions contain N = 120 
+
+stored slices. 
+
+Cohort Modality Encoder ∆Istruct ∆C∞ C∞ ↓
+
+Brain CT CLIP +0 .273 [0 .255 , 0.292] −0.0755 [ −0.0798 , −0.0713] 100/100 Brain CT DINOv2 +0 .301 [0 .292 , 0.310] −0.0997 [ −0.1022 , −0.0972] 100/100 Brain MRI CLIP +0 .392 [0 .367 , 0.418] −0.0865 [ −0.0910 , −0.0821] 100/100 Brain MRI DINOv2 +0 .305 [0 .292 , 0.317] −0.0975 [ −0.1005 , −0.0944] 100/100 Pelvis CT CLIP +0 .063 [0 .054 , 0.072] −0.0225 [ −0.0253 , −0.0197] 96/100 Pelvis CT DINOv2 +0 .104 [0 .096 , 0.112] −0.0382 [ −0.0408 , −0.0356] 100/100 Pelvis MRI CLIP +0 .200 [0 .193 , 0.208] −0.0693 [ −0.0717 , −0.0669] 100/100 Pelvis MRI DINOv2 +0 .280 [0 .267 , 0.294] −0.0866 [ −0.0900 , −0.0833] 100/100 0.0 0.2 0.4 0.6 0.8 1.0 
+
+Predicted retrieval cosine     
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Empirical retrieval cosine
+> (a)
+> CLIP DINOv2 ResNet50 ViT-B/16 Identity
+> 0.2 0.4 0.6 0.8 1.0
+
+Predicted retrieval cosine 
+
+> −0.010 −0.005 0.000 0.005 0.010
+> Residual  Cempirical  − Cpredicted
+> (b)
+> ResNet/ViT MAE = 0.0039 DINOv2/CLIP MAE = 0.0009
+
+Fig. 4. Real-representation validation across supervised, self-supervised, and vision-language features. (a) Predicted versus empirical retrieval cosine for ResNet50, ViT-B/16, DINOv2, and CLIP conditions. (b) Signed residuals Cempirical − Cpredicted for the same conditions, showing the error scale directly. The geometry-aware law achieves MAE 0.003879 on the original ResNet/ViT validation and 0.000878 on the DINOv2/CLIP extension; for comparison, the finite-feature-only baseline yields MAE 0.289832 and 0.319933 on the two groups. 
+
+prospective memory-sizing calculation. Here “new” means that no empirical coefficient or retrieval curve from CIFAR-10/STL-10 is fitted; their measured geometry is supplied to the analytic law. In the earlier CIFAR-100 analysis, 21 reachable targets give a target-cosine residual MAE of 
+
+TABLE 4 Representative theory-predicted R/N values for a target cosine 
+
+C = 0 .95 on CIFAR-10/STL-10 unfitted-condition evaluations. 
+
+Dataset Representation Predicted R/N 
+
+CIFAR-10 ResNet50 RAW 10.52 CIFAR-10 ResNet50 CENTERED 10.54 CIFAR-10 ResNet50 WHITENED 9.30 CIFAR-10 ViT-B/16 RAW 13.01 CIFAR-10 ViT-B/16 CENTERED 12.49 CIFAR-10 ViT-B/16 WHITENED 9.31 STL-10 ResNet50 RAW 30.60 STL-10 ResNet50 CENTERED 28.59 STL-10 ResNet50 WHITENED 9.67 STL-10 ViT-B/16 WHITENED 9.59 
+
+0.001183, RMSE 0.002095, and r = 0 .999577 .For the headline CIFAR-10/STL-10 evaluation with ResNet50 and ViT-B/16, empirical crossings are located on a fixed R/N grid shared across conditions rather than by probes centered on λth . Two discovery RFF seeds identify the bracketing interval, after which 20 independent confirmation seeds estimate the empirical boundary by interpolation within that bracket. The final headline summary contains 38 conditions whose crossings are bracketed within the eval-uated budget. The resulting boundary-location agreement is 
+
+MAE R/N = 0 .099807 , RMSE R/N = 0 .199290 ,r = 0 .999894 .
+
+The mean signed error R/N theory − R/N empirical is 
+
++0 .014055 , the median absolute error is 0.050977, and the mean relative absolute error is 1.517%. The maximum absolute error is 0.853894 and occurs for a high-budget condition, where its relative error remains small. As a complementary diagnostic, empirical retrieval eval-uated at λth with the same 20 confirmation seeds gives 
+
+MAE C = 0 .000495 , RMSE C = 0 .000531 ,r = 0 .999997 ,
+
+with mean signed residual Cempirical − C⋆ = +0 .000495 ,median absolute residual 0.000473, and maximum absolute residual 0.001129. The boundary-location metric tests the predicted memory budget, whereas the target-cosine residual tests how closely empirical retrieval matches the requested target at the theory-predicted budget. 11 5 10 15 20 25 30 Theory-predicted boundary R/N                            
+
+> 510 15 20 25 30 Empirical boundary  R/N
+> 38 conditions 20 confirmation seeds MAE = 0.0998 R/N
+> relative MAE = 1.52%
+> C*= 0.80
+> C*= 0.90
+> C*= 0.95
+> Fig. 5. Fixed-grid 20-seed target-cosine boundary revalidation on CIFAR-10/STL-10. Theory-predicted versus empirical R/N boundaries for the 38 conditions whose target crossings are bracketed within the evaluated budget. Empirical brackets are located on a fixed grid using discovery seeds and the boundaries are estimated with 20 independent confirma-tion seeds. The boundary-location MAE is 0.099807 in units of R/N , the mean relative absolute error is 1.517%, and r= 0 .999894 .TABLE 5 Key-only theory versus joint key–value theory for real correlated values.
+> Setting MAE RMSE r
+> Key-only theory, all 0.113460 0.152437 0.865286 Joint key–value, all 0.004209 0.007842 0.999500 Joint key–value, CIFAR-10 0.002878 –0.999718 Joint key–value, STL-10 0.005540 –0.999400
+
+5.6 Joint key–value geometry for correlated values 
+
+When real ViT values are paired with real ResNet keys from the same images, the key-only random-value approximation becomes inadequate. The joint formulation first computes the exact deterministic infinite-R geometry through y∞,i , ai, and 
+
+bi; only the finite-R perturbation in Eq. (5) is approximate. Across CIFAR-10 and STL-10, the key-only theory has MAE 0.113460, RMSE 0.152437, and r = 0 .865286 , whereas the joint formulation has MAE 0.004209, RMSE 0.007842, and r =0.999500 . Thus the large improvement should be interpreted as identifying the correct deterministic key–value geometry and then showing that a simple finite-R correction remains accurate, rather than as adding a fitted correction to the key-only law. The aligned, permuted, and random-value controls sep-arate value correlation from key–value alignment. Across all control conditions, the joint theory has MAE 0.001828 and r = 0 .999863 ; for random values, the original key-only theory also becomes accurate (MAE 0.000751, r = 0 .999992 ). Permuting values preserves their marginal Gram geometry but reduces the infinite-R cosine, so the effect depends on how value similarity aligns with neighborhoods induced by the key kernel rather than on marginal value correlation alone. The DINOv2/CLIP extension reproduces the same pat-tern in both mapping directions. Across aligned, permuted, and random-value conditions, key-only MAE is 0.115619 (r = 0.693075 ), whereas joint-theory MAE is 0.002926 (r = 0 .999712 ); for aligned real values alone, MAE decreases from 0.170292 to 0.004745. With 200 independent permuta-tions per condition, the mean ∆C∞ = Caligned  
+
+> ∞
+
+−Cpermuted  
+
+> ∞
+
+is positive in all 24 conditions, every central 95% permutation interval lies above zero, and the aligned ceiling exceeds all 200 permuted realizations in every condition (one-sided Monte Carlo p = 1 /201 ≈ 0.00498 ). The mean gain across conditions is 0.02991. Directional asymmetry is expected because exchanging keys and values changes both the key kernel and the value Gram geometry. Public paired MRI–CT data provide a second correlated-value stress test without introducing a fitted term. Across five N = 120 subsets in both mapping directions, aligned brain CLIP values yield a key-only MAE of 0.1568 versus a joint-theory MAE of 0.01386, and aligned brain DINOv2 values yield 0.09038 versus 0.00888. The same pattern holds in the pelvis: 0.1099 versus 0.01156 for CLIP and 0.06594 versus 0.00729 for DINOv2, corresponding to an MAE reduction of about 89–91% across the four public aligned-value conditions. For random values, key-only MAE is already 0.0032–0.0057, consistent with the assumptions of Eq. (2). Aligned and permuted SynthRAD2023 conditions have similar joint-theory errors, so this experiment supports the need for joint key–value geometry under correlated cross-modal values rather than a claim of a large subject-wise MRI– CT alignment gain. The independent NCCT–CTA cohort provides the same qualitative pattern: aligned-value MAE decreases from 0.5061 to 0.01447 for CLIP and from 0.2702 to 0.01876 for DINOv2, while random-value key-only errors remain small. 
+
+5.7 Finite-R covariance is regime dependent 
+
+The simple finite-R correction gives the lowest global error over the tested range of R/N . A covariance-denominator correction improves aligned real values but can over-correct permuted values. A second-order delta expansion was also tested and had larger global error, particularly at small R/N ;it became competitive only at very large R. We therefore do not use higher-order delta terms in the main theory. Accordingly, Eq. (6) is used as a targeted design-boundary correction rather than as a replacement for the simpler absolute-capacity approximation. 
+
+5.8 Theory-guided configuration selection 
+
+Using aligned real values, we let theory select among RAW/WHITENED preprocessing and kernel multipliers. This experiment asks whether the same quantities that explain retrieval can also reduce empirical trial-and-error when choosing a representation and kernel for a fixed mem-ory budget. The empirical oracle is the best configuration measured at each memory budget. The key-only theory has mean regret 0.001138; the joint key–value theory has mean regret 0.002568; an arbitrary fixed default (RAW, γ = 1 .0)has mean regret 0.271329. Both theory-based selectors have much lower regret than the fixed default, although the joint 12 Aligned Permuted Random 10 −3       
+
+> 10 −2
+> 10 −1
+> Prediction MAE
+> (a) ResNet to ViT controls
+> Key-only theory Joint key-value theory
+> CIFAR-10 STL-10 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8
+> Infinite-R cosine  C∞
+> Δ = 0.110 Δ = 0.195
+> (b) ResNet to ViT alignment
+> Aligned Permuted
+> Aligned Permuted Random 10 −3
+> 10 −2
+> 10 −1
+> Prediction MAE
+> (c) DINOv2 / CLIP controls
+> C10 CLIP→DINO C10 DINO→CLIP STL10 CLIP→DINO STL10 DINO→CLIP 0.00 0.05 0.10 0.15 0.20
+> ΔC∞ (aligned − permuted)
+> 200 permutations/condition 24/24 conditions: 95% permutation interval > 0
+> (d) Repeated-permutation control
+
+Fig. 6. Joint key–value controls across representation families. (a, b) Original ResNet →ViT controls. (c) DINOv2/CLIP prediction error for aligned, permuted, and random values. (d) Repeated-permutation estimates of ∆C∞ = Caligned  
+
+> ∞
+
+− Cpermuted  
+
+> ∞
+
+for representative RAW conditions with 
+
+γ = 1 .0; error bars are central 95% permutation intervals over 200 permutations. Across all 24 DINOv2/CLIP alignment conditions, the mean ∆C∞
+
+and the corresponding permutation interval are strictly positive. 
+
+key–value selector is not uniformly better than the key-only selector for the discrete candidate set. The empirical optimum changes with memory budget: RAW can be preferable at low budgets, whereas WHITENED becomes preferable at higher budgets. Thus there is no single representation choice that is uniformly preferable across storage constraints; the useful design depends on the available memory budget. This motivates direct prediction of the RAW-to-WHITENED crossover. 
+
+5.9 Covariance-aware crossover prediction 
+
+We summarize subset-level empirical crossovers for two datasets and both backbone directions. Across all 20 subsets, the simple theory overestimates the crossover on average, whereas the covariance-aware theory underestimates it on average. The covariance-aware prediction is closer to the empirical crossover in all 20 subsets and reduces overall MAE by 84.5%. The overall absolute-error reduction is 2.561244, corre-sponding to a relative MAE reduction of 84.468%. In all groups and overall, 
+
+rcov pred ≤ rempirical ≤ rsimple pred ,
+
+with a bracketing fraction of 1.0. A block bootstrap over the 10 dataset–subset blocks, preserving the paired forward/reverse directions within each block, gives amean reduction of 2.561244 with a 95% interval of 
+
+[2 .415581 , 2.735610] . The same ordering is observed in both datasets and both mapping directions, although a smaller residual bias remains. 
+
+## 6 DISCUSSION 
+
+The experiments separate two effects that are often conflated in finite-feature associative memory: approximation noise from the finite random map and deterministic cross-talk induced by stored representation geometry. With correlated values, the relevant deterministic object expands from the key kernel to joint key–value geometry. This separation has a direct design consequence: poor retrieval caused by finite-feature noise calls for more memory, whereas poor retrieval caused by structural overlap calls for a different representation, kernel, or organization of stored items. The main implications are summarized below. 
+
+6.1 Geometry, rather than nominal dimension or rank, controls the structural ceiling 
+
+Our ResNet experiment gives a direct counterexample to dimension-only reasoning: PCA whitening reduces nominal dimension from 2048 to 256 while increasing the mean item-wise infinite-R ceiling from about 0.65 to about 1.0. Effective rank is informative about spectral concentration [36], but it is not sufficient either. Representations with similar ef-fective rank can have different structural interference, and changing kernel scale can reverse capacity while leaving rank unchanged. In this compressed random-feature regime, the relevant quantity is therefore the representation geometry as 13 
+
+> TABLE 6 Cross-directional RAW-to-WHITENED crossover summary. Lower MAE is better.
+
+Group n Empirical mean Simple mean Cov. mean Simple MAE Cov. MAE CIFAR-10 R50 →ViT 5 2.7867 5.0577 2.1620 2.2710 0.6247 STL-10 R50 →ViT 5 2.2956 5.1350 2.0911 2.8394 0.2045 CIFAR-10 ViT →R50 5 3.2725 6.7342 2.4528 3.4617 0.8197 STL-10 ViT →R50 5 2.3525 5.9092 2.1175 3.5567 0.2349 
+
+ALL 20 2.6768 5.7090 2.2058 3.0322 0.4710 Key-only Joint key-value Fixed default 10 −3           
+
+> 10 −2
+> 10 −1
+> Mean design regret
+> (a)
+> 0.0011 0.0026 0.2713
+> 0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0
+> Simple-theory absolute crossover error
+> 0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0
+> Covariance-aware absolute error  (b)
+> 20/20 subsets below the identity line MAE: 3.032 → 0.471
+> Equal error
+> Fig. 7. Theory-guided design. (a) Mean regret of two theory-based selectors and a fixed RAW default with γ= 1 .0. (b) Absolute crossover errors for the simple and covariance-aware predictions over 20 subset-level forward and reverse conditions (10 dataset–subset blocks). Every point lies below the equal-error line; overall MAE decreases from 3.0322 to 0.4710.
+
+seen through the memory kernel. Consequently, nominal width or embedding dimension alone is not a reliable guide for memory provisioning: representations should be evaluated by the interference they induce under the intended storage rule. 
+
+6.2 The infinite-R ceiling and finite-R noise are distinct 
+
+Structural interference remains even with an exact ker-nel, whereas finite random-feature noise decreases with increasing R. This separation explains why some geometries improve with additional feature budget while others saturate below a target cosine. It also clarifies the operational meaning of the capacity boundary used here: the required R/N 
+
+depends on both finite-feature noise and the structural ceiling of the measured key set. In practical terms, the theory can indicate whether additional feature dimensions are expected to yield useful improvements in retrieval quality or whether the system has already entered a geometry-limited regime in which extra memory has diminishing benefit. 
+
+6.3 Anatomical clustering recurs across public and independent medical data 
+
+The public SynthRAD2023 experiment extends the geometry test beyond natural-image classification benchmarks with a publicly available paired medical dataset. At matched 
+
+N , concentrating the memory on multiple adjacent slices from fewer subjects lowers mean item-wise C∞ across brain/pelvis, CT/MRI, and DINOv2/CLIP conditions; an independent NCCT–CTA cohort shows the same pattern. This is consistent with the clustered-key mechanism observed synthetically: same-patient anatomical clustering changes the kernel-overlap distribution without changing nominal embedding dimension or the number of stored items. Be-cause subject diversity and within-patient sampling vary together, these experiments do not isolate the effect of slice adjacency alone. Instead, they test whether stronger similarity among samples from the same patient leads to greater kernel overlap and retrieval interference at fixed 
+
+N . The resampling intervals describe variability within the observed cohorts rather than uncertainty for new patients. The goal is not to define a modality-specific capacity law, but to test whether the same geometry–interference relationship extends to structured medical-image data. For imaging systems, the practical concern is that large collections can contain many highly similar anatomical observations, so the number of images or feature dimensions alone may overstate how much distinct information a compressed memory can preserve. 
+
+6.4 Correlated values require joint geometry, while de-sign comparisons are more sensitive 
+
+With correlated real values, cross-talk can reinforce or oppose the target. The kernel-weighted mixture y∞,i makes this 14 
+
+dependence explicit, and the aligned/permuted controls show that the relevant object is the alignment between key-kernel neighborhoods and value similarity. The DINOv2– CLIP permutation analysis reduces concern about depen-dence on a single favorable shuffle. The simple joint finite-R
+
+law is accurate over most tested conditions, whereas the covariance-aware correction is useful mainly for closely matched design curves: small systematic errors that barely affect global MAE can still move a RAW-to-WHITENED crossover. This distinction is relevant when theory is used for configuration selection, because the practical question is often not only whether retrieval can be predicted accurately in absolute terms, but whether two competing designs can be ordered correctly at the available memory budget. 
+
+6.5 Practical interpretation for retrieval-oriented AI sys-tems 
+
+In a deployed retrieval system, structural interference means that many stored cases occupy similar neighborhoods under the chosen representation and kernel, so a query can retrieve a mixture of several plausible cases rather than a clean match. This is relevant to tasks such as retrieval of similar prior images, cross-modal image–report or image–image recall, and case-based reasoning, where memory quality depends not only on the number of stored cases but also on how distinctly they are represented. The theory therefore suggests a practical sequence for system design: first measure kernel overlap in the intended representation, then use the predicted capacity curve to determine whether the target retrieval quality is reachable at the available feature budget. If finite-feature noise dominates, increasing R is the natural remedy; if the structural ceiling is already limiting, changing preprocessing, representation, kernel scale, or the composition of the stored set is more appropriate than simply allocating a larger memory. 
+
+6.6 Scope relative to other memory regimes 
+
+Modern Hopfield networks and attention-based memories explicitly retain or parameterize stored patterns and therefore operate in a different storage regime [12], [13]. Direct MLP mappings are also not storage-equivalent comparators for the fixed compressed matrix studied here. Likewise, the negative controls do not support a generic orthogonality advantage: square orthogonal value codebooks are lossless rotations, optimizer-dependent code differences largely collapse un-der SGD, sparse compositional codes do not outperform Gaussian codes, and learned orthogonal addressing does not consistently beat a noise-trained direct MLP. Our re-tained claim is narrower: measured kernel geometry predicts interference and target-cosine capacity in this compressed finite-feature regime. 
+
+## 7 DISCUSSION 
+
+A practical extension is retrieval from noisy or incomplete queries, which are common in clinical settings because repeated or multimodal observations rarely produce identical representations. In such cases, retrieval error would combine query mismatch with the storage interference studied here. This distinction may also matter in applications such as similar-case retrieval or multimodal recall, where failure can arise either from limited memory resources or from overlap among clinically similar representations. Extending the present analysis beyond exact-key retrieval could therefore help separate these sources of error and guide whether to increase memory capacity, change the representation, or improve query matching. 
+
+## 8 LIMITATIONS 
+
+The analysis is restricted to exact-key queries; robustness to corrupted, partial, or shifted cues is not modeled. Extending the framework to noisy or incomplete queries is a natural next step for clinical retrieval settings, where the query representation may differ from any stored case because of acquisition variability, pathology, or missing information. Capacity is defined operationally through target retrieval cosine and feature budget R/N , not as an asymptotic pattern-count capacity for other memory mechanisms. The finite-budget derivation is specific to random-feature Hebbian retrieval, and the real-data experiments use pretrained embeddings rather than an end-to-end learned memory. The covariance-aware correction remains approximate and retains residual crossover bias, while the simple finite-R
+
+law is less accurate for strongly correlated values at very low R, where expectation-of-ratio effects are non-negligible. The medical stress tests use 2-D axial slices and general-purpose encoders rather than 3-D or medically specialized representations, and they evaluate representation geometry and memory interference rather than clinical prediction; therefore, the present results should not be interpreted as evidence that the capacity law directly improves diagnostic or prognostic performance. The public experiment is limited to the SynthRAD2023 Task-1 training split. Additional modal-ities, 3-D encoders, non-visual data, and end-to-end learned memories would provide more stringent tests of generality. 
+
+## 9 CONCLUSION 
+
+For exact-key retrieval in compressed random-feature Heb-bian memory, retrieval interference separates into a finite-feature component and a structural component determined by kernel overlap among stored keys. The resulting law predicts target-cosine capacity across synthetic, natural-image, and medical representation geometries, including a public matched-N SynthRAD2023 MRI–CT stress test and an independent NCCT–CTA confirmation. For correlated values, the deterministic retrieval geometry is governed jointly by the key kernel and value Gram matrix, while only the finite-
+
+R perturbation is approximated. The same quantities can also estimate the memory budget required for a target retrieval quality, rank candidate representation and kernel configu-rations, and localize design crossovers. Within this storage regime, the practical value of the theory is therefore not only to describe capacity but also to distinguish when a system is limited by insufficient finite-feature budget from when it is limited by representation geometry itself. Measured kernel geometry is consequently a more informative guide to memory sizing and representation selection than nominal dimension or effective rank alone. 15 
+
+## DATA AND CODE AVAILABILITY 
+
+The SynthRAD2023 Task-1 training data used for the public medical validation are publicly available from the challenge dataset release [41]. Reproduction code and aggregate source tables for the synthetic, natural-image, SynthRAD2023, and independent cohort analyses will be released publicly upon publication at https://github.com/jianhai-zhang/memory capacity. The independent cohort analysis uses paired NCCT– CTA examinations from the AcT (Alteplase compared to Tenecteplase) randomized controlled trial. The study was approved by the Conjoint Health Research Ethics Board of the University of Calgary (REB18-1101) and by local ethics boards at participating sites, with written informed consent provided by patients or authorized surrogates as applicable. Analyses used de-identified data under institutional data-governance requirements. Because of participant privacy and data-use agreements, the clinical imaging data cannot be publicly released. 
+
+## APPENDIX ABACKGROUND AND NOTATION 
+
+A.1 Shift-invariant kernels and the two RFF construc-tions used here 
+
+For a normalized real shift-invariant positive-definite kernel 
+
+K(x, z ) = κ(x − z) with K(x, x ) = 1 , Bochner’s represen-tation implies that κ(δ) can be written as an expectation of Fourier features; RFFs approximate this expectation by Monte Carlo sampling [25], [29], [50]. The broad capacity validations use random-phase cosine features followed by row normalization, as specified in Sec. 4.4. The covariance analysis uses a paired sine/cosine construction because its second moments admit the clean expression below. For that paired construction, let R = 2 m and draw independent frequencies ωr from the spectral density of the kernel. Define 
+
+ϕR(x) = 1
+
+√m
+
+ cos( ω⊤ 
+
+> 1
+
+x), sin( ω⊤ 
+
+> 1
+
+x), . . . , 
+
+cos( ω⊤
+
+> m
+
+x), sin( ω⊤
+
+> m
+
+x)⊤.
+
+(10) Then 
+
+ˆKij = ϕR(ki)⊤ϕR(kj )= 1
+
+m
+
+> m
+
+X
+
+> r=1
+
+cos 
+
+
+
+ω⊤ 
+
+> r
+
+∆ij 
+
+
+
+, ∆ij = ki − kj , (11) where E[ ˆKij ] = Kij and ˆKii = 1 exactly. By the strong law of large numbers, ˆKij → Kij almost surely for every fixed pair. The random-phase cosine estimator used in the broad validation has the same fixed-pair limit before row normaliza-tion; its feature norms converge almost surely to one, so the row-normalized inner product is also consistent even though it is not exactly unbiased at finite R. Structured and variance-reduced alternatives to this Monte Carlo construction have been studied extensively [26]–[28], [52], [53]. 
+
+A.2 Hebbian memory as a kernel-weighted value mix-ture 
+
+Let vj ∈ Rdv be values represented as column vectors. Stacking a finite-feature address with values gives the Hebbian memory 
+
+M =
+
+> N
+
+X
+
+> j=1
+
+ϕR(kj )v⊤ 
+
+> j
+
+. (12) Querying a stored key ki yields 
+
+ˆvi = M ⊤ϕR(ki) = 
+
+> N
+
+X
+
+> j=1
+
+ˆKij vj . (13) Thus the memory is a randomized kernel smoother in value space. In contrast to explicit key–value memories [12], [13], [45], [46], the individual pairs are not retained after they are aggregated into M .
+
+A.3 Why effective rank is not enough 
+
+For singular values {σq }, one common effective-rank defini-tion is 
+
+erank( X) = exp − X
+
+> q
+
+pq log pq
+
+!
+
+, pq = σq
+
+P 
+
+> s
+
+σs
+
+, (14) which continuously measures spectral dimensionality [35], [36]. Equation (14) depends only on the singular-value spectrum. By contrast, the structural interference P  
+
+> j̸=i
+
+K2
+
+> ij
+
+depends on pairwise positions after the chosen kernel and kernel scale are applied. Consequently, equal effective rank does not imply equal memory interference. Whitening can alter these pairwise distances because it is generally not an orthogonal transform; this explains why RAW and WHITENED representations can have different memory capacity even when the whitened representation has lower nominal dimension. 
+
+## APPENDIX BDERIVATION OF THE KEY -O NLY CAPACITY LAW 
+
+B.1 Exact conditional cosine under orthogonal values 
+
+We first expose the interference mechanism in the idealized case of unit, mutually orthogonal values, ⟨vj , v ℓ⟩ = δjℓ .Because ˆKii = 1 , Eq. (13) becomes 
+
+ˆvi = vi + X 
+
+> j̸=i
+
+ˆKij vj . (15) The target projection and squared norm are therefore 
+
+⟨ˆvi, v i⟩ = 1 , ∥ˆvi∥2 = 1 + X 
+
+> j̸=i
+
+ˆK2 
+
+> ij
+
+, (16) and the conditional retrieval cosine is exactly 
+
+Ci(R | ˆK) = 
+
+1 + X 
+
+> j̸=i
+
+ˆK2
+
+> ij
+
+
+
+> −1/2
+
+. (17) For high-dimensional random isotropic values, the same ex-pression is a mean-field approximation because off-diagonal value inner products concentrate near zero. More precisely, 16 
+
+conditional on coefficients {aj }j̸ =i and independent isotropic unit values in dimension dv , let 
+
+zi = X 
+
+> j̸=i
+
+aj vj , Ai = X 
+
+> j̸=i
+
+a2 
+
+> j
+
+, Bi = X 
+
+> j̸=i
+
+a4 
+
+> j
+
+.
+
+Then 
+
+Var 
+
+
+
+v⊤ 
+
+> i
+
+zi
+
+
+
+= Ai
+
+dv
+
+, Var  ∥zi∥2 = 2( A2 
+
+> i
+
+− Bi)
+
+dv
+
+. (18) Thus the random-value deviations are controlled by the total cross-talk energy and dv , rather than by N/d v alone, and vanish in the concentration limit at fixed Ai.
+
+B.2 Finite-feature and structural terms 
+
+Write ˆKij = Kij + δij with E[δij ] = 0 . Then 
+
+E[ ˆK2 
+
+> ij
+
+] = K2 
+
+> ij
+
++ Var( ˆKij ). (19) For the paired RFF estimator in Eq. (11), used for the covariance-sensitive analysis, independence across the m
+
+frequency draws gives the standard exact second-moment formula [28] 
+
+Var( ˆKij ) = 1
+
+m Var ω
+
+h
+
+cos( ω⊤∆ij )
+
+i
+
+(20) 
+
+= 1
+
+R
+
+1 + κ(2∆ ij ) − 2K2
+
+> ij
+
+ ≡ νij 
+
+R , (21) where we used cos 2 u = (1 + cos 2 u)/2 and R = 2 m. For the RBF kernel used throughout the experiments, 
+
+κ(2∆ ij ) = K4 
+
+> ij
+
+,
+
+so the paired-RFF variance coefficient simplifies exactly to 
+
+νij = (1 − K2 
+
+> ij
+
+)2. (22) Combining Eqs. (17)–(21) and replacing the expectation of the inverse square root by the inverse square root of the concentrated cross-talk energy gives the more detailed approximation 
+
+Ci(R) ≈
+
+1 + X 
+
+> j̸=i
+
+K2 
+
+> ij
+
++ 1
+
+R
+
+X 
+
+> j̸=i
+
+νij 
+
+
+
+> −1/2
+
+. (23) For the RBF specialization in Eq. (22), the simple finite-feature term follows when typical off-target overlaps are weak enough that K2 
+
+> ij
+
+≪ 1, so that νij = (1 − K2 
+
+> ij
+
+)2 ≈ 1 on average. Hence 
+
+Ci(R) ≈
+
+1 + N − 1
+
+R + X 
+
+> j̸=i
+
+K2
+
+> ij
+
+
+
+> −1/2
+
+, (24) which is Eq. (2) in the main text. No empirical coefficient is fitted. The approximation is a leading-order consequence of (i) RFF second moments, (ii) weak value cross-correlations, and (iii) concentration of the cross-talk norm. The simple 
+
+(N − 1) /R term is also evaluated empirically under the random-phase normalized RFF used in the broad capacity experiments; the feature-map-specific covariance correction is reserved for the paired construction. 
+
+B.3 Infinite-feature ceiling and reachability 
+
+Taking R → ∞ in the orthogonal-value model removes the Monte Carlo term but leaves the deterministic kernel overlap: 
+
+Ci, ∞ = [1 + Istruct ,i ]−1/2 , Istruct ,i = X 
+
+> j̸=i
+
+K2 
+
+> ij
+
+. (25) This equality is exact for mutually orthogonal unit values; for finite-dimensional isotropic random values it is the corresponding mean-field limit justified by the concentration statement in Eq. (18). Therefore, increasing the feature budget cannot overcome the structural ceiling predicted by the key geometry. For a per-item target C⋆, the simplified law is reachable only if 
+
+(C⋆)−2 − 1 − Istruct ,i > 0. (26) If R = rN , the corresponding approximate ratio is 
+
+r⋆i ≈ 1 − 1/N 
+
+(C⋆)−2 − 1 − Istruct ,i 
+
+. (27) When Istruct ,i = 0 , N is large, and C⋆ = 0 .95 , Eq. (27) gives 
+
+r⋆ ≈ 9.26 . In the experiments, we predict the boundary from the mean theoretical cosine across heterogeneous items and solve it numerically; Eq. (27) is the homogeneous closed-form interpretation. 
+
+## APPENDIX CJOINT KEY –V ALUE GEOMETRY 
+
+C.1 Exact infinite-feature geometry 
+
+For arbitrary unit values, define the exact-kernel retrieval 
+
+y∞,i = X
+
+> j
+
+Kij vj . (28) The infinite-feature cosine is therefore exactly 
+
+Ci, ∞ = ⟨y∞,i , v i⟩∥y∞,i ∥ = ai
+
+√bi
+
+, bi > 0, (29) with ai = ⟨y∞,i , v i⟩ and bi = ∥y∞,i ∥2. Let Gjℓ = ⟨vj , v ℓ⟩.Expanding the two quantities gives 
+
+ai = X
+
+> j
+
+Kij Gji , (30) 
+
+bi = X
+
+> j,ℓ
+
+Kij Kiℓ Gjℓ . (31) Equations (30)–(31) are the algebraic reason the aligned/permuted control is informative. Permuting values preserves the multiset of values and hence the marginal value geometry, but it changes how entries of G
+
+are paired with the kernel row Ki:.
+
+C.2 First-order finite-R approximation 
+
+Let δij = ˆKij − Kij and define 
+
+ϵi = X
+
+> j
+
+δij vj , ˆvi = y∞,i + ϵi. (32) For unit values, the finite-R cosine is exactly 
+
+Ci(R) = ai + ⟨ϵi, v i⟩
+
+pbi + 2 ⟨y∞,i , ϵ i⟩ + ∥ϵi∥2 . (33) 17 
+
+For an unbiased feature estimator such as the paired RFF construction, E[ϵi] = 0 . Hence 
+
+E∥ˆvi∥2 = bi + E∥ϵi∥2, (34) while the expected numerator is ai. Replacing the expectation of the ratio in Eq. (33) by the ratio formed from these leading moments is a concentration/mean-field step; in general, 
+
+E[X/ √Y ]̸ = E[X]/pE[Y ]. If the finite-feature noise energy is further approximated by (N − 1) /R , then 
+
+Ci(R) ≈ ai
+
+pbi + ( N − 1) /R . (35) This is the joint finite-R law, not an identity for E[Ci(R)] .For the separately row-normalized random-phase implemen-tation, finite-R unbiasedness is only approximate and the same expression is used as a leading-order prediction. Both 
+
+ai and bi depend on the value Gram matrix, which is why key geometry alone is insufficient for correlated values. 
+
+## APPENDIX DCOVARIANCE -A WARE FINITE -R NOISE 
+
+For each independent frequency draw r, define 
+
+c(r) 
+
+> ij
+
+= cos( ω⊤ 
+
+> r
+
+∆ij ), qir = X 
+
+> j̸=i
+
+ c(r) 
+
+> ij
+
+− Kij 
+
+vj . (36) Because ˆKii = 1 , only terms with j̸ = i contribute stochastic error, and 
+
+ϵi = 1
+
+m
+
+> m
+
+X
+
+> r=1
+
+qir . (37) The qir are i.i.d. with zero mean. Therefore 
+
+E∥ϵi∥2 = 1
+
+m E∥qi1∥2 = 2Di
+
+R , Di ≡ E∥qi1∥2. (38) Let 
+
+Γi,jℓ = Cov ω (cij , c iℓ ) . (39) Expanding Eq. (38) gives the exact second-moment identity 
+
+Di = X
+
+> j,ℓ ̸=i
+
+Γi,jℓ Gjℓ . (40) For an even shift-invariant kernel, the product-to-sum iden-tity yields 
+
+Γi,jℓ = 12 [κ(∆ ij − ∆iℓ ) + κ(∆ ij + ∆ iℓ )] − Kij Kiℓ . (41) Equations (40)–(41) show that finite-R noise is itself a joint geometry quantity: RFF coefficient covariances are weighted by the value Gram matrix. When values are random and approximately orthogonal, Gjℓ ≈ δjℓ . For the RBF kernel, 
+
+Γi,jj = 12 (1 + K4 
+
+> ij
+
+) − K2 
+
+> ij
+
+= 12 (1 − K2 
+
+> ij
+
+)2,
+
+so 
+
+Di ≈ 12
+
+X 
+
+> j̸=i
+
+(1 − K2 
+
+> ij
+
+)2 ≈ N − 12
+
+only when off-target overlaps are predominantly small. Correlated aligned values can instead make the off-diagonal terms in Eq. (40) large. Replacing the random-value noise reference by Eq. (38) gives 
+
+Ccov  
+
+> i
+
+(R) ≈ ai
+
+pbi + 2 Di/R . (42) This expression is still an expectation-of-ratio approximation: it does not fully retain numerator–denominator coupling or higher moments. This limitation is empirically visible at low 
+
+R and explains why the covariance denominator improves aligned design-boundary prediction without universally dominating the simpler law for permuted values. 
+
+## APPENDIX EAPPROXIMATION STATUS AND SCOPE 
+
+The main equations should be interpreted at three levels. First, the identities defining y∞,i , ai, and bi are exact once the kernel, keys, and values are specified, and Di is an exact paired-RFF second-moment quantity once the shift-invariant kernel and its spectral construction are specified. Second, the RFF variance and covariance expressions in Appendices B and D are exact for the paired sine/cosine feature construction under independent frequency sam-pling; they are not asserted as exact for the separately row-normalized random-phase feature map used in the broad capacity validation. Third, the key-only law for finite-dimensional random values, the weak-overlap reduction 
+
+R−1 P 
+
+> j̸=i
+
+(1 − K2 
+
+> ij
+
+)2 ≈ (N − 1) /R , and the conversion of finite-R moments into a mean retrieval cosine use concentration/mean-field approximations. The small em-pirical error in the random-value and high-R regimes is consistent with these approximations in those settings; the correlated-value low-R experiments explicitly document where it becomes less exact. We therefore retain the simpler first-order laws in the main paper and report the higher-order expansion with larger low-R error as a negative result rather than presenting it as a general correction. 
+
+## APPENDIX FNEGATIVE RESULTS AND SANITY CHECKS 
+
+F.1 Orthogonal value rotations 
+
+Square orthogonal value codebooks do not create additional representational capacity by themselves. One-hot, signed permutation, Hadamard, and Haar codebooks are related by orthogonal transformations. Apparent differences under AdamW were strongly optimizer/coordinate dependent and largely disappeared under SGD. 
+
+F.2 Learned orthogonal addressing 
+
+Orthogonal learned addressing outperformed Gaussian ad-dressing in some noisy associative-address experiments, but it did not consistently outperform a noise-trained direct MLP. This result motivates studying address geometry but does not support a universal superiority claim. 
+
+F.3 Sparse compositional codes 
+
+Random sparse signed compositional addresses behaved similarly to Gaussian random codes and did not produce a general capacity advantage, so this mechanism is not used in the main analysis. 18 
+
+F.4 SimilarityCE and soft retrieval 
+
+Similarity cross-entropy improved rotational invariance but weakened alignment for linear Hebbian readout. For square orthogonal address matrices A, soft retrieval satisfies 
+
+pA (A⊤V ) = pV, 
+
+so the orthogonal memory cancels algebraically and the operation becomes ordinary value attention. 
+
+F.5 Hybrid objectives 
+
+Combining similarity cross-entropy, cosine alignment, and margin objectives produced a trade-off: better rotational invariance came with weaker linear Hebbian alignment. No tested setting improved both. 
+
+F.6 Higher-order finite-R expansions 
+
+A second-order delta expansion involving additional numerator–denominator covariance terms has larger global error than the first-order approximation, particularly at low 
+
+R/N . It becomes competitive only at large R and is not part of the main theory. 
+
+## REFERENCES 
+
+[1] D. J. Willshaw, O. P. Buneman, and H. C. Longuet-Higgins, “Non-holographic associative memory,” Nature , vol. 222, no. 5197, pp. 960–962, 1969. [2] W. A. Little, “The existence of persistent states in the brain,” 
+
+Mathematical Biosciences , vol. 19, no. 1–2, pp. 101–120, 1974. [3] D. O. Hebb, The Organization of Behavior: A Neuropsychological Theory .New York: Wiley, 1949. [4] J. J. Hopfield, “Neural networks and physical systems with emergent collective computational abilities,” Proceedings of the National Academy of Sciences , vol. 79, no. 8, pp. 2554–2558, 1982. [5] R. J. McEliece, E. C. Posner, E. R. Rodemich, and S. S. Venkatesh, “The capacity of the Hopfield associative memory,” IEEE Transac-tions on Information Theory , vol. 33, no. 4, pp. 461–482, 1987. [6] D. J. Amit, H. Gutfreund, and H. Sompolinsky, “Spin-glass models of neural networks,” Physical Review A , vol. 32, no. 2, pp. 1007–1018, 1985. [7] ——, “Storing infinite numbers of patterns in a spin-glass model of neural networks,” Physical Review Letters , vol. 55, no. 14, pp. 1530–1533, 1985. [8] M. V. Tsodyks and M. V. Feigel’man, “The enhanced storage capacity in neural networks with low activity level,” Europhysics Letters , vol. 6, no. 2, pp. 101–105, 1988. [9] D. Krotov and J. J. Hopfield, “Dense associative memory for pattern recognition,” in Advances in Neural Information Processing Systems ,vol. 29, 2016, pp. 1172–1180. [10] M. Demircigil, J. Heusel, M. L ¨ owe, S. Upgang, and F. Vermet, “On a model of associative memory with huge storage capacity,” Journal of Statistical Physics , vol. 168, no. 2, pp. 288–299, 2017. [11] D. Krotov and J. J. Hopfield, “Large associative memory problem in neurobiology and machine learning,” in International Conference on Learning Representations , 2021. [12] H. Ramsauer, B. Sch¨ afl, J. Lehner, P. Seidl, M. Widrich, L. Gruber, M. Holzleitner, T. Adler, D. P. Kreil, M. K. Kopp, G. Klambauer, J. Brandstetter, and S. Hochreiter, “Hopfield networks is all you need,” in International Conference on Learning Representations , 2021. [13] B. Millidge, T. Salvatori, Y. Song, T. Lukasiewicz, and R. Bogacz, “Universal Hopfield networks: A general framework for single-shot associative memory models,” in Proceedings of the 39th International Conference on Machine Learning , ser. Proceedings of Machine Learn-ing Research, vol. 162. PMLR, 2022, pp. 15 561–15 583. [14] J. A. Anderson, “A simple neural network generating an interactive memory,” Mathematical Biosciences , vol. 14, no. 3–4, pp. 197–220, 1972. [15] T. Kohonen, “Correlation matrix memories,” IEEE Transactions on Computers , vol. C-21, no. 4, pp. 353–359, 1972. [16] J. Schmidhuber, “Learning to control fast-weight memories: An alternative to dynamic recurrent networks,” Neural Computation ,vol. 4, no. 1, pp. 131–139, 1992. [17] J. Ba, G. E. Hinton, V. Mnih, J. Z. Leibo, and C. Ionescu, “Using fast weights to attend to the recent past,” in Advances in Neural Information Processing Systems , vol. 29, 2016, pp. 4331–4339. [18] A. Katharopoulos, A. Vyas, N. Pappas, and F. Fleuret, “Trans-formers are RNNs: Fast autoregressive transformers with linear attention,” in Proceedings of the 37th International Conference on Machine Learning , ser. Proceedings of Machine Learning Research, vol. 119. PMLR, 2020, pp. 5156–5165. [19] I. Schlag, K. Irie, and J. Schmidhuber, “Linear transformers are secretly fast weight programmers,” in Proceedings of the 38th International Conference on Machine Learning , ser. Proceedings of Machine Learning Research, vol. 139. PMLR, 2021, pp. 9355–9366. [20] L. McDermott, R. W. J. Heath, and R. Parhi, “LoLA: Low-rank linear attention with sparse caching,” Transactions on Machine Learning Research , 2026, originally released as arXiv:2505.23666. [21] A. Ghriss and S. Chakraborty, “Kernelized linear attention: Breaking the capacity wall with symmetric cones,” 2026, arXiv:2607.17419. [22] N. Barnfield, J. Kim, E. Nichani, J. D. Lee, and Y. M. Lu, “Sharp capacity thresholds in linear associative memory: From winner-take-all to listwise retrieval,” 2026, arXiv:2605.05189. [23] A. Giorlandino, S. Goldt, and A. Maillard, “Sharp storage capacity of a simplified model of linear associative memory,” in New Fron-tiers in Associative Memory Workshop at the International Conference on Learning Representations , 2026, NFAM 2026 Poster. [24] R. Garcia, J. Liu, R. Junkins, S. Eyuboglu, A. Rudra, and C. R´ e, “MLPs are Hebbians: Constructing efficient fact-storing MLPs for transformers,” 2026, arXiv:2607.10034. [25] A. Rahimi and B. Recht, “Random features for large-scale kernel machines,” in Advances in Neural Information Processing Systems ,vol. 20, 2007, pp. 1177–1184. [26] Q. Le, T. Sarlos, and A. Smola, “Fastfood: Computing Hilbert space expansions in loglinear time,” in Proceedings of the 30th International Conference on Machine Learning , ser. Proceedings of Machine Learning Research, vol. 28, no. 3. PMLR, 2013, pp. 244– 252. [27] F. X. Yu, A. T. Suresh, K. M. Choromanski, D. N. Holtmann-Rice, and S. Kumar, “Orthogonal random features,” in Advances in Neural Information Processing Systems , vol. 29, 2016, pp. 1975–1983. [28] D. J. Sutherland and J. Schneider, “On the error of random Fourier features,” in Proceedings of the Thirty-First Conference on Uncertainty in Artificial Intelligence , 2015, pp. 862–871. [29] F. Liu, X. Huang, Y. Chen, and J. A. K. Suykens, “Random features for kernel approximation: A survey on algorithms, theory, and beyond,” IEEE Transactions on Pattern Analysis and Machine Intelligence , vol. 44, no. 10, pp. 7128–7148, 2022. [30] M. Cogswell, F. Ahmed, R. B. Girshick, L. Zitnick, and D. Batra, “Reducing overfitting in deep networks by decorrelating repre-sentations,” in International Conference on Learning Representations ,2016. [31] A. Ermolov, A. Siarohin, E. Sangineto, and N. Sebe, “Whitening for self-supervised representation learning,” in Proceedings of the 38th International Conference on Machine Learning , ser. Proceedings of Machine Learning Research, vol. 139. PMLR, 2021, pp. 3015–3024. [32] J. Zbontar, L. Jing, I. Misra, Y. LeCun, and S. Deny, “Barlow twins: Self-supervised learning via redundancy reduction,” in 
+
+Proceedings of the 38th International Conference on Machine Learning ,ser. Proceedings of Machine Learning Research, vol. 139. PMLR, 2021, pp. 12 310–12 320. [33] A. Bardes, J. Ponce, and Y. LeCun, “VICReg: Variance-invariance-covariance regularization for self-supervised learning,” in Interna-tional Conference on Learning Representations , 2022. [34] L. Jing, P. Vincent, Y. LeCun, and Y. Tian, “Understanding di-mensional collapse in contrastive self-supervised learning,” in 
+
+International Conference on Learning Representations , 2022. [35] O. Roy and M. Vetterli, “The effective rank: A measure of effective dimensionality,” in Proceedings of the European Signal Processing Conference , 2007, pp. 606–610. [36] Q. Garrido, R. Balestriero, L. Najman, and Y. LeCun, “RankMe: As-sessing the downstream performance of pretrained self-supervised representations by their rank,” in Proceedings of the 40th Interna-tional Conference on Machine Learning , ser. Proceedings of Machine Learning Research, vol. 202. PMLR, 2023, pp. 10 929–10 974. 19 
+
+[37] K. He, X. Zhang, S. Ren, and J. Sun, “Deep residual learning for image recognition,” in Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition , 2016, pp. 770–778. [38] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, and N. Houlsby, “An image is worth 16x16 words: Transformers for image recognition at scale,” in International Conference on Learning Representations , 2021. [39] M. Oquab, T. Darcet, T. Moutakanni, H. V. Vo, M. Szafraniec, V. Khalidov, P. Fernandez, D. Haziza, F. Massa, A. El-Nouby, M. Assran, N. Ballas, W. Galuba, R. Howes, P.-Y. Huang, S.-W. Li, I. Misra, M. Rabbat, V. Sharma, G. Synnaeve, H. Xu, H. J´ egou, J. Mairal, P. Labatut, A. Joulin, and P. Bojanowski, “DINOv2: Learning robust visual features without supervision,” Transactions on Machine Learning Research , 2024. [40] A. Radford, J. W. Kim, C. Hallacy, A. Ramesh, G. Goh, S. Agar-wal, G. Sastry, A. Askell, P. Mishkin, J. Clark, G. Krueger, and I. Sutskever, “Learning transferable visual models from natural language supervision,” in Proceedings of the 38th International Con-ference on Machine Learning , ser. Proceedings of Machine Learning Research, vol. 139. PMLR, 2021, pp. 8748–8763. [41] A. Thummerer, E. van der Bijl, A. G. Jr., J. J. C. Verhoeff, J. A. Langendijk, S. Both, C. N. A. T. van den Berg, and M. Maspero, “SynthRAD2023 grand challenge dataset: Generating synthetic CT for radiotherapy,” Medical Physics , vol. 50, no. 7, pp. 4664–4674, 2023. [42] P. Kanerva, Sparse Distributed Memory . Cambridge, MA: MIT Press, 1988. [43] K. M. Choromanski, V. Likhosherstov, D. Dohan, X. Song, A. Gane, T. Sarlos, P. Hawkins, J. Q. Davis, A. Mohiuddin, L. Kaiser, D. Belanger, L. J. Colwell, and A. Weller, “Rethinking attention with performers,” in International Conference on Learning Representations ,2021. [44] H. Peng, N. Pappas, D. Yogatama, R. Schwartz, N. A. Smith, and L. Kong, “Random feature attention,” in International Conference on Learning Representations , 2021. [45] J. Weston, S. Chopra, and A. Bordes, “Memory networks,” in 
+
+International Conference on Learning Representations , 2015. [46] S. Sukhbaatar, A. Szlam, J. Weston, and R. Fergus, “End-to-end memory networks,” in Advances in Neural Information Processing Systems , vol. 28, 2015, pp. 2440–2448. [47] G. Lample, A. Sablayrolles, M. Ranzato, L. Denoyer, and H. J´ egou, “Large memory layers with product keys,” in Advances in Neural Information Processing Systems , vol. 32, 2019. [48] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, and I. Polosukhin, “Attention is all you need,” in Advances in Neural Information Processing Systems , vol. 30, 2017. [49] T. Bricken and C. Pehlevan, “Attention approximates sparse distributed memory,” in Advances in Neural Information Processing Systems , vol. 34, 2021, pp. 15 301–15 315. [50] B. Sch ¨ olkopf and A. J. Smola, Learning with Kernels: Support Vector Machines, Regularization, Optimization, and Beyond . MIT Press, 2002. [51] C. K. I. Williams and M. Seeger, “Using the Nystr ¨ om method to speed up kernel machines,” in Advances in Neural Information Processing Systems , vol. 13, 2001. [52] J. Yang, V. Sindhwani, H. Avron, and M. W. Mahoney, “Quasi-Monte Carlo feature maps for shift-invariant kernels,” in Proceed-ings of the 31st International Conference on Machine Learning , ser. Proceedings of Machine Learning Research, vol. 32, no. 1. PMLR, 2014, pp. 485–493. [53] B. K. Sriperumbudur and Z. Szab ´ o, “Optimal rates for random Fourier features,” in Advances in Neural Information Processing Systems , vol. 28, 2015, pp. 1144–1152. [54] H. Avron, M. Kapralov, C. Musco, C. Musco, A. Velingker, and A. Zandieh, “Random Fourier features for kernel ridge regression: Approximation bounds and statistical guarantees,” in Proceedings of the 34th International Conference on Machine Learning , ser. Pro-ceedings of Machine Learning Research, vol. 70. PMLR, 2017, pp. 253–262. [55] A. Rudi and L. Rosasco, “Generalization properties of learning with random features,” in Advances in Neural Information Processing Systems , vol. 30, 2017, pp. 3215–3225. [56] F. Bach, “On the equivalence between kernel quadrature rules and random feature expansions,” Journal of Machine Learning Research ,vol. 18, no. 21, pp. 1–38, 2017. [57] Z. Li, J.-F. Ton, D. Oglic, and D. Sejdinovic, “Towards a unified analysis of random Fourier features,” in Proceedings of the 36th International Conference on Machine Learning , ser. Proceedings of Machine Learning Research, vol. 97. PMLR, 2019, pp. 3905–3914. [58] Z. Liao, R. Couillet, and M. W. Mahoney, “A random matrix analysis of random Fourier features: Beyond the Gaussian kernel, a precise phase transition, and the corresponding double descent,” in Advances in Neural Information Processing Systems , vol. 33, 2020, pp. 13 939–13 950. [59] A. Farzam, H. Mobahi, N. A. Miller, and L. Sernau, “Data-aware random feature kernel for transformers,” in 2nd DeLTa Workshop at the International Conference on Learning Representations , 2026. [60] Y. Bengio, A. Courville, and P. Vincent, “Representation learning: A review and new perspectives,” IEEE Transactions on Pattern Analysis and Machine Intelligence , vol. 35, no. 8, pp. 1798–1828, 2013. [61] T. Hua, W. Wang, Z. Xue, S. Ren, Y. Wang, and H. Zhao, “On feature decorrelation in self-supervised learning,” in Proceedings of the IEEE/CVF International Conference on Computer Vision , 2021, pp. 9598–9608. [62] T. Chen, S. Kornblith, M. Norouzi, and G. Hinton, “A simple framework for contrastive learning of visual representations,” in 
+
+Proceedings of the 37th International Conference on Machine Learning ,ser. Proceedings of Machine Learning Research, vol. 119. PMLR, 2020, pp. 1597–1607. [63] J.-B. Grill, F. Strub, F. Altch´ e, C. Tallec, P. H. Richemond, E. Buchatskaya, C. Doersch, B. A. Pires, Z. D. Guo, M. G. Azar, B. Piot, K. Kavukcuoglu, R. Munos, and M. Valko, “Bootstrap your own latent: A new approach to self-supervised learning,” in 
+
+Advances in Neural Information Processing Systems , vol. 33, 2020. [64] T. Wang and P. Isola, “Understanding contrastive representation learning through alignment and uniformity on the hypersphere,” in Proceedings of the 37th International Conference on Machine Learning ,ser. Proceedings of Machine Learning Research, vol. 119. PMLR, 2020, pp. 9929–9939. [65] V. Papyan, X. Y. Han, and D. L. Donoho, “Prevalence of neural collapse during the terminal phase of deep learning training,” 
+
+Proceedings of the National Academy of Sciences , vol. 117, no. 40, pp. 24 652–24 663, 2020. [66] M. Raghu, J. Gilmer, J. Yosinski, and J. Sohl-Dickstein, “SVCCA: Singular vector canonical correlation analysis for deep learning dynamics and interpretability,” in Advances in Neural Information Processing Systems , vol. 30, 2017. [67] S. Kornblith, M. Norouzi, H. Lee, and G. Hinton, “Similarity of neural network representations revisited,” in Proceedings of the 36th International Conference on Machine Learning , ser. Proceedings of Machine Learning Research, vol. 97. PMLR, 2019, pp. 3519–3529. [68] R. Balestriero and Y. LeCun, “Contrastive and non-contrastive self-supervised learning recover global and local spectral embedding methods,” in Advances in Neural Information Processing Systems ,vol. 35, 2022, pp. 26 671–26 685. [69] A. Krizhevsky, “Learning multiple layers of features from tiny images,” University of Toronto, Tech. Rep., 2009. [70] A. Coates, A. Ng, and H. Lee, “An analysis of single-layer networks in unsupervised feature learning,” in Proceedings of the Fourteenth International Conference on Artificial Intelligence and Statistics , ser. Proceedings of Machine Learning Research, vol. 15. PMLR, 2011, pp. 215–223.
